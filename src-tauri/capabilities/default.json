@@ -1,0 +1,24 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for the main window. Scopes are intentionally narrow — gateway secrets and FS access are mediated by Rust commands, not the renderer.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "dialog:default",
+    "os:default",
+    "store:default",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$HOME/projects/**" },
+        { "path": "$HOME/.claude/projects/**/memory/**" },
+        { "path": "$HOME/.claude/CLAUDE.md" },
+        { "path": "$HOME/CLAUDE.md" },
+        { "path": "$HOME/.local/share/gateway/**" },
+        { "path": "$HOME/.config/gateway/**" }
+      ]
+    }
+  ]
+}

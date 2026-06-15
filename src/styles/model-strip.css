@@ -1,0 +1,131 @@
+/* ModelStrip — compact, grouped model list for the bottom status bar.
+   Surfaces every model `list_models` aggregates (Claude / Cortex Gateway / Ollama),
+   grouped by source with a per-source hue and a dim state for unavailable
+   models. Design tokens only — the status bar chrome is UI sans now; the
+   model-id pills re-assert mono below (slugs are code-like). */
+
+.model-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* keep the strip flush; it scrolls but stays quiet */
+  padding: 0 var(--space-1);
+}
+.model-strip::-webkit-scrollbar { height: 0; }
+
+.model-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+}
+
+/* Per-source coloring driven by .source-hue-* classes; --group-hue is the
+   single knob the label + pills read so a new source is one rule. */
+.model-group.source-hue-blue   { --group-hue: var(--hue-blue); }
+.model-group.source-hue-purple { --group-hue: var(--hue-purple); }
+.model-group.source-hue-green  { --group-hue: var(--hue-green); }
+
+.model-group-label {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-0_5) var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--group-hue) 38%, transparent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--group-hue) 14%, transparent);
+  color: var(--group-hue);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.model-group-models {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Pills are real <button>s now (clicking sets the active chat model), so
+   reset the UA button chrome back to the pill look. */
+.model-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-0_5) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  /* Model ids are code-like slugs (claude-opus-4-8, gpt-5.5) — keep them mono
+     now that the status bar chrome around them reads in the UI sans. */
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  line-height: inherit;
+  white-space: nowrap;
+  cursor: default;
+  transition: border-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+
+.model-pill.available {
+  color: var(--text-dim);
+  border-color: color-mix(in srgb, var(--group-hue) 26%, var(--border));
+}
+.model-pill.available::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  margin-right: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--success);
+  flex: 0 0 auto;
+}
+.model-pill.available {
+  cursor: pointer;
+}
+.model-pill.available:hover {
+  color: var(--text);
+  border-color: var(--group-hue);
+  background: color-mix(in srgb, var(--group-hue) 10%, var(--bg-sunken));
+}
+.model-pill.available:focus-visible {
+  outline: 1px solid var(--group-hue);
+  outline-offset: 1px;
+}
+
+/* The currently selected chat model — the one always-lit pill in the strip. */
+.model-pill.selected {
+  color: var(--group-hue);
+  border-color: var(--group-hue);
+  background: color-mix(in srgb, var(--group-hue) 16%, transparent);
+  font-weight: 600;
+}
+.model-pill.selected:hover {
+  color: var(--group-hue);
+}
+
+.model-pill.unavailable {
+  color: var(--text-muted);
+  border-color: var(--border);
+  opacity: 0.55;
+}
+.model-pill.unavailable::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  margin-right: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+/* Compact status bar: tighten spacing to match the rest of the row. */
+.status-bar.compact .model-strip { gap: var(--space-1); }
+.status-bar.compact .model-pill,
+.status-bar.compact .model-group-label {
+  padding: var(--space-px) var(--space-1);
+}

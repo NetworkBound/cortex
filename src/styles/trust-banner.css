@@ -1,0 +1,71 @@
+/**
+ * TrustBanner-local styles.
+ *
+ * A non-blocking bar that appears at the top of the workspace when the active
+ * project is sandboxed read-only. Reuses the surface/border/accent CSS
+ * variable conventions from the rest of src/styles so it sits inside the
+ * existing visual language without hard-coding theme colours.
+ */
+
+.trust-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: var(--surface-2, rgba(255, 255, 255, 0.04));
+  color: var(--text, inherit);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.trust-banner-icon {
+  flex: 0 0 auto;
+  font-size: var(--text-base);
+  line-height: 1;
+}
+
+.trust-banner-msg {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.trust-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+.trust-banner-btn {
+  appearance: none;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: var(--surface-3, rgba(255, 255, 255, 0.08));
+  color: var(--text, inherit);
+  font: inherit;
+  font-size: var(--text-xs);
+  line-height: 1;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard);
+}
+
+.trust-banner-btn:hover:not(:disabled) {
+  background: var(--surface-4, rgba(255, 255, 255, 0.12));
+  border-color: var(--accent, rgba(255, 255, 255, 0.24));
+}
+
+.trust-banner-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.trust-banner-btn-primary {
+  border-color: var(--accent, rgba(255, 255, 255, 0.24));
+  background: var(--accent-soft, rgba(120, 170, 255, 0.16));
+}
+
+.trust-banner-btn-primary:hover:not(:disabled) {
+  background: var(--accent, rgba(120, 170, 255, 0.28));
+}
