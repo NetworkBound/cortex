@@ -1,0 +1,259 @@
+/* Local-model Cookbook panel. Design tokens only (8pt space scale, type scale,
+   radius scale, theme-adaptive semantic + hue colors) so it tracks every theme
+   in both modes — no hardcoded literals. */
+
+.cookbook-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  overflow-y: auto;
+  height: 100%;
+}
+
+.cookbook-error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
+  font-size: var(--text-sm);
+}
+
+/* host-specs strip */
+.cookbook-specs {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.cookbook-spec {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cookbook-spec svg {
+  color: var(--text-muted);
+  flex: none;
+}
+
+.cookbook-spec-val {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cookbook-spec-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.cookbook-callout {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-border);
+  color: var(--warning);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+/* recommendation list */
+.cookbook-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.cookbook-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "main action"
+    "meta action";
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.cookbook-row-unfit {
+  opacity: 0.62;
+}
+
+.cookbook-row-main {
+  grid-area: main;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.cookbook-name {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+
+.cookbook-tier {
+  font-size: var(--text-xs);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  text-transform: capitalize;
+  color: var(--hue-blue);
+  background: color-mix(in srgb, var(--hue-blue) 14%, transparent);
+}
+
+.cookbook-tier.tier-coding {
+  color: var(--hue-green);
+  background: color-mix(in srgb, var(--hue-green) 14%, transparent);
+}
+
+.cookbook-tier.tier-reasoning {
+  color: var(--hue-purple);
+  background: color-mix(in srgb, var(--hue-purple) 14%, transparent);
+}
+
+.cookbook-tier.tier-vision {
+  color: var(--hue-orange);
+  background: color-mix(in srgb, var(--hue-orange) 14%, transparent);
+}
+
+.cookbook-installed {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--success);
+}
+
+.cookbook-row-meta {
+  grid-area: meta;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.cookbook-tag {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.cookbook-fit {
+  color: var(--success);
+}
+
+.cookbook-unfit {
+  color: var(--text-muted);
+}
+
+.cookbook-pull-btn {
+  grid-area: action;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-hover);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+
+.cookbook-pull-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.cookbook-pull-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* installed rows: one-click hand-off into the chat composer */
+.cookbook-use-btn {
+  grid-area: action;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border-strong));
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-hover));
+  color: var(--accent);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+
+.cookbook-use-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-hover));
+}
+
+.cookbook-use-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* in-flight pull progress */
+.cookbook-progress {
+  grid-area: action;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 120px;
+}
+
+.cookbook-progress-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+
+.cookbook-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width var(--duration-base) var(--ease-standard);
+}
+
+.cookbook-progress-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
