@@ -1,0 +1,133 @@
+/**
+ * Channels — live-send affordances.
+ *
+ * Rendered by `ChannelsPanel.tsx` while a `post_message` send is in flight:
+ * a compact per-`@role` status tray above the composer (spinner → ✓ / ✕)
+ * plus streaming transcript bubbles that grow as `delta` events land over
+ * the `channels:progress:<channelId>` Tauri event. Also carries the markdown
+ * overrides for transcript bubbles (agent/system prose renders through
+ * MarkdownView; the base `.channels-bubble-body` in global.css assumes
+ * plain text).
+ *
+ * Scoped to `.channels-*` additions that don't exist in global.css, plus
+ * higher-specificity descendant overrides. Tokens fall back to literal
+ * colours when the variable is absent.
+ */
+
+/* ── Markdown bubbles ──────────────────────────────────────────────────── */
+
+/* The base rule pre-wraps for plain user text; markdown supplies its own
+   block layout, so undo that and match the bubble's type scale. */
+.channels-bubble-body.is-md {
+  white-space: normal;
+}
+.channels-bubble-body .md-view {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* ── Streaming bubbles ─────────────────────────────────────────────────── */
+
+.channels-bubble.live.errored {
+  border-color: color-mix(in srgb, var(--danger, #f87171) 50%, var(--border, #2c2d33));
+}
+
+/* Three-dot "agent is typing" pulse shown before the first delta arrives. */
+.channels-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: var(--space-1) 0;
+}
+.channels-typing span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-muted, #6e6e7a);
+  animation: channels-typing-pulse 1s ease-in-out infinite;
+}
+.channels-typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.channels-typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes channels-typing-pulse {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: none;
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+/* ── Progress tray ─────────────────────────────────────────────────────── */
+
+.channels-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border, #26262e);
+  border-radius: var(--radius-md);
+  background: var(--bg-sunken, #050507);
+  font-size: var(--text-sm);
+}
+
+.channels-progress-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 18px;
+  color: var(--text-dim, #a8a8b3);
+}
+
+.channels-progress-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+
+.channels-progress-row.done .channels-progress-icon {
+  color: var(--success, #34d399);
+}
+
+.channels-progress-row.error .channels-progress-icon {
+  color: var(--danger, #f87171);
+}
+
+.channels-progress-role {
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+
+/* Spinner: a small spinning ring shown while a role's reply is pending. */
+.channels-progress-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border-strong, #3a3a48);
+  border-top-color: var(--accent, #fb923c);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .channels-progress-spinner {
+    animation-duration: 1.6s;
+  }
+  .channels-typing span {
+    animation: none;
+    opacity: 0.6;
+  }
+}
