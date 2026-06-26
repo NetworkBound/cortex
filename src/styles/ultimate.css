@@ -1,0 +1,347 @@
+/* Ultimate multi-model agent panel. Design tokens only — tracks every theme
+   in both light and dark modes. */
+
+.ult-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  height: 100%;
+  overflow: auto;
+}
+
+.ult-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: none;
+}
+
+.ult-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+}
+
+.ult-subtitle {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--text-muted);
+}
+
+.ult-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+
+.ult-label-row {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-weight: var(--weight-medium);
+}
+
+.ult-input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--text);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.ult-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.ult-textarea {
+  resize: vertical;
+  min-height: 72px;
+  font-family: inherit;
+}
+
+/* ── Model roster ─────────────────────────────────────────────────────── */
+.ult-roster {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ult-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.ult-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-0_5) var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: var(--radius-pill, 999px);
+}
+
+.ult-hint {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+}
+
+/* ── Options row ──────────────────────────────────────────────────────── */
+.ult-options {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-end;
+}
+
+.ult-label-grow {
+  flex: 1;
+}
+
+.ult-label-fanout {
+  flex: none;
+  width: 96px;
+}
+
+.ult-fanout-input {
+  width: 100%;
+}
+
+/* ── Actions ──────────────────────────────────────────────────────────── */
+.ult-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.ult-cost-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-0_5) var(--space-2);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.ult-error {
+  font-size: var(--text-sm);
+  color: var(--danger);
+}
+
+/* ── Timeline ─────────────────────────────────────────────────────────── */
+.ult-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ult-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ult-subtask-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.ult-subtask-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.ult-subtask-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--accent-fg);
+  background: var(--accent);
+  border-radius: var(--radius-pill, 999px);
+}
+
+.ult-subtask-task {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+}
+
+.ult-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.ult-tag-fanout {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* Racing model pills */
+.ult-subtask-models {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.ult-model-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-0_5) var(--space-2);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.ult-model-running {
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--accent);
+}
+
+.ult-model-ok {
+  border-color: color-mix(in srgb, var(--success, var(--accent)) 45%, transparent);
+  color: var(--success, var(--accent));
+}
+
+.ult-model-fail {
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  color: var(--danger);
+}
+
+.ult-model-status {
+  font-weight: var(--weight-semibold);
+}
+
+/* Per-model collapsible outputs */
+.ult-model-outputs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ult-model-output {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+
+.ult-model-output-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.ult-model-output-summary::-webkit-details-marker {
+  display: none;
+}
+
+.ult-model-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.ult-model-dot.ult-model-ok {
+  background: var(--success, var(--accent));
+}
+
+.ult-model-dot.ult-model-fail {
+  background: var(--danger);
+}
+
+.ult-model-output-name {
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+
+.ult-model-output-state {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.ult-model-output-body {
+  padding: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+/* Per-subtask merge */
+.ult-subtask-merged {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.ult-merged-label,
+.ult-synthesis .ult-label-row {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Final synthesis */
+.ult-synthesis {
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.ult-synthesis-body,
+.ult-merged-body {
+  font-size: var(--text-sm);
+  color: var(--text);
+}
