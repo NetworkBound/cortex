@@ -1,0 +1,4 @@
+# Built sidecar binary (large; produced by `go build` / CI per target triple).
+cortex-tsnet
+cortex-tsnet.exe
+cortex-tsnet-*
