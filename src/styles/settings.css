@@ -1,0 +1,246 @@
+/**
+ * Settings modal — section internals.
+ *
+ * The two-column dialog shell (.modal-settings, .settings-nav,
+ * .settings-content, .settings-section, .settings-footer …) lives in
+ * global.css. This file holds the section-body idioms that used to be ~77
+ * inline style={{}} blocks inside SettingsModal.tsx, rewritten onto the
+ * DESIGN-SPEC tokens. Off-scale raw values were snapped to the nearest scale
+ * step: fontSize 10/10.5 → --text-xs, 11.5/12/12.5 → --text-sm,
+ * borderRadius 3/4 → --radius-sm, letterSpacing 0.5 → --tracking-caps,
+ * fontFamily "monospace" → --font-mono, 6/10px gaps → --space-1/--space-2.
+ *
+ * Imported by SettingsModal.tsx, the same pattern as sibling panels
+ * (e.g. ChannelsPanel.tsx → channels.css).
+ */
+
+/* ── Text ─────────────────────────────────────────────────────────────── */
+
+/* Muted explanatory copy under a section heading or control. */
+.settings-hint {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+}
+
+/* Emphasized fragment inside muted copy (active profile name, versions). */
+.settings-emph { color: var(--text); }
+
+/* Small inline label text at caption size, default foreground. */
+.settings-label-sm { font-size: var(--text-sm); }
+
+.settings-muted { color: var(--text-muted); }
+.settings-success { color: var(--success); }
+.settings-mono { font-family: var(--font-mono); }
+
+/* Sub-group title inside a section (e.g. "Default model per role"). */
+.settings-subheading {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+.settings-subheading + .settings-hint { margin-top: var(--space-0_5); }
+
+/* ── Layout primitives ───────────────────────────────────────────────── */
+
+.settings-stack { display: flex; flex-direction: column; gap: var(--space-2); }
+.settings-stack.tight { gap: var(--space-1); }
+.settings-row { display: flex; align-items: center; gap: var(--space-2); }
+.settings-row.wrap { flex-wrap: wrap; }
+
+/* Spacing modifiers — the flex gap on .settings-section provides the default
+   rhythm; these add the extra breathing room the old inline margins carried.
+   Scoped under .settings-section so the short names can't leak app-wide. */
+.settings-section .spaced { margin-bottom: var(--space-2); }
+.settings-section .gap-top { margin-top: var(--space-2); }
+.settings-section .gap-left { margin-left: var(--space-1); }
+
+/* A late sub-group within a section (model roles block). */
+.settings-group { margin-top: var(--space-4); }
+
+/* ── Checkbox rows ───────────────────────────────────────────────────── */
+
+/* The muted second line under a .settings-check title (color hierarchy and
+   weight come from the global.css .settings-check rules). */
+label.settings-check small {
+  display: block;
+  margin-top: var(--space-0_5);
+  color: var(--text-muted);
+}
+
+/* ── Rule / monitor list rows ────────────────────────────────────────── */
+
+.settings-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.settings-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.settings-list-row code { font-size: var(--text-sm); }
+.settings-list-row.mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* Right-pinned uppercase microlabel (monitor level column). */
+.settings-microlabel {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-muted);
+}
+
+/* ── Badges & pills ──────────────────────────────────────────────────── */
+
+/* Rule activation badge — mirrors the .meta-chip idiom in global.css
+   (the old inline version keyed off --bg-muted, which is not a defined
+   token, so its rgba fallback ignored the theme). */
+.settings-badge {
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  padding: var(--space-0_5) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+}
+
+/* Provider credential / login status pill. Semantic soft tokens only so it
+   tracks the active theme in both light and dark builds. */
+.settings-pill {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  padding: var(--space-0_5) var(--space-2);
+  border: 1px solid;
+  border-radius: var(--radius-sm);
+}
+.settings-pill.ok {
+  background: var(--success-soft);
+  color: var(--success);
+  border-color: var(--success-border);
+}
+.settings-pill.warn {
+  background: var(--warning-soft);
+  color: var(--warning);
+  border-color: var(--warning-border);
+}
+
+/* Inline outcome of a provider key validation round-trip (Providers tab).
+   Sits next to the Validate button; semantic tokens only. */
+.settings-validation {
+  font-size: var(--text-sm);
+}
+.settings-validation.ok {
+  color: var(--success);
+}
+.settings-validation.err {
+  color: var(--danger);
+}
+
+/* ── Field rows (model roles, condense threshold) ────────────────────── */
+
+/* `.modal label` (global.css) stacks text-field labels as a column with muted
+   text; these inline-control rows need row layout and primary text, so the
+   selector is qualified to out-rank it. */
+.settings-field-row,
+.modal label.settings-field-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+.settings-field-label { min-width: 130px; }
+.settings-field-row select { flex: 1; min-width: 0; }
+.settings-field-row input[type="number"] { width: 64px; }
+
+/* Indented dependent row under its parent checkbox. */
+.settings-subrow {
+  margin-top: var(--space-2);
+  margin-left: var(--space-6);
+}
+
+/* ── Updates ─────────────────────────────────────────────────────────── */
+
+.settings-update-status {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+.settings-update-status.ok { color: var(--success); }
+.settings-update-status.available { color: var(--accent); }
+
+/* Release-notes well. */
+.settings-note {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+  white-space: pre-wrap;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+
+/* Pin the cancel/save cluster right; inline errors sit to its left. */
+.settings-footer .modal-actions { margin-left: auto; }
+
+/* ── Local-CLI provider "Install" link ───────────────────────────────── */
+.settings-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: var(--text-sm);
+}
+.settings-link:hover { text-decoration: underline; }
+
+/* ── In-app CLI sign-in terminal modal ───────────────────────────────── */
+.cli-login-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.cli-login-modal {
+  width: min(760px, 92vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--bg-raised, #14181f);
+  border: 1px solid var(--border, #2a2f3a);
+  border-radius: var(--radius-md, 8px);
+}
+.cli-login-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.cli-login-term {
+  flex: 1 1 auto;
+  min-height: 320px;
+  height: 48vh;
+  background: var(--bg-sunken, #0b0f14);
+  border-radius: var(--radius-sm, 6px);
+  padding: var(--space-2);
+  overflow: hidden;
+}

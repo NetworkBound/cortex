@@ -1,0 +1,56 @@
+node_modules
+dist
+dist-ssr
+.DS_Store
+*.log
+
+# Rust / Tauri
+target
+src-tauri/target
+src-tauri/Cargo.lock
+src-tauri/gen
+src-tauri/WixTools
+
+# Built tsnet sidecar (bundled per-triple in CI; never commit binaries)
+src-tauri/binaries/
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# OS
+Thumbs.db
+desktop.ini
+
+# Gateway runtime
+.gateway/
+gateway-local.db
+gateway-local.db-shm
+gateway-local.db-wal
+
+# Build output / installers
+artifacts/
+*.AppImage
+*.deb
+*.rpm
+*-setup.exe
+*.msi
+
+.cortex/
+infra.json
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js
+.claude/worktrees/
+squashfs-root/

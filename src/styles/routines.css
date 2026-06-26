@@ -1,0 +1,323 @@
+/* Scheduled agents ("Routines") panel. Design tokens only. */
+
+.routines-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  height: 100%;
+  overflow-y: auto;
+}
+
+.routines-head {
+  display: flex;
+  justify-content: flex-end;
+  flex: none;
+}
+
+.routines-new-btn,
+.routines-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+  cursor: pointer;
+}
+
+/* form */
+.routines-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.routines-input,
+.routines-textarea {
+  width: 100%;
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+}
+
+.routines-textarea {
+  resize: vertical;
+  line-height: var(--leading-normal);
+}
+
+.routines-form-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.routines-cadence {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.routines-enabled-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-right: auto;
+}
+
+/* list */
+.routines-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.routines-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+}
+
+.routines-row-off {
+  opacity: 0.6;
+}
+
+.routines-row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.routines-name {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+
+.routines-cadence-tag {
+  font-size: var(--text-xs);
+  color: var(--hue-blue);
+  background: color-mix(in srgb, var(--hue-blue) 14%, transparent);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+}
+
+.routines-status {
+  font-size: var(--text-xs);
+  margin-left: auto;
+}
+
+.routines-status-ok {
+  color: var(--success);
+}
+
+.routines-status-error {
+  color: var(--danger);
+}
+
+.routines-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.routines-act {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-hover);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+
+.routines-act:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.routines-act:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.routines-act-danger:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.routines-toggle {
+  position: relative;
+  display: inline-block;
+  width: 30px;
+  height: 16px;
+  margin-right: auto;
+}
+
+.routines-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.routines-toggle span {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+
+.routines-toggle span::before {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  left: 2px;
+  top: 2px;
+  background: var(--text-muted);
+  border-radius: var(--radius-pill);
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.routines-toggle input:checked + span {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.routines-toggle input:checked + span::before {
+  transform: translateX(14px);
+  background: var(--accent);
+}
+
+.routines-act-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* run history */
+.routines-history {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-2);
+}
+
+.routines-history-empty {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* Backend-failure variants of the empty states — same layout, danger accent so
+   "couldn't reach the backend" reads distinctly from a genuine empty list. */
+.routines-history-error {
+  color: var(--danger);
+}
+
+.routines-error {
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-md);
+}
+
+.routines-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.routines-run {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.routines-run:hover {
+  background: var(--bg-hover);
+}
+
+.routines-run-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.routines-run-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+}
+
+.routines-run-dot.ok {
+  background: var(--success);
+}
+
+.routines-run-dot.err {
+  background: var(--danger);
+}
+
+.routines-run-when {
+  font-size: var(--text-xs);
+  color: var(--text);
+}
+
+.routines-run-meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-right: auto;
+}
+
+.routines-run-output {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-2);
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.routines-hint {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}

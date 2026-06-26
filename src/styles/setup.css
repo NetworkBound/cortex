@@ -1,0 +1,170 @@
+/* Self-setup wizard panel. Design tokens only — tracks every theme in both
+   modes. */
+
+.setup-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-3);
+  height: 100%;
+  overflow: auto;
+}
+
+.setup-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev);
+}
+
+.setup-section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.setup-section-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.setup-section-desc {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
+}
+
+.setup-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.setup-field-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.setup-input-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.setup-input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.setup-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.setup-btn {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+
+.setup-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.setup-btn.primary {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+.setup-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.setup-status {
+  font-size: var(--text-xs);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.setup-status.ok {
+  color: var(--success);
+}
+
+.setup-status.warn {
+  color: var(--warning);
+}
+
+.setup-status.bad {
+  color: var(--danger);
+}
+
+.setup-radio-row {
+  display: flex;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+
+.setup-radio-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+}
+
+.setup-output {
+  font-family: var(--mono, monospace);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 180px;
+  overflow: auto;
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.setup-current {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.setup-current code {
+  font-family: var(--mono, monospace);
+  color: var(--text);
+}
+
+/* Inline hint next to the "Open project" hand-off button. */
+.setup-open-hint {
+  flex: 1;
+  min-width: 0;
+}

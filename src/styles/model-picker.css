@@ -1,0 +1,94 @@
+/* Compact model picker that sits inline in the chat composer action row. */
+.model-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.model-picker-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  padding: var(--space-1) 22px var(--space-1) var(--space-2);
+  max-width: 200px;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+  /* Tiny dropdown caret without pulling in an icon dependency. Drawn from the
+     muted text token so it tracks the theme instead of currentColor. */
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position: calc(100% - 11px) 50%, calc(100% - 7px) 50%;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+}
+
+.model-picker-select:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.model-picker-select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.model-picker-select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Compare toggle + chip row. */
+.compare-toggle {
+  font-size: var(--text-xs);
+}
+
+.compare-toggle.on {
+  color: var(--accent);
+  font-weight: var(--weight-semibold);
+}
+
+.compare-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  width: 100%;
+  margin-top: var(--space-1);
+}
+
+.compare-chip {
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  padding: var(--space-0_5) var(--space-2);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+}
+
+.compare-chip:hover {
+  border-color: var(--border-strong);
+}
+
+.compare-chip.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.compare-chip:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.compare-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
