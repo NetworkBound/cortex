@@ -1,0 +1,266 @@
+/* Agent eval / benchmark harness panel. Design tokens only. */
+
+.eval-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  height: 100%;
+  overflow-y: auto;
+}
+
+.eval-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex: none;
+}
+
+.eval-tasks-count {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.eval-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* Picker inherits the global select baseline; just cap its width so a long
+   ollama tag can't shove the run button off the row. */
+.eval-model-select {
+  font-size: var(--text-sm);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eval-run-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  border-radius: var(--radius);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+
+.eval-run-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.eval-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.eval-progress-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-hover);
+  overflow: hidden;
+}
+
+.eval-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width var(--duration-base) var(--ease-standard);
+}
+
+.eval-progress-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.eval-error {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
+  font-size: var(--text-sm);
+}
+
+/* summary */
+.eval-summary {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.eval-stat {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.eval-stat-val {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.eval-stat-val.eval-model {
+  font-size: var(--text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eval-stat-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-muted);
+}
+
+/* per-task results */
+.eval-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.eval-result {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.eval-verdict {
+  display: inline-flex;
+  align-items: flex-start;
+  flex: none;
+  padding-top: var(--space-px);
+}
+
+.eval-verdict.ok {
+  color: var(--success);
+}
+
+.eval-verdict.fail {
+  color: var(--danger);
+}
+
+.eval-result-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.eval-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.eval-result-id {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+
+.eval-result-meta {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.eval-result-detail {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+}
+
+.eval-result-detail pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow-y: auto;
+  margin: var(--space-1) 0 0;
+  padding: var(--space-2);
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+}
+
+.eval-missed {
+  color: var(--danger);
+  margin: var(--space-1) 0 0;
+}
+
+/* history */
+.eval-history-title {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-muted);
+  margin: var(--space-2) 0;
+}
+
+.eval-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.eval-history-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.eval-history-row:hover {
+  border-color: var(--accent);
+}
+
+.eval-history-score {
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.eval-history-meta {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}

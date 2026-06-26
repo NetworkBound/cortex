@@ -1,0 +1,143 @@
+/* Push / Pull sync buttons in the Source Control panel branch header.
+ * Additive styles only — base `.git-scm-*` rules live in global.css. */
+
+.git-scm-syncbtns {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.git-scm-sync-btn {
+  font-size: var(--text-xs);
+  font-family: var(--mono, monospace);
+  padding: var(--space-0_5) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elev);
+  color: var(--text, #ddd);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.git-scm-sync-btn:hover:not(:disabled) {
+  border-color: var(--accent, #7aa2f7);
+  color: var(--accent, #7aa2f7);
+}
+
+.git-scm-sync-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ---- Per-file diff pane -------------------------------------------------
+ * Opened by clicking a file row. Hunk rows reuse the global `.hunk-row`
+ * palette (chat hunk review) so diffs look the same everywhere. */
+
+/* The file name doubles as the "open diff" affordance. */
+.git-scm-path-btn {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-scm-path-btn:hover {
+  color: var(--accent, #7aa2f7);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.git-scm-row-selected {
+  background: color-mix(in srgb, var(--accent, #7aa2f7) 10%, transparent);
+}
+
+.git-scm-diff {
+  margin: var(--space-2) 0 var(--space-1);
+  border: 1px solid var(--border, #27272a);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-elev);
+  overflow: hidden;
+}
+
+.git-scm-diff-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border, #27272a);
+}
+
+.git-scm-diff-path {
+  font-family: var(--mono, monospace);
+  font-size: var(--text-sm);
+  color: var(--text, #e4e4e7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.git-scm-diff-mode {
+  font-size: var(--text-xs);
+  color: var(--text-dim, #71717a);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.git-scm-diff-close {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0 var(--space-0_5);
+  font-size: var(--text-md);
+  line-height: 1;
+  color: var(--text-dim, #71717a);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.git-scm-diff-close:hover {
+  color: var(--text, #e4e4e7);
+}
+
+.git-scm-diff-body {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.git-scm-diff-hunk + .git-scm-diff-hunk {
+  border-top: 1px solid var(--border, #27272a);
+}
+
+.git-scm-diff-hunkhead {
+  display: block;
+  padding: var(--space-1) var(--space-3) 0;
+  font-size: var(--text-xs);
+  color: var(--text-dim, #71717a);
+}
+
+.git-scm-diff-raw {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  max-height: 320px;
+  overflow: auto;
+  font-family: var(--mono, monospace);
+  font-size: var(--text-sm);
+  color: var(--text-dim, #71717a);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.git-scm-diff-empty {
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+}
