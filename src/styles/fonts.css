@@ -1,0 +1,38 @@
+/* ── Self-hosted typeface (Inter + JetBrains Mono) ───────────────────────────
+   The design system is built around Inter (UI) and JetBrains Mono (code/figures),
+   but the app previously only *named* them in the font stack without shipping
+   them — so on any machine without Inter installed (most of them, incl. the dev
+   box where it falls through to Noto Sans) the entire carefully-tokenized type
+   scale rendered in a system fallback face. Best-in-class desktop tools
+   (Linear, Vercel, Raycast, Zed) bundle their typeface so the design renders
+   identically everywhere; do the same here.
+
+   These are the latin-subset *variable* WOFF2 files (one file covers the whole
+   100–900 weight range — small, no per-weight HTTP cost), self-hosted under
+   public/fonts/ so they load offline from the Tauri bundle with no network.
+   `font-display: swap` paints text immediately in the fallback and swaps to
+   Inter once loaded (no invisible-text flash). */
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/InterVariable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/InterVariable-Italic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("/fonts/JetBrainsMono.woff2") format("woff2");
+}

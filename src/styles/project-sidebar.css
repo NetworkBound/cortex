@@ -1,0 +1,88 @@
+/**
+ * ProjectSidebar-local styles.
+ *
+ * Currently just the "worktrees" affordance in the active-project section
+ * head. Kept out of global.css so the sidebar owns its own chrome.
+ */
+
+.sidebar-action-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: 1;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    opacity var(--duration-fast) var(--ease-standard);
+}
+
+.sidebar-action-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.sidebar-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Grouped project sections ─────────────────────────────────────────── */
+
+.project-group + .project-group {
+  margin-top: var(--space-3);
+}
+
+.project-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-0_5) var(--space-1);
+  margin-bottom: var(--space-0_5);
+}
+
+.project-group-name {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-muted);
+}
+
+.project-group-count {
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  line-height: 1;
+  padding: var(--space-px) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+}
+
+.meta-chip-vault {
+  background: var(--accent-soft);
+  border-color: var(--accent-glow);
+}
+
+.project-row-subtitle {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+
+.sidebar-vault-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-style: italic;
+}
