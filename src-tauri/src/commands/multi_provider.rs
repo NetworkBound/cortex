@@ -323,7 +323,7 @@ fn start_fake_lane(
                 tokio::time::sleep(std::time::Duration::from_secs(120)).await;
             } else {
                 tokio::time::sleep(std::time::Duration::from_millis(150)).await;
-                let _ = tx.send(RunStreamItem::Done).await;
+                let _ = tx.send(RunStreamItem::Done { usage: None }).await;
             }
         });
         let _ = apply_lane_stream(&app, &run_id, rx).await;
@@ -504,7 +504,7 @@ fn spawn_fake_reattach(app: tauri::AppHandle, run_id: String) {
             tokio::time::sleep(std::time::Duration::from_millis(120)).await;
             let _ = tx.send(RunStreamItem::Status("picked the run back up".into())).await;
             tokio::time::sleep(std::time::Duration::from_millis(120)).await;
-            let _ = tx.send(RunStreamItem::Done).await;
+            let _ = tx.send(RunStreamItem::Done { usage: None }).await;
         });
         let _ = apply_reattached_stream(&app, &run_id, rx).await;
         producer.abort();

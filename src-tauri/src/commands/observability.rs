@@ -1,5 +1,6 @@
 use crate::observability::tracing_store::{
-    AuditRow, HealthRow, IssueRow, SessionSearchHit, Trace, TraceEvent, TracingStore,
+    AuditRow, HealthRow, IssueRow, ReliabilityReport, SessionSearchHit, Trace, TraceEvent,
+    TracingStore,
 };
 use tauri::State;
 
@@ -7,6 +8,22 @@ use tauri::State;
 pub async fn recent_traces(limit: Option<usize>, store: State<'_, TracingStore>) -> Result<Vec<Trace>, String> {
     let lim = limit.unwrap_or(20).clamp(1, 200);
     store.recent_traces(lim).map_err(|e| e.to_string())
+}
+
+/// Agent Reliability Dashboard: aggregate run outcomes (success rate, latency
+/// percentiles, tokens, estimated cost, top error class) per provider and per
+/// model, optionally windowed to the last `window_hours`. Pure read-side.
+#[tauri::command]
+pub async fn reliability_summary(
+    window_hours: Option<u32>,
+    store: State<'_, TracingStore>,
+) -> Result<ReliabilityReport, String> {
+    // Clamp to a sane window; `None` / 0 means "all time".
+    let since_ms = window_hours.filter(|h| *h > 0).map(|h| {
+        let hours = h.min(24 * 365) as i64; // cap at 1 year
+        chrono::Utc::now().timestamp_millis() - hours * 3_600_000
+    });
+    store.reliability_summary(since_ms).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

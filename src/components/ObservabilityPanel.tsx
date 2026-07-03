@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 import { recentTraces, homelabHealth, type Trace, type HealthRow } from "@/lib/observability";
 import { TraceDetail } from "./TraceDetail";
+import { ReliabilityDashboard } from "./ReliabilityDashboard";
 
 type Conn = "init" | "live" | "offline";
+type View = "traces" | "reliability";
 
 export function ObservabilityPanel() {
   const [traces, setTraces] = useState<Trace[]>([]);
   const [health, setHealth] = useState<HealthRow[]>([]);
   const [selectedTrace, setSelectedTrace] = useState<string | null>(null);
   const [conn, setConn] = useState<Conn>("init");
+  const [view, setView] = useState<View>("traces");
 
   useEffect(() => {
     let mounted = true;
@@ -30,6 +33,30 @@ export function ObservabilityPanel() {
 
   return (
     <div className="observability">
+      <div className="observability-views" role="tablist" aria-label="Observability view">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "traces"}
+          className={view === "traces" ? "active" : ""}
+          onClick={() => setView("traces")}
+        >
+          Traces
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "reliability"}
+          className={view === "reliability" ? "active" : ""}
+          onClick={() => setView("reliability")}
+        >
+          Reliability
+        </button>
+      </div>
+      {view === "reliability" ? (
+        <ReliabilityDashboard />
+      ) : (
+      <>
       <div className="health-strip">
         <span className={`conn-pill ${conn}`} title={
           conn === "live" ? "Connected to the gateway"
@@ -102,6 +129,8 @@ export function ObservabilityPanel() {
       </div>
       {selectedTrace && (
         <TraceDetail trace_id={selectedTrace} onClose={() => setSelectedTrace(null)} />
+      )}
+      </>
       )}
     </div>
   );

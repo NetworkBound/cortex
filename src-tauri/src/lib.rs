@@ -241,6 +241,7 @@ pub fn run() {
             commands::settings::set_provider_default_model,
             commands::settings::set_runtime_mode,
             commands::observability::recent_traces,
+            commands::observability::reliability_summary,
             commands::observability::trace_events,
             commands::observability::homelab_health,
             commands::observability::recent_issues,

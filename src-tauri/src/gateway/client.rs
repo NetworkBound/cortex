@@ -167,7 +167,11 @@ pub enum RunStreamItem {
     },
     ApprovalResponded { choice: String },
     Status(String),
-    Done,
+    /// Terminal event. `usage` carries the gateway's reported token counts when
+    /// the completion event included them (parsed by [`parse_run_usage`]); `None`
+    /// when the gateway omitted usage. Threaded through so the primary gateway
+    /// path can record real token totals instead of `None`.
+    Done { usage: Option<Usage> },
     Raw(serde_json::Value),
 }
 
@@ -331,7 +335,7 @@ impl GatewayClient {
                 Err(_) => continue,
             };
             let item = map_event(&parsed);
-            let finished = matches!(item, RunStreamItem::Done);
+            let finished = matches!(item, RunStreamItem::Done { .. });
             let _ = tx.send(item).await;
             if finished { break; }
         }
@@ -376,6 +380,22 @@ impl GatewayClient {
     }
 }
 
+/// Best-effort extraction of a `Usage` object from a run-completion event.
+/// The gateway may nest it under `usage` at the top level or under
+/// `response.usage`. Returns `None` when neither is present or all counts are
+/// zero, so a gateway that never reports usage leaves `total_tokens` unchanged
+/// (i.e. `None`) rather than recording a bogus `0`.
+fn parse_run_usage(v: &serde_json::Value) -> Option<Usage> {
+    let raw = v
+        .get("usage")
+        .or_else(|| v.get("response").and_then(|r| r.get("usage")))?;
+    let usage: Usage = serde_json::from_value(raw.clone()).ok()?;
+    if usage.total_tokens == 0 && usage.prompt_tokens == 0 && usage.completion_tokens == 0 {
+        return None;
+    }
+    Some(usage)
+}
+
 fn map_event(v: &serde_json::Value) -> RunStreamItem {
     let event = v.get("event").and_then(|e| e.as_str()).unwrap_or("");
     match event {
@@ -411,7 +431,9 @@ fn map_event(v: &serde_json::Value) -> RunStreamItem {
         "approval.responded" => RunStreamItem::ApprovalResponded {
             choice: v.get("choice").and_then(|c| c.as_str()).unwrap_or("").to_string(),
         },
-        "run.completed" | "run.finished" | "done" => RunStreamItem::Done,
+        "run.completed" | "run.finished" | "done" => RunStreamItem::Done {
+            usage: parse_run_usage(v),
+        },
         "run.status" | "status" => RunStreamItem::Status(
             v.get("status").and_then(|s| s.as_str()).unwrap_or("").to_string(),
         ),
@@ -451,5 +473,48 @@ mod tests {
         let req = base_run_req();
         let v: serde_json::Value = serde_json::to_value(&req).unwrap();
         assert!(v.get("reasoning_effort").is_none(), "field must be omitted when None");
+    }
+
+    #[test]
+    fn parse_run_usage_reads_top_level_and_nested() {
+        // Top-level usage.
+        let top = serde_json::json!({
+            "event": "run.completed",
+            "usage": { "prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15 }
+        });
+        let u = parse_run_usage(&top).expect("top-level usage");
+        assert_eq!(u.total_tokens, 15);
+        assert_eq!(u.prompt_tokens, 10);
+        assert_eq!(u.completion_tokens, 5);
+
+        // Nested under response.usage.
+        let nested = serde_json::json!({
+            "event": "run.finished",
+            "response": { "usage": { "total_tokens": 42 } }
+        });
+        assert_eq!(parse_run_usage(&nested).unwrap().total_tokens, 42);
+    }
+
+    #[test]
+    fn parse_run_usage_none_when_absent_or_zero() {
+        let absent = serde_json::json!({ "event": "run.completed" });
+        assert!(parse_run_usage(&absent).is_none());
+        let zero = serde_json::json!({
+            "event": "run.completed",
+            "usage": { "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0 }
+        });
+        assert!(parse_run_usage(&zero).is_none(), "all-zero usage is treated as absent");
+    }
+
+    #[test]
+    fn map_event_done_carries_usage() {
+        let v = serde_json::json!({
+            "event": "run.completed",
+            "usage": { "total_tokens": 99 }
+        });
+        match map_event(&v) {
+            RunStreamItem::Done { usage: Some(u) } => assert_eq!(u.total_tokens, 99),
+            other => panic!("expected Done with usage, got {other:?}"),
+        }
     }
 }

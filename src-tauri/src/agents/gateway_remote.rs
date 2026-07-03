@@ -174,6 +174,11 @@ impl AgentAdapter for GatewayRemoteAgent {
             client_for_sub.run_event_stream(&run_id_clone, item_tx).await
         });
 
+        // Token total reported by the gateway on the terminal event (when it
+        // includes usage). Captured here so the final `Done` records real tokens
+        // for the reliability/usage rollups instead of `None`.
+        let mut total_tokens: Option<u64> = None;
+
         while let Some(item) = item_rx.recv().await {
             match item {
                 RunStreamItem::Started { .. } => {}
@@ -222,7 +227,18 @@ impl AgentAdapter for GatewayRemoteAgent {
                         choice,
                     }).await;
                 }
-                RunStreamItem::Done => break,
+                RunStreamItem::Done { usage } => {
+                    // Prefer the gateway's reported total; fall back to
+                    // prompt+completion when only the split is populated.
+                    total_tokens = usage.map(|u| {
+                        if u.total_tokens > 0 {
+                            u.total_tokens
+                        } else {
+                            u.prompt_tokens + u.completion_tokens
+                        }
+                    });
+                    break;
+                }
                 RunStreamItem::Status(_) | RunStreamItem::Raw(_) => {}
             }
         }
@@ -246,7 +262,7 @@ impl AgentAdapter for GatewayRemoteAgent {
             }
         }
 
-        let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: Some(run_id) }).await;
+        let _ = tx.send(AgentEvent::Done { total_tokens, run_id: Some(run_id) }).await;
         Ok(())
     }
 }

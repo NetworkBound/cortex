@@ -118,6 +118,56 @@ pub struct StoredMessage {
     pub project_root: Option<String>,
 }
 
+/// One row of the Agent Reliability Dashboard: aggregate outcomes for a single
+/// grouping key (a provider/agent id, or a model). A LOCAL VIEW — `success` is
+/// derived from span status + error events, not from any upstream ground truth,
+/// and gateway-internal retries are invisible here (see the UI honesty label).
+#[derive(Debug, Clone, Serialize)]
+pub struct ReliabilityRow {
+    /// Display key: the `agent_id` (provider rows) or `model` (model rows).
+    pub key: String,
+    pub agent_id: Option<String>,
+    pub model: Option<String>,
+    pub runs: u64,
+    pub ok_runs: u64,
+    pub error_runs: u64,
+    /// Finished-but-unknown / still-running spans (excluded from success_rate).
+    pub running_runs: u64,
+    /// `ok_runs / (ok_runs + error_runs)`, 0.0 when nothing has finished.
+    pub success_rate: f64,
+    pub p50_ms: Option<i64>,
+    pub p95_ms: Option<i64>,
+    pub avg_ms: Option<i64>,
+    pub total_tokens: u64,
+    /// Estimated spend (local heuristic: 50/50 split + prefix pricing table).
+    pub est_usd: f64,
+    pub top_error_class: Option<String>,
+    pub last_run_ms: i64,
+}
+
+/// Windowed reliability report: overall totals plus per-provider and per-model
+/// breakdowns. Pure read-side over existing `spans`/`events`.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReliabilityReport {
+    pub since_ms: Option<i64>,
+    pub generated_ms: i64,
+    pub totals: ReliabilityRow,
+    pub by_provider: Vec<ReliabilityRow>,
+    pub by_model: Vec<ReliabilityRow>,
+}
+
+/// One `agent.run` span reduced to the fields the reliability aggregation needs.
+struct RunRecord {
+    agent_id: String,
+    model: Option<String>,
+    started: i64,
+    ended: Option<i64>,
+    status: String,
+    tokens: u64,
+    had_error: bool,
+    err_msg: Option<String>,
+}
+
 impl TracingStore {
     pub fn open_default() -> anyhow::Result<Self> {
         let dir = dirs::data_local_dir()
@@ -890,6 +940,163 @@ impl TracingStore {
             Err(_) => Ok(None),
         }
     }
+
+    /// Aggregate `agent.run` spans (optionally since `since_ms`) into a
+    /// reliability report grouped by provider and by model. Pure read-side; no
+    /// writes, no schema change. Percentiles are computed in Rust from the
+    /// finished-run duration list (avoids SQLite percentile gymnastics).
+    pub fn reliability_summary(&self, since_ms: Option<i64>) -> anyhow::Result<ReliabilityReport> {
+        let recs = {
+            let conn = self.inner.lock();
+            let mut stmt = conn.prepare(
+                "SELECT s.agent_id,
+                        json_extract(s.attributes, '$.model') AS model,
+                        s.started_at, s.ended_at, s.status,
+                        COALESCE(SUM(CASE WHEN e.name = 'done'
+                            THEN CAST(json_extract(e.payload, '$.tokens') AS INTEGER)
+                            ELSE 0 END), 0) AS tokens,
+                        MAX(CASE WHEN e.name = 'error' THEN 1 ELSE 0 END) AS had_error,
+                        (SELECT json_extract(e2.payload, '$.message') FROM events e2
+                           WHERE e2.span_id = s.id AND e2.name = 'error'
+                           ORDER BY e2.ts DESC LIMIT 1) AS err_msg
+                 FROM spans s LEFT JOIN events e ON e.span_id = s.id
+                 WHERE s.name = 'agent.run' AND (?1 IS NULL OR s.started_at >= ?1)
+                 GROUP BY s.id",
+            )?;
+            let rows = stmt.query_map(params![since_ms], |r| {
+                Ok(RunRecord {
+                    agent_id: r.get::<_, Option<String>>(0)?.unwrap_or_else(|| "unknown".into()),
+                    model: r.get::<_, Option<String>>(1)?,
+                    started: r.get(2)?,
+                    ended: r.get::<_, Option<i64>>(3)?,
+                    status: r.get::<_, Option<String>>(4)?.unwrap_or_else(|| "running".into()),
+                    tokens: r.get::<_, i64>(5)?.max(0) as u64,
+                    had_error: r.get::<_, i64>(6)? != 0,
+                    err_msg: r.get::<_, Option<String>>(7)?,
+                })
+            })?;
+            rows.flatten().collect::<Vec<RunRecord>>()
+        };
+
+        let mut by_provider: std::collections::BTreeMap<String, Vec<&RunRecord>> = Default::default();
+        let mut by_model: std::collections::BTreeMap<String, Vec<&RunRecord>> = Default::default();
+        for rec in &recs {
+            by_provider.entry(rec.agent_id.clone()).or_default().push(rec);
+            if let Some(m) = &rec.model {
+                by_model.entry(m.clone()).or_default().push(rec);
+            }
+        }
+
+        let provider_rows: Vec<ReliabilityRow> = by_provider
+            .into_iter()
+            .map(|(k, v)| build_reliability_row(k.clone(), Some(k), None, &v))
+            .collect();
+        let model_rows: Vec<ReliabilityRow> = by_model
+            .into_iter()
+            .map(|(k, v)| build_reliability_row(k.clone(), None, Some(k), &v))
+            .collect();
+        let all: Vec<&RunRecord> = recs.iter().collect();
+        let totals = build_reliability_row("all".to_string(), None, None, &all);
+
+        Ok(ReliabilityReport {
+            since_ms,
+            generated_ms: chrono::Utc::now().timestamp_millis(),
+            totals,
+            by_provider: sort_rows(provider_rows),
+            by_model: sort_rows(model_rows),
+        })
+    }
+}
+
+/// Sort reliability rows by run count desc (busiest first), stable on key.
+fn sort_rows(mut rows: Vec<ReliabilityRow>) -> Vec<ReliabilityRow> {
+    rows.sort_by(|a, b| b.runs.cmp(&a.runs).then_with(|| a.key.cmp(&b.key)));
+    rows
+}
+
+/// Nearest-rank percentile over an already-sorted ascending slice.
+fn percentile(sorted: &[i64], p: f64) -> Option<i64> {
+    if sorted.is_empty() {
+        return None;
+    }
+    let idx = ((p / 100.0) * (sorted.len() as f64 - 1.0)).round() as usize;
+    Some(sorted[idx.min(sorted.len() - 1)])
+}
+
+/// Reduce a group of run records into one dashboard row. A run counts as an
+/// error if it emitted an `error` event OR its span status is `error`; as ok if
+/// it finished (has `ended_at`) and is not an error; otherwise it is still
+/// running/stale and excluded from the success denominator.
+fn build_reliability_row(
+    key: String,
+    agent_id: Option<String>,
+    model: Option<String>,
+    recs: &[&RunRecord],
+) -> ReliabilityRow {
+    use crate::pricing::{compute_usd, lookup_price, split_tokens};
+    let mut ok_runs = 0u64;
+    let mut error_runs = 0u64;
+    let mut running_runs = 0u64;
+    let mut total_tokens = 0u64;
+    let mut est_usd = 0.0f64;
+    let mut durations: Vec<i64> = Vec::new();
+    let mut last_run_ms = 0i64;
+    let mut error_class_counts: std::collections::HashMap<String, u64> = Default::default();
+
+    for rec in recs {
+        let is_error = rec.had_error || rec.status == "error";
+        if is_error {
+            error_runs += 1;
+            let class = error_class(rec.err_msg.as_deref().unwrap_or("agent error"));
+            *error_class_counts.entry(class).or_insert(0) += 1;
+        } else if rec.ended.is_some() {
+            ok_runs += 1;
+        } else {
+            running_runs += 1;
+        }
+        if let Some(ended) = rec.ended {
+            let d = (ended - rec.started).max(0);
+            durations.push(d);
+        }
+        total_tokens += rec.tokens;
+        if rec.tokens > 0 {
+            let price = lookup_price(rec.model.as_deref().unwrap_or(&rec.agent_id));
+            let (p, c) = split_tokens(rec.tokens);
+            est_usd += compute_usd(p, c, price);
+        }
+        last_run_ms = last_run_ms.max(rec.started);
+    }
+
+    durations.sort_unstable();
+    let avg_ms = if durations.is_empty() {
+        None
+    } else {
+        Some((durations.iter().sum::<i64>() / durations.len() as i64).max(0))
+    };
+    let finished = ok_runs + error_runs;
+    let success_rate = if finished > 0 { ok_runs as f64 / finished as f64 } else { 0.0 };
+    let top_error_class = error_class_counts
+        .into_iter()
+        .max_by_key(|(_, n)| *n)
+        .map(|(c, _)| c);
+
+    ReliabilityRow {
+        key,
+        agent_id,
+        model,
+        runs: recs.len() as u64,
+        ok_runs,
+        error_runs,
+        running_runs,
+        success_rate,
+        p50_ms: percentile(&durations, 50.0),
+        p95_ms: percentile(&durations, 95.0),
+        avg_ms,
+        total_tokens,
+        est_usd,
+        top_error_class,
+        last_run_ms,
+    }
 }
 
 fn event_to_record(event: &AgentEvent) -> (&'static str, serde_json::Value) {
@@ -1060,5 +1267,54 @@ mod tests {
             store.tokens_by_provider(10).unwrap()[0].total_tokens,
             42
         );
+    }
+
+    /// Reliability aggregation: ok/error classification, success rate,
+    /// percentiles, token totals, and grouping by provider + model.
+    #[test]
+    fn reliability_summary_classifies_and_aggregates() {
+        let store = TracingStore::in_memory();
+        // Two ok runs and one errored run on the same provider/model.
+        for (i, tokens) in [(0, 100u64), (1, 60u64)].iter() {
+            let sid = format!("ok-{i}");
+            store
+                .start_agent_run(&sid, "t", "sess", "gateway-remote", Some("claude-sonnet-4-6"))
+                .unwrap();
+            store
+                .record_event(&sid, &AgentEvent::Done { total_tokens: Some(*tokens), run_id: None })
+                .unwrap();
+            store.finish_agent_run(&sid).unwrap();
+        }
+        store
+            .start_agent_run("err-1", "t", "sess", "gateway-remote", Some("claude-sonnet-4-6"))
+            .unwrap();
+        store
+            .record_event("err-1", &AgentEvent::Error { message: "upstream returned 500".into() })
+            .unwrap();
+        store.finish_agent_run("err-1").unwrap();
+
+        let report = store.reliability_summary(None).unwrap();
+        assert_eq!(report.totals.runs, 3);
+        assert_eq!(report.totals.ok_runs, 2);
+        assert_eq!(report.totals.error_runs, 1);
+        assert!((report.totals.success_rate - 2.0 / 3.0).abs() < 1e-9);
+        assert_eq!(report.totals.total_tokens, 160);
+        assert!(report.totals.est_usd > 0.0, "cost estimated from tokens");
+        assert_eq!(report.totals.top_error_class.as_deref(), Some("UpstreamError"));
+
+        // Grouped views: one provider row, one model row, same counts.
+        let prov = report.by_provider.iter().find(|r| r.key == "gateway-remote").unwrap();
+        assert_eq!(prov.runs, 3);
+        assert_eq!(prov.error_runs, 1);
+        let model = report.by_model.iter().find(|r| r.key == "claude-sonnet-4-6").unwrap();
+        assert_eq!(model.runs, 3);
+        assert!(model.p95_ms.is_some(), "percentiles computed from finished runs");
+
+        // `since_ms` in the future excludes everything → empty, not an error.
+        let empty = store
+            .reliability_summary(Some(chrono::Utc::now().timestamp_millis() + 60_000))
+            .unwrap();
+        assert_eq!(empty.totals.runs, 0);
+        assert_eq!(empty.totals.success_rate, 0.0);
     }
 }

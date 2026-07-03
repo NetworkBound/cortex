@@ -220,7 +220,7 @@ pub fn lane_transition(item: &RunStreamItem) -> Option<(String, Option<String>)>
             Some(("running".into(), Some(s.trim().to_string())))
         }
         RunStreamItem::Status(_) => None,
-        RunStreamItem::Done => Some(("done".into(), Some("completed".into()))),
+        RunStreamItem::Done { .. } => Some(("done".into(), Some("completed".into()))),
     }
 }
 
@@ -403,7 +403,7 @@ mod tests {
         assert_eq!(st, "running");
         assert_eq!(d.as_deref(), Some("planning"));
 
-        let (st, _) = lane_transition(&RunStreamItem::Done).unwrap();
+        let (st, _) = lane_transition(&RunStreamItem::Done { usage: None }).unwrap();
         assert_eq!(st, "done");
     }
 
