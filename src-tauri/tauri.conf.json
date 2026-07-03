@@ -57,6 +57,9 @@
       "minimumSystemVersion": "10.15"
     },
     "windows": {
+      "certificateThumbprint": "65FC5ED9983B15D6F3D785F9C6CC63D6A8E86ACF",
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com",
       "wix": {
         "language": "en-US"
       },

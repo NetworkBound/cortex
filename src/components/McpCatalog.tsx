@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
-import { saveMcpServer, type McpServerConfig } from "@/lib/mcp";
+import { useEffect, useMemo, useState } from "react";
+import { probeMcpRuntimes, saveMcpServer, type McpServerConfig } from "@/lib/mcp";
 import {
   CATEGORY_LABELS,
   isEntryAdded,
   matchesQuery,
   MCP_CATALOG,
   resolveArgs,
+  RUNTIME_INSTALL_HINTS,
   type CatalogEntry,
 } from "@/lib/mcp-catalog";
 import { pushToast } from "@/lib/toast";
@@ -36,6 +37,19 @@ function McpCatalog({ servers, onAdded, onManual }: Props) {
   const [configuring, setConfiguring] = useState<CatalogEntry | null>(null);
   const [fills, setFills] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  // Preflight: which launcher runtimes (npx/uvx) exist on PATH. `null` until
+  // the probe answers; a failed probe stays null (no false "missing" chips).
+  const [runtimes, setRuntimes] = useState<Record<string, boolean> | null>(null);
+
+  useEffect(() => {
+    const commands = [...new Set(MCP_CATALOG.map((e) => e.command))];
+    probeMcpRuntimes(commands)
+      .then(setRuntimes)
+      .catch(() => setRuntimes(null));
+  }, []);
+
+  /** True only when the probe answered AND said the runtime is absent. */
+  const runtimeMissing = (e: CatalogEntry) => runtimes?.[e.command] === false;
 
   const results = useMemo(
     () =>
@@ -68,7 +82,16 @@ function McpCatalog({ servers, onAdded, onManual }: Props) {
     try {
       const next = await saveMcpServer(server);
       onAdded(next);
-      pushToast({ title: "Added from catalog", body: entry.name, kind: "success" });
+      if (runtimeMissing(entry)) {
+        const hint = RUNTIME_INSTALL_HINTS[entry.command];
+        pushToast({
+          title: "Added — runtime missing",
+          body: `${entry.name} needs ${hint?.runtime ?? entry.command} (${hint?.install ?? "not on PATH"}) before it can connect.`,
+          kind: "error",
+        });
+      } else {
+        pushToast({ title: "Added from catalog", body: entry.name, kind: "success" });
+      }
       setConfiguring(null);
       setFills({});
     } catch (e) {
@@ -235,6 +258,17 @@ function McpCatalog({ servers, onAdded, onManual }: Props) {
                   </span>
                 </div>
                 <p className="mcp-cat-card-desc">{entry.description}</p>
+                {runtimeMissing(entry) && (
+                  <div className="mcp-cat-runtime-warn">
+                    <span className="mcp-cat-runtime-chip">
+                      {RUNTIME_INSTALL_HINTS[entry.command]?.runtime ?? entry.command} not installed
+                    </span>
+                    <span className="mcp-cat-runtime-hint">
+                      needs <code>{entry.command}</code> —{" "}
+                      {RUNTIME_INSTALL_HINTS[entry.command]?.install ?? "install it and reopen"}
+                    </span>
+                  </div>
+                )}
                 <div className="mcp-cat-card-foot">
                   <code className="mcp-cat-card-cmd">
                     {[entry.command, ...entry.argsTemplate].join(" ")}
