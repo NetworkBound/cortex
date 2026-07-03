@@ -2089,7 +2089,7 @@ pub async fn chat_send(
 
     let trace_id = ulid::Ulid::new().to_string();
     if let Some(store) = app.try_state::<TracingStore>() {
-        let _ = store.record_chat_turn(&trace_id, &session_id, &args.message, &picked);
+        let _ = store.record_chat_turn(&trace_id, &session_id, &args.message, &picked, Some(&reason));
     }
 
     let session_for_task = session_id.clone();

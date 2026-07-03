@@ -2202,6 +2202,82 @@ kbd {
   font: inherit;
 }
 
+/* Run Replay. */
+.replay {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) 1fr;
+  gap: var(--space-2);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.replay-list {
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+.replay-run {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  color: var(--text);
+}
+.replay-run:hover { background: var(--surface-raised, rgba(255, 255, 255, 0.04)); }
+.replay-run.active { background: var(--surface-raised, rgba(255, 255, 255, 0.08)); }
+.replay-run.has-error .replay-run-title { color: var(--danger, #e5484d); }
+.replay-run-status {
+  width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: none;
+  background: var(--text-muted, #888);
+}
+.replay-run-status.status-ok { background: var(--success, #46a758); }
+.replay-run-status.status-error { background: var(--danger, #e5484d); }
+.replay-run-status.status-running { background: var(--warning, #f5a623); }
+.replay-run-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.replay-run-title {
+  font-size: var(--text-sm, 0.85rem);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.replay-run-meta { font-size: var(--text-xs, 0.72rem); }
+.replay-detail { overflow-y: auto; padding: var(--space-3); }
+.replay-empty { padding: var(--space-4); text-align: center; color: var(--text-muted, #888); }
+.replay-empty.error { color: var(--danger, #e5484d); }
+.replay-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: var(--space-2); margin-bottom: var(--space-3);
+}
+.replay-head-title { font-weight: 600; }
+.replay-head-sub { display: flex; gap: var(--space-2); font-size: var(--text-xs, 0.75rem); }
+.replay-badge {
+  padding: 0 6px; border-radius: 4px; text-transform: uppercase; font-size: 0.65rem;
+  background: var(--surface-raised, rgba(255, 255, 255, 0.08));
+}
+.replay-badge.status-ok { color: var(--success, #46a758); }
+.replay-badge.status-error { color: var(--danger, #e5484d); }
+.replay-step {
+  border-left: 2px solid var(--border);
+  padding: var(--space-1) 0 var(--space-1) var(--space-3);
+  margin-left: var(--space-2);
+}
+.replay-step-label {
+  font-size: var(--text-xs, 0.72rem);
+  text-transform: uppercase;
+  color: var(--text-muted, #888);
+  display: flex; gap: var(--space-2); align-items: baseline;
+}
+.replay-step-at { text-transform: none; }
+.replay-step-body { font-size: var(--text-sm, 0.85rem); word-break: break-word; }
+.replay-step.kind-error { border-left-color: var(--danger, #e5484d); }
+.replay-step.kind-prompt { border-left-color: var(--accent, #6c9ef8); }
+.replay-step.kind-done { border-left-color: var(--success, #46a758); }
+.replay-err { color: var(--danger, #e5484d); }
+
 /* Homelab health strip — small pills, not naked text. */
 .health-strip {
   display: flex;

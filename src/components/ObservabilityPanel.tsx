@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { recentTraces, homelabHealth, type Trace, type HealthRow } from "@/lib/observability";
 import { TraceDetail } from "./TraceDetail";
 import { ReliabilityDashboard } from "./ReliabilityDashboard";
+import { RunReplayView } from "./RunReplayView";
 
 type Conn = "init" | "live" | "offline";
-type View = "traces" | "reliability";
+type View = "traces" | "reliability" | "replay";
 
 export function ObservabilityPanel() {
   const [traces, setTraces] = useState<Trace[]>([]);
@@ -12,6 +13,7 @@ export function ObservabilityPanel() {
   const [selectedTrace, setSelectedTrace] = useState<string | null>(null);
   const [conn, setConn] = useState<Conn>("init");
   const [view, setView] = useState<View>("traces");
+  const [replayFocus, setReplayFocus] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -52,9 +54,27 @@ export function ObservabilityPanel() {
         >
           Reliability
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "replay"}
+          className={view === "replay" ? "active" : ""}
+          onClick={() => setView("replay")}
+        >
+          Run Replay
+        </button>
       </div>
       {view === "reliability" ? (
-        <ReliabilityDashboard />
+        <ReliabilityDashboard
+          onOpenRun={(row) => {
+            if (row.last_error_span) {
+              setReplayFocus(row.last_error_span);
+              setView("replay");
+            }
+          }}
+        />
+      ) : view === "replay" ? (
+        <RunReplayView focusSpanId={replayFocus} />
       ) : (
       <>
       <div className="health-strip">

@@ -89,3 +89,59 @@ export async function recordJsCrash(kind: "js_error" | "js_unhandled_rejection",
 export async function homelabHealth(): Promise<HealthRow[]> {
   return invoke<HealthRow[]>("homelab_health");
 }
+
+// ----- Run Replay / Agent Black Box -----
+
+export interface ReplayRunSummary {
+  span_id: string;
+  session_id: string;
+  trace_id: string;
+  agent_id: string | null;
+  model: string | null;
+  status: "running" | "ok" | "error";
+  started_at: number;
+  ended_at: number | null;
+  tokens: number;
+  had_error: boolean;
+  prompt_preview: string | null;
+}
+
+export interface ReplayStepRow {
+  ts: number;
+  name: string;
+  payload: Record<string, unknown>;
+}
+
+export interface RunReplay {
+  span_id: string;
+  session_id: string;
+  trace_id: string;
+  agent_id: string | null;
+  model: string | null;
+  status: "running" | "ok" | "error";
+  started_at: number;
+  ended_at: number | null;
+  routing_reason: string | null;
+  prompt_preview: string | null;
+  total_tokens: number;
+  est_usd: number;
+  steps: ReplayStepRow[];
+}
+
+/** Recent runs for the Run Replay picker (optionally scoped to a session). */
+export async function listReplayRuns(sessionId?: string, limit = 30): Promise<ReplayRunSummary[]> {
+  return invoke<ReplayRunSummary[]>("list_replay_runs", {
+    sessionId: sessionId ?? null,
+    limit,
+  });
+}
+
+/** Full ordered timeline + metadata for one run. */
+export async function runReplay(spanId: string): Promise<RunReplay> {
+  return invoke<RunReplay>("run_replay", { spanId });
+}
+
+/** Redacted JSONL export of one run (returned as a string; caller saves it). */
+export async function exportRunReplay(spanId: string): Promise<string> {
+  return invoke<string>("export_run_replay", { spanId });
+}

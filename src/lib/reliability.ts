@@ -27,6 +27,9 @@ export interface ReliabilityRow {
   est_usd: number;
   top_error_class: string | null;
   last_run_ms: number;
+  /** Deep-link target: the most recent failing run's span + session. */
+  last_error_span: string | null;
+  last_error_session: string | null;
 }
 
 export interface ReliabilityReport {

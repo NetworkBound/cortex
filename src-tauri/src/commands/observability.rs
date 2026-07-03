@@ -1,8 +1,37 @@
 use crate::observability::tracing_store::{
-    AuditRow, HealthRow, IssueRow, ReliabilityReport, SessionSearchHit, Trace, TraceEvent,
-    TracingStore,
+    AuditRow, HealthRow, IssueRow, ReliabilityReport, ReplayRunSummary, RunReplay, SessionSearchHit,
+    Trace, TraceEvent, TracingStore,
 };
 use tauri::State;
+
+/// Run Replay: recent runs for the picker (optionally scoped to a session).
+#[tauri::command]
+pub async fn list_replay_runs(
+    session_id: Option<String>,
+    limit: Option<usize>,
+    store: State<'_, TracingStore>,
+) -> Result<Vec<ReplayRunSummary>, String> {
+    let lim = limit.unwrap_or(30).clamp(1, 200);
+    store
+        .list_replay_runs(session_id.as_deref(), lim)
+        .map_err(|e| e.to_string())
+}
+
+/// Run Replay: full ordered timeline + metadata for one run.
+#[tauri::command]
+pub async fn run_replay(span_id: String, store: State<'_, TracingStore>) -> Result<RunReplay, String> {
+    store.run_replay(&span_id).map_err(|e| e.to_string())
+}
+
+/// Run Replay: redacted JSONL export of one run (returned as a string; the UI
+/// saves it). Redaction is applied at this single export choke-point.
+#[tauri::command]
+pub async fn export_run_replay(
+    span_id: String,
+    store: State<'_, TracingStore>,
+) -> Result<String, String> {
+    store.export_run_replay_jsonl(&span_id).map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 pub async fn recent_traces(limit: Option<usize>, store: State<'_, TracingStore>) -> Result<Vec<Trace>, String> {

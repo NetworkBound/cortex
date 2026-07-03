@@ -143,6 +143,10 @@ pub struct ReliabilityRow {
     pub est_usd: f64,
     pub top_error_class: Option<String>,
     pub last_run_ms: i64,
+    /// Span id + session of the most recent failing run in this group — lets the
+    /// dashboard deep-link a failing row straight into Run Replay.
+    pub last_error_span: Option<String>,
+    pub last_error_session: Option<String>,
 }
 
 /// Windowed reliability report: overall totals plus per-provider and per-model
@@ -156,8 +160,54 @@ pub struct ReliabilityReport {
     pub by_model: Vec<ReliabilityRow>,
 }
 
+/// One row of the Run Replay run picker: a past `agent.run` reduced to a
+/// selectable summary.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReplayRunSummary {
+    pub span_id: String,
+    pub session_id: String,
+    pub trace_id: String,
+    pub agent_id: Option<String>,
+    pub model: Option<String>,
+    pub status: String,
+    pub started_at: i64,
+    pub ended_at: Option<i64>,
+    pub tokens: u64,
+    pub had_error: bool,
+    pub prompt_preview: Option<String>,
+}
+
+/// One ordered step in a run's replay timeline — the redacted event payload as
+/// captured (`redacted_for_display` ran at write time).
+#[derive(Debug, Clone, Serialize)]
+pub struct ReplayStepRow {
+    pub ts: i64,
+    pub name: String,
+    pub payload: serde_json::Value,
+}
+
+/// Full replay of one run: metadata + routing reason + ordered timeline.
+#[derive(Debug, Clone, Serialize)]
+pub struct RunReplay {
+    pub span_id: String,
+    pub session_id: String,
+    pub trace_id: String,
+    pub agent_id: Option<String>,
+    pub model: Option<String>,
+    pub status: String,
+    pub started_at: i64,
+    pub ended_at: Option<i64>,
+    pub routing_reason: Option<String>,
+    pub prompt_preview: Option<String>,
+    pub total_tokens: u64,
+    pub est_usd: f64,
+    pub steps: Vec<ReplayStepRow>,
+}
+
 /// One `agent.run` span reduced to the fields the reliability aggregation needs.
 struct RunRecord {
+    span_id: String,
+    session_id: String,
     agent_id: String,
     model: Option<String>,
     started: i64,
@@ -327,14 +377,18 @@ impl TracingStore {
         session_id: &str,
         message: &str,
         picked_agents: &[String],
+        routing_reason: Option<&str>,
     ) -> anyhow::Result<()> {
         let span_id = ulid::Ulid::new().to_string();
         let now = chrono::Utc::now().timestamp_millis();
         let preview: String = message.chars().take(120).collect();
+        // Persist the routing reason (redacted) so Run Replay can show *why*
+        // this model/agent was chosen. Additive attribute; old rows lack it.
         let attrs = serde_json::json!({
             "message_chars": message.chars().count(),
             "picked_agents": picked_agents,
             "first_message_preview": preview,
+            "routing_reason": routing_reason.map(crate::redact::redact_text),
         });
         let conn = self.inner.lock();
         conn.execute(
@@ -949,7 +1003,7 @@ impl TracingStore {
         let recs = {
             let conn = self.inner.lock();
             let mut stmt = conn.prepare(
-                "SELECT s.agent_id,
+                "SELECT s.id, s.session_id, s.agent_id,
                         json_extract(s.attributes, '$.model') AS model,
                         s.started_at, s.ended_at, s.status,
                         COALESCE(SUM(CASE WHEN e.name = 'done'
@@ -965,14 +1019,16 @@ impl TracingStore {
             )?;
             let rows = stmt.query_map(params![since_ms], |r| {
                 Ok(RunRecord {
-                    agent_id: r.get::<_, Option<String>>(0)?.unwrap_or_else(|| "unknown".into()),
-                    model: r.get::<_, Option<String>>(1)?,
-                    started: r.get(2)?,
-                    ended: r.get::<_, Option<i64>>(3)?,
-                    status: r.get::<_, Option<String>>(4)?.unwrap_or_else(|| "running".into()),
-                    tokens: r.get::<_, i64>(5)?.max(0) as u64,
-                    had_error: r.get::<_, i64>(6)? != 0,
-                    err_msg: r.get::<_, Option<String>>(7)?,
+                    span_id: r.get(0)?,
+                    session_id: r.get(1)?,
+                    agent_id: r.get::<_, Option<String>>(2)?.unwrap_or_else(|| "unknown".into()),
+                    model: r.get::<_, Option<String>>(3)?,
+                    started: r.get(4)?,
+                    ended: r.get::<_, Option<i64>>(5)?,
+                    status: r.get::<_, Option<String>>(6)?.unwrap_or_else(|| "running".into()),
+                    tokens: r.get::<_, i64>(7)?.max(0) as u64,
+                    had_error: r.get::<_, i64>(8)? != 0,
+                    err_msg: r.get::<_, Option<String>>(9)?,
                 })
             })?;
             rows.flatten().collect::<Vec<RunRecord>>()
@@ -1005,6 +1061,165 @@ impl TracingStore {
             by_provider: sort_rows(provider_rows),
             by_model: sort_rows(model_rows),
         })
+    }
+
+    /// Recent `agent.run` spans for the Run Replay picker, newest first,
+    /// optionally scoped to one session. Read-only.
+    pub fn list_replay_runs(
+        &self,
+        session_id: Option<&str>,
+        limit: usize,
+    ) -> anyhow::Result<Vec<ReplayRunSummary>> {
+        let conn = self.inner.lock();
+        let mut stmt = conn.prepare(
+            "SELECT s.id, s.session_id, s.trace_id, s.agent_id,
+                    json_extract(s.attributes, '$.model'),
+                    s.started_at, s.ended_at, s.status,
+                    COALESCE(SUM(CASE WHEN e.name = 'done'
+                        THEN CAST(json_extract(e.payload, '$.tokens') AS INTEGER)
+                        ELSE 0 END), 0) AS tokens,
+                    MAX(CASE WHEN e.name = 'error' THEN 1 ELSE 0 END) AS had_error,
+                    (SELECT json_extract(c.attributes, '$.first_message_preview')
+                       FROM spans c WHERE c.trace_id = s.trace_id AND c.name = 'chat.turn'
+                       LIMIT 1) AS prompt
+             FROM spans s LEFT JOIN events e ON e.span_id = s.id
+             WHERE s.name = 'agent.run' AND (?1 IS NULL OR s.session_id = ?1)
+             GROUP BY s.id
+             ORDER BY s.started_at DESC
+             LIMIT ?2",
+        )?;
+        let rows = stmt.query_map(params![session_id, limit as i64], |r| {
+            let prompt: Option<String> = r.get::<_, Option<String>>(10)?;
+            Ok(ReplayRunSummary {
+                span_id: r.get(0)?,
+                session_id: r.get(1)?,
+                trace_id: r.get(2)?,
+                agent_id: r.get::<_, Option<String>>(3)?,
+                model: r.get::<_, Option<String>>(4)?,
+                started_at: r.get(5)?,
+                ended_at: r.get::<_, Option<i64>>(6)?,
+                status: r.get::<_, Option<String>>(7)?.unwrap_or_else(|| "running".into()),
+                tokens: r.get::<_, i64>(8)?.max(0) as u64,
+                had_error: r.get::<_, i64>(9)? != 0,
+                // Redact the prompt preview — captured raw, may contain secrets.
+                prompt_preview: prompt.map(|p| crate::redact::redact_text(&p)),
+            })
+        })?;
+        Ok(rows.flatten().collect())
+    }
+
+    /// Full replay of one run: its `agent.run` span, ordered (already-redacted)
+    /// events, the routing reason + prompt preview from the trace's `chat.turn`
+    /// span, and a read-time cost estimate. Read-only.
+    pub fn run_replay(&self, span_id: &str) -> anyhow::Result<RunReplay> {
+        use crate::pricing::{compute_usd, lookup_price, split_tokens};
+        let conn = self.inner.lock();
+        let (session_id, trace_id, agent_id, model, status, started_at, ended_at) = conn
+            .query_row(
+                "SELECT session_id, trace_id, agent_id, json_extract(attributes, '$.model'),
+                        status, started_at, ended_at
+                 FROM spans WHERE id = ?1 AND name = 'agent.run'",
+                params![span_id],
+                |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, Option<String>>(2)?,
+                        r.get::<_, Option<String>>(3)?,
+                        r.get::<_, Option<String>>(4)?.unwrap_or_else(|| "running".into()),
+                        r.get::<_, i64>(5)?,
+                        r.get::<_, Option<i64>>(6)?,
+                    ))
+                },
+            )
+            .map_err(|_| anyhow::anyhow!("run not found: {span_id}"))?;
+
+        // Routing reason + prompt preview live on the trace's chat.turn span.
+        let (routing_reason, prompt_preview): (Option<String>, Option<String>) = conn
+            .query_row(
+                "SELECT json_extract(attributes, '$.routing_reason'),
+                        json_extract(attributes, '$.first_message_preview')
+                 FROM spans WHERE trace_id = ?1 AND name = 'chat.turn' LIMIT 1",
+                params![trace_id],
+                |r| Ok((r.get::<_, Option<String>>(0)?, r.get::<_, Option<String>>(1)?)),
+            )
+            .unwrap_or((None, None));
+        // routing_reason was redacted at write; prompt_preview was not.
+        let prompt_preview = prompt_preview.map(|p| crate::redact::redact_text(&p));
+
+        let mut stmt = conn.prepare(
+            "SELECT ts, name, payload FROM events WHERE span_id = ?1 ORDER BY ts ASC, rowid ASC",
+        )?;
+        let steps: Vec<ReplayStepRow> = stmt
+            .query_map(params![span_id], |r| {
+                let payload_str: String = r.get(2)?;
+                let payload: serde_json::Value =
+                    serde_json::from_str(&payload_str).unwrap_or(serde_json::Value::Null);
+                Ok(ReplayStepRow { ts: r.get(0)?, name: r.get(1)?, payload })
+            })?
+            .flatten()
+            .collect();
+
+        // Read-time token + cost from the `done` step(s).
+        let total_tokens: u64 = steps
+            .iter()
+            .filter(|s| s.name == "done")
+            .filter_map(|s| s.payload.get("tokens").and_then(|t| t.as_u64()))
+            .sum();
+        let est_usd = if total_tokens > 0 {
+            let price = lookup_price(model.as_deref().unwrap_or(agent_id.as_deref().unwrap_or("")));
+            let (p, c) = split_tokens(total_tokens);
+            compute_usd(p, c, price)
+        } else {
+            0.0
+        };
+
+        Ok(RunReplay {
+            span_id: span_id.to_string(),
+            session_id,
+            trace_id,
+            agent_id,
+            model,
+            status,
+            started_at,
+            ended_at,
+            routing_reason,
+            prompt_preview,
+            total_tokens,
+            est_usd,
+            steps,
+        })
+    }
+
+    /// Serialize a run replay as redacted JSONL (one metadata line + one line
+    /// per step). Every line is passed through `redact::redact_text` on the way
+    /// out — a single export choke-point — so no API key / secret / obvious
+    /// credential can leave the machine even if a raw one reached the store.
+    pub fn export_run_replay_jsonl(&self, span_id: &str) -> anyhow::Result<String> {
+        let replay = self.run_replay(span_id)?;
+        let mut out = String::new();
+        let meta = serde_json::json!({
+            "kind": "run_replay_meta",
+            "span_id": replay.span_id,
+            "session_id": replay.session_id,
+            "agent_id": replay.agent_id,
+            "model": replay.model,
+            "status": replay.status,
+            "started_at": replay.started_at,
+            "ended_at": replay.ended_at,
+            "routing_reason": replay.routing_reason,
+            "prompt_preview": replay.prompt_preview,
+            "total_tokens": replay.total_tokens,
+            "est_usd": replay.est_usd,
+        });
+        out.push_str(&crate::redact::redact_text(&meta.to_string()));
+        out.push('\n');
+        for step in &replay.steps {
+            let line = serde_json::to_string(step).unwrap_or_default();
+            out.push_str(&crate::redact::redact_text(&line));
+            out.push('\n');
+        }
+        Ok(out)
     }
 }
 
@@ -1042,6 +1257,7 @@ fn build_reliability_row(
     let mut durations: Vec<i64> = Vec::new();
     let mut last_run_ms = 0i64;
     let mut error_class_counts: std::collections::HashMap<String, u64> = Default::default();
+    let mut last_error: Option<(i64, String, String)> = None; // (started, span_id, session_id)
 
     for rec in recs {
         let is_error = rec.had_error || rec.status == "error";
@@ -1049,6 +1265,9 @@ fn build_reliability_row(
             error_runs += 1;
             let class = error_class(rec.err_msg.as_deref().unwrap_or("agent error"));
             *error_class_counts.entry(class).or_insert(0) += 1;
+            if last_error.as_ref().map(|(t, ..)| rec.started > *t).unwrap_or(true) {
+                last_error = Some((rec.started, rec.span_id.clone(), rec.session_id.clone()));
+            }
         } else if rec.ended.is_some() {
             ok_runs += 1;
         } else {
@@ -1096,6 +1315,8 @@ fn build_reliability_row(
         est_usd,
         top_error_class,
         last_run_ms,
+        last_error_span: last_error.as_ref().map(|(_, s, _)| s.clone()),
+        last_error_session: last_error.as_ref().map(|(_, _, sess)| sess.clone()),
     }
 }
 
@@ -1316,5 +1537,58 @@ mod tests {
             .unwrap();
         assert_eq!(empty.totals.runs, 0);
         assert_eq!(empty.totals.success_rate, 0.0);
+
+        // The failing row deep-link fields point at the errored run.
+        let prov = store.reliability_summary(None).unwrap();
+        let row = prov.by_provider.iter().find(|r| r.key == "gateway-remote").unwrap();
+        assert_eq!(row.last_error_span.as_deref(), Some("err-1"));
+    }
+
+    /// Run Replay: the timeline reconstructs a run's ordered events, and the
+    /// JSONL export redacts secrets even when a raw one reached the store.
+    #[test]
+    fn run_replay_timeline_and_redacted_export() {
+        let store = TracingStore::in_memory();
+        // A chat.turn carrying a routing reason + prompt preview for the trace.
+        store
+            .record_chat_turn("trace-r", "sess-r", "please refactor auth.rs", &["gateway-remote".into()], Some("explicit pick: gateway-remote"))
+            .unwrap();
+        store
+            .start_agent_run("run-r", "trace-r", "sess-r", "gateway-remote", Some("claude-sonnet-4-6"))
+            .unwrap();
+        store
+            .record_event("run-r", &AgentEvent::ToolCall { name: "read_file".into(), args: serde_json::Value::Null, preview: Some("auth.rs".into()) })
+            .unwrap();
+        // A poisoned error message reaches the store RAW (record_event does not
+        // itself redact — the chat path redacts before it; the export must too).
+        store
+            .record_event("run-r", &AgentEvent::Error { message: "boom key=sk-ant-api03-DEADBEEFdeadbeef0123456789 leaked".into() })
+            .unwrap();
+        store
+            .record_event("run-r", &AgentEvent::Done { total_tokens: Some(120), run_id: None })
+            .unwrap();
+        store.finish_agent_run("run-r").unwrap();
+
+        let replay = store.run_replay("run-r").unwrap();
+        assert_eq!(replay.span_id, "run-r");
+        assert_eq!(replay.model.as_deref(), Some("claude-sonnet-4-6"));
+        assert_eq!(replay.routing_reason.as_deref(), Some("explicit pick: gateway-remote"));
+        assert_eq!(replay.total_tokens, 120);
+        assert!(replay.est_usd > 0.0);
+        // Ordered: tool_call → error → done.
+        let names: Vec<&str> = replay.steps.iter().map(|s| s.name.as_str()).collect();
+        assert_eq!(names, ["tool_call", "error", "done"]);
+
+        // The picker lists this run.
+        let runs = store.list_replay_runs(Some("sess-r"), 10).unwrap();
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].span_id, "run-r");
+        assert!(runs[0].had_error);
+
+        // Export redacts the leaked key — the choke-point guarantee.
+        let jsonl = store.export_run_replay_jsonl("run-r").unwrap();
+        assert!(!jsonl.contains("sk-ant-api03-DEADBEEF"), "secret must not survive export");
+        assert!(jsonl.contains("run_replay_meta"));
+        assert!(jsonl.contains("tool_call"));
     }
 }
