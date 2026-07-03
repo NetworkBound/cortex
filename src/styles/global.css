@@ -19834,3 +19834,31 @@ li.session-picker-error {
 .ckdiff-confirm:hover:not(:disabled) { filter: brightness(1.06); }
 .ckdiff-secondary:disabled,
 .ckdiff-confirm:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* Model Fabric (Settings → Providers). */
+.fabric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.fabric-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fabric-label { display: flex; gap: var(--space-1); align-items: center; }
+.fabric-url {
+  font-size: var(--text-xs, 0.72rem);
+  color: var(--text-muted, #888);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 340px;
+}
+.fabric-kind {
+  font-size: 0.62rem; text-transform: uppercase; padding: 0 5px; border-radius: 4px;
+  background: var(--surface-raised, rgba(255, 255, 255, 0.08)); color: var(--text-muted, #888);
+}
+.fabric-kind.local { color: var(--success, #46a758); }
+.fabric-kind.remote { color: var(--accent, #6c9ef8); }
+.fabric-kind.off { color: var(--warning, #f5a623); }
+.fabric-probe { font-size: var(--text-xs, 0.72rem); }
+.fabric-probe.ok { color: var(--success, #46a758); }
+.fabric-probe.bad { color: var(--danger, #e5484d); }

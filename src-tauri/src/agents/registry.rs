@@ -54,6 +54,14 @@ impl Registry {
         self.agents.insert(id, agent);
     }
 
+    /// Remove an adapter by id (and drop any cached health for it). Returns true
+    /// if an adapter was present. Used to live-deregister a Model Fabric
+    /// endpoint on delete without a restart.
+    pub fn unregister(&mut self, id: &str) -> bool {
+        self.health_cache.write().remove(id);
+        self.agents.remove(id).is_some()
+    }
+
     pub fn get(&self, id: &str) -> Option<Arc<dyn AgentAdapter>> {
         self.agents.get(id).cloned()
     }

@@ -161,6 +161,16 @@ pub fn run() {
         for spec in crate::agents::RUNTIMES {
             reg.register(Arc::new(crate::agents::LocalRuntimeAgent::new(spec)));
         }
+        // Homelab Model Fabric — user-defined OpenAI-compatible endpoints
+        // (`~/.cortex/endpoints.json`, `fabric-<slug>` ids). Absent file ⇒ empty
+        // ⇒ bit-identical to today. Only ENABLED endpoints register (disabled
+        // ones live in config until re-enabled). Chat-only; probes never send
+        // the vault key.
+        for cfg in crate::agents::custom_endpoint::load_endpoints() {
+            if cfg.enabled {
+                reg.register(Arc::new(crate::agents::custom_endpoint::CustomEndpointAgent::new(cfg)));
+            }
+        }
         // E2E only: deterministic fake-LLM adapter the probe drives through
         // the REAL chat_send pipeline (focus-chain flow). Never registered in
         // a normal launch.
@@ -240,6 +250,10 @@ pub fn run() {
             commands::settings::validate_provider_key,
             commands::settings::set_provider_default_model,
             commands::settings::set_runtime_mode,
+            commands::endpoints::list_endpoints,
+            commands::endpoints::save_endpoint,
+            commands::endpoints::delete_endpoint,
+            commands::endpoints::probe_endpoint,
             commands::observability::recent_traces,
             commands::observability::reliability_summary,
             commands::observability::list_replay_runs,
@@ -816,6 +830,12 @@ pub fn build_headless_state() -> (AppState, TracingStore) {
         }
         for spec in crate::agents::RUNTIMES {
             reg.register(Arc::new(crate::agents::LocalRuntimeAgent::new(spec)));
+        }
+        // Model Fabric parity for the headless/mobile server (see run()).
+        for cfg in crate::agents::custom_endpoint::load_endpoints() {
+            if cfg.enabled {
+                reg.register(Arc::new(crate::agents::custom_endpoint::CustomEndpointAgent::new(cfg)));
+            }
         }
     }
 

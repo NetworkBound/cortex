@@ -344,7 +344,7 @@ impl AgentAdapter for LocalRuntimeAgent {
 
 /// Extract model ids from an OpenAI `/v1/models` response: `{ "data": [ { "id":
 /// "..." }, ... ] }`. Tolerates a bare array or missing fields → empty Vec.
-fn parse_model_ids(json: &Value) -> Vec<String> {
+pub(crate) fn parse_model_ids(json: &Value) -> Vec<String> {
     let arr = json
         .get("data")
         .and_then(Value::as_array)
@@ -358,7 +358,7 @@ fn parse_model_ids(json: &Value) -> Vec<String> {
 
 /// Pure parse of one OpenAI Chat Completions SSE `data:` payload (shared schema
 /// with the Group A adapter). `Some((text?, total_tokens?))` or `None`.
-fn parse_chat_completion_event(data: &str) -> Option<(Option<String>, Option<u64>)> {
+pub(crate) fn parse_chat_completion_event(data: &str) -> Option<(Option<String>, Option<u64>)> {
     let json: Value = serde_json::from_str(data).ok()?;
     let text = json
         .get("choices")

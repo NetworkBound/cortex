@@ -64,6 +64,7 @@ pub mod hooks;
 pub mod ide_export;
 pub mod inline_assist;
 pub mod inline_completion;
+pub mod endpoints;
 pub mod keyvault;
 pub mod lane_review;
 pub mod lint;

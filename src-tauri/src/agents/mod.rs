@@ -13,6 +13,7 @@ pub mod codex_spec;
 pub mod gemini_spec;
 pub mod grok_spec;
 pub mod local_cli;
+pub mod custom_endpoint;
 pub mod local_runtime;
 pub mod mistral_vibe_spec;
 pub mod openai_compat;
