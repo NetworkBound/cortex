@@ -50,6 +50,17 @@ pub struct WslTsStatus {
     pub tailnet_ip: Option<String>,
 }
 
+/// Ensure `$HOME` is set. When Cortex (a GUI process) spawns `wsl.exe`, the
+/// child bash may inherit an empty `HOME`, which would make `$HOME/...` paths
+/// expand to `/...`. Resolve it from the passwd db as a preamble on every
+/// script so `WSL_DIR` is always valid.
+const HOME_PREAMBLE: &str = r#"export HOME="${HOME:-$(getent passwd "$(id -un)" 2>/dev/null | cut -d: -f6)}"; export HOME="${HOME:-/home/$(id -un)}"; "#;
+
+/// Wrap a script with the HOME-resolution preamble.
+fn with_home(script: &str) -> String {
+    format!("{HOME_PREAMBLE}{script}")
+}
+
 /// Run a bash script inside the default WSL distro and capture stdout.
 /// Returns Err on a non-zero exit, with stderr as the message. Never pops a
 /// console window (`sys::no_window`).
@@ -58,7 +69,7 @@ fn wsl_bash(script: &str) -> Result<String, String> {
         .arg("--")
         .arg("bash")
         .arg("-lc")
-        .arg(script)
+        .arg(with_home(script))
         .stdin(Stdio::null())
         .output()
         .map_err(|e| format!("wsl.exe not available: {e}"))?;
@@ -135,7 +146,7 @@ fn start_daemon() -> Result<(), String> {
         .arg("--")
         .arg("bash")
         .arg("-lc")
-        .arg(&inner)
+        .arg(with_home(&inner))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
