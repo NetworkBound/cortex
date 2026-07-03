@@ -53,7 +53,13 @@ pub fn run() {
     // so home-traffic routing reflects the last session. Does NOT auto-spawn the
     // sidecar here; it is started lazily below if previously enabled.
     crate::tailscale::init_from_disk();
-    if crate::tailscale::prefer_system() {
+    if let Some(addr) = crate::tailscale::external_socks_addr() {
+        // User pointed us at an external SOCKS5 (e.g. Tailscale running in WSL):
+        // route through it and never start the embedded sidecar.
+        tracing::info!(
+            "tailscale: external SOCKS5 proxy configured ({addr}) — using it directly (embedded sidecar NOT started)"
+        );
+    } else if crate::tailscale::prefer_system() {
         // A system Tailscale is already running: the machine is on the tailnet,
         // so reach home/tailnet hosts directly and DON'T start the embedded
         // sidecar. `maybe_tailscale_proxy` is a no-op in this mode.
@@ -584,6 +590,8 @@ pub fn run() {
             commands::tailscale::ts_status,
             commands::tailscale::ts_set_authkey,
             commands::tailscale::ts_get_socks_addr,
+            commands::tailscale::ts_get_external_socks,
+            commands::tailscale::ts_set_external_socks,
             commands::tailscale::ts_mobile_pairing,
         ])
         .setup(move |app| {

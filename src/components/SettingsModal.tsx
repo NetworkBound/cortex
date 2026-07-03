@@ -21,6 +21,8 @@ import {
   tsDisable,
   tsStatus,
   tsSetAuthkey,
+  tsGetExternalSocks,
+  tsSetExternalSocks,
   tsMobilePairing,
   type MobilePairing,
   historySyncStatus,
@@ -849,6 +851,8 @@ function TailscaleSection() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [savedKey, setSavedKey] = useState(false);
+  const [externalSocks, setExternalSocks] = useState("");
+  const [savedExternal, setSavedExternal] = useState(false);
 
   const enabled =
     status.state === "connected" ||
@@ -865,6 +869,12 @@ function TailscaleSection() {
         if (!cancelled) setStatus(s);
       } catch {
         /* leave at disconnected */
+      }
+      try {
+        const ext = await tsGetExternalSocks();
+        if (!cancelled) setExternalSocks(ext);
+      } catch {
+        /* leave blank */
       }
     })();
     return () => {
@@ -940,6 +950,20 @@ function TailscaleSection() {
       const key = authkey.trim();
       const s = await tsEnable(key.length > 0 ? key : undefined);
       setStatus(s);
+    } catch (e) {
+      setErr(humanizeError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onSaveExternal = async () => {
+    setErr(null);
+    setBusy(true);
+    try {
+      await tsSetExternalSocks(externalSocks.trim());
+      setSavedExternal(true);
+      setTimeout(() => setSavedExternal(false), 2500);
     } catch (e) {
       setErr(humanizeError(e));
     } finally {
@@ -1050,6 +1074,46 @@ function TailscaleSection() {
       {status.state === "error" && (
         <div className="settings-err">{status.msg}</div>
       )}
+
+      <div className="settings-divider gap-top" />
+      <h3>External SOCKS5 proxy (advanced)</h3>
+      <div className="settings-hint spaced">
+        For locked-down machines where the embedded sidecar can't run (no admin,
+        or antivirus quarantines it): run Tailscale elsewhere — e.g. in WSL —
+        exposing a SOCKS5 proxy, and point Cortex at it here. When set, Cortex
+        routes home/tailnet traffic through this proxy and never starts the
+        embedded sidecar. Leave blank to use the embedded node above.
+        <br />
+        In WSL: <code>tailscaled --tun=userspace-networking
+        --socks5-server=localhost:1055 &amp;</code> then <code>tailscale up</code>,
+        and enter <code>127.0.0.1:1055</code> below.
+      </div>
+      <div className="settings-stack tight">
+        <label>
+          Proxy address (<code>host:port</code>)
+          <input
+            type="text"
+            value={externalSocks}
+            autoComplete="off"
+            placeholder="127.0.0.1:1055"
+            onChange={(e) => setExternalSocks(e.target.value)}
+          />
+        </label>
+        <div className="settings-row wrap">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void onSaveExternal()}
+          >
+            {externalSocks.trim().length > 0 ? "Save proxy" : "Clear proxy"}
+          </button>
+          {savedExternal && <span className="settings-success">Saved.</span>}
+        </div>
+        <small className="settings-muted">
+          Applies to new requests immediately. A restart is safest so all clients
+          pick it up.
+        </small>
+      </div>
 
       {err && <div className="settings-err">{err}</div>}
     </div>

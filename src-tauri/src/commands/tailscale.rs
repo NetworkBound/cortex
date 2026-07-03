@@ -30,6 +30,15 @@ pub async fn ts_enable(authkey: Option<String>) -> Result<TsStatus, String> {
     tailscale::save_config(&cfg).map_err(|e| e.to_string())?;
     *tailscale::shared().enabled.write() = true;
 
+    // If an external SOCKS5 proxy is configured (e.g. Tailscale in WSL), route
+    // through it and never start the embedded sidecar.
+    if let Some(addr) = tailscale::external_socks_addr() {
+        tracing::info!(
+            "tailscale: external SOCKS5 proxy configured ({addr}) — enable is a no-op (embedded sidecar NOT started)"
+        );
+        return Ok(tailscale::current_status());
+    }
+
     // If the OS already runs a system Tailscale, the machine is on the tailnet
     // directly: don't spin up the embedded sidecar. Home/tailnet traffic reaches
     // hosts directly (`maybe_tailscale_proxy` is a no-op when `prefer_system()`).
@@ -80,6 +89,22 @@ pub async fn ts_set_authkey(key: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn ts_get_socks_addr() -> Result<String, String> {
     Ok(tailscale::socks_addr())
+}
+
+/// The external SOCKS5 proxy (`host:port`), if configured — the address Cortex
+/// routes home traffic through instead of the embedded sidecar (e.g. Tailscale
+/// running in WSL). Empty string means unset.
+#[tauri::command]
+pub async fn ts_get_external_socks() -> Result<String, String> {
+    Ok(tailscale::external_socks_addr().unwrap_or_default())
+}
+
+/// Set or clear (empty string) the external SOCKS5 proxy. When set, the embedded
+/// sidecar is never started and home traffic routes through this address.
+#[tauri::command]
+pub async fn ts_set_external_socks(addr: String) -> Result<(), String> {
+    let value = if addr.trim().is_empty() { None } else { Some(addr) };
+    tailscale::set_external_socks(value).map_err(|e| e.to_string())
 }
 
 /// A phone-pairing payload for the Tailscale-fronted mobile server: the

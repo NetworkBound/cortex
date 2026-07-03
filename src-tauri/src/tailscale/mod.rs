@@ -59,6 +59,12 @@ pub struct Shared {
     pub enabled: RwLock<bool>,
     /// Local SOCKS5 address (`host:port`) the sidecar listens on.
     pub socks_addr: RwLock<String>,
+    /// External SOCKS5 proxy (`host:port`) to route home-service traffic through
+    /// instead of the embedded sidecar — e.g. a Tailscale running in WSL on a
+    /// machine where the embedded sidecar can't run (no admin / AV quarantine).
+    /// When `Some`, the embedded sidecar is never started and routing applies
+    /// unconditionally (we trust the user-supplied proxy).
+    pub external_socks: RwLock<Option<String>>,
 }
 
 impl Default for Shared {
@@ -67,8 +73,27 @@ impl Default for Shared {
             status: RwLock::new(TsStatus::Disconnected),
             enabled: RwLock::new(false),
             socks_addr: RwLock::new(DEFAULT_SOCKS_ADDR.to_string()),
+            external_socks: RwLock::new(None),
         }
     }
+}
+
+/// The external SOCKS5 proxy address, if configured. Env `CORTEX_SOCKS_ADDR`
+/// takes precedence over the persisted setting (handy for one-off testing).
+/// A blank value counts as unset.
+pub fn external_socks_addr() -> Option<String> {
+    if let Ok(env) = std::env::var("CORTEX_SOCKS_ADDR") {
+        let t = env.trim();
+        if !t.is_empty() {
+            return Some(t.to_string());
+        }
+    }
+    shared()
+        .external_socks
+        .read()
+        .clone()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
 }
 
 /// Accessor for the process-global Tailscale state.
@@ -280,6 +305,14 @@ const PROXY_NO_PROXY: &str = "localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,1
 /// Proxy construction failures degrade gracefully (returns the unmodified
 /// builder) rather than panicking — a malformed addr must never brick the app.
 pub fn maybe_tailscale_proxy(builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
+    // External SOCKS5 (e.g. Tailscale running in WSL) wins over everything: the
+    // user explicitly pointed us at a proxy, so route through it unconditionally
+    // — independent of the embedded sidecar's connection state or a system
+    // daemon. This is the path for locked-down machines where the embedded
+    // sidecar can't run.
+    if let Some(addr) = external_socks_addr() {
+        return apply_socks(builder, &addr);
+    }
     // If the OS already has a running system Tailscale, the machine is on the
     // tailnet directly — never route through the embedded SOCKS5 proxy (which we
     // also don't start in that case). Reach hosts directly.
@@ -289,7 +322,12 @@ pub fn maybe_tailscale_proxy(builder: reqwest::ClientBuilder) -> reqwest::Client
     if !is_active() {
         return builder;
     }
-    let addr = socks_addr();
+    apply_socks(builder, &socks_addr())
+}
+
+/// Attach a `socks5h://` proxy (resolve-at-proxy) with the standard no-proxy
+/// carve-outs. Shared by the embedded-sidecar and external-proxy paths.
+fn apply_socks(builder: reqwest::ClientBuilder, addr: &str) -> reqwest::ClientBuilder {
     match reqwest::Proxy::all(format!("socks5h://{addr}")) {
         Ok(proxy) => builder.proxy(proxy.no_proxy(reqwest::NoProxy::from_string(PROXY_NO_PROXY))),
         Err(e) => {
@@ -329,6 +367,9 @@ pub struct TsConfig {
     pub enabled: bool,
     #[serde(default = "default_socks")]
     pub socks_addr: String,
+    /// External SOCKS5 proxy (`host:port`) — see [`Shared::external_socks`].
+    #[serde(default)]
+    pub external_socks: Option<String>,
 }
 
 fn default_socks() -> String {
@@ -337,8 +378,20 @@ fn default_socks() -> String {
 
 impl Default for TsConfig {
     fn default() -> Self {
-        Self { enabled: false, socks_addr: default_socks() }
+        Self { enabled: false, socks_addr: default_socks(), external_socks: None }
     }
+}
+
+/// Set (or clear, with `None`/blank) the external SOCKS5 proxy and persist it.
+/// Updates the process-global state so new reqwest clients pick it up.
+pub fn set_external_socks(addr: Option<String>) -> anyhow::Result<()> {
+    let normalized = addr
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    *shared().external_socks.write() = normalized.clone();
+    let mut cfg = load_config();
+    cfg.external_socks = normalized;
+    save_config(&cfg)
 }
 
 /// Load persisted settings, ignoring a missing/malformed file.
@@ -367,6 +420,10 @@ pub fn init_from_disk() {
     let s = shared();
     *s.enabled.write() = cfg.enabled;
     *s.socks_addr.write() = cfg.socks_addr;
+    *s.external_socks.write() = cfg
+        .external_socks
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty());
 }
 
 #[cfg(test)]
@@ -395,5 +452,27 @@ mod tests {
         // and must return a usable builder).
         let b = maybe_tailscale_proxy(reqwest::Client::builder());
         assert!(b.build().is_ok());
+    }
+
+    #[test]
+    fn external_socks_env_overrides_and_normalizes() {
+        // Blank config → None. Env var (with surrounding whitespace) wins and is
+        // trimmed. Restore env afterward so other tests aren't affected.
+        let prev = std::env::var("CORTEX_SOCKS_ADDR").ok();
+        std::env::remove_var("CORTEX_SOCKS_ADDR");
+        *shared().external_socks.write() = None;
+        assert_eq!(external_socks_addr(), None);
+
+        std::env::set_var("CORTEX_SOCKS_ADDR", "  127.0.0.1:1055  ");
+        assert_eq!(external_socks_addr().as_deref(), Some("127.0.0.1:1055"));
+
+        // Blank env is treated as unset, falling back to the (empty) config.
+        std::env::set_var("CORTEX_SOCKS_ADDR", "   ");
+        assert_eq!(external_socks_addr(), None);
+
+        match prev {
+            Some(v) => std::env::set_var("CORTEX_SOCKS_ADDR", v),
+            None => std::env::remove_var("CORTEX_SOCKS_ADDR"),
+        }
     }
 }

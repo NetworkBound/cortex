@@ -604,6 +604,18 @@ export async function tsGetSocksAddr(): Promise<string> {
   return invoke<string>("ts_get_socks_addr");
 }
 
+/** External SOCKS5 proxy (`host:port`) Cortex routes home traffic through
+ *  instead of the embedded sidecar — e.g. Tailscale running in WSL. Empty
+ *  string means unset. */
+export async function tsGetExternalSocks(): Promise<string> {
+  return invoke<string>("ts_get_external_socks");
+}
+
+/** Set or clear (empty string) the external SOCKS5 proxy. */
+export async function tsSetExternalSocks(addr: string): Promise<void> {
+  return invoke("ts_set_external_socks", { addr });
+}
+
 /** Phone-pairing payload for the Tailscale-fronted mobile server. */
 export interface MobilePairing {
   /** `https://<magicdns-name>/` — the tailnet mobile entry point. */
