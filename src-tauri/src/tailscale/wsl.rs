@@ -116,12 +116,54 @@ pub fn available() -> bool {
     run_script("echo ok", false).map(|s| s.contains("ok")).unwrap_or(false)
 }
 
-/// The default distro's primary IP (what the user dials from Windows).
+/// Candidate addresses the Windows side might reach the WSL SOCKS5 at. In NAT
+/// mode it's the distro's own IP; in *mirrored* networking mode localhost is
+/// shared (and `hostname -I` yields nothing useful), so `127.0.0.1` is included
+/// as a fallback. Order: distro IPs first, then loopback.
+fn candidate_hosts() -> Vec<String> {
+    let mut hosts: Vec<String> = Vec::new();
+    // Two detection methods — distros/network modes differ; take any IPv4s.
+    let probe = "ip route get 1.1.1.1 2>/dev/null | grep -oE 'src [0-9.]+' | awk '{print $2}'; \
+                 hostname -I 2>/dev/null";
+    if let Ok(out) = run_script(probe, false) {
+        for tok in out.split_whitespace() {
+            let t = tok.trim();
+            if t.contains('.') && t != "127.0.0.1" && !hosts.iter().any(|h| h == t) {
+                hosts.push(t.to_string());
+            }
+        }
+    }
+    hosts.push("127.0.0.1".to_string());
+    hosts
+}
+
+/// The distro's primary IP, best-effort (used for display; may be absent in
+/// mirrored networking mode).
 fn wsl_ip() -> Option<String> {
-    run_script("hostname -I | awk '{print $1}'", false)
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
+    candidate_hosts().into_iter().find(|h| h != "127.0.0.1")
+}
+
+/// Pick the first candidate `host:PORT` that actually accepts a TCP connection
+/// from Windows — this directly validates the address Cortex will dial, across
+/// NAT vs mirrored networking. Retries briefly so a just-started daemon has time
+/// to bind. Returns `None` only if nothing is reachable.
+fn reachable_proxy(port: u16) -> Option<String> {
+    use std::net::{TcpStream, ToSocketAddrs};
+    let hosts = candidate_hosts();
+    for _ in 0..6 {
+        for host in &hosts {
+            let addr = format!("{host}:{port}");
+            if let Ok(mut sas) = addr.to_socket_addrs() {
+                if let Some(sa) = sas.next() {
+                    if TcpStream::connect_timeout(&sa, std::time::Duration::from_millis(600)).is_ok() {
+                        return Some(addr);
+                    }
+                }
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+    None
 }
 
 /// Install a rootless Tailscale static build inside WSL if not already present.
@@ -254,11 +296,15 @@ pub fn setup() -> Result<WslTsStatus, String> {
     }
     install()?;
     start_daemon()?;
-    // Give tailscaled a moment to bind its socket before we talk to it.
-    std::thread::sleep(std::time::Duration::from_millis(1500));
+    // Give tailscaled a moment to bind its socket before we probe it.
+    std::thread::sleep(std::time::Duration::from_millis(1200));
 
-    let ip = wsl_ip().ok_or_else(|| "could not determine the WSL IP address".to_string())?;
-    let proxy = format!("{ip}:{WSL_SOCKS_PORT}");
+    // Pick the address that actually reaches the proxy from Windows (handles NAT
+    // vs mirrored networking). Fall back to a best-guess IP, then loopback, so we
+    // never hard-fail — the user can adjust the field if needed.
+    let proxy = reachable_proxy(WSL_SOCKS_PORT)
+        .or_else(|| wsl_ip().map(|ip| format!("{ip}:{WSL_SOCKS_PORT}")))
+        .unwrap_or_else(|| format!("127.0.0.1:{WSL_SOCKS_PORT}"));
     // Point Cortex at the WSL proxy (persists + updates the live state).
     super::set_external_socks(Some(proxy.clone())).map_err(|e| e.to_string())?;
 
@@ -268,7 +314,7 @@ pub fn setup() -> Result<WslTsStatus, String> {
         wsl_available: true,
         daemon_running: daemon_running(),
         connected: tnet.is_some(),
-        wsl_ip: Some(ip),
+        wsl_ip: proxy.rsplit_once(':').map(|(h, _)| h.to_string()),
         proxy_addr: Some(proxy),
         login_url,
         tailnet_ip: tnet,
