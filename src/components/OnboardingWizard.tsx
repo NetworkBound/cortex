@@ -122,13 +122,23 @@ export function OnboardingWizard() {
   }
 
   /** Probe what's actually configured now that setup saved, then show the
-   *  final card. Every probe is best-effort — a failed one reads as "missing",
-   *  which only ever points the user at a tab, never blocks them. */
+   *  final card. Every probe is best-effort — a failed OR slow one reads as
+   *  "missing", which only ever points the user at a tab, never blocks them.
+   *  Each probe is capped by a timeout: `Promise.allSettled` guards against a
+   *  rejection but NOT against a hang, so an unreachable gateway on a fresh
+   *  install would otherwise leave "Saving…" stuck forever. */
   async function showNextSteps() {
+    const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> =>
+      Promise.race([
+        p,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error("probe timed out")), ms),
+        ),
+      ]);
     const [modelsR, cfgR, projectsR] = await Promise.allSettled([
-      listModels(),
-      getGatewayConfig(),
-      listProjects(),
+      withTimeout(listModels(), 4000),
+      withTimeout(getGatewayConfig(), 4000),
+      withTimeout(listProjects(), 4000),
     ]);
     setNextSteps({
       models:

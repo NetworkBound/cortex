@@ -30,10 +30,12 @@ pub fn sidecar_path() -> Result<PathBuf, String> {
 
     let mut candidates: Vec<PathBuf> = Vec::new();
 
-    // 1. Bundled: alongside the current executable (Tauri sidecar location).
+    // 1. Bundled: alongside the current executable (Tauri sidecar location),
+    //    plus a `resources/` subdir fallback in case the bundle layout nests it.
     if let Ok(cur) = std::env::current_exe() {
         if let Some(dir) = cur.parent() {
             candidates.push(dir.join(exe_name));
+            candidates.push(dir.join("resources").join(exe_name));
         }
     }
 
@@ -52,6 +54,23 @@ pub fn sidecar_path() -> Result<PathBuf, String> {
         }
     }
 
+    // If we reach here in an installed build, the bundled sidecar is missing
+    // from a location it should exist — most often because antivirus (Windows
+    // Defender SmartScreen/real-time protection) quarantined the Go tailscale
+    // binary, which its network-tunnel behaviour can trigger even when signed.
+    let installed = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join(exe_name)))
+        .map(|p| !p.exists())
+        .unwrap_or(false);
+    if installed {
+        return Err(format!(
+            "embedded Tailscale unavailable — `{exe_name}` is missing from the app \
+             folder. This usually means antivirus/Windows Defender quarantined it; \
+             restore it from quarantine (or add a Defender exclusion for the Cortex \
+             install folder) and reopen. You can still use the system Tailscale app."
+        ));
+    }
     Err(format!(
         "tsnet sidecar not built — expected `{exe_name}` in the app resource dir \
          or `sidecar/cortex-tsnet/`. Run `cd sidecar/cortex-tsnet && go build -o {exe_name} .`"
