@@ -158,10 +158,14 @@ fn start_daemon() -> Result<(), String> {
             return Ok(()); // already running
         }
     }
-    // Foreground `exec` so this held wsl.exe child's lifetime == tailscaled's.
-    // Run from a kept script file (reliable arg passing) via its /mnt path.
+    // Reap any stale daemon first: if Cortex was force-killed or crashed, the
+    // previous held child leaked and would still hold the SOCKS port, so the
+    // fresh `exec` below would fail to bind. Then `exec` in the foreground so
+    // this held wsl.exe child's lifetime == tailscaled's. Run from a kept script
+    // file (reliable arg passing) via its /mnt path.
     let body = format!(
-        "mkdir -p {dir}/state\nexec {dir}/bin/tailscaled \
+        "pkill -f '\\.cortex-ts/bin/tailscaled' 2>/dev/null || true\nsleep 0.3\n\
+         mkdir -p {dir}/state\nexec {dir}/bin/tailscaled \
          --tun=userspace-networking \
          --socks5-server=0.0.0.0:{port} \
          --statedir={dir}/state \
