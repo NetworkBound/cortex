@@ -3,6 +3,33 @@
 All notable changes to Cortex are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.1.0] — 2026-07-03
+
+A release about run observability: seeing what agents actually did, how
+reliable each model has been, and reaching any model you host. (Versioning
+jumped from 0.2.x to match the app's marketing version.)
+
+### Added
+- Agent Reliability Dashboard (under Observability): per-provider and
+  per-model success rate, p50/p95 latency, token totals, and estimated cost,
+  aggregated from local run history. Time-range filter, CSV/JSON export, and
+  failing rows link to the run that failed. Metrics are a local view — no
+  visibility into gateway-internal retries — and cost is an estimate; the UI
+  says so.
+- Run Replay ("agent black box"): play back any past run as a timeline — the
+  prompt, the routing decision, each tool call and approval, file edits,
+  errors, result, and per-run cost. Export as redacted JSONL. Read-only.
+- Homelab Model Fabric: register any OpenAI-compatible endpoint (vLLM,
+  llama.cpp, LM Studio on LAN/tailnet, or a hosted API) from Settings →
+  Providers → Model fabric. Health check, model discovery, latency test, and
+  chat via a `fabric-<name>` agent. Reachability probes never send the API
+  key. Routing is explicit for now: pick the endpoint's model in the composer.
+
+### Fixed
+- Gateway runs now record real token usage (previously zero), so cost and
+  usage rollups reflect the primary path.
+- The routing reason for each turn is captured and shown in Run Replay.
+
 ## [0.2.9] — 2026-06-28
 
 ### Fixed

@@ -1,101 +1,131 @@
 <p align="center">
-  <img src=".github/banner.png" alt="Cortex — one cockpit, every model, on your subscriptions" width="840">
+  <img src=".github/banner.png" alt="Cortex" width="840">
 </p>
 
-<h1 align="center">Cortex</h1>
+# Cortex
 
-<p align="center">
-  <b>One cockpit. Every model. On your subscriptions.</b><br>
-  A self-hosted AI dev cockpit that drives every maker's CLI on the plans you already pay&nbsp;for.
-</p>
+Cortex is a self-hosted desktop app (Tauri 2, Rust backend, React frontend) for
+driving multiple AI coding agents from one window. Instead of juggling separate
+terminals for Claude, Codex, Gemini, and friends, you type a task once and
+Cortex routes it to a model that can actually do it, runs the work locally, and
+records what happened so you can look at it later.
 
-<p align="center">
-  <img src="https://img.shields.io/github/v/release/NetworkBound/cortex?color=fb923c&label=release" alt="release">
-  <img src="https://img.shields.io/badge/platforms-Linux%20%C2%B7%20macOS%20%C2%B7%20Windows-fb923c" alt="platforms">
-  <img src="https://img.shields.io/github/downloads/NetworkBound/cortex/total?color=fb923c&label=downloads" alt="downloads">
-  <img src="https://img.shields.io/badge/built%20with-Tauri%202%20%C2%B7%20Rust%20%C2%B7%20React-fb923c" alt="built with">
-</p>
+It runs entirely on your own machine. Agent CLIs authenticate with the
+subscriptions you already have, API keys are stored in the OS keychain, and
+nothing is sent anywhere you didn't configure.
 
-<p align="center">
-  <a href="https://cortex.networkbound.net"><b>Website</b></a> ·
-  <a href="https://github.com/NetworkBound/cortex/releases/latest"><b>Download</b></a>
-</p>
+## What it does
 
----
+**Talks to models three ways.** Maker CLIs (Claude, Codex, Gemini, Qwen, Grok,
+aider, Mistral Vibe) run as subprocesses under their own logins, so usage bills
+against your existing plan rather than metered API tokens. OpenAI-compatible
+APIs (Groq, Together, Fireworks, DeepSeek, Mistral, xAI, Perplexity,
+OpenRouter, and others) connect with a base URL and a key. Local runtimes
+(Ollama, LM Studio, vLLM, llama.cpp, TabbyAPI, Text-Gen-WebUI) connect over
+localhost and cost nothing.
 
-## ⬇️ Download
+**Routes by capability first, cost second.** The router checks what a model can
+do before it checks the price, so a chat-only model never gets handed shell
+access. Among capable models, cheaper wins, and a free local model wins ties.
+You can always pick a model explicitly instead. A gateway deployment is
+optional; the local CLIs work standalone.
 
-Grab the latest from **[Releases](https://github.com/NetworkBound/cortex/releases/latest)**:
+**Runs multi-agent work when it helps.** Teams pairs a manager model with
+specialist workers. Lanes runs the same task across several providers in
+isolated git worktrees so their edits can't collide. Arena runs two models
+head-to-head on one prompt and keeps an ELO leaderboard of the results.
+
+**Shows you what your agents did.** Every run is recorded to a local SQLite
+store. Run Replay plays any past run back as a timeline: the prompt, why that
+model was chosen, each tool call and approval, file edits, errors, and the
+per-run cost. The Reliability Dashboard aggregates that history into
+per-provider and per-model success rates, p50/p95 latency, token totals, and
+estimated cost, with CSV/JSON export. Both are read-only views of local data.
+
+**Reaches models anywhere on your network.** The Model Fabric lets you register
+any OpenAI-compatible endpoint, such as a vLLM or llama.cpp box on your LAN or
+tailnet, health-check it, discover its models, and chat through it. A companion
+HTTP server plus Tailscale gives you access from a phone or tablet browser.
+
+**Keeps context close at hand.** The Brain indexes chat history and an Obsidian
+vault with local embeddings for semantic search; `@brain` pulls relevant notes
+into a message. Other `@` tokens (`@diff`, `@recent`, `@status`, `@grep`,
+`@web`, `@file`, `@summary`) inject live project context. An MCP client with a
+server catalog gives every model the same tools. Checkpoints snapshot the
+workspace independently of git, and `/undo` shows the exact diff before rolling
+anything back.
+
+**Tries not to let an agent wreck your machine.** Commands run in an
+untrusted-by-default sandbox with a safe-command allowlist. Plan mode blocks
+write and exec tools entirely. Secrets stay in the OS keychain, updates are
+ed25519-signed, and there is no telemetry or call-home.
+
+There is more (voice input, image attachments, a terminal, workflows, custom
+agent roles, an eval harness), but the above is the core of it. See
+[CHANGELOG.md](CHANGELOG.md) for the full history.
+
+## Install
+
+Prebuilt packages are on the [releases page](https://github.com/NetworkBound/cortex/releases/latest):
 
 | Platform | File |
 |---|---|
-| 🐧 Linux (universal) | `Cortex_*_amd64.AppImage` — `chmod +x`, then run |
-| 🐧 Debian / Ubuntu | `Cortex_*_amd64.deb` |
-| 🎩 Fedora / RHEL | `Cortex-*.x86_64.rpm` |
-| 🍎 macOS (Apple Silicon / Intel) | `Cortex_*_aarch64.dmg` · `Cortex_*_x64.dmg` |
-| 🪟 Windows 10/11 | `Cortex_*_x64-setup.exe` (per-user, no admin) |
+| Linux (universal) | `Cortex_*_amd64.AppImage` (`chmod +x`, then run) |
+| Debian / Ubuntu | `Cortex_*_amd64.deb` |
+| Fedora / RHEL | `Cortex-*.x86_64.rpm` |
+| macOS (Apple Silicon / Intel) | `Cortex_*_aarch64.dmg` / `Cortex_*_x64.dmg` |
+| Windows 10/11 | `Cortex_*_x64-setup.exe` (per-user, no admin required) |
 
-> Windows/macOS builds are unsigned — SmartScreen / Gatekeeper will warn on first launch; allow it through.
+The Windows and macOS builds are not code-signed yet, so SmartScreen and
+Gatekeeper will warn on first launch.
 
----
+## Build from source
 
-## ✨ What it is
-
-Cortex is **one desktop window that orchestrates every coding agent you already pay for**. It drives each maker's CLI — Claude, Codex, Gemini, Qwen, Grok and more — **headless, under your own subscription**, instead of metered API tokens. A lead model decomposes each task, a **capability- and cost-aware router** sends every subtask to the cheapest model that can actually do it, code work runs in **isolated git-worktree Lanes**, and a synthesis pass verifies and merges the result — all on your own box, keys sealed in the OS keychain, no phone-home.
-
-## 🚀 Highlights
-
-- **🪙 Runs on your subscriptions** — maker CLIs sign in with the plan you already have; no per-token bills, no key ever leaves your machine.
-- **🧭 Cost-aware orchestration** — capability-gated *before* price, so a chat-only model never touches your shell. Easy work routes to the cheapest capable model (free local Ollama wins ties); hard work routes to the strongest. Gateway is optional — local CLIs work standalone.
-- **👥 Multi-agent** — **Teams** (a manager + specialist workers), **Lanes** (the same task across providers in isolated worktrees), **Arena** (head-to-head A/B with a persistent ELO leaderboard).
-- **🧩 20+ providers, three ways in** — 7 maker CLIs · 13 OpenAI-compatible APIs · 6 local runtimes.
-- **🧠 Brain / RAG** — semantic search over chat history and Obsidian vault via local embeddings. `@brain` token retrieves relevant knowledge inline.
-- **🎙️ Voice + images** — mic button (browser speech recognition + whisper fallback), image upload (drag-drop, paste, attach button).
-- **🔌 MCP catalog** — a real JSON-RPC MCP client plus a one-click catalog of servers; give every model the same tools.
-- **@ Context tokens** — `@brain`, `@diff`, `@recent`, `@status`, `@grep`, `@web`, `@summary` and more — inject live project context into any message.
-- **⏪ Checkpoints + /undo** — git-independent workspace snapshots; preview the exact diff before any rollback.
-- **🛡️ Yours & safe** — untrusted-by-default sandbox, safe-command allowlist, OS-keychain-sealed keys, ed25519-signed updates.
-
-## 🔱 Providers
-
-| Tier | Sign in with | Examples |
-|---|---|---|
-| **CLI · your subscription** | each maker's own login | Claude · Codex · Gemini · Qwen · Grok · aider · Mistral Vibe |
-| **OpenAI-compatible API** | a base URL + key | Groq · Together · Fireworks · DeepSeek · Mistral · xAI · Perplexity · OpenRouter · Kimi · Cohere · … |
-| **Local runtime · $0** | localhost | Ollama · LM Studio · vLLM · llama.cpp · TabbyAPI · Text-Gen-WebUI |
-
-Keys live in the OS keychain and are re-read every run. Self-hosted; nothing phones home.
-
-## 🛠️ Build from source
-
-Needs **Node 22 + pnpm** and the **Rust toolchain**.
+You need Node 20+, pnpm, and a Rust toolchain.
 
 ```bash
 pnpm install
-pnpm tauri dev      # run in dev
+pnpm tauri dev      # development build with hot reload
 ```
 
-### Linux release
+Linux release build:
 
 ```bash
 pnpm tauri:build:linux
 ```
 
-Runs `RUSTFLAGS="--remap-path-prefix=$HOME=" NO_STRIP=true tauri build`: `NO_STRIP` lets the AppImage bundle on modern glibc (Fedora 40+/`.relr.dyn`), and the path remap keeps your home directory out of the binary. Output: `src-tauri/target/release/bundle/{appimage,deb,rpm}/`.
+This runs `tauri build` with `NO_STRIP=true` (needed for AppImage bundling on
+modern glibc) and `--remap-path-prefix` so your home directory doesn't end up
+in the binary. Output lands in `src-tauri/target/release/bundle/{appimage,deb,rpm}/`.
 
-### Windows release (PowerShell)
+Windows release build (PowerShell; needs VS Build Tools with the C++ workload
+and the WebView2 runtime):
 
 ```powershell
 pnpm install
-$env:RUSTFLAGS = "--remap-path-prefix=$($env:USERPROFILE)="   # keeps your home dir out of the binary
+$env:RUSTFLAGS = "--remap-path-prefix=$($env:USERPROFILE)="
 pnpm tauri build
 ```
 
-Output: `src-tauri\target\release\bundle\{nsis,msi}\`. Prereqs: VS Build Tools (Desktop development with C++), Rust (rustup), Node 22 + pnpm, and the WebView2 runtime.
+Output: `src-tauri\target\release\bundle\{nsis,msi}\`. Distribute the NSIS
+`-setup.exe`; the MSI requires admin. See [docs/WINDOWS-BUILD.md](docs/WINDOWS-BUILD.md)
+for signing options.
 
-## 🌐 Links
+## Status and limitations
 
-- **Website** — https://cortex.networkbound.net
-- **Releases** — https://github.com/NetworkBound/cortex/releases
+Cortex is a personal homelab project maintained by one developer. It works, and
+it is used daily, but expect rough edges:
 
-<p align="center"><sub>Self-hosted · bring your own keys · no phone-home.</sub></p>
+- Installers are unsigned until a code-signing certificate is provisioned.
+- Reliability metrics are computed from local run history only; the dashboard
+  can't see retries that happen inside a gateway, and cost figures are
+  estimates. The UI labels them as such.
+- Model Fabric routing is explicit for now: you pick the endpoint's model in
+  the composer. Automatic local-first routing is planned but not built.
+- Architecture notes live in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and
+  the data-handling policy in [docs/PRIVACY.md](docs/PRIVACY.md).
+
+## Links
+
+- Website: https://cortex.networkbound.net
+- Releases: https://github.com/NetworkBound/cortex/releases
