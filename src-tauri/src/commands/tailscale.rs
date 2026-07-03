@@ -107,6 +107,31 @@ pub async fn ts_set_external_socks(addr: String) -> Result<(), String> {
     tailscale::set_external_socks(value).map_err(|e| e.to_string())
 }
 
+/// One-click: install + run Tailscale inside WSL, point Cortex's external SOCKS5
+/// at it, and bring the node up (returns a login URL if it needs authorising).
+/// The heavy lifting (download/extract/spawn) runs on a blocking thread.
+#[tauri::command]
+pub async fn ts_wsl_setup() -> Result<tailscale::wsl::WslTsStatus, String> {
+    tokio::task::spawn_blocking(tailscale::wsl::setup)
+        .await
+        .map_err(|e| format!("wsl setup task failed: {e}"))?
+}
+
+/// Current WSL-Tailscale status (availability, daemon, connection, WSL IP).
+#[tauri::command]
+pub async fn ts_wsl_status() -> Result<tailscale::wsl::WslTsStatus, String> {
+    Ok(tokio::task::spawn_blocking(tailscale::wsl::status)
+        .await
+        .map_err(|e| format!("wsl status task failed: {e}"))?)
+}
+
+/// Stop the WSL-Tailscale daemon Cortex is holding.
+#[tauri::command]
+pub async fn ts_wsl_stop() -> Result<(), String> {
+    tailscale::wsl::stop();
+    Ok(())
+}
+
 /// A phone-pairing payload for the Tailscale-fronted mobile server: the
 /// reachable URL plus a QR-code SVG the Settings panel renders so a phone on
 /// the tailnet can scan instead of typing the URL.

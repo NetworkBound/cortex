@@ -592,6 +592,9 @@ pub fn run() {
             commands::tailscale::ts_get_socks_addr,
             commands::tailscale::ts_get_external_socks,
             commands::tailscale::ts_set_external_socks,
+            commands::tailscale::ts_wsl_setup,
+            commands::tailscale::ts_wsl_status,
+            commands::tailscale::ts_wsl_stop,
             commands::tailscale::ts_mobile_pairing,
         ])
         .setup(move |app| {
@@ -749,6 +752,7 @@ pub fn run() {
                 tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
             ) {
                 crate::tailscale::manager::stop();
+                crate::tailscale::wsl::stop();
 
                 // `stop_all` is async — block on a tiny ad-hoc runtime so we
                 // don't depend on an outer tokio context being live here.

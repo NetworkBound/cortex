@@ -2968,6 +2968,15 @@ kbd {
   border: 0;
   opacity: 0.6;
 }
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-raised, var(--surface));
+}
 .settings-section h3 {
   margin: 0;
   color: var(--text);

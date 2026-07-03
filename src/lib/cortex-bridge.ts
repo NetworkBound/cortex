@@ -616,6 +616,32 @@ export async function tsSetExternalSocks(addr: string): Promise<void> {
   return invoke("ts_set_external_socks", { addr });
 }
 
+/** Status of the auto-managed Tailscale-in-WSL proxy. */
+export interface WslTsStatus {
+  wsl_available: boolean;
+  daemon_running: boolean;
+  connected: boolean;
+  wsl_ip: string | null;
+  proxy_addr: string | null;
+  login_url: string | null;
+  tailnet_ip: string | null;
+}
+
+/** One-click: install + run Tailscale in WSL, point Cortex at it, bring it up. */
+export async function tsWslSetup(): Promise<WslTsStatus> {
+  return invoke<WslTsStatus>("ts_wsl_setup");
+}
+
+/** Current WSL-Tailscale status. */
+export async function tsWslStatus(): Promise<WslTsStatus> {
+  return invoke<WslTsStatus>("ts_wsl_status");
+}
+
+/** Stop the WSL-Tailscale daemon Cortex is holding. */
+export async function tsWslStop(): Promise<void> {
+  return invoke("ts_wsl_stop");
+}
+
 /** Phone-pairing payload for the Tailscale-fronted mobile server. */
 export interface MobilePairing {
   /** `https://<magicdns-name>/` — the tailnet mobile entry point. */

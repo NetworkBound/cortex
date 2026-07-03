@@ -16,6 +16,7 @@
 //! the sidecar via the `TS_AUTHKEY` env var only.
 
 pub mod manager;
+pub mod wsl;
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};

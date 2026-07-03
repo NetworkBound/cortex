@@ -23,6 +23,10 @@ import {
   tsSetAuthkey,
   tsGetExternalSocks,
   tsSetExternalSocks,
+  tsWslSetup,
+  tsWslStatus,
+  tsWslStop,
+  type WslTsStatus,
   tsMobilePairing,
   type MobilePairing,
   historySyncStatus,
@@ -853,6 +857,8 @@ function TailscaleSection() {
   const [savedKey, setSavedKey] = useState(false);
   const [externalSocks, setExternalSocks] = useState("");
   const [savedExternal, setSavedExternal] = useState(false);
+  const [wsl, setWsl] = useState<WslTsStatus | null>(null);
+  const [wslBusy, setWslBusy] = useState(false);
 
   const enabled =
     status.state === "connected" ||
@@ -875,6 +881,12 @@ function TailscaleSection() {
         if (!cancelled) setExternalSocks(ext);
       } catch {
         /* leave blank */
+      }
+      try {
+        const w = await tsWslStatus();
+        if (!cancelled) setWsl(w);
+      } catch {
+        /* WSL status unavailable — leave null */
       }
     })();
     return () => {
@@ -968,6 +980,34 @@ function TailscaleSection() {
       setErr(humanizeError(e));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const onWslSetup = async () => {
+    setErr(null);
+    setWslBusy(true);
+    try {
+      const w = await tsWslSetup();
+      setWsl(w);
+      if (w.proxy_addr) setExternalSocks(w.proxy_addr);
+    } catch (e) {
+      setErr(humanizeError(e));
+    } finally {
+      setWslBusy(false);
+    }
+  };
+
+  const onWslStop = async () => {
+    setErr(null);
+    setWslBusy(true);
+    try {
+      await tsWslStop();
+      const w = await tsWslStatus();
+      setWsl(w);
+    } catch (e) {
+      setErr(humanizeError(e));
+    } finally {
+      setWslBusy(false);
     }
   };
 
@@ -1083,10 +1123,95 @@ function TailscaleSection() {
         exposing a SOCKS5 proxy, and point Cortex at it here. When set, Cortex
         routes home/tailnet traffic through this proxy and never starts the
         embedded sidecar. Leave blank to use the embedded node above.
-        <br />
-        In WSL: <code>tailscaled --tun=userspace-networking
-        --socks5-server=localhost:1055 &amp;</code> then <code>tailscale up</code>,
-        and enter <code>127.0.0.1:1055</code> below.
+      </div>
+
+      {wsl?.wsl_available && (
+        <div className="settings-card gap-top">
+          <div
+            className="settings-row wrap"
+            style={{ justifyContent: "space-between" }}
+          >
+            <strong>Set up automatically via WSL</strong>
+            {wsl.connected && <span className="settings-pill ok">connected</span>}
+            {!wsl.connected && wsl.daemon_running && (
+              <span className="settings-pill warn">needs login</span>
+            )}
+          </div>
+          <div className="settings-hint spaced">
+            Cortex can install and run Tailscale inside your WSL distro, then
+            point itself at it — no admin, nothing for antivirus to quarantine.
+            Click once; if the node needs authorising, a login link appears.
+          </div>
+          <div className="settings-row wrap">
+            <button
+              type="button"
+              disabled={wslBusy}
+              onClick={() => void onWslSetup()}
+            >
+              {wslBusy
+                ? "Working…"
+                : wsl.daemon_running
+                  ? "Re-run setup"
+                  : "Set up Tailscale in WSL"}
+            </button>
+            {wsl.daemon_running && (
+              <button
+                type="button"
+                disabled={wslBusy}
+                onClick={() => void onWslStop()}
+              >
+                Stop
+              </button>
+            )}
+          </div>
+          {wsl.login_url && (
+            <div className="settings-stack tight gap-top">
+              <div
+                className="settings-hint"
+                style={{ color: "var(--warning)" }}
+              >
+                Authorise this node on your tailnet:
+              </div>
+              <div className="settings-row wrap">
+                <button
+                  type="button"
+                  onClick={() => openLogin(wsl.login_url!)}
+                >
+                  Open login page
+                </button>
+                <a
+                  href={wsl.login_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="settings-link settings-mono"
+                >
+                  {wsl.login_url}
+                </a>
+              </div>
+            </div>
+          )}
+          {wsl.proxy_addr && (
+            <small className="settings-muted">
+              Proxy: <code>{wsl.proxy_addr}</code>
+              {wsl.tailnet_ip && (
+                <>
+                  {" "}
+                  · tailnet IP <code>{wsl.tailnet_ip}</code>
+                </>
+              )}
+            </small>
+          )}
+        </div>
+      )}
+
+      <div className="settings-hint spaced gap-top">
+        Or point Cortex at a proxy you run yourself. In WSL:{" "}
+        <code>
+          tailscaled --tun=userspace-networking --socks5-server=0.0.0.0:1055 &amp;
+        </code>{" "}
+        then <code>tailscale up</code>, and enter the WSL IP with{" "}
+        <code>:1055</code> below (use the WSL IP, not <code>127.0.0.1</code>,
+        unless WSL mirrored networking is on).
       </div>
       <div className="settings-stack tight">
         <label>
