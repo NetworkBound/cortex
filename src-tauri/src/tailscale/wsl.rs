@@ -50,49 +50,75 @@ pub struct WslTsStatus {
     pub tailnet_ip: Option<String>,
 }
 
-/// Ensure `$HOME` is set. When Cortex (a GUI process) spawns `wsl.exe`, the
-/// child bash may inherit an empty `HOME`, which would make `$HOME/...` paths
-/// expand to `/...`. Resolve it from the passwd db as a preamble on every
-/// script so `WSL_DIR` is always valid.
-const HOME_PREAMBLE: &str = r#"export HOME="${HOME:-$(getent passwd "$(id -un)" 2>/dev/null | cut -d: -f6)}"; export HOME="${HOME:-/home/$(id -un)}"; "#;
+/// Resolve `$HOME` from the passwd db. When Cortex (a GUI process) spawns
+/// `wsl.exe`, the child bash inherits an EMPTY `HOME`, so `$HOME/...` would
+/// expand to `/...`. Every script starts with this so `WSL_DIR` is always valid.
+/// (Scripts are run from a file — see [`run_script`] — because passing a complex
+/// script inline through `wsl.exe` mangles quoting; a file is read verbatim.)
+const HOME_PREAMBLE: &str = "export HOME=\"${HOME:-$(getent passwd \"$(id -un)\" 2>/dev/null | cut -d: -f6)}\"\nexport HOME=\"${HOME:-/home/$(id -un)}\"\n";
 
-/// Wrap a script with the HOME-resolution preamble.
-fn with_home(script: &str) -> String {
-    format!("{HOME_PREAMBLE}{script}")
+/// Convert a Windows path (`C:\a\b`) to its WSL automount path (`/mnt/c/a/b`).
+fn win_to_wsl_path(p: &std::path::Path) -> Option<String> {
+    let s = p.to_str()?;
+    let bytes = s.as_bytes();
+    if bytes.len() < 3 || bytes[1] != b':' {
+        return None;
+    }
+    let drive = (bytes[0] as char).to_ascii_lowercase();
+    let rest = s[2..].replace('\\', "/");
+    Some(format!("/mnt/{drive}{rest}"))
 }
 
-/// Run a bash script inside the default WSL distro and capture stdout.
-/// Returns Err on a non-zero exit, with stderr as the message. Never pops a
-/// console window (`sys::no_window`).
-fn wsl_bash(script: &str) -> Result<String, String> {
+/// Write a bash script to a Windows temp file (LF line endings) and run it in the
+/// default WSL distro via its `/mnt/c` path — only a simple path is passed
+/// inline, so nothing gets mangled. Returns stdout, or Err(stderr) on failure.
+/// `keep` leaves the file on disk (for the long-lived daemon launcher).
+fn run_script(body: &str, keep: bool) -> Result<String, String> {
+    let path = write_script(body)?;
+    let wsl_path = win_to_wsl_path(&path)
+        .ok_or_else(|| "could not map temp path into WSL".to_string())?;
     let out = crate::sys::no_window("wsl.exe")
         .arg("--")
         .arg("bash")
-        .arg("-lc")
-        .arg(with_home(script))
+        .arg(&wsl_path)
         .stdin(Stdio::null())
-        .output()
-        .map_err(|e| format!("wsl.exe not available: {e}"))?;
+        .output();
+    if !keep {
+        let _ = std::fs::remove_file(&path);
+    }
+    let out = out.map_err(|e| format!("wsl.exe not available: {e}"))?;
     if !out.status.success() {
-        let err = String::from_utf8_lossy(&out.stderr);
-        let msg = err.trim();
+        let msg = String::from_utf8_lossy(&out.stderr).trim().to_string();
         return Err(if msg.is_empty() {
             format!("WSL command failed (exit {:?})", out.status.code())
         } else {
-            msg.to_string()
+            msg
         });
     }
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
+/// Write `body` (prefixed with the HOME preamble, LF-normalised) to a uniquely
+/// named temp `.sh` and return its Windows path.
+fn write_script(body: &str) -> Result<std::path::PathBuf, String> {
+    let full = format!("#!/bin/bash\n{HOME_PREAMBLE}{body}").replace("\r\n", "\n");
+    let mut path = std::env::temp_dir();
+    // Unique-ish name without pulling in extra deps: pid + a monotonic counter.
+    static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    path.push(format!("cortex-wsl-{}-{}.sh", std::process::id(), n));
+    std::fs::write(&path, full).map_err(|e| format!("cannot write temp script: {e}"))?;
+    Ok(path)
+}
+
 /// Whether WSL is installed and a default distro answers.
 pub fn available() -> bool {
-    wsl_bash("echo ok").map(|s| s.contains("ok")).unwrap_or(false)
+    run_script("echo ok", false).map(|s| s.contains("ok")).unwrap_or(false)
 }
 
 /// The default distro's primary IP (what the user dials from Windows).
 fn wsl_ip() -> Option<String> {
-    wsl_bash("hostname -I | awk '{print $1}'")
+    run_script("hostname -I | awk '{print $1}'", false)
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
@@ -120,7 +146,7 @@ echo "installed"
 "#,
         dir = WSL_DIR
     );
-    wsl_bash(&script).map(|_| ())
+    run_script(&script, false).map(|_| ())
 }
 
 /// Spawn + hold the `tailscaled` child (userspace networking + SOCKS5). No-op if
@@ -133,20 +159,23 @@ fn start_daemon() -> Result<(), String> {
         }
     }
     // Foreground `exec` so this held wsl.exe child's lifetime == tailscaled's.
-    let inner = format!(
-        "mkdir -p {dir}/state; exec {dir}/bin/tailscaled \
+    // Run from a kept script file (reliable arg passing) via its /mnt path.
+    let body = format!(
+        "mkdir -p {dir}/state\nexec {dir}/bin/tailscaled \
          --tun=userspace-networking \
          --socks5-server=0.0.0.0:{port} \
          --statedir={dir}/state \
-         --socket={dir}/tailscaled.sock",
+         --socket={dir}/tailscaled.sock\n",
         dir = WSL_DIR,
         port = WSL_SOCKS_PORT
     );
+    let path = write_script(&body)?;
+    let wsl_path = win_to_wsl_path(&path)
+        .ok_or_else(|| "could not map temp path into WSL".to_string())?;
     let child = crate::sys::no_window("wsl.exe")
         .arg("--")
         .arg("bash")
-        .arg("-lc")
-        .arg(with_home(&inner))
+        .arg(&wsl_path)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -173,7 +202,7 @@ fn up() -> Result<Option<String>, String> {
          --hostname=cortex-wsl --accept-routes --timeout=10s 2>&1 || true",
         dir = WSL_DIR
     );
-    let out = wsl_bash(&script)?;
+    let out = run_script(&script, false)?;
     // `tailscale up` prints the login URL when the node isn't authorised yet.
     if let Some(url) = out
         .lines()
@@ -188,7 +217,7 @@ fn up() -> Result<Option<String>, String> {
 /// The node's tailnet IP, if connected.
 fn tailnet_ip() -> Option<String> {
     let script = format!("{dir}/bin/tailscale --socket={dir}/tailscaled.sock ip -4 2>/dev/null | head -1", dir = WSL_DIR);
-    wsl_bash(&script)
+    run_script(&script, false)
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| s.starts_with("100."))
