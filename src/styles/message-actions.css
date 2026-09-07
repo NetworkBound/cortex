@@ -1,0 +1,76 @@
+/* Per-message hover actions toolbar.
+ *
+ * Owned by MessageActions.tsx (imported there directly, mirroring the way
+ * TerminalPane imports its own css). Kept out of global.css on purpose so
+ * the component is self-contained.
+ *
+ * Visibility is hover-driven: the toolbar fades in when the parent `.msg`
+ * is hovered (or when a child inside it has keyboard focus, for a11y).
+ */
+
+/* `.msg` has no positioning context in global.css; establish one here so the
+ * absolutely-positioned toolbar anchors to its own message bubble. Safe: it
+ * only adds a stacking/positioning context and doesn't move existing content. */
+.msg {
+  position: relative;
+}
+
+.message-actions {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: var(--space-1);
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  /* Dropdown/popover elevation tier — layered (contact + ambient) and
+   * theme-aware, per docs/DESIGN-SPEC.md §4. Light themes retune this token
+   * via the theme engine; a raw single heavy blur wouldn't adapt. */
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  transform: translateY(-2px);
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  z-index: 5;
+}
+
+.msg:hover .message-actions,
+.message-actions:focus-within {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.message-actions .action-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: var(--text-xs);
+  line-height: 1;
+  letter-spacing: var(--tracking-wide);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.message-actions .action-btn:hover {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: var(--border-strong);
+}
+
+.message-actions .action-btn:active {
+  background: var(--accent-softer);
+}
+
+.message-actions .action-btn:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}

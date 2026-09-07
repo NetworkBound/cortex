@@ -1,0 +1,98 @@
+/* Read-only hook inspector panel — mirrors the .mcp-* visual conventions. */
+
+.hooks-panel-modal {
+  width: 560px;
+  max-width: 92vw;
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.hooks-panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.hooks-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.hooks-panel-empty {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.hooks-panel-error {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--danger);
+  font-size: var(--text-sm);
+  word-break: break-word;
+}
+
+.hooks-panel-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.hooks-panel-group-head {
+  font-family: var(--mono, monospace);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--accent, #7aa2f7);
+  padding-bottom: var(--space-0_5);
+  border-bottom: 1px solid var(--border, #2a2b3a);
+}
+
+.hooks-panel-row {
+  border: 1px solid var(--border, #2a2b3a);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev, #1a1b2a);
+  padding: var(--space-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.hooks-panel-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.hooks-panel-row-cmd {
+  font-family: var(--mono, monospace);
+  font-size: var(--text-xs);
+  color: var(--text, #c0caf5);
+  word-break: break-all;
+}
+
+.hooks-panel-badge {
+  flex-shrink: 0;
+  font-family: var(--mono, monospace);
+  font-size: var(--text-xs);
+  color: var(--text-muted, #888);
+  border: 1px solid var(--border, #2a2b3a);
+  border-radius: var(--radius-sm);
+  padding: var(--space-0_5) var(--space-2);
+  background: var(--bg, #11121b);
+  white-space: nowrap;
+}
+
+.hooks-panel-footer {
+  font-size: var(--text-xs);
+  color: var(--text-muted, #888);
+  font-family: var(--mono, monospace);
+}

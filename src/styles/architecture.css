@@ -1,0 +1,105 @@
+/* Architecture diagram panel. Scoped under .arch-view so it never leaks into
+   other surfaces. Uses the shared CSS custom properties (--bg-elev, --border,
+   --text, --muted, --accent) defined in global.css — but does not edit it. */
+
+.arch-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.arch-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.arch-toolbar .arch-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+  margin-right: auto;
+}
+
+.arch-toolbar .arch-sha {
+  font-family: var(--mono, monospace);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.arch-btn {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  background: var(--bg-elev);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.arch-btn:hover:not(:disabled) {
+  border-color: var(--accent, #6aa0ff);
+}
+
+.arch-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.arch-body {
+  flex: 1;
+  overflow: auto;
+  padding: var(--space-3);
+}
+
+.arch-description {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text);
+  margin: 0 0 var(--space-4);
+  white-space: pre-wrap;
+}
+
+.arch-diagram {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: auto;
+}
+
+.arch-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.arch-state {
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.arch-error {
+  margin: var(--space-3);
+  padding: var(--space-3) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  border-radius: var(--radius);
+  white-space: pre-wrap;
+}
+
+.arch-raw {
+  margin-top: var(--space-3);
+  font-family: var(--mono, monospace);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: pre-wrap;
+}

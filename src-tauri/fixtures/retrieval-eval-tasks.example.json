@@ -1,0 +1,17 @@
+[
+  {
+    "id": "note-by-topic",
+    "query": "What did I write about the homelab tunnel setup?",
+    "expect_sources": ["homelab"]
+  },
+  {
+    "id": "chat-session-recall",
+    "query": "the conversation where we debugged the installer build",
+    "expect_sources": []
+  },
+  {
+    "id": "retrieval-smoke",
+    "query": "notes",
+    "expect_sources": []
+  }
+]
