@@ -104,7 +104,7 @@ fn memory_markdown_parses_frontmatter() {
 fn tracing_store_records_and_reads() {
     use cortex_lib::observability::tracing_store::TracingStore;
     let store = TracingStore::in_memory();
-    store.record_chat_turn("trace1", "sess1", "hi", &["gateway-remote".into()]).unwrap();
+    store.record_chat_turn("trace1", "sess1", "hi", &["gateway-remote".into()], None).unwrap();
     store.start_agent_run("span1", "trace1", "sess1", "gateway-remote", None).unwrap();
     store.finish_agent_run("span1").unwrap();
     let traces = store.recent_traces(10).unwrap();
