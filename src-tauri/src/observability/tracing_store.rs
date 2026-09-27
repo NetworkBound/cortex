@@ -261,6 +261,16 @@ impl TracingStore {
 
     pub fn open_at(path: PathBuf) -> anyhow::Result<Self> {
         let conn = Connection::open(path)?;
+        // The same file can be open in two processes at once — the desktop app
+        // plus a headless `cortex-serve`, or an in-flight write racing a
+        // reader. Without a busy timeout SQLite fails such calls instantly with
+        // SQLITE_BUSY; with WAL, readers never block the writer at all. Both are
+        // best-effort tuning: a filesystem that refuses WAL (some network
+        // shares) just keeps the rollback journal, and the schema setup below
+        // still runs.
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        let _ = conn.pragma_update(None, "journal_mode", "WAL");
+        let _ = conn.pragma_update(None, "synchronous", "NORMAL");
         conn.execute_batch(SCHEMA)?;
         Self::migrate(&conn);
         Ok(Self { inner: Arc::new(Mutex::new(conn)) })

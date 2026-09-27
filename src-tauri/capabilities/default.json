@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capabilities for the main window. Scopes are intentionally narrow — gateway secrets and FS access are mediated by Rust commands, not the renderer.",
+  "description": "Default capabilities for the main window. Scopes are intentionally narrow — gateway secrets and FS access are mediated by Rust commands, not the renderer. The renderer's only direct FS access is read-only (`readTextFile`/`exists`, used by the editor pane, ExplainModal, keymap + multibuffer loaders) and confined to the fs:scope paths below; no write/remove/rename permission is granted.",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -9,6 +9,8 @@
     "dialog:default",
     "os:default",
     "store:default",
+    "fs:allow-read-text-file",
+    "fs:allow-exists",
     {
       "identifier": "fs:scope",
       "allow": [

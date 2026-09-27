@@ -62,8 +62,7 @@ fn run_with_timeout(
     cwd: &Path,
     timeout: Duration,
 ) -> (Option<i32>, String) {
-    let mut child = match crate::sys::no_window(cmd)
-        .args(args)
+    let mut child = match spawn_command(cmd, args)
         .current_dir(cwd)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
@@ -162,14 +161,23 @@ fn detect(root: &Path) -> ProjectKind {
     }
 }
 
+/// Is `bin` runnable from PATH? Uses the `which` crate rather than shelling out
+/// to a `which` binary: Windows has no `which` (it's `where`), so the old
+/// shell-out reported every tool as missing and silently skipped every gate
+/// there. The crate honours PATHEXT, so `npm.cmd` / `cargo.exe` resolve too.
 fn which(bin: &str) -> bool {
-    crate::sys::no_window("which")
-        .arg(bin)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+    ::which::which(bin).is_ok()
+}
+
+/// Build the gate command. On Windows, `npm`/`npx` (and other npm-installed
+/// tools) are `.cmd` shims that `Command::new("npm")` can't find — resolve
+/// through PATH + PATHEXT (`crate::sys::resolve_program`); std then runs the
+/// shim via `cmd.exe` with safe argument escaping. Native executables and every
+/// POSIX binary resolve to themselves. Always console-less (`no_window`).
+fn spawn_command(cmd: &str, args: &[&str]) -> std::process::Command {
+    let mut c = crate::sys::no_window(crate::sys::resolve_program(cmd));
+    c.args(args);
+    c
 }
 
 fn timed<F: FnOnce() -> (GateVerdict, String)>(name: &str, f: F) -> GateResult {

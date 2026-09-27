@@ -203,7 +203,8 @@ async function exerciseJobStoreFlow(): Promise<void> {
     jobStoreFlow.secondStartIgnored =
       useJobs.getState().jobs[id]?.startedAt === startedAt;
 
-    // While in flight: backend registry. Polled — a re-pull of an installed model can settle in a couple of seconds.
+    // While in flight: backend registry. Polled — a re-pull of an installed
+    // model can settle in a couple of seconds.
     const probeDeadline = Date.now() + 15_000;
     while (Date.now() < probeDeadline) {
       if (!jobStoreFlow.activePullsSeen) {

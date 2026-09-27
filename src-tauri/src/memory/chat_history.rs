@@ -85,13 +85,25 @@ fn content_to_text(v: &serde_json::Value) -> String {
 
 fn project_label_from_dir(dir: &Path) -> Option<String> {
     let name = dir.file_name()?.to_string_lossy().to_string();
-    // Claude Code encodes project paths as `-home-foo-bar` — turn back into
-    // `/home/foo/bar` for display.
-    if name.starts_with('-') {
-        Some(name.replace('-', "/"))
-    } else {
-        Some(name)
+    Some(decode_project_dir_name(&name))
+}
+
+/// Turn a Claude Code project-dir slug back into a display path. Claude Code
+/// replaces every path separator (and `:`) with `-`: `/home/foo/bar` becomes
+/// `-home-foo-bar`, and on Windows `C:\Users\foo\bar` becomes
+/// `C--Users-foo-bar`. Hyphens inside real directory names are lost in the
+/// encoding, so this is best-effort display text, not a resolvable path.
+fn decode_project_dir_name(name: &str) -> String {
+    if let Some(rest) = name.strip_prefix('-') {
+        return format!("/{}", rest.replace('-', "/"));
     }
+    // Windows drive slug: a single ASCII letter followed by `--`.
+    let bytes = name.as_bytes();
+    if bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && &bytes[1..3] == b"--" {
+        let drive = (bytes[0] as char).to_ascii_uppercase();
+        return format!("{drive}:\\{}", name[3..].replace('-', "\\"));
+    }
+    name.to_string()
 }
 
 fn modified_ms(p: &Path) -> i64 {
@@ -318,4 +330,26 @@ pub fn search_chats(query: &str, limit: usize) -> Vec<ChatSearchHit> {
         }
     }
     hits
+}
+
+#[cfg(test)]
+mod tests {
+    use super::decode_project_dir_name;
+
+    #[test]
+    fn decodes_posix_slug() {
+        assert_eq!(decode_project_dir_name("-home-foo-bar"), "/home/foo/bar");
+    }
+
+    #[test]
+    fn decodes_windows_drive_slug() {
+        assert_eq!(decode_project_dir_name("C--Users-foo-bar"), "C:\\Users\\foo\\bar");
+        assert_eq!(decode_project_dir_name("d--src"), "D:\\src");
+    }
+
+    #[test]
+    fn leaves_plain_names_alone() {
+        assert_eq!(decode_project_dir_name("history"), "history");
+        assert_eq!(decode_project_dir_name("ab--x"), "ab--x");
+    }
 }

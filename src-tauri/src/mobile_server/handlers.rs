@@ -85,6 +85,20 @@ fn resolve_adapter_id(state: &MobileState, model: Option<&str>) -> String {
     }
 }
 
+/// Fetch `adapter_id` from the registry, falling back to the default gateway
+/// adapter. Takes the registry read lock exactly once: chaining
+/// `registry.read().get(..).or_else(|| registry.read().get(..))` re-enters the
+/// lock while the first guard is still alive, and parking_lot's fair `RwLock`
+/// can deadlock a recursive read when a writer is queued (e.g. the setup hook
+/// registering adapters while the first mobile request arrives).
+fn lookup_agent(
+    state: &MobileState,
+    adapter_id: &str,
+) -> Option<std::sync::Arc<dyn crate::agents::adapter::AgentAdapter>> {
+    let registry = state.app.registry.read();
+    registry.get(adapter_id).or_else(|| registry.get(DEFAULT_AGENT))
+}
+
 // GET /v1/models — OpenAI list format.
 pub async fn v1_models(State(state): State<MobileState>) -> impl IntoResponse {
     let data: Vec<_> = ultimate::discover_models(&state.app.registry)
@@ -120,12 +134,7 @@ pub async fn v1_chat_completions(
     };
 
     let adapter_id = resolve_adapter_id(&state, Some(model.as_str()).filter(|m| !m.is_empty()));
-    let agent = state
-        .app
-        .registry
-        .read()
-        .get(&adapter_id)
-        .or_else(|| state.app.registry.read().get(DEFAULT_AGENT));
+    let agent = lookup_agent(&state, &adapter_id);
     let Some(agent) = agent else {
         return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({ "error": "no agent" }))).into_response();
     };
@@ -216,38 +225,11 @@ pub async fn chat(
     // "ollama:llama3.2:3b" whose adapter is "ollama" (the adapter strips the
     // prefix to choose the model). `body.model` is still passed through as the
     // model so the adapter selects the right one. Falls back to the gateway.
-    // Route roster models (e.g. "claude-sonnet-4-6", "gpt-5.5") to their real
-    // local CLI adapter when it's registered + available, so picking a model in
-    // the roster runs the actual Claude/Codex session instead of falling through
-    // to a (maybe-unconfigured) gateway. Only kicks in when the CLI is present.
-    let avail = |id: &str| {
-        state
-            .app
-            .registry
-            .read()
-            .get(id)
-            .map_or(false, |a| a.descriptor().available)
-    };
-    let is_claude = |m: &str| {
-        ["claude", "opus", "sonnet", "haiku"].iter().any(|p| m.starts_with(p))
-    };
-    let is_gpt = |m: &str| {
-        m.starts_with("gpt") || m.starts_with("o1") || m.starts_with("o3")
-            || m.starts_with("o4") || m.contains("codex")
-    };
-    let adapter_id = match body.model.as_deref() {
-        Some(m) if state.app.registry.read().get(m).is_some() => m.to_string(),
-        Some(m) if m.starts_with("ollama:") || m.starts_with("ollama/") => "ollama".to_string(),
-        Some(m) if is_claude(m) && avail("claude-cli") => "claude-cli".to_string(),
-        Some(m) if is_gpt(m) && avail("codex-cli") => "codex-cli".to_string(),
-        _ => DEFAULT_AGENT.to_string(),
-    };
-    let agent = state
-        .app
-        .registry
-        .read()
-        .get(&adapter_id)
-        .or_else(|| state.app.registry.read().get(DEFAULT_AGENT));
+    // Roster models (e.g. "claude-sonnet-4-6", "gpt-5.5") route to their real
+    // local CLI adapter when it's registered + available — see
+    // `resolve_adapter_id`, shared with the OpenAI-compatible `/v1` surface.
+    let adapter_id = resolve_adapter_id(&state, body.model.as_deref());
+    let agent = lookup_agent(&state, &adapter_id);
 
     let Some(agent) = agent else {
         return (

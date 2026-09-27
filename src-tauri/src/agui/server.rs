@@ -360,9 +360,8 @@ async fn run(
                 // loop above: never park the forwarder on a wedged client. If
                 // the buffer is full or closed these are simply dropped — the
                 // run is ending anyway.
-                if translator_state.current_message_id.is_some() {
+                if let Some(id) = translator_state.current_message_id.take() {
                     // Open text — synthesize an END for safety.
-                    let id = translator_state.current_message_id.take().unwrap();
                     let _ = frame_tx.try_send(Ok(encode_frame(
                         &AgUiEvent::TextMessageEnd(super::TextMessageEnd {
                             message_id: id,

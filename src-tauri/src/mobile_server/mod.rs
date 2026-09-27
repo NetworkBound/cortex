@@ -33,6 +33,11 @@
 //! `127.0.0.1` bind plus the `tailscale serve` proxy in front; never expose this
 //! port directly to a public interface.
 //!
+//! Against *browser* callers on the same machine there are two extra gates:
+//! CORS restricted to known local origins (`router.rs`) for `/api/*`, and an
+//! `Origin` check on the `/ws` upgrade (`ws.rs`), since browsers don't apply
+//! CORS to WebSocket handshakes.
+//!
 //! # Endpoints
 //!
 //! - `GET  /api/health`              → `{ ok, version }`

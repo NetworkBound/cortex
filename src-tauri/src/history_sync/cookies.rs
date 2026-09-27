@@ -104,6 +104,15 @@ pub fn decrypt_chromium_value(key: &[u8], blob: &[u8]) -> Result<String, String>
         return Err("cookie blob too short to be a v10/v11 value".to_string());
     }
     let prefix = &blob[0..3];
+    if prefix == b"v20" {
+        // Chrome 127+ / Edge "App-Bound Encryption": the AES key is wrapped by
+        // an elevated service, not plain DPAPI, so this path can't recover it.
+        return Err(
+            "cookie is App-Bound encrypted (v20, Chrome 127+); browser auto-detect \
+             can't read it — use the in-app sign-in instead"
+                .to_string(),
+        );
+    }
     if prefix != b"v10" && prefix != b"v11" {
         return Err("cookie value is not Chromium v10/v11 (unencrypted or unknown)".to_string());
     }
@@ -155,16 +164,8 @@ fn read_encrypted_cookie_blob(
     name: &str,
 ) -> Result<Vec<u8>, String> {
     // Copy to a temp file so we don't fight Chrome's lock on the live DB.
-    let tmp = std::env::temp_dir().join(format!("cortex-cookies-{}.db", std::process::id()));
-    std::fs::copy(cookies_db, &tmp).map_err(|e| format!("copy Cookies DB: {e}"))?;
-    // Best-effort cleanup guard.
-    let _guard = TempFileGuard(tmp.clone());
-
-    let conn = rusqlite::Connection::open_with_flags(
-        &tmp,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )
-    .map_err(|e| format!("open Cookies DB: {e}"))?;
+    let (tmp, _guards) = copy_sqlite_for_read(cookies_db, "cookies")?;
+    let conn = rusqlite::Connection::open(&tmp).map_err(|e| format!("open Cookies DB: {e}"))?;
 
     // host_key is stored with or without a leading dot; match both. Newest
     // (longest-lived) first so we prefer a still-valid session cookie.
@@ -201,6 +202,47 @@ impl Drop for TempFileGuard {
     }
 }
 
+/// Copy a browser's SQLite cookie store to a private temp path we can open
+/// without fighting the browser's lock. Returns the temp DB path plus guards
+/// that delete every copied file on drop.
+///
+/// Two details matter for correctness:
+/// - Firefox (and some Chromium builds) keep the DB in WAL mode, so the newest
+///   cookies — typically the fresh session we're after — live in the `-wal`
+///   sidecar until a checkpoint. Copying only the main file silently reads
+///   stale data, so the `-wal` (and a rollback `-journal`, if present) are
+///   copied alongside under matching names, letting SQLite replay them.
+/// - Names are unique per call (pid + counter): the Claude and ChatGPT
+///   detections can run back-to-back or concurrently, and a shared
+///   `cortex-<tag>-<pid>.db` name would have them clobber each other.
+///
+/// The copy is opened read-write (it's ours) so SQLite can create the `-shm`
+/// index it needs to recover a WAL; nothing is ever written back to the browser.
+fn copy_sqlite_for_read(db: &Path, tag: &str) -> Result<(PathBuf, Vec<TempFileGuard>), String> {
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let stem = format!("cortex-{tag}-{}-{n}", std::process::id());
+    let tmp = std::env::temp_dir().join(format!("{stem}.db"));
+    let mut guards = Vec::new();
+    // Guard first so a partial copy is still cleaned up on the error path.
+    guards.push(TempFileGuard(tmp.clone()));
+    std::fs::copy(db, &tmp).map_err(|e| format!("copy {tag} DB: {e}"))?;
+    for suffix in ["-wal", "-journal"] {
+        let mut src = db.as_os_str().to_owned();
+        src.push(suffix);
+        let src = PathBuf::from(src);
+        if src.is_file() {
+            let dst = std::env::temp_dir().join(format!("{stem}.db{suffix}"));
+            guards.push(TempFileGuard(dst.clone()));
+            // Best-effort: a sidecar we can't copy just means older data.
+            let _ = std::fs::copy(&src, &dst);
+        }
+    }
+    // SQLite creates `-shm` on open when a WAL is present; make sure it goes too.
+    guards.push(TempFileGuard(std::env::temp_dir().join(format!("{stem}.db-shm"))));
+    Ok((tmp, guards))
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // Firefox reader (shared, ALL platforms). Firefox stores cookie values in
 // plaintext in `cookies.sqlite`, so no key derivation is needed. Firefox is a
@@ -211,62 +253,62 @@ impl Drop for TempFileGuard {
 mod firefox {
     use super::*;
 
-    /// First Firefox profile that yields the provider's session cookie.
+    /// First Firefox profile (across every install location) that yields the
+    /// provider's session cookie.
     pub fn detect(provider: WebProvider) -> Result<String, String> {
-        let base = profiles_dir().ok_or_else(|| "no Firefox profiles dir".to_string())?;
-        let entries =
-            std::fs::read_dir(&base).map_err(|e| format!("read Firefox profiles: {e}"))?;
+        let bases = profiles_dirs();
+        if bases.is_empty() {
+            return Err("no Firefox profiles dir".to_string());
+        }
         let mut last = String::from("no Firefox profile had the cookie");
-        for entry in entries.flatten() {
-            let db = entry.path().join("cookies.sqlite");
-            if !db.exists() {
+        for base in bases {
+            let Ok(entries) = std::fs::read_dir(&base) else {
                 continue;
-            }
-            match read(&db, provider.domains(), provider.cookie_name()) {
-                Ok(v) => return Ok(v),
-                Err(e) => last = e,
+            };
+            for entry in entries.flatten() {
+                let db = entry.path().join("cookies.sqlite");
+                if !db.exists() {
+                    continue;
+                }
+                match read(&db, provider.domains(), provider.cookie_name()) {
+                    Ok(v) => return Ok(v),
+                    Err(e) => last = e,
+                }
             }
         }
         Err(last)
     }
 
-    /// Per-platform Firefox profiles directory.
-    fn profiles_dir() -> Option<PathBuf> {
+    /// Every existing Firefox profiles directory for this platform. Linux has
+    /// three common layouts (native package, Snap, Flatpak) and a user may have
+    /// more than one installed, so all present ones are returned.
+    fn profiles_dirs() -> Vec<PathBuf> {
+        let mut out: Vec<PathBuf> = Vec::new();
         #[cfg(windows)]
         {
             // %APPDATA%\Mozilla\Firefox\Profiles
-            Some(
-                dirs::config_dir()?
-                    .join("Mozilla")
-                    .join("Firefox")
-                    .join("Profiles"),
-            )
+            if let Some(cfg) = dirs::config_dir() {
+                out.push(cfg.join("Mozilla").join("Firefox").join("Profiles"));
+            }
         }
         #[cfg(not(windows))]
         {
-            let home = dirs::home_dir()?;
-            let linux = home.join(".mozilla/firefox");
-            if linux.exists() {
-                return Some(linux);
+            if let Some(home) = dirs::home_dir() {
+                out.push(home.join(".mozilla/firefox"));
+                out.push(home.join("snap/firefox/common/.mozilla/firefox"));
+                out.push(home.join(".var/app/org.mozilla.firefox/.mozilla/firefox"));
+                out.push(home.join("Library/Application Support/Firefox/Profiles"));
             }
-            let mac = home.join("Library/Application Support/Firefox/Profiles");
-            if mac.exists() {
-                return Some(mac);
-            }
-            None
         }
+        out.retain(|p| p.is_dir());
+        out
     }
 
     /// Read the plaintext cookie value for the first matching `(host, name)`.
     fn read(db: &Path, domains: &[&str], name: &str) -> Result<String, String> {
-        let tmp = std::env::temp_dir().join(format!("cortex-ff-{}.db", std::process::id()));
-        std::fs::copy(db, &tmp).map_err(|e| format!("copy cookies.sqlite: {e}"))?;
-        let _guard = TempFileGuard(tmp.clone());
-        let conn = rusqlite::Connection::open_with_flags(
-            &tmp,
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
-        )
-        .map_err(|e| format!("open cookies.sqlite: {e}"))?;
+        let (tmp, _guards) = copy_sqlite_for_read(db, "ff")?;
+        let conn = rusqlite::Connection::open(&tmp)
+            .map_err(|e| format!("open cookies.sqlite: {e}"))?;
         for domain in domains {
             let dotted = format!(".{domain}");
             let mut stmt = conn
@@ -316,13 +358,16 @@ mod windows_impl {
         for b in BROWSERS {
             let user_data = local_appdata.join(b.rel);
             let local_state = user_data.join("Local State");
-            let cookies_db = user_data.join(r"Default\Network\Cookies");
-            if !local_state.exists() || !cookies_db.exists() {
+            if !local_state.exists() {
                 continue;
             }
-            match extract_from(&local_state, &cookies_db, provider) {
-                Ok(v) => return Ok(v),
-                Err(e) => last_err = format!("{}: {e}", b.name),
+            // Every profile, not just `Default`: users signed into a second
+            // Chrome profile keep their claude.ai session under `Profile N`.
+            for cookies_db in profile_cookie_dbs(&user_data) {
+                match extract_from(&local_state, &cookies_db, provider) {
+                    Ok(v) => return Ok(v),
+                    Err(e) => last_err = format!("{}: {e}", b.name),
+                }
             }
         }
         // Chromium browsers didn't yield it — try Firefox (a very common default
@@ -331,6 +376,36 @@ mod windows_impl {
             Ok(v) => Ok(v),
             Err(e) => Err(format!("{last_err}; Firefox: {e}")),
         }
+    }
+
+    /// Cookie DBs of every profile under a Chromium `User Data` dir: `Default`
+    /// first, then `Profile 1`, `Profile 2`, … (sorted). Chrome ≥ 96 keeps the
+    /// store at `<profile>\Network\Cookies`; older installs at `<profile>\Cookies`.
+    fn profile_cookie_dbs(user_data: &Path) -> Vec<PathBuf> {
+        let mut profiles: Vec<PathBuf> = Vec::new();
+        if let Ok(rd) = std::fs::read_dir(user_data) {
+            for entry in rd.flatten() {
+                let p = entry.path();
+                let Some(name) = p.file_name().and_then(|n| n.to_str()) else {
+                    continue;
+                };
+                if p.is_dir() && (name == "Default" || name.starts_with("Profile ")) {
+                    profiles.push(p);
+                }
+            }
+        }
+        profiles.sort();
+        // `Default` sorts before `Profile N` already ('D' < 'P').
+        let mut out = Vec::new();
+        for profile in profiles {
+            for candidate in [profile.join("Network").join("Cookies"), profile.join("Cookies")] {
+                if candidate.is_file() {
+                    out.push(candidate);
+                    break;
+                }
+            }
+        }
+        out
     }
 
     fn extract_from(
@@ -489,6 +564,50 @@ mod tests {
         let path = dir.path().join("Local State");
         std::fs::write(&path, serde_json::to_vec(&json).unwrap()).unwrap();
         assert!(read_dpapi_wrapped_key(&path).is_err());
+    }
+
+    /// The temp copy must include a WAL sidecar so uncheckpointed rows are
+    /// visible, and every copied file must be removed once the guards drop.
+    #[test]
+    fn copy_sqlite_for_read_brings_wal_and_cleans_up() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join("cookies.sqlite");
+        {
+            let conn = rusqlite::Connection::open(&db).unwrap();
+            conn.pragma_update(None, "journal_mode", "WAL").unwrap();
+            conn.execute_batch(
+                "CREATE TABLE t (v TEXT); INSERT INTO t VALUES ('in-wal');",
+            )
+            .unwrap();
+            // Keep the connection open so the WAL is NOT checkpointed into the
+            // main file: the row only exists in `cookies.sqlite-wal`.
+            let (tmp, guards) = copy_sqlite_for_read(&db, "test").unwrap();
+            let copy = rusqlite::Connection::open(&tmp).unwrap();
+            let v: String = copy
+                .query_row("SELECT v FROM t", [], |r| r.get(0))
+                .expect("row from WAL visible in the copy");
+            assert_eq!(v, "in-wal");
+            drop(copy);
+            drop(guards);
+            assert!(!tmp.exists(), "temp copy removed");
+            let mut wal = tmp.clone().into_os_string();
+            wal.push("-wal");
+            assert!(!std::path::Path::new(&wal).exists(), "temp wal removed");
+        }
+    }
+
+    #[test]
+    fn copy_sqlite_for_read_reports_missing_source() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(copy_sqlite_for_read(&dir.path().join("absent.sqlite"), "test").is_err());
+    }
+
+    #[test]
+    fn rejects_app_bound_v20_with_clear_message() {
+        let mut blob = b"v20".to_vec();
+        blob.extend_from_slice(&[0u8; 12 + 16 + 4]);
+        let err = decrypt_chromium_value(&[0u8; 32], &blob).unwrap_err();
+        assert!(err.contains("App-Bound"), "{err}");
     }
 
     #[test]

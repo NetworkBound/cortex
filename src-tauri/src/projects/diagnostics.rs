@@ -99,8 +99,7 @@ fn write_cache(root: &Path, diags: Vec<Diagnostic>) {
 /// child so it can't wedge the caller or leak a zombie/file descriptors.
 /// Returns the captured stdout, or `None` if the child was killed or failed.
 fn run_capture(cmd: &str, args: &[&str], root: &Path) -> Option<String> {
-    let mut child = crate::sys::no_window(cmd)
-        .args(args)
+    let mut child = spawn_command(cmd, args)
         .current_dir(root)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
@@ -142,6 +141,17 @@ fn run_capture(cmd: &str, args: &[&str], root: &Path) -> Option<String> {
             Err(_) => return None,
         }
     }
+}
+
+/// Build the compiler command. On Windows `npx` is `npx.cmd`, a batch shim
+/// that `Command::new("npx")` can't find (so `@problems` silently returned
+/// nothing for TypeScript projects there). `crate::sys::resolve_program`
+/// applies PATHEXT; std then runs the shim via `cmd.exe` with safe argument
+/// escaping. `cargo.exe` and POSIX binaries resolve to themselves.
+fn spawn_command(cmd: &str, args: &[&str]) -> std::process::Command {
+    let mut c = crate::sys::no_window(crate::sys::resolve_program(cmd));
+    c.args(args);
+    c
 }
 
 /// Run `cargo check --message-format=json` and parse each NDJSON line into

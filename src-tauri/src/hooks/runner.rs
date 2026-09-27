@@ -13,7 +13,6 @@ use crate::hooks::HookSpec;
 use std::process::Stdio;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
 
 /// Default timeout for any hook that doesn't set `timeout_ms`.
 pub const DEFAULT_TIMEOUT_MS: u64 = 5_000;
@@ -158,7 +157,11 @@ pub async fn run_hook(
     let timeout_ms = spec.timeout_ms.unwrap_or(DEFAULT_TIMEOUT_MS).max(50);
     let timeout = Duration::from_millis(timeout_ms);
 
-    let mut cmd = Command::new(&spec.command);
+    // Exec directly (never through a shell string). `resolve_program` applies
+    // PATHEXT on Windows so a hook installed as an npm `.cmd` shim is found;
+    // std then runs the shim via `cmd.exe` with cmd-safe escaping (≥ 1.77.2).
+    // `tokio_no_window` keeps every hook firing from flashing a console.
+    let mut cmd = crate::sys::tokio_no_window(crate::sys::resolve_program(spec.command.trim()));
     cmd.args(&spec.args)
         .env("CORTEX_HOOK_EVENT", event_name)
         .stdin(Stdio::piped())

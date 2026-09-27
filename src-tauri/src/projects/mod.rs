@@ -152,8 +152,14 @@ pub fn discover_projects(vault_root: Option<PathBuf>) -> Vec<ProjectMeta> {
     // can't use \\wsl.localhost paths as their workspace sandbox root.
     #[cfg(windows)]
     {
+        // Matches both `\\wsl.localhost\...` and the legacy `\\wsl$\...`
+        // form; the UNC server name is case-insensitive on Windows.
         let is_wsl = |p: &ProjectMeta| {
-            p.root.to_string_lossy().starts_with("\\\\wsl")
+            p.root
+                .to_string_lossy()
+                .get(..5)
+                .map(|prefix| prefix.eq_ignore_ascii_case("\\\\wsl"))
+                .unwrap_or(false)
         };
         let native_names: std::collections::HashSet<String> = out
             .iter()
@@ -166,6 +172,25 @@ pub fn discover_projects(vault_root: Option<PathBuf>) -> Vec<ProjectMeta> {
     let vault = vault_root.or_else(self::vault_root);
     out.extend(discover_vault_projects(vault));
     out.sort_by(|a, b| b.last_modified_ms.cmp(&a.last_modified_ms));
+    out
+}
+
+/// Split a `CORTEX_PROJECTS_ROOT` value into root paths. Entries are separated
+/// by `,` or by the platform PATH separator (`:` on POSIX, `;` on Windows — via
+/// `std::env::split_paths`). Splitting on a bare `:` everywhere used to shred
+/// Windows drive letters (`C:\projects` → `C` + `\projects`), so no root was
+/// ever found there. Blank entries are dropped; order is preserved; duplicates
+/// are removed.
+fn parse_projects_root_env(raw: &std::ffi::OsStr) -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = Vec::new();
+    for chunk in raw.to_string_lossy().split(',') {
+        for p in std::env::split_paths(chunk.trim()) {
+            let trimmed = PathBuf::from(p.to_string_lossy().trim());
+            if !trimmed.as_os_str().is_empty() && !out.iter().any(|r| r == &trimmed) {
+                out.push(trimmed);
+            }
+        }
+    }
     out
 }
 
@@ -182,12 +207,10 @@ fn discover_code_projects() -> Vec<ProjectMeta> {
     // Explicit override wins and is added first so its entries take precedence
     // on any path-level de-dup below. Supports the documented
     // CORTEX_PROJECTS_ROOT escape hatch for users whose repos don't live in
-    // ~/projects. The value is a list split on ':' and ',' so multiple roots
-    // can be configured at once.
-    if let Ok(custom) = std::env::var("CORTEX_PROJECTS_ROOT") {
-        for part in custom.split([':', ',']) {
-            let p = PathBuf::from(part.trim());
-            if !p.as_os_str().is_empty() && !roots.iter().any(|r| r == &p) {
+    // ~/projects; see `parse_projects_root_env` for the list syntax.
+    if let Some(custom) = std::env::var_os("CORTEX_PROJECTS_ROOT") {
+        for p in parse_projects_root_env(&custom) {
+            if !roots.iter().any(|r| r == &p) {
                 roots.push(p);
             }
         }
@@ -565,6 +588,32 @@ mod registry_tests {
         assert!(unregister_project_path_in(&file, &canonical).unwrap());
         assert!(load_registered_from(&file).is_empty());
         assert!(!unregister_project_path_in(&file, &canonical).unwrap());
+    }
+
+    #[test]
+    fn projects_root_env_splits_on_comma_and_path_separator() {
+        let sep = if cfg!(windows) { ';' } else { ':' };
+        let raw = format!(" /a/one ,/b/two{sep}/c/three,,/a/one ");
+        let got = parse_projects_root_env(std::ffi::OsStr::new(&raw));
+        assert_eq!(
+            got,
+            vec![PathBuf::from("/a/one"), PathBuf::from("/b/two"), PathBuf::from("/c/three")]
+        );
+        assert!(parse_projects_root_env(std::ffi::OsStr::new("  ")).is_empty());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn projects_root_env_keeps_windows_drive_letters() {
+        let got = parse_projects_root_env(std::ffi::OsStr::new(r"C:\projects;D:\src,E:\work"));
+        assert_eq!(
+            got,
+            vec![
+                PathBuf::from(r"C:\projects"),
+                PathBuf::from(r"D:\src"),
+                PathBuf::from(r"E:\work")
+            ]
+        );
     }
 
     #[test]

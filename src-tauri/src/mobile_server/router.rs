@@ -22,18 +22,20 @@ use super::{handlers, state::MobileState, ws};
 /// bundled SPA is served same-origin so it needs no entry. Mirrors
 /// `agui::server::allowed_origins`. Non-browser clients (native app, CLI) aren't
 /// subject to CORS at all; the loopback bind remains the primary defense.
+pub(super) const MOBILE_ALLOWED_ORIGINS: &[&str] = &[
+    "tauri://localhost",
+    "https://tauri.localhost",
+    "http://localhost:1420",
+    "http://127.0.0.1:1420",
+    "http://localhost:8788",
+    "http://127.0.0.1:8788",
+];
+
 fn mobile_allowed_origins() -> Vec<axum::http::HeaderValue> {
-    [
-        "tauri://localhost",
-        "https://tauri.localhost",
-        "http://localhost:1420",
-        "http://127.0.0.1:1420",
-        "http://localhost:8788",
-        "http://127.0.0.1:8788",
-    ]
-    .iter()
-    .filter_map(|o| axum::http::HeaderValue::from_str(o).ok())
-    .collect()
+    MOBILE_ALLOWED_ORIGINS
+        .iter()
+        .filter_map(|o| axum::http::HeaderValue::from_str(o).ok())
+        .collect()
 }
 
 /// Build the full mobile router around `state`.

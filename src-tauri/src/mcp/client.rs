@@ -190,12 +190,21 @@ pub async fn connect(cfg: &McpServerConfig) -> Result<Vec<McpTool>, String> {
         return Err("server command is empty".to_string());
     }
 
-    let mut child = crate_command(cfg)
+    let mut child = build_command(cfg)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| format!("failed to spawn '{}': {e}", cfg.command))?;
+        .map_err(|e| {
+            let program = cfg.command.trim();
+            if e.kind() == std::io::ErrorKind::NotFound && which::which(program).is_err() {
+                format!(
+                    "failed to spawn '{program}': not found on PATH (install it, or use an absolute path)"
+                )
+            } else {
+                format!("failed to spawn '{program}': {e}")
+            }
+        })?;
 
     let stdin = child
         .stdin
@@ -264,17 +273,20 @@ fn parse_tools(result: &Value) -> Result<Vec<McpTool>, String> {
     Ok(out)
 }
 
-/// Build the spawn command. Mirrors `crate::sys::no_window` for the tokio
-/// process type so we don't flash a console window on Windows. (We can't
-/// reuse that helper directly — it returns `std::process::Command`.)
-fn crate_command(cfg: &McpServerConfig) -> tokio::process::Command {
-    let mut cmd = tokio::process::Command::new(&cfg.command);
-    #[cfg(windows)]
-    {
-        // CREATE_NO_WINDOW (0x08000000) — same flag `crate::sys::no_window` uses.
-        // (`creation_flags` is inherent on tokio's Command; no trait import.)
-        cmd.creation_flags(0x0800_0000);
-    }
+/// Build the spawn command (console-less on Windows via
+/// `crate::sys::tokio_no_window`).
+///
+/// On Windows the catalog's primary runtimes are npm shims: `npx` (and any
+/// `npm i -g` MCP server) is `npx.cmd`, a batch file `CreateProcess` won't find
+/// by bare name — `Command::new("npx")` fails with "program not found" even
+/// though `npx` works in every shell. `crate::sys::resolve_program` applies
+/// PATHEXT and hands back the `.cmd` path; std (≥ 1.77.2) then runs it through
+/// `cmd.exe` with *cmd-safe* argument escaping — unlike a hand-built
+/// `cmd /C <shim> <args>`, where user-supplied args containing `& | " %` could
+/// break out of the intended command line. Native executables (`uvx.exe`,
+/// `node.exe`, absolute paths) resolve to themselves and run directly.
+fn build_command(cfg: &McpServerConfig) -> tokio::process::Command {
+    let mut cmd = crate::sys::tokio_no_window(crate::sys::resolve_program(cfg.command.trim()));
     cmd.args(&cfg.args);
     // Layer per-server env vars onto the inherited environment. Empty values
     // are skipped so a placeholder the user never filled in (e.g. a token the

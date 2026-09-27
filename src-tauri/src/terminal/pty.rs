@@ -2,8 +2,9 @@
 //!
 //! Each `open()` call:
 //!   1. Creates a portable-pty master/slave pair sized to (cols, rows).
-//!   2. Spawns the platform default shell (`cmd.exe` on Windows,
-//!      `/bin/bash` on POSIX) as the child attached to the slave.
+//!   2. Spawns the platform default shell (PowerShell/cmd.exe on Windows,
+//!      `$SHELL`/bash on POSIX; `CORTEX_SHELL` overrides — see
+//!      [`default_shell_program`]) as the child attached to the slave.
 //!   3. Spawns a background reader thread that drains the master and emits
 //!      `terminal:output:<id>` window events carrying base64-encoded chunks.
 //!   4. Stores `master_writer`, `child`, `master` (for resize) in the global
@@ -96,7 +97,7 @@ pub fn open_command(
         .map_err(|e| format!("openpty failed: {e}"))?;
 
     let cmd = match program_and_args {
-        Some((program, args)) => command_for(&program, &args),
+        Some((program, args)) => command_for(&program, &args)?,
         None => default_shell_command(),
     };
     let child = pair
@@ -239,16 +240,81 @@ pub fn list_active() -> Vec<PtyHandle> {
 
 /// Returns the command to launch as the child of the PTY.
 ///
-/// On Windows we use `cmd.exe` (rather than `pwsh.exe`) because every
-/// Windows host ships with cmd and not every host has PowerShell 7.
-/// On POSIX we use `/bin/bash` — sufficient for v1; later we can honor
-/// `$SHELL`.
+/// Resolution order (see [`default_shell_program`]): an explicit `CORTEX_SHELL`
+/// override, then the platform default — PowerShell (`pwsh`, then Windows
+/// PowerShell) falling back to `%COMSPEC%`/`cmd.exe` on Windows; `$SHELL`
+/// falling back to `/bin/bash` then `/bin/sh` on POSIX.
 fn default_shell_command() -> CommandBuilder {
-    let mut cmd = if cfg!(target_os = "windows") {
-        CommandBuilder::new("cmd.exe")
-    } else {
-        CommandBuilder::new("/bin/bash")
-    };
+    let (program, args) = default_shell_program();
+    let mut cmd = CommandBuilder::new(program);
+    for a in args {
+        cmd.arg(a);
+    }
+    apply_session_env(&mut cmd);
+    cmd
+}
+
+/// Pick the interactive shell to spawn and its startup args.
+///
+/// `CORTEX_SHELL` (a program name or absolute path) wins on every platform so a
+/// user can pin e.g. `fish` or `nu`. Otherwise:
+///
+/// - **Windows**: PowerShell is what Windows Terminal opens by default and what
+///   most users expect, so prefer `pwsh.exe` (PowerShell 7) then
+///   `powershell.exe` (5.1, on every supported Windows), each with `-NoLogo` so
+///   the banner doesn't eat the first rows. `%COMSPEC%` (normally `cmd.exe`) is
+///   the last resort — every host has it.
+/// - **POSIX**: honour the user's login shell via `$SHELL` when it names an
+///   existing file, else `/bin/bash`, else `/bin/sh` (minimal containers and
+///   some BSDs have no bash).
+fn default_shell_program() -> (String, Vec<&'static str>) {
+    if let Some(custom) = std::env::var_os("CORTEX_SHELL") {
+        let custom = custom.to_string_lossy().trim().to_string();
+        if !custom.is_empty() {
+            return (custom, Vec::new());
+        }
+    }
+    #[cfg(windows)]
+    {
+        for candidate in ["pwsh.exe", "powershell.exe"] {
+            if let Ok(p) = which::which(candidate) {
+                return (p.to_string_lossy().into_owned(), vec!["-NoLogo"]);
+            }
+        }
+        let comspec = std::env::var_os("COMSPEC")
+            .map(|c| c.to_string_lossy().trim().to_string())
+            .filter(|c| !c.is_empty())
+            .unwrap_or_else(|| "cmd.exe".to_string());
+        (comspec, Vec::new())
+    }
+    #[cfg(not(windows))]
+    {
+        (posix_shell_from(std::env::var_os("SHELL")), Vec::new())
+    }
+}
+
+/// POSIX shell choice given the raw `$SHELL` value: use it when it names an
+/// existing file, else `/bin/bash`, else `/bin/sh`. Split out so the fallback
+/// chain is unit-testable without touching the process environment.
+#[cfg(not(windows))]
+fn posix_shell_from(shell_env: Option<std::ffi::OsString>) -> String {
+    if let Some(sh) = shell_env {
+        let sh = sh.to_string_lossy().trim().to_string();
+        if !sh.is_empty() && std::path::Path::new(&sh).is_file() {
+            return sh;
+        }
+    }
+    for fallback in ["/bin/bash", "/bin/sh"] {
+        if std::path::Path::new(fallback).is_file() {
+            return fallback.to_string();
+        }
+    }
+    "/bin/sh".to_string()
+}
+
+/// Environment + cwd shared by every PTY child (default shell or explicit
+/// program).
+fn apply_session_env(cmd: &mut CommandBuilder) {
     // TERM tells the shell + readline what escape sequences to emit.
     // xterm.js advertises itself as xterm-256color compatible.
     cmd.env("TERM", "xterm-256color");
@@ -260,19 +326,25 @@ fn default_shell_command() -> CommandBuilder {
     if let Some(home) = dirs::home_dir() {
         cmd.cwd(home);
     }
-    cmd
 }
 
 /// Build a [`CommandBuilder`] for an explicit `program` + `args`, mirroring the
 /// shell-command env/cwd setup. The program and each arg are passed as distinct
 /// argv elements (portable-pty does not invoke a shell), so user-facing values
-/// are never re-parsed or interpolated. Used by the in-app login flow.
-fn command_for(program: &str, args: &[String]) -> CommandBuilder {
+/// are never re-parsed or interpolated. Used by the in-app login flow, whose
+/// argv is a CLI spec's fixed `login_cmd` literals.
+fn command_for(program: &str, args: &[String]) -> Result<CommandBuilder, String> {
     // On Windows, npm-installed CLIs are `.cmd`/`.bat` shims that conpty
     // (CreateProcess) cannot launch by bare name — resolve the shim via PATHEXT
     // (`which`) and run it through `cmd.exe /C`. `.exe` shims and all POSIX
     // binaries run directly. Without this the in-app "Sign in" flow (which spawns
     // e.g. `codex login`) fails on Windows with a spawn error.
+    //
+    // `cmd.exe /C` re-parses its command line with cmd's own quoting rules, not
+    // the CreateProcess rules portable-pty escapes for, so this path is only
+    // safe for fixed literal tokens. Every caller today passes exactly that
+    // (`CliSpec::login_cmd`); refuse anything carrying a cmd metacharacter so a
+    // future caller can't turn an arg into an injected command.
     #[cfg(windows)]
     let mut cmd = {
         let resolved = which::which(program).ok();
@@ -282,35 +354,34 @@ fn command_for(program: &str, args: &[String]) -> CommandBuilder {
             .and_then(|e| e.to_str())
             .map(|e| matches!(e.to_ascii_lowercase().as_str(), "cmd" | "bat"))
             .unwrap_or(false);
-        if is_shim {
-            let mut c = CommandBuilder::new("cmd");
-            c.arg("/C");
-            c.arg(resolved.expect("is_shim implies resolved is Some"));
-            for a in args {
-                c.arg(a);
+        match (is_shim, resolved) {
+            (true, Some(shim)) => {
+                if let Some(bad) = args.iter().find(|a| has_cmd_metachar(a)) {
+                    return Err(format!(
+                        "refusing to run '{program}' via cmd.exe: argument {bad:?} contains shell metacharacters"
+                    ));
+                }
+                let mut c = CommandBuilder::new("cmd");
+                c.arg("/C");
+                c.arg(shim);
+                c
             }
-            c
-        } else {
-            let mut c = CommandBuilder::new(program);
-            for a in args {
-                c.arg(a);
-            }
-            c
+            _ => CommandBuilder::new(program),
         }
     };
     #[cfg(not(windows))]
-    let mut cmd = {
-        let mut c = CommandBuilder::new(program);
-        for a in args {
-            c.arg(a);
-        }
-        c
-    };
-    cmd.env("TERM", "xterm-256color");
-    if let Some(home) = dirs::home_dir() {
-        cmd.cwd(home);
+    let mut cmd = CommandBuilder::new(program);
+    for a in args {
+        cmd.arg(a);
     }
-    cmd
+    apply_session_env(&mut cmd);
+    Ok(cmd)
+}
+
+/// Characters `cmd.exe` interprets when re-parsing a `/C` command line.
+#[cfg(windows)]
+fn has_cmd_metachar(arg: &str) -> bool {
+    arg.chars().any(|c| matches!(c, '&' | '|' | '<' | '>' | '^' | '"' | '%' | '!' | '(' | ')'))
 }
 
 /// Background reader: pulls bytes off the PTY master and emits them as
@@ -353,4 +424,37 @@ fn spawn_reader(app: AppHandle, id: String, mut reader: Box<dyn Read + Send>) {
         }
         let _ = app.emit(&format!("terminal:closed:{id}"), ());
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(not(windows))]
+    #[test]
+    fn posix_shell_honours_existing_shell_env() {
+        // `/bin/sh` exists on every POSIX CI runner; a `$SHELL` pointing at it
+        // must be used verbatim.
+        assert_eq!(
+            posix_shell_from(Some(std::ffi::OsString::from("/bin/sh"))),
+            "/bin/sh"
+        );
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn posix_shell_ignores_missing_or_blank_shell_env() {
+        let bogus = posix_shell_from(Some(std::ffi::OsString::from("/nonexistent/zsh-9")));
+        assert!(bogus == "/bin/bash" || bogus == "/bin/sh", "got {bogus}");
+        let blank = posix_shell_from(Some(std::ffi::OsString::from("   ")));
+        assert!(blank == "/bin/bash" || blank == "/bin/sh", "got {blank}");
+        let unset = posix_shell_from(None);
+        assert!(unset == "/bin/bash" || unset == "/bin/sh", "got {unset}");
+    }
+
+    #[test]
+    fn default_shell_program_is_never_empty() {
+        let (program, _args) = default_shell_program();
+        assert!(!program.trim().is_empty());
+    }
 }

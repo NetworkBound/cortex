@@ -74,7 +74,6 @@ fn all_home_roots() -> Vec<PathBuf> {
 pub fn default_sources(active_project: Option<&Path>, obsidian_vault: Option<&Path>) -> Vec<MemorySource> {
     let homes = all_home_roots();
     if homes.is_empty() { return vec![]; }
-    let primary_home = homes[0].clone();
     let mut sources = Vec::new();
 
     // Per-home scans — covers both Windows home and any reachable WSL homes
@@ -127,13 +126,6 @@ pub fn default_sources(active_project: Option<&Path>, obsidian_vault: Option<&Pa
             }
         }
     }
-    // Keep `home` for the rest of the function = the primary (native) home.
-    // Wave 178 — underscore prefix; this is shadowed/unused after the
-    // multi-home refactor that introduced `homes` (the iterable below) but
-    // we keep the binding so a future "just the primary home" path can
-    // pick it back up without re-doing the discovery.
-    let _home = primary_home;
-
     if let Some(project) = active_project {
         let runbooks = project.join("runbooks");
         if runbooks.exists() {
@@ -311,7 +303,7 @@ pub fn walk_markdown(source: &MemorySource) -> Vec<PathBuf> {
             e.path()
                 .extension()
                 .and_then(|s| s.to_str())
-                .is_some_and(|s| s == "md" || s == "markdown")
+                .is_some_and(|s| s.eq_ignore_ascii_case("md") || s.eq_ignore_ascii_case("markdown"))
         })
         .filter(|e| e.metadata().map(|m| m.len() < 1024 * 1024).unwrap_or(false))
         .map(|e| e.path().to_path_buf())
