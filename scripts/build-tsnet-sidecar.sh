@@ -43,9 +43,13 @@ OUT_DIR="$REPO_ROOT/src-tauri/binaries"
 mkdir -p "$OUT_DIR"
 OUT_PATH="$OUT_DIR/cortex-tsnet-$TRIPLE$EXT"
 
+# -trimpath keeps the build host's paths out of the binary (same intent as the
+# --remap-path-prefix RUSTFLAGS used for the Rust side); -s -w drops the symbol
+# and DWARF tables, which cuts the ~30 MB tsnet binary roughly in half.
 (
   cd "$REPO_ROOT/sidecar/cortex-tsnet"
-  GOOS="$GOOS" GOARCH="$GOARCH" CGO_ENABLED=0 go build -o "$OUT_PATH" .
+  GOOS="$GOOS" GOARCH="$GOARCH" CGO_ENABLED=0 \
+    go build -trimpath -ldflags="-s -w" -o "$OUT_PATH" .
 )
 
 echo "$OUT_PATH"

@@ -1,5 +1,21 @@
 name: Release
 
+# Tag push (v*.*.*) → matrix build on Linux / Windows / macOS → draft GitHub
+# Release with every bundle attached. Publish the draft by hand.
+#
+# Windows signing: tauri.conf.json carries the owner's local self-signed
+# `certificateThumbprint`. That cert does not exist on a hosted runner, so
+# leaving the field in makes `signtool` fail and kills the Windows job (this is
+# what broke the v3.0.0 / v3.1.0 Windows release builds). The "Windows signing"
+# step below either imports a real PFX from the WINDOWS_CERTIFICATE /
+# WINDOWS_CERTIFICATE_PASSWORD secrets (base64 PFX + password) and points the
+# thumbprint at it, or — when the secret is absent — strips the field and builds
+# unsigned. See docs/WINDOWS-BUILD.md.
+#
+# Cortex does NOT use tauri-plugin-updater (it has its own manifest check +
+# AppImage self-update in src-tauri/src/commands/{updater,selfupdate}.rs), so
+# TAURI_SIGNING_PRIVATE_KEY / createUpdaterArtifacts are deliberately not used.
+
 on:
   push:
     tags:
@@ -17,8 +33,11 @@ jobs:
       fail-fast: false
       matrix:
         platform:
+          # Build Linux on the oldest supported LTS: the AppImage/.deb inherit
+          # the build host's glibc floor, and 22.04 is the oldest image that
+          # ships libwebkit2gtk-4.1-dev.
           - name: linux-x86_64
-            runner: ubuntu-latest
+            runner: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             args: ""
           - name: windows-x86_64
@@ -35,15 +54,15 @@ jobs:
             args: "--target x86_64-apple-darwin"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Setup Rust
@@ -57,7 +76,7 @@ jobs:
           workspaces: src-tauri
 
       - name: Install Linux deps
-        if: matrix.platform.runner == 'ubuntu-latest'
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -75,27 +94,58 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "stable"
+          cache-dependency-path: sidecar/cortex-tsnet/go.sum
 
+      # tauri-build resolves bundle.externalBin at compile time, so the sidecar
+      # must exist as binaries/cortex-tsnet-<triple>[.exe] before cargo runs.
       - name: Build tsnet sidecar
         shell: bash
         run: bash scripts/build-tsnet-sidecar.sh ${{ matrix.platform.target }}
 
-      - name: Inject sidecar externalBin into tauri.conf.json
+      - name: Windows signing — import certificate (if provided)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if (-not $env:WINDOWS_CERTIFICATE) {
+            Write-Host "No WINDOWS_CERTIFICATE secret — building an unsigned Windows installer."
+            "WINDOWS_CERT_THUMBPRINT=" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            exit 0
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP "cortex-signing.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $pwd = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pwd
+          Remove-Item -Force $pfx
+          Write-Host "Imported signing certificate $($cert.Thumbprint) ($($cert.Subject))"
+          "WINDOWS_CERT_THUMBPRINT=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Windows signing — point tauri.conf.json at the runner's cert (or none)
+        if: runner.os == 'Windows'
         shell: bash
         run: |
-          jq '.bundle.externalBin = ["binaries/cortex-tsnet"]' \
-            src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
+          if [ -n "${WINDOWS_CERT_THUMBPRINT:-}" ]; then
+            jq --arg t "$WINDOWS_CERT_THUMBPRINT" \
+              '.bundle.windows.certificateThumbprint = $t' \
+              src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
+          else
+            jq 'del(.bundle.windows.certificateThumbprint)' \
+              src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
+          fi
           mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
 
       - name: Build Tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # linuxdeploy's bundled `strip` cannot parse .relr.dyn sections in
+          # current glibc/GTK; skipping strip only makes the AppImage larger.
+          NO_STRIP: true
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Cortex ${{ github.ref_name }}"

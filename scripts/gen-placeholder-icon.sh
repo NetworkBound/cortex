@@ -5,13 +5,18 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-if ! command -v convert >/dev/null; then
-  echo "ImageMagick 'convert' not found. Install: sudo apt install -y imagemagick"
+# ImageMagick 7 ships `magick`; 6 ships `convert`. Accept either.
+if command -v magick >/dev/null; then
+  IM=magick
+elif command -v convert >/dev/null; then
+  IM=convert
+else
+  echo "ImageMagick not found. Install: sudo apt install -y imagemagick" >&2
   exit 1
 fi
 
 SRC=src-tauri/icons/source.png
-convert -size 1024x1024 \
+"$IM" -size 1024x1024 \
   -define gradient:angle=135 \
   gradient:'#1f2740-#7c93ff' \
   -gravity Center \

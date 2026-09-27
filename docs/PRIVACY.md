@@ -22,7 +22,7 @@ Cortex is a single-user app. This doc records what data leaves the user's device
 
 ## The Sentry `beforeSend` filter
 
-Implemented in `src-tauri/src/observability/sentry.rs` (Phase 4). Strips:
+Implemented in `src-tauri/src/observability/sentry.rs` (`redact`, exercised by `src-tauri/tests/integration.rs`). Strips:
 
 - Any payload field whose key matches `/message|content|prompt|body|args|result/i`.
 - Any string longer than 256 characters.
@@ -40,8 +40,8 @@ If you ever see chat content in a Sentry event, that's a bug — file it.
 
 - No analytics, no metrics on app usage to any third party.
 - No telemetry on which agents you use, how often, or for what.
-- No call-home on update check (the updater hits GitHub Releases directly).
+- No call-home on update check. There is no baked-in update URL: the check only runs if you configure one (Settings → Updates), and then it fetches that URL and nothing else. The Linux AppImage self-update likewise only talks to the Gitea host you put in `~/.cortex/infra.json`.
 
 ## If you change your mind
 
-Sentry data is purgeable from the Sentry dashboard. Tailscale-synced memory is in your control (delete on any device, the others propagate the delete on next sync). The local Cortex DB lives at `~/.local/share/cortex/` — delete the directory and Cortex starts fresh.
+Sentry data is purgeable from the Sentry dashboard. Tailscale-synced memory is in your control (delete on any device, the others propagate the delete on next sync). The local Cortex DB lives in the local data dir (`~/.local/share/cortex/` on Linux, `%LOCALAPPDATA%\cortex\` on Windows, `~/Library/Application Support/cortex/` on macOS) — delete the directory and Cortex starts fresh. Per-user settings and policies are in `~/.cortex/`.

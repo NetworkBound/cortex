@@ -45,7 +45,9 @@ estimated cost, with CSV/JSON export. Both are read-only views of local data.
 **Reaches models anywhere on your network.** The Model Fabric lets you register
 any OpenAI-compatible endpoint, such as a vLLM or llama.cpp box on your LAN or
 tailnet, health-check it, discover its models, and chat through it. A companion
-HTTP server plus Tailscale gives you access from a phone or tablet browser.
+HTTP server (`127.0.0.1:8788`) serves a mobile PWA, and an embedded userspace
+Tailscale sidecar (`cortex-tsnet`) gives you access from a phone or tablet
+without touching the host's networking.
 
 **Keeps context close at hand.** The Brain indexes chat history and an Obsidian
 vault with local embeddings for semantic search; `@brain` pulls relevant notes
@@ -55,10 +57,14 @@ server catalog gives every model the same tools. Checkpoints snapshot the
 workspace independently of git, and `/undo` shows the exact diff before rolling
 anything back.
 
-**Tries not to let an agent wreck your machine.** Commands run in an
-untrusted-by-default sandbox with a safe-command allowlist. Plan mode blocks
-write and exec tools entirely. Secrets stay in the OS keychain, updates are
-ed25519-signed, and there is no telemetry or call-home.
+**Tries not to let an agent wreck your machine.** Tool calls pass through a
+three-tier sandbox (read-only, workspace-write, full access; workspace-write by
+default, so writes outside the project root are refused), a safe-command
+allowlist, and per-project command policies. Plan mode blocks write and exec
+tools entirely.
+Secrets stay in the OS keychain, the Linux AppImage self-update verifies an
+ed25519 signature before it swaps a binary in, and there is no telemetry or
+call-home.
 
 There is more (voice input, image attachments, a terminal, workflows, custom
 agent roles, an eval harness), but the above is the core of it. See
@@ -76,41 +82,74 @@ Prebuilt packages are on the [releases page](https://github.com/NetworkBound/cor
 | macOS (Apple Silicon / Intel) | `Cortex_*_aarch64.dmg` / `Cortex_*_x64.dmg` |
 | Windows 10/11 | `Cortex_*_x64-setup.exe` (per-user, no admin required) |
 
-Not every release includes every package — 3.1.0 ships the Windows installer,
-the `.deb`, and the AppImage. The Windows and macOS builds are not code-signed
-yet, so SmartScreen and Gatekeeper will warn on first launch.
+The Windows and macOS builds are not code-signed yet, so SmartScreen and
+Gatekeeper will warn on first launch. The Linux packages need
+`libwebkit2gtk-4.1` and GTK 3 (the `.deb` declares them; on Fedora install
+`webkit2gtk4.1`). The Windows installer needs the WebView2 runtime, which is
+preinstalled on Windows 11 and downloaded by the installer on Windows 10.
 
 ## Build from source
 
-You need Node 20+, pnpm, and a Rust toolchain.
+You need Node 20+ with pnpm, a Rust toolchain, and Go 1.26+ (the Tailscale
+sidecar is a Go program). Linux additionally needs the Tauri system packages;
+`scripts/setup-dev.sh` installs them on apt/dnf/pacman/zypper systems and
+builds the sidecar for you.
 
 ```bash
 pnpm install
-pnpm tauri dev      # development build with hot reload
+bash scripts/build-tsnet-sidecar.sh   # -> src-tauri/binaries/cortex-tsnet-<triple>
+pnpm tauri dev                        # development build with hot reload
 ```
 
-Linux release build:
+The sidecar step is not optional: `tauri.conf.json` declares it as an
+`externalBin`, and Tauri's build script fails with
+`resource path binaries/cortex-tsnet-<triple> doesn't exist` if it is missing,
+even for `tauri dev` and `cargo check`. On Windows run the script from Git Bash,
+or do it by hand in PowerShell:
+
+```powershell
+cd sidecar\cortex-tsnet
+$env:CGO_ENABLED = "0"
+go build -trimpath -ldflags="-s -w" -o ..\..\src-tauri\binaries\cortex-tsnet-x86_64-pc-windows-msvc.exe .
+```
+
+Linux release build (`.deb` + AppImage, then patches the AppImage to prefer the
+host's WebKit so it renders on distros with a newer Mesa):
+
+```bash
+bash scripts/build-linux.sh
+```
+
+or just the Tauri step, which needs `NO_STRIP=true` for AppImage bundling on
+current glibc and uses `--remap-path-prefix` so your home directory doesn't end
+up in the binary:
 
 ```bash
 pnpm tauri:build:linux
 ```
 
-This runs `tauri build` with `NO_STRIP=true` (needed for AppImage bundling on
-modern glibc) and `--remap-path-prefix` so your home directory doesn't end up
-in the binary. Output lands in `src-tauri/target/release/bundle/{appimage,deb,rpm}/`.
+Output lands in `src-tauri/target/release/bundle/{appimage,deb,rpm}/`.
 
-Windows release build (PowerShell; needs VS Build Tools with the C++ workload
-and the WebView2 runtime):
+Windows release build (PowerShell; needs Visual Studio Build Tools with the
+C++ workload, the WebView2 runtime, and the sidecar built as above):
 
 ```powershell
 pnpm install
 $env:RUSTFLAGS = "--remap-path-prefix=$($env:USERPROFILE)="
-pnpm tauri build
+pnpm tauri build --bundles nsis
 ```
 
-Output: `src-tauri\target\release\bundle\{nsis,msi}\`. Distribute the NSIS
-`-setup.exe`; the MSI requires admin. See [docs/WINDOWS-BUILD.md](docs/WINDOWS-BUILD.md)
-for signing options.
+Output: `src-tauri\target\release\bundle\nsis\Cortex_<ver>_x64-setup.exe`.
+Distribute the NSIS `-setup.exe`; the MSI (`--bundles msi`) always requires
+admin. `tauri.conf.json` names the maintainer's local self-signed certificate
+under `bundle.windows.certificateThumbprint`; on any other machine either
+delete that key or point it at your own certificate, otherwise `signtool` fails
+the build. See [docs/WINDOWS-BUILD.md](docs/WINDOWS-BUILD.md) for the signing
+options and the Linux-to-Windows cross-build.
+
+Checks that CI runs on every push (Linux and Windows): `pnpm check` (typecheck,
+eslint, `cargo check --all-targets`), `pnpm build`, and `pnpm test`
+(`cargo test`). See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 ## Status and limitations
 

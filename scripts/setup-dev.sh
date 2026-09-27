@@ -50,8 +50,10 @@ case "$(uname -s)" in
         dbus \
         pkgconf
     elif command -v zypper >/dev/null; then
+      # Tauri 2 needs the webkit2gtk 4.1 API (libsoup3); the soup2 package is
+      # the Tauri 1 dependency.
       sudo zypper install -y \
-        webkit2gtk3-soup2-devel \
+        webkit2gtk3-devel \
         libopenssl-devel \
         libappindicator3-devel \
         librsvg-devel \
@@ -71,11 +73,24 @@ case "$(uname -s)" in
     xcode-select -p >/dev/null || xcode-select --install
     ;;
   MINGW*|MSYS*|CYGWIN*)
-    echo "==> Windows detected — install WebView2 runtime if missing"
+    echo "==> Windows detected — you need Visual Studio Build Tools (C++ workload),"
+    echo "    the WebView2 runtime (preinstalled on Windows 11), and the"
+    echo "    x86_64-pc-windows-msvc Rust toolchain (rustup's default on Windows)."
     ;;
 esac
 
 echo "==> Installing JS deps"
 pnpm install
+
+# tauri-build resolves bundle.externalBin at compile time, so even `tauri dev`
+# needs src-tauri/binaries/cortex-tsnet-<host-triple>[.exe] to exist.
+if command -v go >/dev/null; then
+  echo "==> Building tsnet sidecar"
+  bash scripts/build-tsnet-sidecar.sh
+else
+  echo "==> Go not found — skipping the tsnet sidecar. Install Go 1.26+ and run:" >&2
+  echo "    bash scripts/build-tsnet-sidecar.sh" >&2
+  echo "    (tauri dev/build fail until src-tauri/binaries/cortex-tsnet-<triple> exists)" >&2
+fi
 
 echo "==> Done. Run: pnpm tauri:dev"

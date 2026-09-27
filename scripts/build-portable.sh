@@ -15,8 +15,9 @@
 #   uninstall.bat    (preserves user data)
 #   README.txt
 #
-# This is the fallback to scripts/build-installer.sh when NSIS is not
-# available on the build host (NSIS requires `apt install nsis`).
+# This is the fallback to scripts/build-windows-msi.sh (cargo-xwin + NSIS)
+# when NSIS is not available on the build host (NSIS requires `apt install nsis`).
+# Like that script it needs clang/lld/cargo-xwin and the Go sidecar prereqs.
 
 set -euo pipefail
 
@@ -40,6 +41,9 @@ echo "==> Building Cortex portable installer v${VERSION}"
 # otherwise rebuild with --no-bundle (no NSIS needed).
 if [[ ! -f "$EXE_SRC" ]]; then
   echo "==> No prior build at $EXE_SRC — running pnpm tauri build --no-bundle"
+  # tauri-build resolves bundle.externalBin at compile time even with
+  # --no-bundle, so the Windows sidecar binary has to exist first.
+  bash scripts/build-tsnet-sidecar.sh x86_64-pc-windows-msvc
   pnpm tauri build --target x86_64-pc-windows-msvc --runner cargo-xwin --no-bundle
 fi
 

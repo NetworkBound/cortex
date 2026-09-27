@@ -1,4 +1,24 @@
+# Normalise line endings in the repo to LF; check out as LF everywhere except
+# the Windows-only script formats below, which cmd.exe / PowerShell expect as
+# CRLF (cmd.exe in particular mis-parses some LF-only .bat constructs).
 * text=auto eol=lf
 *.sh text eol=lf
 *.ps1 text eol=crlf
 *.bat text eol=crlf
+*.cmd text eol=crlf
+# Ships inside the Windows portable zip and is opened in Notepad.
+scripts/portable/README.txt text eol=crlf
+
+# Binary assets — never touch these.
+*.png binary
+*.ico binary
+*.icns binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.wav binary
+*.mp3 binary

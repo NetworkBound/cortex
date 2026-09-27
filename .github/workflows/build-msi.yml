@@ -2,7 +2,11 @@ name: Build Windows MSI (manual)
 
 # Trigger from the Actions tab or `gh workflow run build-msi.yml`.
 # Produces an unsigned MSI + NSIS exe and uploads them as workflow artifacts.
-# For signed + GitHub Release artifacts use the tag-based `release.yml` instead.
+# For a GitHub Release (and optional signing) use the tag-based `release.yml`.
+#
+# tauri.conf.json carries the owner's local self-signed certificateThumbprint.
+# That cert is not in the hosted runner's store, so the field is stripped here
+# and the installers are built unsigned (see docs/WINDOWS-BUILD.md).
 
 on:
   workflow_dispatch:
@@ -12,6 +16,8 @@ on:
       - '.github/workflows/build-msi.yml'
       - 'src-tauri/**'
       - 'src/**'
+      - 'sidecar/**'
+      - 'scripts/build-tsnet-sidecar.sh'
       - 'package.json'
       - 'pnpm-lock.yaml'
 
@@ -23,15 +29,15 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Setup Rust
@@ -48,18 +54,21 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "stable"
+          cache-dependency-path: sidecar/cortex-tsnet/go.sum
 
+      # tauri-build resolves bundle.externalBin at compile time, so the sidecar
+      # must exist as binaries/cortex-tsnet-x86_64-pc-windows-msvc.exe first.
       - name: Build tsnet sidecar
         shell: bash
         run: bash scripts/build-tsnet-sidecar.sh x86_64-pc-windows-msvc
 
-      - name: Inject sidecar externalBin into tauri.conf.json
+      - name: Drop the maintainer's local signing cert from tauri.conf.json
         shell: bash
         run: |
-          jq '.bundle.externalBin = ["binaries/cortex-tsnet"]' \
+          jq 'del(.bundle.windows.certificateThumbprint)' \
             src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
           mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
 
@@ -76,7 +85,7 @@ jobs:
         run: pnpm tauri build --bundles msi,nsis
 
       - name: Upload installer artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: cortex-windows-installers
           path: |
