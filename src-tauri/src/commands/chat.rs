@@ -360,16 +360,43 @@ where
     }
 }
 
+/// Drive `fut` to completion from a synchronous context that may itself be on
+/// a tokio worker thread: `expand_at_tokens` runs inside the async `chat_send`
+/// command, and `tauri::async_runtime::block_on` there panics with "Cannot
+/// start a runtime from within a runtime" (which took the whole send down for
+/// any `@web:`/`@websearch:` token). Like `observability::webhooks::
+/// post_blocking`, the future runs on a dedicated OS thread that owns its own
+/// current-thread runtime — never a tokio worker, so blocking is safe. Returns
+/// `None` when the runtime can't be built or the thread panics.
+fn block_on_detached<F>(fut: F) -> Option<F::Output>
+where
+    F: std::future::Future + Send,
+    F::Output: Send,
+{
+    std::thread::scope(|s| {
+        s.spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .ok()?;
+            Some(rt.block_on(fut))
+        })
+        .join()
+        .ok()
+        .flatten()
+    })
+}
+
 /// Fetch a URL and return its text. Strips HTML tags + collapses whitespace
 /// so the model sees readable content, not raw markup. Capped at 60KB.
 /// 8s timeout — anything slower probably isn't worth blocking the chat
 /// for. Returns None on any error.
 fn fetch_url_text(url: &str) -> Option<String> {
-    // `reqwest` is async-only in this workspace (no `blocking` feature) —
-    // bridge into Tauri's runtime with `block_on`. Caller is on a sync
-    // path inside `expand_at_tokens`, so blocking here is fine.
+    // `reqwest` is async-only in this workspace (no `blocking` feature); the
+    // caller is the sync `expand_at_tokens` path, so drive the fetch on a
+    // detached runtime thread (see `block_on_detached`).
     let url = url.to_string();
-    let raw = tauri::async_runtime::block_on(async move {
+    let raw = block_on_detached(async move {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(8))
             .user_agent("cortex/0.0.2")
@@ -378,7 +405,7 @@ fn fetch_url_text(url: &str) -> Option<String> {
         let resp = client.get(&url).send().await.ok()?;
         if !resp.status().is_success() { return None }
         resp.text().await.ok()
-    })?;
+    })??;
     let stripped = strip_html(&raw);
     let trimmed: String = stripped.chars().take(60_000).collect();
     Some(trimmed)
@@ -744,8 +771,11 @@ fn resolve_special_token(token: &str, cwd: Option<&std::path::Path>) -> Option<(
             // `@blame:<relpath>` — `git blame --line-porcelain` simplified
             // to `sha author line` rows. Caps file at 800 lines.
             let rel = s.strip_prefix("@blame:")?;
-            // Refuse anything that escapes the cwd.
-            if rel.contains("..") { return None; }
+            // Refuse anything that escapes the cwd (`..`, or an absolute /
+            // drive-qualified path that `join` would take verbatim).
+            if rel.contains("..") || std::path::Path::new(rel).is_absolute() || rel.starts_with('/') || rel.starts_with('\\') {
+                return None;
+            }
             let full = cwd.join(rel);
             if !full.is_file() { return None; }
             let out = crate::sys::no_window("git")
@@ -1558,7 +1588,8 @@ fn expand_at_tokens(message: &str, project_root: Option<&std::path::Path>) -> (S
             if !seen.insert(key.clone()) { continue; }
             // Cap at 6 results so the block stays a scannable lead-list, not a
             // wall — the user can `@web:<url>` any hit to read it in full.
-            let results = tauri::async_runtime::block_on(crate::websearch::search(query, 6))
+            let results = block_on_detached(crate::websearch::search(query, 6))
+                .and_then(|r| r.ok())
                 .unwrap_or_default();
             if results.is_empty() { continue; }
             let (attachment, label) = format_websearch_attachment(query, &results);
@@ -1647,14 +1678,6 @@ fn expand_at_tokens(message: &str, project_root: Option<&std::path::Path>) -> (S
     }
     if attachments.is_empty() { return (message.to_string(), labels); }
     (format!("{}\n\n{}", message, attachments.join("\n\n")), labels)
-}
-
-#[allow(dead_code)]
-fn format_plan_prompt(plan: &str, user_message: &str) -> String {
-    let plan = plan.trim();
-    format!(
-        "<plan>\n{plan}\n</plan>\n\nApply the plan above to satisfy this request:\n\n{user_message}"
-    )
 }
 
 /// Process-wide last-known mode set from the UI. Used as a fallback when a
@@ -2338,7 +2361,40 @@ pub async fn chat_send(
     // model as opaque strings — the file contents never get attached.
     // Replace each token with an inline attachment block so the model
     // actually sees what the user pointed at.
-    let (expanded, attachment_labels) = expand_at_tokens(&args.message, project_root.as_deref());
+    //
+    // Then prepend the project's rules/conventions file (AGENTS.md, else
+    // .cortexrules, else CLAUDE.md) and a ranked repo-map (aider/Continue
+    // -style auto-context) when a project is open — cross-tool standards that
+    // teach the agent project conventions and let it locate relevant code
+    // without blind searching. Additive: no project => unchanged message;
+    // both blocks individually optional and byte-capped so they can't
+    // dominate the context budget.
+    //
+    // Both steps are synchronous and heavy — directory walks, `git` shell-outs,
+    // `cargo check`/`tsc` for `@problems` (20s budget), network for `@web:` —
+    // so they hop to the blocking pool instead of stalling a runtime worker
+    // (and every other in-flight stream) for the duration.
+    let (expanded, attachment_labels) = {
+        let message = args.message.clone();
+        let root = project_root.clone();
+        tokio::task::spawn_blocking(move || {
+            let (expanded, labels) = expand_at_tokens(&message, root.as_deref());
+            let expanded = match root.as_deref() {
+                Some(root) => {
+                    let prefix = build_context_prefix(root, &message);
+                    if prefix.is_empty() {
+                        expanded
+                    } else {
+                        format!("{prefix}{expanded}")
+                    }
+                }
+                None => expanded,
+            };
+            (expanded, labels)
+        })
+        .await
+        .map_err(|e| format!("context expansion failed: {e}"))?
+    };
     // Wave 278 — single-line summary of expansion result for log scanning.
     if !attachment_labels.is_empty() {
         tracing::info!(
@@ -2348,24 +2404,6 @@ pub async fn chat_send(
             "chat_send attachments expanded"
         );
     }
-    // Prepend the project's rules/conventions file (AGENTS.md, else
-    // .cortexrules, else CLAUDE.md) and a ranked repo-map (aider/Continue
-    // -style auto-context) when a project is open — cross-tool standards that
-    // teach the agent project conventions and let it locate relevant code
-    // without blind searching. Additive: no project => unchanged message;
-    // both blocks individually optional and byte-capped so they can't
-    // dominate the context budget.
-    let expanded = match project_root.as_deref() {
-        Some(root) => {
-            let prefix = build_context_prefix(root, &args.message);
-            if prefix.is_empty() {
-                expanded
-            } else {
-                format!("{prefix}{expanded}")
-            }
-        }
-        None => expanded,
-    };
 
     let effective_message = build_images_envelope(&args.images, &expanded)
         .unwrap_or(expanded);
@@ -3154,8 +3192,10 @@ pub struct StopRunArgs {
 #[tauri::command]
 pub async fn stop_run(args: StopRunArgs, state: State<'_, AppState>) -> Result<(), String> {
     // Local (in-process) runs are aborted directly — the gateway never saw
-    // them, so POSTing their synthetic id there could only 404.
-    if abort_local_run(&args.run_id) {
+    // them, so POSTing their synthetic id there could only 404. A `local-` id
+    // that's no longer registered already finished (the event loop removes it
+    // on drain), so Stop is a no-op rather than a spurious gateway error.
+    if abort_local_run(&args.run_id) || args.run_id.starts_with("local-") {
         return Ok(());
     }
     let cfg = state.config.read().clone();
@@ -3185,6 +3225,19 @@ mod tests {
     use super::*;
     use crate::agents::adapter::{AgentCapability, AgentDescriptor};
     use async_trait::async_trait;
+
+    /// Regression: `expand_at_tokens` runs inside the async `chat_send`
+    /// command; the old `tauri::async_runtime::block_on` there panicked with
+    /// "Cannot start a runtime from within a runtime" for any `@web:` /
+    /// `@websearch:` token. The detached helper must work from a runtime.
+    #[tokio::test]
+    async fn block_on_detached_runs_inside_an_async_context() {
+        assert_eq!(block_on_detached(async { 40 + 2 }), Some(42));
+        // Borrowed (non-'static) futures are fine: the thread is scoped.
+        let s = String::from("scoped");
+        let len = block_on_detached(async { s.len() });
+        assert_eq!(len, Some(6));
+    }
 
     #[tokio::test]
     async fn abort_local_run_stops_registered_task_and_rejects_unknown_ids() {

@@ -15,6 +15,8 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 
+use crate::commands::git::{tail_output as tail, NON_INTERACTIVE_ENV};
+
 /// Tail length for stdout / stderr blobs returned to the frontend. Pull output
 /// is usually short, but non-fast-forward rejections can be wordy.
 const TAIL_BYTES: usize = 4 * 1024;
@@ -41,6 +43,7 @@ pub async fn git_pull(project_root: String) -> Result<PullResult, String> {
 
     let output = crate::sys::no_window("git")
         .args(["pull", "--ff-only"])
+        .envs(NON_INTERACTIVE_ENV.iter().copied())
         .current_dir(&root)
         .output()
         .map_err(|e| format!("git pull: spawn failed: {e}"))?;
@@ -53,38 +56,4 @@ pub async fn git_pull(project_root: String) -> Result<PullResult, String> {
         stderr_tail: tail(stderr, TAIL_BYTES),
         exit_code: output.status.code().unwrap_or(-1),
     })
-}
-
-/// Truncate from the front, keeping the last `limit` bytes. Pull output is most
-/// interesting at the bottom (rejections, hints, …) so we trim the head rather
-/// than the tail. Respects UTF-8 boundaries.
-fn tail(mut s: String, limit: usize) -> String {
-    if s.len() <= limit {
-        return s;
-    }
-    let mut cut = s.len() - limit;
-    while !s.is_char_boundary(cut) {
-        cut += 1;
-    }
-    s.replace_range(..cut, "[…truncated…]\n");
-    s
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn tail_returns_short_string_intact() {
-        let s = "abc".to_string();
-        assert_eq!(tail(s.clone(), 100), s);
-    }
-
-    #[test]
-    fn tail_keeps_last_chunk_with_marker() {
-        let s = "x".repeat(TAIL_BYTES + 200);
-        let out = tail(s, TAIL_BYTES);
-        assert!(out.starts_with("[…truncated…]"));
-        assert!(out.ends_with('x'));
-    }
 }

@@ -171,19 +171,24 @@ async fn run_in_dir(command: &str, cwd: &Path, timeout_ms: u64) -> Result<TestRu
         ));
     }
 
-    let mut builder = if cfg!(target_os = "windows") {
-        let mut c = Command::new("cmd");
-        c.args(["/C", cmd]);
-        c
-    } else {
+    #[cfg(windows)]
+    let mut builder = {
+        use std::os::windows::process::CommandExt;
+        // `raw_arg` hands the command line to cmd.exe verbatim. The default
+        // `arg` quoting is MSVC-style (`"..."` with `\"` escapes), which
+        // cmd.exe does not understand — `pytest -k "a and b"` would arrive
+        // mangled. Built as a std Command (which owns `raw_arg`) and converted.
+        let mut c = std::process::Command::new("cmd");
+        c.raw_arg("/C").raw_arg(cmd);
+        c.creation_flags(crate::sys::CREATE_NO_WINDOW);
+        Command::from(c)
+    };
+    #[cfg(not(windows))]
+    let mut builder = {
         let mut c = Command::new("sh");
         c.args(["-c", cmd]);
         c
     };
-    #[cfg(windows)]
-    {
-        builder.creation_flags(0x0800_0000); // CREATE_NO_WINDOW (inherent on tokio Command)
-    }
     builder
         .current_dir(cwd)
         .stdin(Stdio::null())

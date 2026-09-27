@@ -214,21 +214,32 @@ async fn fetch_claude_usage() -> Option<ClaudeUsage> {
 }
 
 /// SSH to the configured hypervisor (`CORTEX_USAGE_SSH_HOST` /
-/// `~/.cortex/infra.json` `usage_ssh_host`) and run a remote python one-liner
-/// that reads the Codex token from `/home/gateway/.cortex-gateway/auth.json`, queries
+/// `~/.cortex/infra.json` `usage_ssh_host`), `pct exec` into the gateway's
+/// Proxmox container (`CORTEX_USAGE_GATEWAY_CT` / `usage_gateway_ct`) and run
+/// a remote python one-liner that reads the Codex token from
+/// `/home/gateway/.cortex-gateway/auth.json`, queries
 /// `chatgpt.com/backend-api/codex/usage`, and prints ONLY the usage JSON. The
-/// token never crosses SSH — only the JSON response does. No host configured →
-/// None immediately (no ssh spawned, no LAN dialing); the UI shows the
-/// provider as "not connected". Any failure (host down, no key, expired
-/// token, parse) → None.
+/// token never crosses SSH — only the JSON response does. Host or CT id
+/// unconfigured → None immediately (no ssh spawned, no LAN dialing); the UI
+/// shows the provider as "not connected". Any failure (host down, no key,
+/// expired token, parse) → None.
 fn fetch_chatgpt_usage_sync() -> Option<ChatgptUsage> {
-    fetch_chatgpt_usage_with_host(crate::infra_config::usage_ssh_host())
+    fetch_chatgpt_usage_with_host(
+        crate::infra_config::usage_ssh_host(),
+        crate::infra_config::usage_gateway_ct(),
+    )
 }
 
 /// Host-gated worker behind [`fetch_chatgpt_usage_sync`], split out so the
-/// unconfigured → no-op path is unit-testable without any SSH.
-fn fetch_chatgpt_usage_with_host(host: Option<String>) -> Option<ChatgptUsage> {
-    let host = host?;
+/// unconfigured → no-op path is unit-testable without any SSH. Mirrors
+/// `usage::fetch_upstream_pool_with_host`: the CT id used to be a literal
+/// `<gateway-ct>` placeholder, which the remote shell parsed as a redirect so
+/// the call always failed.
+fn fetch_chatgpt_usage_with_host(
+    host: Option<String>,
+    gateway_ct: Option<String>,
+) -> Option<ChatgptUsage> {
+    let (host, ct) = (host?, gateway_ct?);
     // Remote one-liner. Keep it self-contained (stdlib only) so it runs on a
     // bare python3. urllib is used to avoid a requests dependency on CT154.
     const REMOTE_PY: &str = "import json,urllib.request;\
@@ -239,11 +250,11 @@ headers={'Authorization':'Bearer '+t,'User-Agent':'codex-cli'});\
 print(urllib.request.urlopen(r,timeout=3).read().decode())";
 
     // The app has SSH key access to the hypervisor, NOT directly to the
-    // gateway container. Route through the host and `pct exec <gateway-ct>`. Single-
-    // quote the python so the remote shell forwards it as one argument to
-    // python3 -c.
+    // gateway container. Route through the host and `pct exec <ct>` (digits
+    // only — validated by `infra_config::usage_gateway_ct`). Single-quote the
+    // python so the remote shell forwards it as one argument to python3 -c.
     let remote_py_quoted = format!("'{}'", REMOTE_PY.replace('\'', "'\\''"));
-    let remote_cmd = format!("pct exec <gateway-ct> -- python3 -c {remote_py_quoted}");
+    let remote_cmd = format!("pct exec {ct} -- python3 -c {remote_py_quoted}");
     let output = crate::sys::no_window("ssh")
         .arg("-o")
         .arg("BatchMode=yes")
@@ -308,8 +319,10 @@ mod tests {
 
     #[test]
     fn unconfigured_ssh_host_yields_none_without_dialing() {
-        // No host configured → None immediately; the UI shows "not connected"
-        // and no ssh process is ever spawned.
-        assert!(fetch_chatgpt_usage_with_host(None).is_none());
+        // No host and/or no CT id configured → None immediately; the UI shows
+        // "not connected" and no ssh process is ever spawned.
+        assert!(fetch_chatgpt_usage_with_host(None, None).is_none());
+        assert!(fetch_chatgpt_usage_with_host(Some("root@hv".into()), None).is_none());
+        assert!(fetch_chatgpt_usage_with_host(None, Some("154".into())).is_none());
     }
 }

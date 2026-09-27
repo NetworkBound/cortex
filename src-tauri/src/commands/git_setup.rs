@@ -21,6 +21,7 @@ use serde::Serialize;
 use tauri::{Emitter, State};
 
 use crate::app_state::AppState;
+use crate::commands::git::{tail_output as tail, NON_INTERACTIVE_ENV};
 
 /// Event emitted whenever the set of known projects changes (a repo was
 /// cloned/connected and registered). The Projects sidebar listens and
@@ -165,10 +166,16 @@ pub async fn clone_git_repo(
         }
     }
 
+    // `--` pins both operands as positionals: `validate_url` accepts scp-style
+    // `user@host:path`, so a URL like `-c@host:x` would otherwise parse as a
+    // flag. The non-interactive env keeps a private/unauthenticated remote from
+    // hanging the command on a hidden credential prompt.
     let output = crate::sys::no_window("git")
         .arg("clone")
+        .arg("--")
         .arg(&info.normalized_url)
         .arg(&target_dir)
+        .envs(NON_INTERACTIVE_ENV.iter().copied())
         .output()
         .map_err(|e| format!("git clone: spawn failed (is git installed?): {e}"))?;
 
@@ -267,21 +274,6 @@ pub async fn set_git_server_cloned_path(
     Ok(canonical.to_string_lossy().into_owned())
 }
 
-/// Truncate from the front, keeping the last `limit` bytes. Mirrors git_pull's
-/// `tail` — clone output is most interesting at the bottom. Respects UTF-8
-/// boundaries.
-fn tail(mut s: String, limit: usize) -> String {
-    if s.len() <= limit {
-        return s;
-    }
-    let mut cut = s.len() - limit;
-    while !s.is_char_boundary(cut) {
-        cut += 1;
-    }
-    s.replace_range(..cut, "[…truncated…]\n");
-    s
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -332,19 +324,5 @@ mod tests {
         assert!(!validate_url("   ").is_valid);
         assert!(!validate_url("not a url").is_valid);
         assert!(!validate_url("https://").is_valid);
-    }
-
-    #[test]
-    fn tail_returns_short_string_intact() {
-        let s = "abc".to_string();
-        assert_eq!(tail(s.clone(), 100), s);
-    }
-
-    #[test]
-    fn tail_keeps_last_chunk_with_marker() {
-        let s = "x".repeat(TAIL_BYTES + 200);
-        let out = tail(s, TAIL_BYTES);
-        assert!(out.starts_with("[…truncated…]"));
-        assert!(out.ends_with('x'));
     }
 }

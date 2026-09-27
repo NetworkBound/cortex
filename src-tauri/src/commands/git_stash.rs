@@ -20,6 +20,8 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
+use crate::commands::git::tail_output as tail;
+
 /// Max length for stdout/stderr blobs returned to the frontend. Stash
 /// output is normally small; this just protects against a runaway `show`.
 const TAIL_BYTES: usize = 8 * 1024;
@@ -281,20 +283,6 @@ fn count_files_in_stash(root: &Path, ref_id: &str) -> u32 {
         }
     }
     count
-}
-
-/// Truncate from the front, keeping the last `limit` bytes at a UTF-8
-/// boundary. `git push` style: trims the head when the blob is over budget.
-fn tail(mut s: String, limit: usize) -> String {
-    if s.len() <= limit {
-        return s;
-    }
-    let mut cut = s.len() - limit;
-    while cut < s.len() && !s.is_char_boundary(cut) {
-        cut += 1;
-    }
-    s.drain(..cut);
-    s
 }
 
 /// Truncate a diff blob to `limit` bytes, keeping the *head* (the start of

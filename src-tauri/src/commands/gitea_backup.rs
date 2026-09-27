@@ -99,11 +99,16 @@ fn source_roots() -> Vec<(PathBuf, &'static str, fn(&Path) -> bool)> {
     out
 }
 
-/// Skip local backups (already-archived), the mirror itself (recursive!), caches.
+/// Skip local backups (already-archived), the mirror itself (recursive!), caches,
+/// and this module's own config: it holds the Gitea token, which must not be
+/// pushed to the very repo it authenticates against.
 fn filter_cortex(rel: &Path) -> bool {
     let Some(c) = rel.components().next() else { return false };
     let first = c.as_os_str().to_string_lossy();
-    !matches!(first.as_ref(), "backups" | "snapshots" | "cache" | ".cache" | MIRROR_DIR)
+    !matches!(
+        first.as_ref(),
+        "backups" | "snapshots" | "cache" | ".cache" | MIRROR_DIR | CONFIG_NAME
+    )
 }
 
 /// Only `<project_id>/memory/<file>.md` — never jsonl chat transcripts.
@@ -214,7 +219,13 @@ fn prune_missing(
 // ─────────── git + Gitea API ───────────
 
 fn git(args: &[&str], cwd: &Path) -> Result<(bool, String, String), String> {
-    let out = crate::sys::no_window("git").args(args).current_dir(cwd).output()
+    // Non-interactive: a bad/expired token must fail the push, not park the
+    // scheduler on a credential prompt (or a GCM dialog on Windows) forever.
+    let out = crate::sys::no_window("git")
+        .args(args)
+        .envs(crate::commands::git::NON_INTERACTIVE_ENV.iter().copied())
+        .current_dir(cwd)
+        .output()
         .map_err(|e| format!("git {args:?} spawn: {e}"))?;
     Ok((out.status.success(),
         String::from_utf8_lossy(&out.stdout).into_owned(),
@@ -226,7 +237,14 @@ fn ensure_repo(mirror: &Path, config: &GiteaConfig) -> Result<(), String> {
     fs::create_dir_all(mirror).map_err(|e| format!("mkdir mirror: {e}"))?;
     if !mirror.join(".git").exists() {
         let (ok, _, err) = git(&["init", "-b", "main"], mirror)?;
-        if !ok { return Err(format!("git init failed: {err}")); }
+        if !ok {
+            // `init -b` needs git >= 2.28 (older LTS distros ship 2.25): fall
+            // back to a plain init and point the unborn HEAD at `main` so the
+            // first commit + push still land on the branch Gitea expects.
+            let (ok2, _, err2) = git(&["init"], mirror)?;
+            if !ok2 { return Err(format!("git init failed: {err} / {err2}")); }
+            let _ = git(&["symbolic-ref", "HEAD", "refs/heads/main"], mirror);
+        }
     }
     let remote = build_remote_url(config);
     let (has_origin, _, _) = git(&["remote", "get-url", "origin"], mirror)?;
@@ -234,7 +252,7 @@ fn ensure_repo(mirror: &Path, config: &GiteaConfig) -> Result<(), String> {
         let _ = git(&["remote", "set-url", "origin", &remote], mirror)?;
     } else {
         let (ok, _, err) = git(&["remote", "add", "origin", &remote], mirror)?;
-        if !ok { return Err(format!("git remote add: {err}")); }
+        if !ok { return Err(format!("git remote add: {}", redact(&err, &config.token))); }
     }
     // Gitea rejects anonymous commits in some setups — pin an identity.
     let email = format!("{}@cortex.local", config.owner);
@@ -461,6 +479,8 @@ mod tests {
         assert!(!filter_cortex(Path::new("backups/x.tar.gz")));
         assert!(!filter_cortex(Path::new("gitea-mirror/.git/HEAD")));
         assert!(!filter_cortex(Path::new("cache/blob")));
+        // The Gitea token lives in this file — never mirrored to Gitea itself.
+        assert!(!filter_cortex(Path::new("gitea-config.json")));
         assert!(filter_cortex(Path::new("snippets.json")));
     }
     #[test]

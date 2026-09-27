@@ -598,11 +598,6 @@ pub async fn prune_checkpoints(project_root: String) -> Result<usize, String> {
     Ok(removed)
 }
 
-/// Helper for the file-write peek used by `WalkDir`. Kept here only so the
-/// unused-import lint doesn't trip when callers wire this module up.
-#[allow(dead_code)]
-fn _peek<R: Read>(_r: R) {}
-
 #[cfg(test)]
 mod tests {
     use super::{make_checkpoint, restore_last_checkpoint, restore_last_core, validate_id};

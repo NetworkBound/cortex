@@ -221,7 +221,9 @@ fn detect_ram_mb() -> (u64, u64) {
 }
 
 fn detect_gpu() -> (Option<String>, Option<u64>, bool) {
-    if let Ok(out) = std::process::Command::new("nvidia-smi")
+    // `no_window`: on Windows a bare `Command::new` flashes a console window
+    // for every probe (nvidia-smi ships on Windows too).
+    if let Ok(out) = crate::sys::no_window("nvidia-smi")
         .args(["--query-gpu=name,memory.total", "--format=csv,noheader,nounits"])
         .output()
     {
@@ -231,7 +233,7 @@ fn detect_gpu() -> (Option<String>, Option<u64>, bool) {
             }
         }
     }
-    if let Ok(out) = std::process::Command::new("lspci").output() {
+    if let Ok(out) = crate::sys::no_window("lspci").output() {
         if out.status.success() {
             if let Some(name) = parse_lspci_vga(&String::from_utf8_lossy(&out.stdout)) {
                 return (Some(name), None, false);
@@ -242,9 +244,9 @@ fn detect_gpu() -> (Option<String>, Option<u64>, bool) {
 }
 
 fn ollama_on_path() -> bool {
-    std::env::var_os("PATH")
-        .map(|path| std::env::split_paths(&path).any(|dir| dir.join("ollama").is_file()))
-        .unwrap_or(false)
+    // `which` applies PATHEXT, so the Windows `ollama.exe` resolves too (a bare
+    // `dir.join("ollama").is_file()` scan never matched there).
+    which::which("ollama").is_ok()
 }
 
 async fn probe_ollama(base: &str) -> bool {

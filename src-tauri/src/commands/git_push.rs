@@ -20,6 +20,8 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 
+use crate::commands::git::{tail_output as tail, NON_INTERACTIVE_ENV};
+
 /// Tail length for stdout / stderr blobs returned to the frontend. Push
 /// output is usually short, but force-with-lease rejections can be wordy.
 const TAIL_BYTES: usize = 4 * 1024;
@@ -74,6 +76,7 @@ pub async fn git_push(
 
     let output = crate::sys::no_window("git")
         .args(&args)
+        .envs(NON_INTERACTIVE_ENV.iter().copied())
         .current_dir(&root)
         .output()
         .map_err(|e| format!("git push: spawn failed: {e}"))?;
@@ -87,54 +90,4 @@ pub async fn git_push(
         exit_code: output.status.code().unwrap_or(-1),
         branch: target,
     })
-}
-
-/// Truncate from the front, keeping the last `limit` bytes. Push output is
-/// most interesting at the bottom (remote rejections, hints, …) so we trim
-/// the head rather than the tail. Respects UTF-8 boundaries.
-fn tail(mut s: String, limit: usize) -> String {
-    if s.len() <= limit {
-        return s;
-    }
-    let mut cut = s.len() - limit;
-    while !s.is_char_boundary(cut) {
-        cut += 1;
-    }
-    s.replace_range(..cut, "[…truncated…]\n");
-    s
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn tail_returns_short_string_intact() {
-        let s = "abc".to_string();
-        assert_eq!(tail(s.clone(), 100), s);
-    }
-
-    #[test]
-    fn tail_keeps_last_chunk_with_marker() {
-        let s = "x".repeat(TAIL_BYTES + 200);
-        let out = tail(s, TAIL_BYTES);
-        assert!(out.starts_with("[…truncated…]"));
-        assert!(out.ends_with('x'));
-    }
-
-    #[test]
-    fn tail_respects_utf8_boundary() {
-        let mut s = String::new();
-        // Build a string just over the limit that ends with multi-byte chars.
-        for _ in 0..(TAIL_BYTES / 2) {
-            s.push('a');
-        }
-        for _ in 0..(TAIL_BYTES / 2 + 50) {
-            s.push('é'); // 2 bytes each
-        }
-        let out = tail(s, TAIL_BYTES);
-        // Must still be valid UTF-8 — String invariants guarantee it, but the
-        // boundary-walk above would panic if we cut mid-char.
-        assert!(out.is_char_boundary(0));
-    }
 }

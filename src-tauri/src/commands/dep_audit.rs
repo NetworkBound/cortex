@@ -94,7 +94,13 @@ fn run_audit(root: &Path, ecosystem: &'static str) -> Result<DepAuditReport, Str
         other => return Err(format!("unsupported ecosystem: {other}")),
     };
 
-    let output = match crate::sys::no_window(program).args(args).current_dir(root).output() {
+    // `resolve_program`: npm is an `npm.cmd` shim on Windows, which a bare
+    // `Command::new("npm")` cannot find (PATH search only appends `.exe`).
+    let output = match crate::sys::no_window(crate::sys::resolve_program(program))
+        .args(args)
+        .current_dir(root)
+        .output()
+    {
         Ok(o) => o,
         Err(e) => {
             return Err(match e.kind() {
