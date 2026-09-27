@@ -101,6 +101,10 @@ bash scripts/build-tsnet-sidecar.sh   # -> src-tauri/binaries/cortex-tsnet-<trip
 pnpm tauri dev                        # development build with hot reload
 ```
 
+`tauri dev` and `tauri build` also build the phone web app in `mobile/`, which
+is bundled into installers as a resource. A bare `cargo check` or `cargo test`
+needs it built once first: `pnpm build:mobile`.
+
 The sidecar step is not optional: `tauri.conf.json` declares it as an
 `externalBin`, and Tauri's build script fails with
 `resource path binaries/cortex-tsnet-<triple> doesn't exist` if it is missing,

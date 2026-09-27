@@ -7,6 +7,7 @@
 ```bash
 pnpm install
 bash scripts/build-tsnet-sidecar.sh   # required: tauri.conf.json declares the sidecar as externalBin
+pnpm build:mobile                     # required for bare cargo check/test: mobile/dist is a bundled resource
 pnpm tauri:dev                        # opens the desktop window with hot reload
 ```
 

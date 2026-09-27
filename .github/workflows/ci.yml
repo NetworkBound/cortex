@@ -68,6 +68,11 @@ jobs:
       - name: Frontend build
         run: pnpm build
 
+      # Bundled as a Tauri resource (mobile-dist/), so tauri-build needs it
+      # to exist before cargo runs, same as the sidecar.
+      - name: Mobile PWA build
+        run: pnpm build:mobile
+
       - name: Rust build check
         run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets
 

@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:mobile": "pnpm --dir mobile install --frozen-lockfile && pnpm --dir mobile build",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

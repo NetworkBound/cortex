@@ -97,8 +97,9 @@ pub fn build_router(state: MobileState) -> Router {
 /// Resolution order (first existing wins; falls back to the repo-relative path
 /// even if missing so the SPA fallback has a stable, sensible target):
 ///   1. `CORTEX_MOBILE_DIST` env override (absolute path to a `dist/`).
-///   2. `<repo>/mobile/dist` relative to this source file's crate dir.
-///   3. `<cwd>/mobile/dist` (covers a headless run launched from the repo root).
+///   2. The bundled `mobile-dist` resource next to the installed executable.
+///   3. `<repo>/mobile/dist` relative to this source file's crate dir.
+///   4. `<cwd>/mobile/dist` (covers a headless run launched from the repo root).
 fn mobile_dist_dir() -> PathBuf {
     if let Some(p) = std::env::var_os("CORTEX_MOBILE_DIST") {
         let p = PathBuf::from(p);
@@ -106,8 +107,28 @@ fn mobile_dist_dir() -> PathBuf {
             return p;
         }
     }
-    // `CARGO_MANIFEST_DIR` is `<repo>/src-tauri`; the mobile SPA lives at
-    // `<repo>/mobile/dist`.
+    // Installed builds: tauri.conf.json bundles `mobile/dist` as the
+    // `mobile-dist` resource, which Tauri places in the exe dir on Windows,
+    // `../lib/<productName>` on Linux (deb/rpm/AppImage) and `../Resources`
+    // on macOS.
+    if let Some(exe_dir) = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(PathBuf::from))
+    {
+        for rel in [
+            "mobile-dist",
+            "../lib/Cortex/mobile-dist",
+            "../lib/cortex/mobile-dist",
+            "../Resources/mobile-dist",
+        ] {
+            let candidate = exe_dir.join(rel);
+            if candidate.join("index.html").is_file() {
+                return candidate;
+            }
+        }
+    }
+    // Dev builds: `CARGO_MANIFEST_DIR` is `<repo>/src-tauri`; the mobile SPA
+    // lives at `<repo>/mobile/dist`.
     let crate_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     if let Some(repo) = crate_dir.parent() {
         let candidate = repo.join("mobile").join("dist");
