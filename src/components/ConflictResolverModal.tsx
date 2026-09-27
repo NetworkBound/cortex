@@ -106,9 +106,13 @@ export function ConflictResolverModal({
         prev.map((r, i) => (i === idx ? { ...r, status: "saving" } : r)),
       );
       try {
-        const abs = row.file.path.startsWith("/")
+        // Absolute on either OS ("/x", "C:\\x", "C:/x", "\\\\server\\share");
+        // anything else is project-relative. Forward-slash joins are fine on
+        // Windows too.
+        const isAbs = /^(?:[\\/]|[A-Za-z]:[\\/])/.test(row.file.path);
+        const abs = isAbs
           ? row.file.path
-          : `${projectRoot.replace(/\/$/, "")}/${row.file.path}`;
+          : `${projectRoot.replace(/[\\/]+$/, "")}/${row.file.path}`;
         await saveFileText(abs, row.file.after);
         setRows((prev) =>
           prev.map((r, i) =>

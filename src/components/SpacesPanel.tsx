@@ -249,7 +249,7 @@ export function SpacesPanel({ initialBrowse, onClose }: SpacesPanelProps) {
             onOpen={(path) => {
               // Resolve relative -> absolute against the active project root
               // so EditorPane can `fs::read_to_string` it directly.
-              const abs = `${activeProject.root.replace(/\/$/, "")}/${path}`;
+              const abs = `${activeProject.root.replace(/[\\/]+$/, "")}/${path}`;
               openInEditor(abs);
             }}
             onBack={() => setMode({ kind: "list" })}

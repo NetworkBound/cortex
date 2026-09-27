@@ -106,6 +106,15 @@ export function TerminalPane() {
         unlistenClosed = await onTerminalClosed(handle.id, () => {
           setStatus("closed");
         });
+        if (disposed) {
+          // Unmounted while the subscriptions were in flight — the cleanup
+          // already ran with them still null, so release everything here.
+          unlistenOutput();
+          unlistenClosed();
+          idRef.current = null;
+          await closeTerminal(handle.id);
+          return;
+        }
 
         // User keystrokes → backend.
         term.onData((data) => {

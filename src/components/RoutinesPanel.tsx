@@ -10,7 +10,7 @@
  * Refreshes when the backend emits `routines:ran`.
  *
  * Bindings live in `src/lib/routines.ts`; outcome→NotificationCenter
- * forwarding is module-scope there (armed by the StatusBar), NOT here — the
+ * forwarding is module-scope there (armed at boot by App.tsx), NOT here — the
  * whole point is that runs stay visible when this panel is closed.
  */
 
@@ -177,11 +177,18 @@ export function RoutinesPanel() {
 
   useEffect(() => {
     let un: (() => void) | undefined;
+    let disposed = false;
     void onRoutineRan(() => {
       void reload();
       setRunsVersion((v) => v + 1);
-    }).then((u) => (un = u));
-    return () => un?.();
+    }).then((u) => {
+      if (disposed) u();
+      else un = u;
+    });
+    return () => {
+      disposed = true;
+      un?.();
+    };
   }, [reload]);
 
   const onSave = useCallback(async () => {

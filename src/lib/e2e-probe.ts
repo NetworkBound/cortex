@@ -173,7 +173,6 @@ const jobStoreFlow = {
   jobAppeared: false,
   secondStartIgnored: false,
   activePullsSeen: false,
-  pillSeen: false,
   finishedClean: false,
   notificationRecorded: false,
   detail: "not attempted",
@@ -204,8 +203,7 @@ async function exerciseJobStoreFlow(): Promise<void> {
     jobStoreFlow.secondStartIgnored =
       useJobs.getState().jobs[id]?.startedAt === startedAt;
 
-    // While in flight: backend registry + painted StatusBar pill. Polled —
-    // a re-pull of an installed model can settle in a couple of seconds.
+    // While in flight: backend registry. Polled — a re-pull of an installed model can settle in a couple of seconds.
     const probeDeadline = Date.now() + 15_000;
     while (Date.now() < probeDeadline) {
       if (!jobStoreFlow.activePullsSeen) {
@@ -216,11 +214,8 @@ async function exerciseJobStoreFlow(): Promise<void> {
           /* keep polling */
         }
       }
-      if (!jobStoreFlow.pillSeen && document.querySelector(".status-pill.jobs-pill")) {
-        jobStoreFlow.pillSeen = true;
-      }
       if (!useJobs.getState().jobs[id]) break; // settled — nothing left to observe
-      if (jobStoreFlow.activePullsSeen && jobStoreFlow.pillSeen) break;
+      if (jobStoreFlow.activePullsSeen) break;
       await new Promise((r) => setTimeout(r, 100));
     }
 
@@ -232,7 +227,7 @@ async function exerciseJobStoreFlow(): Promise<void> {
     jobStoreFlow.detail =
       `pulled ${name} via job store: appeared=${jobStoreFlow.jobAppeared} ` +
       `dedup=${jobStoreFlow.secondStartIgnored} registry=${jobStoreFlow.activePullsSeen} ` +
-      `pill=${jobStoreFlow.pillSeen} cleaned=${jobStoreFlow.finishedClean} ` +
+      `cleaned=${jobStoreFlow.finishedClean} ` +
       `notified=${jobStoreFlow.notificationRecorded}`;
   } catch (e) {
     jobStoreFlow.detail = `error: ${safeStringify(e).slice(0, 200)}`;
@@ -606,7 +601,7 @@ async function exerciseCloneConnectFlow(): Promise<void> {
         store().activeProject?.root === root && store().activityTab === "projects";
 
       // Painted ground truth: the sidebar row for the fixture goes active.
-      const fixtureName = root.split("/").pop() ?? "";
+      const fixtureName = root.split(/[\\/]/).pop() ?? "";
       const paintDeadline = Date.now() + 5_000;
       while (Date.now() < paintDeadline) {
         const row = document.querySelector(".project-row.active");
@@ -2240,16 +2235,14 @@ async function collectSnapshot(): Promise<Record<string, unknown>> {
   const legacyThemeAttr = document.documentElement.dataset.theme ?? "";
   const totalNodes = document.getElementsByTagName("*").length;
   const hasChatComposer = !!document.querySelector("textarea, [contenteditable=true]");
-  // The status-bar model strip is the painted ground truth for what
-  // `list_models` discovered (Claude CLI + Cortex Gateway + Ollama union) — lets the
-  // runner assert a freshly pulled local model is actually visible in the UI.
+  // Legacy: the status-bar ModelStrip (`.model-pill`) was removed with the
+  // StatusBar, so this is normally empty. Kept in the snapshot shape so older
+  // runner assertions keep parsing; the ModelPicker options below are the
+  // painted ground truth for "this model is pickable right now".
   const modelStripPills = Array.from(document.querySelectorAll(".model-pill"))
     .slice(0, 40)
     .map((el) => (el.textContent ?? "").trim())
     .filter(Boolean);
-  // The strip hides entirely in compact status-bar mode (a persisted user
-  // preference), so the composer's always-mounted ModelPicker options are the
-  // reliable painted ground truth for "this model is pickable right now".
   const modelPickerOptions = Array.from(
     document.querySelectorAll<HTMLOptionElement>(".model-picker-select option"),
   )
@@ -2407,8 +2400,6 @@ async function collectSnapshot(): Promise<Record<string, unknown>> {
       hasApiKey: store.hasApiKey,
       activityTab: store.activityTab ?? null,
       currentMode: store.currentMode ?? null,
-      // Explains an empty modelStripPills: compact mode hides the strip.
-      statusBarCompact: store.statusBarCompact === true,
     },
     gateway,
     // Live feature-flow exercises (real commands, real events) — see

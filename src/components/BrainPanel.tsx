@@ -139,10 +139,12 @@ export function BrainPanel() {
                           // Notes can live outside the vault (e.g. ~/.claude
                           // memories, runbooks), so the backend supplies an
                           // absolute open_path; fall back to vault + reference.
+                          // Join with "/" — valid on Windows too, and correct
+                          // on Linux/macOS where "\" is a literal character.
                           const path = c.open_path
                             ? c.open_path
                             : snap.obsidian_vault
-                              ? `${snap.obsidian_vault}\\${c.reference}`
+                              ? `${snap.obsidian_vault.replace(/[\\/]+$/, "")}/${c.reference}`
                               : c.reference;
                           useCortexStore.getState().setActivityTab("editor");
                           setTimeout(() => {

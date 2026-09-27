@@ -406,6 +406,12 @@ export function ChatPane() {
         }
       }
     }).then((u) => {
+      // Deps changed / unmounted before the subscribe resolved: release the
+      // listener now, otherwise it stays registered for the app lifetime.
+      if (!mounted) {
+        u();
+        return;
+      }
       unlisten = u;
     });
     return () => {

@@ -333,8 +333,9 @@ function HistorySyncSection() {
   // while the sign-in window is downloading their history.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
+    let disposed = false;
     void (async () => {
-      unlisten = await listen<HistorySyncProgress>(
+      const off = await listen<HistorySyncProgress>(
         HISTORY_SYNC_PROGRESS_EVENT,
         (e) => {
           const p = e.payload;
@@ -352,8 +353,13 @@ function HistorySyncSection() {
           }
         },
       );
+      // The modal may have closed while the subscribe was in flight — tear the
+      // listener down right away instead of leaking it for the app lifetime.
+      if (disposed) off();
+      else unlisten = off;
     })();
     return () => {
+      disposed = true;
       if (unlisten) unlisten();
     };
      
@@ -2462,8 +2468,6 @@ export function SettingsModal() {
 
   // Advanced tab — wired to existing store toggles (both have complete
   // setter actions in store.ts; we do NOT add new store fields here).
-  const statusBarCompact = useCortexStore((s) => s.statusBarCompact);
-  const setStatusBarCompact = useCortexStore((s) => s.setStatusBarCompact);
   const architectMode = useCortexStore((s) => s.architectMode);
   const setArchitectMode = useCortexStore((s) => s.setArchitectMode);
   const autoCondenseEnabled = useCortexStore((s) => s.autoCondenseEnabled);
@@ -3254,7 +3258,7 @@ export function SettingsModal() {
       {
         tab: "advanced",
         heading: "Advanced",
-        text: "advanced power user developer experimental flags status bar compact architect mode planner editor split toggle auto condense overflow context window summary cline threshold default model per role chat continue.dev model roles assignment export diagnostics bug report crash log bundle redacted support troubleshoot",
+        text: "advanced power user developer experimental flags architect mode planner editor split toggle auto condense overflow context window summary cline threshold default model per role chat continue.dev model roles assignment export diagnostics bug report crash log bundle redacted support troubleshoot",
         render: () => (
           <div className="settings-section">
             <h3>Advanced</h3>
@@ -3262,20 +3266,6 @@ export function SettingsModal() {
               Power-user toggles. Each persists locally and applies immediately.
             </div>
             <label className="settings-check">
-              <input
-                type="checkbox"
-                checked={statusBarCompact}
-                onChange={(e) => setStatusBarCompact(e.target.checked)}
-              />
-              <span>
-                Compact status bar
-                <small>
-                  Hide secondary chips (gateway, project, RepoWatch, msgs,
-                  session-id). Also toggled with <code>Ctrl+.</code>.
-                </small>
-              </span>
-            </label>
-            <label className="settings-check gap-top">
               <input
                 type="checkbox"
                 checked={architectMode}
@@ -3406,7 +3396,7 @@ export function SettingsModal() {
         ),
       },
     ],
-    [baseUrl, model, apiKey, hasKey, ollamaUrl, ollamaModel, obsidian, soundsEnabled, setSoundsEnabled, activeProject, currentProfile, profiles, profileErr, rules, rulesErr, sandboxTier, sandboxErr, monitors, monitorsActive, monitorsBusy, monitorsErr, updateInfo, updateChecking, updateErr, statusBarCompact, setStatusBarCompact, architectMode, setArchitectMode, autoCondenseEnabled, setAutoCondenseEnabled, autoCondenseThreshold, setAutoCondenseThreshold, modelRoles, modelList, modelRolesErr, diagBusy, diagResult, diagErr],
+    [baseUrl, model, apiKey, hasKey, ollamaUrl, ollamaModel, obsidian, soundsEnabled, setSoundsEnabled, activeProject, currentProfile, profiles, profileErr, rules, rulesErr, sandboxTier, sandboxErr, monitors, monitorsActive, monitorsBusy, monitorsErr, updateInfo, updateChecking, updateErr, architectMode, setArchitectMode, autoCondenseEnabled, setAutoCondenseEnabled, autoCondenseThreshold, setAutoCondenseThreshold, modelRoles, modelList, modelRolesErr, diagBusy, diagResult, diagErr],
   );
 
   const q = query.trim().toLowerCase();

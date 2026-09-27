@@ -226,12 +226,6 @@ interface CortexState {
   /** Currently selected localhost dev-server URL for the WebPreviewPane.
    *  `null` means "no server picked yet". */
   previewUrl: string | null;
-  /** When `true`, the StatusBar hides secondary chips (gateway connection,
-   *  project name, RepoWatch, msgs, session-id) so the bar shows only the
-   *  PLAN/ACT toggle, security-critical Sandbox/notification badges,
-   *  TokenHUD, and homelab health. Toggled via `Ctrl+.` and persisted to
-   *  localStorage under `cortex.statusbar.compact`. */
-  statusBarCompact: boolean;
   /** When false, the local brain DOES NOT auto-fire on typing pause.
    *  Users who find proactive suggestions intrusive can disable it via
    *  Settings. Persisted to localStorage under `cortex.brain.auto`. */
@@ -333,7 +327,6 @@ interface CortexState {
   openEditorPath: (path: string | null) => void;
   setEditorDirty: (dirty: boolean) => void;
   setPreviewUrl: (url: string | null) => void;
-  setStatusBarCompact: (v: boolean) => void;
   setMultibufferExcerpts: (items: MultibufferExcerpt[]) => void;
   toHistory: () => ChatTurn[];
 
@@ -439,9 +432,6 @@ export const useCortexStore = create<CortexState>((set, get) => ({
   editorPath: null,
   editorDirty: false,
   previewUrl: null,
-  statusBarCompact: (() => {
-    try { return localStorage.getItem("cortex.statusbar.compact") === "true"; } catch { return false; }
-  })(),
   brainAutoEnabled: (() => {
     try {
       const v = localStorage.getItem("cortex.brain.auto");
@@ -782,10 +772,6 @@ export const useCortexStore = create<CortexState>((set, get) => ({
     if (get().editorDirty !== dirty) set({ editorDirty: dirty });
   },
   setPreviewUrl: (url) => set({ previewUrl: url }),
-  setStatusBarCompact: (v) => {
-    try { localStorage.setItem("cortex.statusbar.compact", String(v)); } catch { /* ignore */ }
-    set({ statusBarCompact: v });
-  },
   setMultibufferExcerpts: (items) => set({ multibufferExcerpts: items }),
   toHistory: () =>
     get()

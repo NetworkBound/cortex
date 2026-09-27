@@ -453,7 +453,7 @@ async function adoptInFlightEval(): Promise<void> {
 let initialized = false;
 
 /**
- * One-time boot hookup (called from the StatusBar, which is always mounted):
+ * One-time boot hookup (called from App.tsx, which is always mounted):
  * re-adopt any backend-side in-flight work so a reload never orphans a job.
  */
 export function initJobStore(): void {

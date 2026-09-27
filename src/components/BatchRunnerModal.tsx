@@ -187,10 +187,14 @@ export function BatchRunnerModal({
     // re-render rows if the user re-runs the same batch. No-op if the
     // backend has already finished emitting.
     let unlisten: UnlistenFn | null = null;
+    let disposed = false;
     (async () => {
-      unlisten = await listenBatchProgress(report.run_id, applyProgress);
+      const off = await listenBatchProgress(report.run_id, applyProgress);
+      if (disposed) off();
+      else unlisten = off;
     })();
     return () => {
+      disposed = true;
       if (unlisten) unlisten();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

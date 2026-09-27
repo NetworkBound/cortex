@@ -154,7 +154,8 @@ export function useSafeMode(): boolean {
     void subscribeConfigChanges((evt) => {
       if (evt.path.endsWith("safe-mode.json")) void refresh();
     }).then((fn) => {
-      off = fn;
+      if (mounted) off = fn;
+      else fn();
     });
     const id = setInterval(refresh, 30_000);
     return () => {

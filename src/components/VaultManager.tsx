@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { analyzeVault, type VaultAnalysis, type VaultNote } from "@/lib/vault-analysis";
 import { humanizeError } from "@/lib/errors";
 import { invoke } from "@tauri-apps/api/core";
+import { getGatewayConfig } from "@/lib/cortex-bridge";
+import { openInEditor } from "@/lib/editor";
 import { useCortexStore } from "@/state/store";
 
 type SubView = "overview" | "folders" | "tags" | "orphans" | "broken" | "notes";
@@ -244,8 +246,17 @@ export function VaultManager() {
     void load();
   }, []);
 
+  // `analyze_vault` reports vault-relative, forward-slash paths. Resolve them
+  // against the configured vault root and hand the absolute path to the
+  // inline editor. (Forward slashes are accepted by the backend on Windows
+  // too, so no per-OS separator juggling is needed here.)
   function openNote(relPath: string) {
-    void invoke("open_in_editor", { path: relPath }).catch(() => {});
+    void getGatewayConfig()
+      .then((cfg) => {
+        const root = (cfg.obsidian_vault ?? "").replace(/[\\/]+$/, "");
+        openInEditor(root ? `${root}/${relPath}` : relPath);
+      })
+      .catch(() => openInEditor(relPath));
   }
 
   const orphans = useMemo(

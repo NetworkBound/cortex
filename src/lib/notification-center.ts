@@ -321,7 +321,7 @@ function buildAll(): Notification[] {
       ts: p.ts,
       severity: "info",
       source: "config",
-      message: `config ${p.kind}: ${p.path.split("/").pop() ?? p.path}`,
+      message: `config ${p.kind}: ${p.path.split(/[\\/]/).pop() || p.path}`,
       detail: p.path,
       ref: p.path,
     });
@@ -332,7 +332,7 @@ function buildAll(): Notification[] {
       ts: p.ts,
       severity: "info",
       source: "repo",
-      message: `repo ${p.kind}: ${p.path.split("/").pop() ?? p.path}`,
+      message: `repo ${p.kind}: ${p.path.split(/[\\/]/).pop() || p.path}`,
       detail: p.path,
       ref: p.path,
     });

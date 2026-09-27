@@ -415,6 +415,6 @@ function openOnDisk(root: string | undefined, relId: string): void {
   if (!root) return;
   // The editor accepts an absolute path or a project-rooted relative
   // one; we hand it the absolute form so it doesn't have to guess.
-  const sep = root.endsWith("/") ? "" : "/";
+  const sep = /[\\/]$/.test(root) ? "" : "/";
   openInEditor(`${root}${sep}${relId}`);
 }

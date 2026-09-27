@@ -89,7 +89,6 @@
   --hue-slate:  #cbd5e1;
   --font-sans: "Inter", "SF Pro Display", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
-  --status-bar-h: 26px;
   --radius-sm: 4px;
   --radius: 6px;
   --radius-lg: 10px;
@@ -2366,52 +2365,6 @@ kbd {
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
 }
-.obs-tabs {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-elevated);
-}
-.obs-tab {
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-muted);
-  padding: var(--space-1) var(--space-3);
-  margin: var(--space-1) var(--space-0_5);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
-  font-weight: var(--weight-medium);
-  border-radius: var(--radius);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  transition: color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
-}
-.obs-tab:hover { color: var(--text-dim); background: var(--bg-hover); box-shadow: none; }
-.obs-tab.active {
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-color: var(--accent-dim);
-}
-.obs-tab-count {
-  background: var(--bg-sunken);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  padding: 0 var(--space-2);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  color: var(--text-muted);
-}
-.obs-tab.active .obs-tab-count { color: var(--accent-strong); border-color: var(--accent-dim); }
-.obs-body { flex: 1; overflow-y: auto; padding: var(--space-2) var(--space-3); font-family: var(--font-mono); font-size: var(--text-sm); }
-.obs-empty {
-  padding: var(--space-6);
-  text-align: center;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  line-height: var(--leading-normal);
-}
 
 .traces { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-1) 0; }
 .trace { padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
@@ -2458,22 +2411,8 @@ kbd {
   border-left: 3px solid var(--danger);
   border-radius: var(--radius-sm);
 }
-.issue-head { display: flex; gap: var(--space-3); align-items: center; font-size: var(--text-xs); }
-.issue-class { color: var(--danger); font-weight: 600; text-transform: uppercase; letter-spacing: var(--tracking-caps); }
-.issue-count {
-  background: var(--bg-sunken);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-1);
-  color: var(--accent-strong);
-}
-.issue-msg { font-size: var(--text-sm); color: var(--text-dim); margin-top: var(--space-1); word-break: break-word; }
 
 .health { display: flex; flex-direction: column; gap: var(--space-1); }
-.health-row { display: flex; gap: var(--space-2); align-items: center; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); }
-.health-row:hover { background: var(--bg-elevated); }
-.health-row strong { font-weight: 500; min-width: 200px; color: var(--text); }
-.health-row.off strong { color: var(--danger); }
 
 .audit { display: flex; flex-direction: column; gap: var(--space-0_5); }
 .audit-row { display: flex; gap: var(--space-2); font-size: var(--text-sm); padding: var(--space-0_5) var(--space-1); border-radius: var(--radius-sm); }
@@ -2866,37 +2805,6 @@ kbd {
   color: var(--text);
 }
 
-.status-bar {
-  display: flex;
-  align-items: center;
-  height: var(--status-bar-h);
-  background: color-mix(in srgb, var(--bg-elevated) 86%, transparent);
-  backdrop-filter: blur(8px) saturate(140%);
-  -webkit-backdrop-filter: blur(8px) saturate(140%);
-  border-top: 1px solid var(--border);
-  padding: 0 var(--space-3);
-  /* Chrome reads in the UI sans (Inter); mono is reserved for code/figures.
-     The genuinely code-like descendants — model slugs (.model-pill) and the
-     TokenHUD figures — re-assert mono on their own rules. tabular-nums keeps
-     the counts column-aligned even in sans. */
-  font-family: var(--font-sans);
-  font-size: var(--text-xs);
-  gap: var(--space-3);
-  color: var(--text-dim);
-  user-select: none;
-  font-variant-numeric: tabular-nums;
-}
-.status-left, .status-right, .status-center { display: flex; align-items: center; gap: var(--space-2); }
-/* Let the left/right pill clusters shrink below their content width on narrow
-   windows instead of clipping; min-width:0 overrides the flex-item default of
-   min-width:auto so flexbox can compress them. */
-.status-left, .status-right { min-width: 0; overflow: hidden; }
-.status-center { flex: 0 0 auto; justify-content: center; }
-/* Model strip section: the flexible, scrollable middle that absorbs slack and
-   keeps the left/right pill clusters anchored. min-width:0 lets it shrink so
-   the strip's own overflow-x handles long model lists instead of pushing the
-   right cluster off-screen. */
-.status-models { display: flex; align-items: center; flex: 1 1 auto; min-width: 0; justify-content: center; }
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -2910,36 +2818,10 @@ kbd {
 }
 .status-pill.ok { color: var(--success); border-color: var(--success-border); }
 .status-pill.warn { color: var(--warning); border-color: var(--warning-border); }
-.status-pill.running {
-  color: var(--accent-strong);
-  border-color: var(--accent-dim);
-  animation: pulse-glow 2s ease-in-out infinite;
-}
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 0 0 transparent; }
   50%      { box-shadow: 0 0 0 4px var(--accent-glow); }
 }
-/* Long-running-job indicator (global job store) — accent-toned, clickable. */
-.status-pill.jobs-pill {
-  color: var(--accent-strong);
-  border-color: var(--accent-dim);
-  cursor: pointer;
-  transition: filter var(--duration-fast) var(--ease-out);
-}
-.status-pill.jobs-pill:hover { filter: brightness(1.15); }
-.jobs-pill-spinner { animation: spin 1s linear infinite; }
-.status-pill.subtle { color: var(--text-muted); background: transparent; border-color: transparent; }
-.status-pill.mode-toggle {
-  cursor: pointer;
-  font-weight: 600;
-  letter-spacing: var(--tracking-caps);
-  font-family: inherit;
-  font-size: inherit;
-  line-height: 1;
-}
-.status-pill.mode-toggle.mode-plan { color: var(--warning); border-color: var(--warning-border); }
-.status-pill.mode-toggle.mode-act { color: var(--success); border-color: var(--success-border); }
-.status-pill.mode-toggle:hover { filter: brightness(1.15); }
 
 /* Sandbox tier — three-tier (Codex-style) gate. Coloring per
    SANDBOX_TIER_META in src/lib/sandbox.ts. */
@@ -2947,51 +2829,6 @@ kbd {
   --sandbox-readonly: #3b82f6;
   --sandbox-workspace: #22c55e;
   --sandbox-danger: var(--danger);
-}
-.sandbox-badge-wrap {
-  position: relative;
-  display: inline-flex;
-}
-.status-pill.sandbox-badge {
-  cursor: pointer;
-  font-family: inherit;
-  font-size: inherit;
-  line-height: 1;
-  background: var(--bg-sunken);
-}
-.status-pill.sandbox-badge:hover { filter: brightness(1.15); }
-.sandbox-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-.sandbox-popover {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  z-index: 50;
-  min-width: 240px;
-  padding: var(--space-2);
-  background: var(--bg-elevated, var(--bg-sunken));
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.sandbox-popover-title {
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
-  color: var(--text-muted);
-  padding: 0 var(--space-0_5) var(--space-0_5);
-}
-.sandbox-popover-title-sub {
-  margin-top: var(--space-2);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--border);
 }
 .sandbox-radio {
   display: flex;
@@ -3008,11 +2845,6 @@ kbd {
 .sandbox-radio-body { display: flex; flex-direction: column; gap: var(--space-0_5); }
 .sandbox-radio-label { font-weight: 600; font-size: var(--text-sm); }
 .sandbox-radio-desc { color: var(--text-muted); font-size: var(--text-xs); line-height: 1.3; }
-.sandbox-popover-err {
-  color: var(--warning);
-  font-size: var(--text-xs);
-  padding: var(--space-1) var(--space-2);
-}
 
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5);
@@ -3708,19 +3540,6 @@ li.session-picker-error {
    above the textarea — capped at 3 per send. Theme: zinc surface, amber
    accent. */
 
-.composer-snippet-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-px) var(--space-2);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-glow);
-  border-radius: var(--radius-sm);
-}
-
 .composer-images {
   display: flex;
   flex-wrap: wrap;
@@ -3995,70 +3814,6 @@ li.session-picker-error {
   border-top: 1px dashed var(--border, #27272a);
 }
 
-/* TokenHUD — context-window meter pill in the status bar. Built on the
-   compressor/compact slash command — when usage crosses 80% a "compact"
-   button appears next to the meter so the user can fold older turns. */
-.token-hud-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.token-hud {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-0_5) var(--space-3);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-  background: var(--bg-sunken);
-  color: var(--text-dim);
-  cursor: pointer;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.7;
-  transition: border-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
-}
-.token-hud:hover { border-color: var(--border-strong); color: var(--text); background: var(--bg-elevated); box-shadow: none; }
-.token-hud.subtle { color: var(--text-muted); }
-.token-hud.ok { color: var(--text); }
-.token-hud.warn { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 40%, transparent); }
-.token-hud.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 50%, transparent); }
-.token-hud-bar {
-  position: relative;
-  width: 48px;
-  height: 4px;
-  background: var(--bg-hover);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.token-hud-bar .fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  background: currentColor;
-  opacity: 0.85;
-  transition: width var(--duration-slow) var(--ease-standard);
-}
-.token-hud-pct { color: var(--text-muted); font-size: var(--text-xs); }
-.token-hud-compact {
-  padding: var(--space-px) var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--accent-soft);
-  color: var(--accent-strong);
-  border: 1px solid var(--accent-dim);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-caps);
-  font-weight: 600;
-  cursor: pointer;
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-.token-hud-compact:hover {
-  background: var(--accent);
-  color: var(--accent-fg);
-  box-shadow: var(--shadow-sm);
-}
-
 /* Focus chain */
 .focus-chain { display: flex; flex-direction: column; height: 100%; background: var(--bg); }
 .focus-chain-head {
@@ -4264,31 +4019,6 @@ li.session-picker-error {
   border-radius: var(--radius);
   color: var(--danger);
   font-size: var(--text-sm);
-}
-
-/* @-vocab providers — Continue-style @diff / @problems / @terminal entries.
- * Each provider gets a subtle left-border accent in the picker so the user
- * can see *which* vocab kind a row belongs to without reading the hint
- * label. Tuned against the existing zinc + amber palette: errors lean red,
- * warnings amber, terminal output zinc. Only applied inside the picker so
- * we don't leak styling into chat. */
-.vocab-row[data-kind="diff"] {
-  border-left: 2px solid var(--accent-dim);
-}
-.vocab-row[data-kind="problems"] {
-  border-left: 2px solid var(--danger-border); /* dim red — surfaces errors at a glance */
-}
-.vocab-row[data-kind="problems"] .vocab-label {
-  color: var(--danger);
-}
-.vocab-row[data-kind="terminal"] {
-  border-left: 2px solid var(--text-muted);
-}
-.vocab-row[data-kind="terminal"] .vocab-preview {
-  /* Terminal output is monospaced — make sure the snippet line reads as such. */
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: var(--text-xs);
-  color: var(--text-muted);
 }
 
 /* Custom themes + SurfaceLayer
@@ -5195,7 +4925,6 @@ li.session-picker-error {
 .keyvault-item-actions .keyvault-danger {
   color: var(--danger);
 }
-.keyvault-loading,
 .keyvault-empty {
   font-size: var(--text-sm);
   color: var(--text-muted);
@@ -5674,7 +5403,6 @@ li.session-picker-error {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
-.webhooks-loading,
 .webhooks-empty {
   padding: var(--space-6);
   text-align: center;
@@ -5854,38 +5582,6 @@ li.session-picker-error {
 .webhooks-edit-actions button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-/* Repo watcher badge */
-.status-pill.repo-watch-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--warning, #f5b400);
-  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
-  background: color-mix(in srgb, var(--warning) 8%, transparent);
-  cursor: pointer;
-  font-family: inherit;
-}
-.status-pill.repo-watch-badge:hover {
-  filter: brightness(1.15);
-}
-.status-pill.repo-watch-badge:disabled,
-.status-pill.repo-watch-badge.busy {
-  opacity: 0.65;
-  cursor: progress;
-}
-.repo-watch-icon {
-  display: inline-flex;
-  align-items: center;
-  line-height: 1;
-}
-.status-pill.repo-watch-badge.busy .repo-watch-icon {
-  animation: spin 1s linear infinite;
-}
-.repo-watch-text {
-  font-size: var(--text-sm);
-  font-family: var(--mono, monospace);
 }
 
 /* Subagent roles + Profile bundles */
@@ -6213,18 +5909,6 @@ li.session-picker-error {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-muted, #888);
-}
-.git-commit-show {
-  margin: 0;
-  padding: var(--space-2) var(--space-3);
-  background: var(--bg-elev);
-  font-family: var(--mono, monospace);
-  font-size: var(--text-xs);
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 320px;
-  overflow-y: auto;
-  border-top: 1px solid var(--border);
 }
 
 /* Expanded-commit body: changed-file list + per-file diff navigation. */
@@ -6653,11 +6337,6 @@ li.session-picker-error {
 }
 .editor-pane-spacer {
   flex: 1 1 auto;
-}
-.editor-pane-readonly {
-  font-size: var(--text-xs);
-  font-style: italic;
-  opacity: 0.7;
 }
 .editor-pane-body {
   position: relative;
@@ -8058,32 +7737,6 @@ li.session-picker-error {
   margin-top: var(--space-0_5);
 }
 
-/* Share + commit msg ----------------------------------------------------
- * Both features render their output inside the existing system-note bubble
- * (slash-commands.ts uses `systemNote()`), so they only need a couple of
- * affordances on top of the chat defaults: a slightly tighter monospace
- * block for the commit-message preview and a subtle muted treatment for
- * the "saved to <path>" confirmation. Class hooks here are namespaced so
- * future redesigns can target them without touching markup we don't own.
- */
-.share-result-path,
-.commit-msg-preview {
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: var(--radius);
-  padding: var(--space-2) var(--space-2);
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-.commit-msg-preview {
-  color: var(--text);
-  white-space: pre-wrap;
-  word-break: normal;
-}
-
 /* Help + onboarding */
 .onboarding-step-label {
   font-size: var(--text-xs);
@@ -8508,28 +8161,6 @@ li.session-picker-error {
   padding: var(--space-2);
   border-bottom: 1px solid var(--border);
   background: var(--bg);
-}
-.search-panel-modes {
-  display: flex;
-  gap: var(--space-1);
-}
-.search-mode-btn {
-  flex: 1;
-  background: transparent;
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--space-1) var(--space-2);
-  font-size: var(--text-sm);
-  cursor: pointer;
-}
-.search-mode-btn:hover {
-  color: var(--text);
-}
-.search-mode-btn.active {
-  background: var(--bg-elev);
-  color: var(--text);
-  border-color: var(--accent, var(--text));
 }
 .search-panel-input {
   width: 100%;
@@ -10709,16 +10340,6 @@ li.session-picker-error {
   -webkit-backdrop-filter: blur(10px) saturate(160%);
 }
 
-/* status-bar tabular-nums + a soft upward lift. A single low-alpha black
-   shadow reads correctly in BOTH modes (light themes use black shadows too);
-   the old white/dark insets created a bright seam that washed out in light
-   mode — the border-top hairline already provides the separation edge. */
-.status-bar {
-  font-variant-numeric: tabular-nums;
-  box-shadow: 0 -4px 16px -12px rgba(0, 0, 0, 0.30);
-}
-.status-bar .status-pill { font-variant-numeric: tabular-nums; }
-
 /* Sidebar empty-state — calm card. Theme-aware elevation via the shadow tier
    tokens (light themes lean on shadow, dark on surface/border) rather than the
    old hardcoded white-inset + dark-blur that washed out in light mode. */
@@ -10756,19 +10377,6 @@ li.session-picker-error {
 }
 .activity-tab-pill.active {
   box-shadow: inset 0 0 0 1px var(--accent-soft);
-}
-
-/* Wave 20 polish: token HUD obviously interactive.
-   contextforge "ghost CTA" pattern — interactive chips get a 1px outline that
-   only materializes on hover, signalling "click me" without static noise. */
-.token-hud {
-  outline: 1px solid transparent;
-  outline-offset: 1px;
-  transition: outline-color var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
-}
-.token-hud:hover {
-  outline-color: var(--accent-soft);
-  cursor: pointer;
 }
 
 /* Wave 20 polish: code block top-edge inset highlight.
@@ -12897,11 +12505,6 @@ li.session-picker-error {
   margin: var(--space-2) 0 0;
   white-space: pre-wrap;
   font-size: var(--text-xs);
-}
-.metrics-loading {
-  padding: var(--space-5) 0;
-  text-align: center;
-  color: var(--text-muted);
 }
 .metrics-warn {
   font-size: var(--text-xs);
@@ -15839,34 +15442,6 @@ li.session-picker-error {
   color: var(--text);
 }
 
-
-/* Status bar compact
- * Toggled via Ctrl+. (App.tsx) and persisted under
- * `cortex.statusbar.compact`. The component itself hides the secondary
- * chips at the React layer (gateway connection / project name / RepoWatch /
- * msgs / session-id) — these rules just tighten spacing and dim the bar
- * so the remaining badges read as deliberate rather than orphaned.
- *
- * Keep visible in compact mode: PLAN/ACT, SandboxBadge (security-critical),
- * homelab health, notifications, TokenHUD, "N running" pill.
- */
-.status-bar.compact {
-  padding-top: var(--space-0_5);
-  padding-bottom: var(--space-0_5);
-  gap: var(--space-2);
-}
-.status-bar.compact .status-left,
-.status-bar.compact .status-right {
-  gap: var(--space-2);
-}
-.status-bar.compact .status-pill {
-  font-size: var(--text-xs);
-  padding: var(--space-px) var(--space-2);
-}
-.status-bar.compact .status-pill.subtle {
-  opacity: 0.72;
-}
-
 /* Chats sidebar + launcher
    ----------------------------------------------------------------
    Discoverability pass: a 4th right-tab ("Chats"), the floating
@@ -17205,13 +16780,6 @@ li.session-picker-error {
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
   margin-bottom: var(--space-3);
-}
-.gitea-backup-empty {
-  padding: var(--space-6);
-  text-align: center;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  line-height: var(--leading-normal);
 }
 .gitea-backup-report {
   border-top: 1px solid var(--border, #2c2d33);

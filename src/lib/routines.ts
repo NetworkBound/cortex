@@ -101,7 +101,7 @@ export async function onRoutineRunRecorded(
 let notificationsArmed = false;
 
 /**
- * One-time boot hookup (called from the StatusBar, which is always mounted —
+ * One-time boot hookup (called from App.tsx, which is always mounted —
  * same pattern as `initJobStore`). Every recorded run lands in the
  * NotificationCenter inbox; scheduled failures also toast (the backend
  * additionally fires an OS notification for those). Manual runs are NOT
