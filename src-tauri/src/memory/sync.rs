@@ -3,7 +3,6 @@
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use tokio::process::Command;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PeerDevice {
@@ -51,7 +50,9 @@ pub async fn sync_to_peer(peer: &PeerDevice) -> SyncResult {
             continue;
         }
         let remote = format!("{}@{}:~/{}", peer.user, peer.host, trimmed);
-        let output = Command::new("rsync")
+        // Console-less on Windows (an rsync from Git-for-Windows/MSYS or cwRsync
+        // would otherwise flash a window per path); no-op elsewhere.
+        let output = crate::sys::tokio_no_window("rsync")
             .arg("-az")
             .arg("--delete-after")
             .arg("--info=stats0")
