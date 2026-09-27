@@ -47,6 +47,17 @@ jobs:
       - name: Install JS deps
         run: pnpm install --frozen-lockfile
 
+      # tauri.conf.json bundles the Go tsnet sidecar as an externalBin, and
+      # tauri-build refuses to run until the per-triple binary exists.
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+          cache-dependency-path: sidecar/cortex-tsnet/go.sum
+
+      - name: Build tsnet sidecar
+        shell: bash
+        run: bash scripts/build-tsnet-sidecar.sh
+
       # --- Required gates (correctness) ---
       - name: TS typecheck
         run: pnpm typecheck

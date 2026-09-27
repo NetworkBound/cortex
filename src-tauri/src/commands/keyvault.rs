@@ -78,107 +78,65 @@ fn generate_master_key() -> [u8; MASTER_KEY_LEN] {
 /// Returns the master key, generating + persisting one on first use.
 /// Stored as base64 so the keychain doesn't have to deal with raw bytes
 /// (some platforms reject NUL-containing strings).
+///
+/// Only a definitive "no such entry" mints a fresh key. Any other keyring
+/// failure (Secret Service / D-Bus unavailable or the collection locked on
+/// Linux, a Credential Manager error on Windows) is propagated: silently
+/// minting + storing a new key in that state would overwrite the real one the
+/// next time the keychain works, and every key in `keys.enc` would become
+/// undecryptable.
 fn get_or_init_master() -> Result<[u8; MASTER_KEY_LEN], String> {
     let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER_MASTER)
         .map_err(|e| format!("keyring entry: {e}"))?;
-    if let Ok(existing) = entry.get_password() {
-        let decoded = base64_decode(&existing)
-            .map_err(|e| format!("decode master key: {e}"))?;
-        if decoded.len() != MASTER_KEY_LEN {
-            return Err(format!(
-                "master key wrong length: expected {MASTER_KEY_LEN}, got {}",
-                decoded.len()
-            ));
-        }
-        let mut buf = [0u8; MASTER_KEY_LEN];
-        buf.copy_from_slice(&decoded);
-        return Ok(buf);
-    }
-    // First-run: mint a new one and save.
-    let fresh = generate_master_key();
-    let encoded = base64_encode(&fresh);
-    entry
-        .set_password(&encoded)
-        .map_err(|e| format!("keyring set: {e}"))?;
-    Ok(fresh)
-}
-
-/// Minimal base64 encode using the standard alphabet without padding being
-/// required on decode. Kept local because we don't want to pull a full
-/// base64 crate just for ~50 bytes of master-key shuffling.
-fn base64_encode(bytes: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity(((bytes.len() + 2) / 3) * 4);
-    let mut i = 0;
-    while i + 3 <= bytes.len() {
-        let n = ((bytes[i] as u32) << 16) | ((bytes[i + 1] as u32) << 8) | (bytes[i + 2] as u32);
-        out.push(ALPHABET[((n >> 18) & 63) as usize] as char);
-        out.push(ALPHABET[((n >> 12) & 63) as usize] as char);
-        out.push(ALPHABET[((n >> 6) & 63) as usize] as char);
-        out.push(ALPHABET[(n & 63) as usize] as char);
-        i += 3;
-    }
-    let rem = bytes.len() - i;
-    if rem == 1 {
-        let n = (bytes[i] as u32) << 16;
-        out.push(ALPHABET[((n >> 18) & 63) as usize] as char);
-        out.push(ALPHABET[((n >> 12) & 63) as usize] as char);
-        out.push('=');
-        out.push('=');
-    } else if rem == 2 {
-        let n = ((bytes[i] as u32) << 16) | ((bytes[i + 1] as u32) << 8);
-        out.push(ALPHABET[((n >> 18) & 63) as usize] as char);
-        out.push(ALPHABET[((n >> 12) & 63) as usize] as char);
-        out.push(ALPHABET[((n >> 6) & 63) as usize] as char);
-        out.push('=');
-    }
-    out
-}
-
-fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
-    fn val(c: u8) -> Result<u8, String> {
-        match c {
-            b'A'..=b'Z' => Ok(c - b'A'),
-            b'a'..=b'z' => Ok(c - b'a' + 26),
-            b'0'..=b'9' => Ok(c - b'0' + 52),
-            b'+' => Ok(62),
-            b'/' => Ok(63),
-            _ => Err(format!("bad base64 char: {c}")),
-        }
-    }
-    let bytes: Vec<u8> = s
-        .bytes()
-        .filter(|c| !matches!(*c, b'\n' | b'\r' | b' ' | b'\t'))
-        .collect();
-    let mut out = Vec::with_capacity(bytes.len() * 3 / 4);
-    let mut i = 0;
-    while i + 4 <= bytes.len() {
-        let mut buf = [0u8; 4];
-        let mut pad = 0;
-        for j in 0..4 {
-            if bytes[i + j] == b'=' {
-                pad += 1;
-                buf[j] = 0;
-            } else {
-                buf[j] = val(bytes[i + j])?;
+    match entry.get_password() {
+        Ok(existing) => {
+            let decoded = base64_decode(&existing)
+                .map_err(|e| format!("decode master key: {e}"))?;
+            if decoded.len() != MASTER_KEY_LEN {
+                return Err(format!(
+                    "master key wrong length: expected {MASTER_KEY_LEN}, got {}",
+                    decoded.len()
+                ));
             }
+            let mut buf = [0u8; MASTER_KEY_LEN];
+            buf.copy_from_slice(&decoded);
+            Ok(buf)
         }
-        let n = ((buf[0] as u32) << 18)
-            | ((buf[1] as u32) << 12)
-            | ((buf[2] as u32) << 6)
-            | (buf[3] as u32);
-        out.push(((n >> 16) & 0xff) as u8);
-        if pad < 2 {
-            out.push(((n >> 8) & 0xff) as u8);
+        Err(keyring::Error::NoEntry) => {
+            // First-run: mint a new one and save.
+            let fresh = generate_master_key();
+            let encoded = base64_encode(&fresh);
+            entry
+                .set_password(&encoded)
+                .map_err(|e| format!("keyring set: {e}"))?;
+            Ok(fresh)
         }
-        if pad < 1 {
-            out.push((n & 0xff) as u8);
-        }
-        i += 4;
+        Err(e) => Err(format!(
+            "keyring read failed (OS keychain unavailable or locked): {e}"
+        )),
     }
-    Ok(out)
 }
+
+/// Standard-alphabet, padded base64 — the master key's on-keychain form.
+fn base64_encode(bytes: &[u8]) -> String {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD.encode(bytes)
+}
+
+/// Inverse of [`base64_encode`]. Tolerates surrounding whitespace (some
+/// keychain frontends append a trailing newline).
+fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD
+        .decode(s.trim())
+        .map_err(|e| e.to_string())
+}
+
+/// Serializes read-modify-write cycles on the vault so two concurrent
+/// `vault_set`/`vault_remove` calls (e.g. the settings panel saving a key
+/// while an endpoint is registered) can't each load the same snapshot and
+/// have the later `save_entries` drop the other's change.
+static VAULT_WRITE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Read + decrypt the on-disk vault. Returns an empty list when the file
 /// doesn't exist yet (first-run UX).
@@ -286,6 +244,7 @@ pub async fn vault_set(
     if label.trim().is_empty() {
         return Err("label must not be empty".into());
     }
+    let _guard = VAULT_WRITE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut entries = load_entries()?;
     // Upsert on (provider, label) so re-saving updates the key + timestamp.
     if let Some(existing) = entries
@@ -308,6 +267,7 @@ pub async fn vault_set(
 
 #[tauri::command]
 pub async fn vault_remove(provider: String, label: String) -> Result<(), String> {
+    let _guard = VAULT_WRITE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut entries = load_entries()?;
     let before = entries.len();
     entries.retain(|e| !(e.provider == provider && e.label == label));
@@ -330,6 +290,13 @@ mod tests {
             let dec = base64_decode(&enc).unwrap();
             assert_eq!(&dec[..], *c);
         }
+    }
+
+    #[test]
+    fn base64_decode_tolerates_trailing_newline_and_rejects_garbage() {
+        let enc = format!("{}\n", base64_encode(&[7u8; MASTER_KEY_LEN]));
+        assert_eq!(base64_decode(&enc).unwrap(), vec![7u8; MASTER_KEY_LEN]);
+        assert!(base64_decode("not base64!!").is_err());
     }
 
     #[test]

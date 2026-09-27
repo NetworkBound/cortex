@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use serde::Serialize;
 use tauri::State;
 use tokio::sync::mpsc;
 
@@ -24,11 +23,6 @@ a clear, actionable report with specific suggestions in these categories:
 Be specific: use exact note paths and names. Prioritize the highest-impact changes first. \
 Keep each suggestion to one line. Group by category with markdown headers. \
 If the vault is already well-organized, say so briefly.";
-
-#[derive(Debug, Serialize)]
-pub struct AutoSortResult {
-    pub suggestions: String,
-}
 
 #[tauri::command]
 pub async fn vault_auto_sort(

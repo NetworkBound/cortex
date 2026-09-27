@@ -439,9 +439,11 @@ fn fuzzy_score(text: &str, lc_query: &str) -> Option<i32> {
                 None => return None,
             };
             if tc == qc {
-                // Bonus for matching the basename (last `/` segment) over a
-                // dir component — VS Code does this for the file picker.
-                if let Some(slash) = lc_text[..i].rfind('/') {
+                // Bonus for matching the basename (last path segment) over a
+                // dir component — VS Code does this for the file picker. The
+                // paths come from `list_files` verbatim, so on Windows the
+                // separator is `\`; treat both so the bonus fires there too.
+                if let Some(slash) = lc_text[..i].rfind(['/', '\\']) {
                     if i == slash + 1 {
                         score += 8;
                     } else if i > slash + 1 {
@@ -454,7 +456,7 @@ fn fuzzy_score(text: &str, lc_query: &str) -> Option<i32> {
                 // Bonus for camel-case / underscore-separator boundary.
                 if i > 0 {
                     let prev = lc_text.as_bytes()[i - 1] as char;
-                    if matches!(prev, '_' | '-' | '.' | '/' | ' ') {
+                    if matches!(prev, '_' | '-' | '.' | '/' | '\\' | ' ') {
                         score += 4;
                     }
                 }
@@ -473,4 +475,28 @@ fn fuzzy_score(text: &str, lc_query: &str) -> Option<i32> {
     // when they tie on bonuses.
     score -= (text.len() / 32) as i32;
     Some(score)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fuzzy_score;
+
+    /// The basename/separator bonuses must fire identically for `/` and `\`
+    /// paths, since `find_files` hands the scorer OS-native paths.
+    #[test]
+    fn fuzzy_score_treats_backslash_like_slash() {
+        let unix = fuzzy_score("src/lib/foo.rs", "foo").expect("subsequence");
+        let win = fuzzy_score("src\\lib\\foo.rs", "foo").expect("subsequence");
+        assert_eq!(unix, win);
+        // A basename hit outranks the same letters buried in a directory.
+        let dir_hit = fuzzy_score("src/lib/foo.rs", "src").expect("subsequence");
+        let base_hit = fuzzy_score("lib/foo/src.rs", "src").expect("subsequence");
+        assert!(base_hit > dir_hit, "base {base_hit} vs dir {dir_hit}");
+    }
+
+    #[test]
+    fn fuzzy_score_rejects_non_subsequence() {
+        assert!(fuzzy_score("src/lib/foo.rs", "zzz").is_none());
+        assert_eq!(fuzzy_score("anything", ""), Some(0));
+    }
 }

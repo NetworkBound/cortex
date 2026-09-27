@@ -1,9 +1,9 @@
 //! Inline test runner.
 //!
 //! Auto-detects the project's test framework (Cargo / Vitest / Jest / Mocha /
-//! Pytest), runs it via [`std::process::Command`], caps the captured output
-//! at 64 KiB, and parses summary counts + failures into a structured
-//! [`TestResult`] the frontend can render as a panel.
+//! Pytest), runs it as a tokio child under a wall-clock timeout, caps the
+//! captured output at 64 KiB, and parses summary counts + failures into a
+//! structured [`TestResult`] the frontend can render as a panel.
 //!
 //! The detection is best-effort and conservative — when nothing matches we
 //! return `error: "no test framework detected"` rather than guessing.
@@ -12,11 +12,19 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use std::time::Instant;
+use std::process::Stdio;
+use std::time::{Duration, Instant};
 
 /// Cap on captured stdout / stderr. 64 KiB is plenty for summary parsing while
 /// keeping the JSON payload manageable across the Tauri bridge.
 const OUTPUT_CAP_BYTES: usize = 64 * 1024;
+
+/// Wall-clock budget for one test run. Suites can legitimately take minutes
+/// (cargo compiles first), so this is generous — but without any cap a hung
+/// test (deadlock, waiting on stdin) pinned the panel on "running" forever and
+/// leaked the child process. On elapse the child is killed and the result is
+/// reported with `timed_out: true`.
+pub const TIMEOUT_MS: u64 = 20 * 60 * 1000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestFailure {
@@ -44,8 +52,15 @@ pub struct TestResult {
     pub duration_ms: u64,
     pub stdout_tail: String,
     pub stderr_tail: String,
+    /// Process exit code; `-1` when the process was killed by a signal or
+    /// when the run timed out (see `timed_out`).
     pub exit_code: i32,
     pub failures: Vec<TestFailure>,
+    /// True when the wall-clock budget (`TIMEOUT_MS`) elapsed and the child
+    /// was killed. Counts/failures are then empty and the tails hold whatever
+    /// was captured before the kill (nothing, with piped output).
+    #[serde(default)]
+    pub timed_out: bool,
 }
 
 #[tauri::command]
@@ -65,21 +80,46 @@ pub async fn run_tests(
 
     let started = Instant::now();
     let display_cmd = format!("{} {}", pick.argv[0], pick.argv[1..].join(" "));
-    // spawn_blocking: a test suite can run for minutes; the synchronous
-    // `.output()` used to run directly on this async handler's tokio worker
-    // thread, starving unrelated IPC commands for the whole run.
-    let argv = pick.argv.clone();
-    let root_owned = root.to_path_buf();
-    let output = tokio::task::spawn_blocking(move || {
-        crate::sys::no_window(&argv[0])
-            .args(&argv[1..])
-            .current_dir(&root_owned)
-            .output()
-    })
-    .await
-    .map_err(|e| format!("test-run task failed: {e}"))?
-    .map_err(|e| format!("failed to spawn {}: {e}", pick.argv[0]))?;
+    // A tokio child with `kill_on_drop`: when the `timeout` below elapses the
+    // `wait_with_output` future is dropped, which drops the child handle and
+    // kills the process instead of leaving a hung suite running in the
+    // background. Async also keeps a minutes-long run off the IPC worker.
+    let mut command = build_command(&pick.argv);
+    command
+        .current_dir(root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+    let child = command
+        .spawn()
+        .map_err(|e| format!("failed to spawn {}: {e}", pick.argv[0]))?;
+    let waited =
+        tokio::time::timeout(Duration::from_millis(TIMEOUT_MS), child.wait_with_output()).await;
     let duration_ms = started.elapsed().as_millis() as u64;
+
+    let output = match waited {
+        Ok(Ok(out)) => out,
+        Ok(Err(e)) => return Err(format!("waiting for {} failed: {e}", pick.argv[0])),
+        Err(_) => {
+            return Ok(TestResult {
+                framework: pick.framework,
+                command: display_cmd,
+                passed: 0,
+                failed: 0,
+                skipped: 0,
+                duration_ms,
+                stdout_tail: String::new(),
+                stderr_tail: format!(
+                    "[test-runner] timed out after {}s — the suite was killed",
+                    TIMEOUT_MS / 1000
+                ),
+                exit_code: -1,
+                failures: Vec::new(),
+                timed_out: true,
+            })
+        }
+    };
 
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
@@ -99,7 +139,31 @@ pub async fn run_tests(
         stderr_tail: tail(&stderr, OUTPUT_CAP_BYTES),
         exit_code: output.status.code().unwrap_or(-1),
         failures,
+        timed_out: false,
     })
+}
+
+/// Turn a picked argv into a spawnable command.
+///
+/// On Windows, `npm` and `npx` are installed as `npm.cmd` / `npx.cmd` batch
+/// shims, and `Command::new("npm")` only probes for `npm.exe`, so the spawn
+/// failed with "program not found" on every Node project. Batch shims have to
+/// run through the command interpreter, so route those two through
+/// `cmd /C`; every other framework (`cargo`, `pytest`) ships a real `.exe`.
+/// The argv tokens are fixed literals (no spaces, no user input), so no
+/// cmd.exe quoting is needed. Console-window suppression comes from
+/// `crate::sys::no_window`, converted into a tokio command.
+fn build_command(argv: &[String]) -> tokio::process::Command {
+    let std_cmd = if cfg!(windows) && matches!(argv[0].as_str(), "npm" | "npx") {
+        let mut c = crate::sys::no_window("cmd");
+        c.arg("/C").args(argv);
+        c
+    } else {
+        let mut c = crate::sys::no_window(&argv[0]);
+        c.args(&argv[1..]);
+        c
+    };
+    tokio::process::Command::from(std_cmd)
 }
 
 struct Pick {
@@ -460,6 +524,29 @@ fn tail(s: &str, limit: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn build_command_routes_npm_shims_through_cmd_on_windows() {
+        let argv: Vec<String> = vec!["npx".into(), "--no-install".into(), "vitest".into()];
+        let cmd = build_command(&argv);
+        let std_cmd = cmd.as_std();
+        let program = std_cmd.get_program().to_string_lossy().into_owned();
+        let args: Vec<String> = std_cmd
+            .get_args()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        if cfg!(windows) {
+            assert_eq!(program, "cmd");
+            assert_eq!(args, vec!["/C", "npx", "--no-install", "vitest"]);
+        } else {
+            assert_eq!(program, "npx");
+            assert_eq!(args, vec!["--no-install", "vitest"]);
+        }
+        // Real executables are never wrapped, even on Windows.
+        let cargo: Vec<String> = vec!["cargo".into(), "test".into()];
+        let cmd = build_command(&cargo);
+        assert_eq!(cmd.as_std().get_program().to_string_lossy(), "cargo");
+    }
 
     #[test]
     fn cargo_counts_summed_across_lines() {
