@@ -748,7 +748,7 @@ fn looks_like_pipe_to_interpreter(command: &str) -> bool {
 
 /// `~/.cortex/command-policy.toml`. `None` when no home directory exists.
 pub fn global_policy_path() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".cortex").join("command-policy.toml"))
+    crate::paths::home_dir().map(|h| h.join(".cortex").join("command-policy.toml"))
 }
 
 /// `<project_root>/.cortex/command-policy.toml`.

@@ -34,9 +34,28 @@ fn trust_file() -> Option<PathBuf> {
 /// (strip trailing slash, normalize separators) but do **not** touch the fs —
 /// the path may not exist at check time and we don't want to follow symlinks
 /// for a security gate.
+///
+/// Also drops the Windows `\\?\` verbatim prefix `canonicalize()` produces, so
+/// a root persisted from `last-project.json` matches the same directory typed
+/// plainly. Comparison goes through [`same_path`], which is additionally
+/// case-insensitive on Windows.
 fn normalize(p: &Path) -> String {
+    let p = crate::paths::strip_verbatim_prefix(p.to_path_buf());
     let s = p.to_string_lossy().replace('\\', "/");
     s.trim_end_matches('/').to_string()
+}
+
+/// Do two [`normalize`]d roots name the same directory? Case-insensitive on
+/// Windows (NTFS is; `C:\Proj` and `c:\proj` are one directory, and the drive
+/// letter's case varies between `dirs`, the file dialog and `%CD%`), exact
+/// elsewhere. Narrowing-only for a security gate: it lets an already-trusted
+/// directory match under its other spellings, never a different directory.
+fn same_path(a: &str, b: &str) -> bool {
+    if cfg!(windows) {
+        a.eq_ignore_ascii_case(b)
+    } else {
+        a == b
+    }
 }
 
 /// Read the on-disk trust list. Missing file / parse errors yield an empty
@@ -87,7 +106,7 @@ pub fn is_trusted(project_root: &Path) -> bool {
     if target.is_empty() {
         return false;
     }
-    load_list().iter().any(|p| normalize(Path::new(p)) == target)
+    load_list().iter().any(|p| same_path(&normalize(Path::new(p)), &target))
 }
 
 /// Add `project_root` to the trust list. Idempotent — re-trusting an
@@ -98,7 +117,7 @@ pub fn trust_path(project_root: &Path) -> anyhow::Result<()> {
         anyhow::bail!("trust: empty project root");
     }
     let mut list = load_list();
-    if list.iter().any(|p| normalize(Path::new(p)) == target) {
+    if list.iter().any(|p| same_path(&normalize(Path::new(p)), &target)) {
         return Ok(());
     }
     list.push(target);
@@ -114,7 +133,7 @@ pub fn untrust_path(project_root: &Path) -> anyhow::Result<()> {
     }
     let mut list = load_list();
     let before = list.len();
-    list.retain(|p| normalize(Path::new(p)) != target);
+    list.retain(|p| !same_path(&normalize(Path::new(p)), &target));
     if list.len() == before {
         return Ok(());
     }
@@ -139,5 +158,41 @@ mod tests {
     #[test]
     fn empty_root_is_never_trusted() {
         assert!(!is_trusted(Path::new("")));
+    }
+
+    #[test]
+    fn normalize_strips_windows_verbatim_prefix() {
+        // The `\\?\` spelling `canonicalize()` yields on Windows must compare
+        // equal to the plain spelling of the same directory.
+        assert_eq!(
+            normalize(Path::new(r"\\?\C:\Users\me\proj")),
+            normalize(Path::new(r"C:\Users\me\proj"))
+        );
+    }
+
+    #[test]
+    fn same_path_is_case_insensitive_only_on_windows() {
+        let a = normalize(Path::new(r"C:\Proj\App"));
+        let b = normalize(Path::new(r"c:\proj\app"));
+        assert_eq!(same_path(&a, &b), cfg!(windows));
+        assert!(same_path(&a, &a));
+    }
+
+    #[test]
+    fn trust_round_trip_with_alternate_spellings() {
+        crate::paths::test_home::with_temp_home(|home| {
+            let root = home.join("proj");
+            assert!(!is_trusted(&root));
+            trust_path(&root).unwrap();
+            assert!(is_trusted(&root));
+            // Trailing separator / re-trust are no-ops, not duplicates.
+            let mut with_sep = root.as_os_str().to_owned();
+            with_sep.push(std::path::MAIN_SEPARATOR.to_string());
+            assert!(is_trusted(Path::new(&with_sep)));
+            trust_path(Path::new(&with_sep)).unwrap();
+            assert_eq!(load_list().len(), 1);
+            untrust_path(&root).unwrap();
+            assert!(!is_trusted(&root));
+        });
     }
 }

@@ -43,7 +43,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
-    process::{Child, Command},
+    process::Child,
     sync::mpsc,
     task::JoinHandle,
 };
@@ -173,7 +173,10 @@ pub async fn stop_all() {
 /// Spawn one monitor and wire its stdout/stderr to the Tauri event bus. The
 /// returned [`ChildHandle`] owns the running process plus its forwarding tasks.
 async fn spawn_one(spec: &MonitorSpec, cwd: &Path, app: AppHandle) -> Result<ChildHandle> {
-    let mut cmd = Command::new(&spec.command);
+    // `resolve_program` so a bare `npm` / `pnpm` finds its `.cmd` shim on
+    // Windows (CreateProcess ignores PATHEXT); `tokio_no_window` so the child
+    // doesn't flash a console window.
+    let mut cmd = crate::sys::tokio_no_window(crate::sys::resolve_program(&spec.command));
     cmd.args(&spec.args)
         .current_dir(cwd)
         .stdin(Stdio::null())

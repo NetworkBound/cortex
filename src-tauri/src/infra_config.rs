@@ -18,6 +18,7 @@
 //!   "update_gitea_host": "http://git-host:3000",
 //!   "update_pubkey":     "base64-of-raw-32-byte-ed25519-public-key",
 //!   "usage_ssh_host":    "root@hypervisor-host",
+//!   "usage_gateway_ct":  "154",
 //!   "health_targets": [
 //!     { "source": "my-gateway", "url": "http://gateway-host:8642/health" }
 //!   ]
@@ -31,6 +32,7 @@
 //! | `update_gitea_host` | `CORTEX_UPDATE_GITEA_HOST`| AppImage self-update (selfupdate) |
 //! | `update_pubkey`     | `CORTEX_UPDATE_PUBKEY`    | self-update signature verification |
 //! | `usage_ssh_host`    | `CORTEX_USAGE_SSH_HOST`   | usage/credential-pool SSH polling |
+//! | `usage_gateway_ct`  | `CORTEX_USAGE_GATEWAY_CT` | Proxmox CT id `pct exec`'d over SSH |
 //! | `health_targets`    | —                         | observability health pollers      |
 
 use serde::{Deserialize, Serialize};
@@ -74,6 +76,11 @@ pub struct InfraConfig {
     /// ChatGPT usage JSON. Unset → usage panels show only local data.
     #[serde(default)]
     pub usage_ssh_host: Option<String>,
+    /// Proxmox container id of the gateway CT on that host — the usage pollers
+    /// run `pct exec <ct> -- …` there. Unset → the SSH pollers no-op (the
+    /// host alone is not enough to reach the gateway's auth.json).
+    #[serde(default)]
+    pub usage_gateway_ct: Option<String>,
     /// Endpoints the observability health pollers probe every 30s. Empty →
     /// the poller loop idles without dialing anything.
     #[serde(default)]
@@ -171,6 +178,19 @@ pub fn usage_ssh_host() -> Option<String> {
     )
 }
 
+/// Proxmox CT id the usage pollers `pct exec` into on the SSH host:
+/// `CORTEX_USAGE_GATEWAY_CT` → `infra.json` → `None` (no SSH attempted).
+/// Accepts digits only — the value is spliced into a remote shell command
+/// line, so anything else (spaces, `;`, `$(`…) is refused rather than
+/// forwarded.
+pub fn usage_gateway_ct() -> Option<String> {
+    first_configured(
+        std::env::var("CORTEX_USAGE_GATEWAY_CT").ok(),
+        load_file().usage_gateway_ct.as_deref(),
+    )
+    .filter(|ct| ct.chars().all(|c| c.is_ascii_digit()))
+}
+
 /// Health-poller targets from `infra.json`. Entries with an empty source or
 /// url are dropped. Empty vec → pollers no-op.
 pub fn health_targets() -> Vec<HealthTargetEntry> {
@@ -251,6 +271,23 @@ mod tests {
             .collect();
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].source, "gw");
+    }
+
+    #[test]
+    fn gateway_ct_parses_and_only_digits_are_accepted() {
+        let cfg: InfraConfig =
+            serde_json::from_str(r#"{ "usage_ssh_host": "root@hv", "usage_gateway_ct": "154" }"#)
+                .unwrap();
+        assert_eq!(cfg.usage_gateway_ct.as_deref(), Some("154"));
+        // The resolver's digit filter (exercised via the pure core + filter).
+        let digits_only = |v: &str| {
+            first_configured(Some(v.to_string()), None)
+                .filter(|ct| ct.chars().all(|c| c.is_ascii_digit()))
+        };
+        assert_eq!(digits_only(" 154 "), Some("154".to_string()));
+        assert_eq!(digits_only("154; rm -rf /"), None);
+        assert_eq!(digits_only("$(id)"), None);
+        assert_eq!(digits_only(""), None);
     }
 
     #[test]

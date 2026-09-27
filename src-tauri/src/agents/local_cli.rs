@@ -23,61 +23,140 @@ use serde_json::Value;
 use std::path::PathBuf;
 use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command;
 use tokio::sync::mpsc;
 
-/// Parse a Windows `.cmd` shim (npm-installed CLIs) to extract the underlying
-/// `node.exe <script>` invocation. Returns `(node_path, script_path)` on
-/// success, allowing us to call `CreateProcess` directly and bypass the 8191-
-/// character command-line limit of `cmd.exe /C`.
-#[cfg(windows)]
-fn resolve_cmd_shim(shim: &std::path::Path) -> Option<(PathBuf, PathBuf)> {
-    let content = std::fs::read_to_string(shim).ok()?;
-    let shim_dir = shim.parent()?;
-    let dir_str = shim_dir.to_string_lossy();
-
-    // Find the invocation line (contains %* to forward args).
+/// Parse the invocation line of an npm-style Windows `.cmd` shim (the file
+/// `npm i -g` writes next to `node_modules`, e.g. `claude.cmd`) and return the
+/// argv that follows the node program token: any node flags the shim passes,
+/// then the script path — with `%dp0%` / `%~dp0` expanded to `shim_dir` and
+/// the `%*` forwarder dropped. `None` when the file doesn't look like a
+/// cmd-shim (or still contains an unexpanded `%var%`), in which case the
+/// caller runs the shim itself.
+///
+/// Handles both shim generations:
+///   * modern (`cmd-shim` ≥ 3): `... & "%_prog%"  "%dp0%\node_modules\x\cli.js" %*`
+///   * legacy: `node  "%~dp0\node_modules\x\cli.js" %*`
+///
+/// Pure (no fs, no cfg) so the parser is unit-tested on every platform; the
+/// Windows-only [`resolve_cmd_shim`] adds the file read + `node.exe` lookup.
+pub(crate) fn parse_cmd_shim_invocation(content: &str, shim_dir: &str) -> Option<Vec<String>> {
+    // The invocation line is the (last) one forwarding `%*`.
     let invocation = content.lines().rev().find(|l| l.contains("%*"))?;
 
-    // Expand batch variables that refer to the shim's directory.
+    // `%~dp0` carries a trailing backslash, so `%dp0%\node_modules` is really
+    // `<dir>\\node_modules`; normalize to a single separator.
+    let dir = shim_dir.trim_end_matches(['\\', '/']);
     let expanded = invocation
-        .replace("%dp0%\\", &format!("{}\\", dir_str))
-        .replace("%dp0%/", &format!("{}/", dir_str))
-        .replace("%~dp0\\", &format!("{}\\", dir_str))
-        .replace("%~dp0/", &format!("{}/", dir_str));
+        .replace("%dp0%\\", &format!("{dir}\\"))
+        .replace("%dp0%/", &format!("{dir}/"))
+        .replace("%~dp0\\", &format!("{dir}\\"))
+        .replace("%~dp0/", &format!("{dir}/"))
+        .replace("%dp0%", &format!("{dir}\\"))
+        .replace("%~dp0", &format!("{dir}\\"));
 
-    // Extract quoted strings — the script path is the last quoted string
-    // before %* that isn't the node executable or a batch variable.
-    let mut script_path: Option<&str> = None;
+    // cmd.exe-style tokenizer: double quotes group, no escape character.
+    let mut tokens: Vec<String> = Vec::new();
+    let mut cur = String::new();
     let mut in_quote = false;
-    let mut start = 0;
-    let bytes = expanded.as_bytes();
-    for i in 0..bytes.len() {
-        if bytes[i] == b'"' {
-            if in_quote {
-                let candidate = &expanded[start..i];
-                if !candidate.contains("%_prog%")
-                    && !candidate.ends_with("node.exe")
-                    && !candidate.ends_with("node")
-                {
-                    script_path = Some(candidate);
-                }
-            } else {
-                start = i + 1;
+    let mut open = false;
+    for c in expanded.chars() {
+        match c {
+            '"' => {
+                in_quote = !in_quote;
+                open = true;
             }
-            in_quote = !in_quote;
+            c if c.is_whitespace() && !in_quote => {
+                if open {
+                    tokens.push(std::mem::take(&mut cur));
+                    open = false;
+                }
+            }
+            c => {
+                cur.push(c);
+                open = true;
+            }
         }
     }
-    let script = PathBuf::from(script_path?);
+    if open {
+        tokens.push(cur);
+    }
+
+    // The node program token: `%_prog%` (modern) or a bare/absolute node[.exe].
+    let is_node = |t: &str| {
+        if t.contains("%_prog%") {
+            return true;
+        }
+        let lower = t.to_ascii_lowercase();
+        lower == "node"
+            || lower == "node.exe"
+            || lower.ends_with("\\node.exe")
+            || lower.ends_with("/node.exe")
+    };
+    let prog_idx = tokens.iter().position(|t| is_node(t))?;
+
+    let args: Vec<String> = tokens[prog_idx + 1..]
+        .iter()
+        .filter(|t| t.as_str() != "%*")
+        .cloned()
+        .collect();
+    // Need a script path (a non-flag token) and no leftover batch variables —
+    // otherwise we'd hand node something cmd.exe was supposed to expand.
+    if !args.iter().any(|a| !a.starts_with('-')) || args.iter().any(|a| a.contains('%')) {
+        return None;
+    }
+    Some(args)
+}
+
+/// Resolve a Windows `.cmd` shim to the underlying `node.exe` + argv so we can
+/// call `CreateProcess` directly — bypassing `cmd.exe`, whose 8191-character
+/// command-line limit a context-prefixed prompt easily exceeds, and which
+/// cannot carry multi-line arguments at all. Returns `None` (caller runs the
+/// shim itself) when the shim is unparseable, the script it names is missing,
+/// or no `node.exe` can be found.
+#[cfg(windows)]
+fn resolve_cmd_shim(shim: &std::path::Path) -> Option<(PathBuf, Vec<String>)> {
+    let content = std::fs::read_to_string(shim).ok()?;
+    let shim_dir = shim.parent()?;
+    let args = parse_cmd_shim_invocation(&content, &shim_dir.to_string_lossy())?;
+
+    // The script is the last non-flag token; it must actually exist.
+    let script = args.iter().rev().find(|a| !a.starts_with('-'))?;
+    if !std::path::Path::new(script).is_file() {
+        return None;
+    }
 
     let local_node = shim_dir.join("node.exe");
-    let node = if local_node.exists() {
+    let node = if local_node.is_file() {
         local_node
     } else {
         which::which("node").ok()?
     };
 
-    Some((node, script))
+    Some((node, args))
+}
+
+/// Kills the CLI's whole process tree when dropped while still armed — i.e.
+/// when the run future is cancelled (Stop button aborts the task, a caller's
+/// timeout fires). `kill_on_drop` alone only terminates the direct child and
+/// orphans the shell tools / helpers the CLI spawned. Disarmed once the child
+/// has been reaped normally. Must be declared AFTER the `Child` so it drops
+/// FIRST (Windows' `taskkill /T` needs the root alive to walk the tree).
+struct TreeKill {
+    pid: Option<u32>,
+}
+
+impl TreeKill {
+    fn disarm(&mut self) {
+        self.pid = None;
+    }
+}
+
+impl Drop for TreeKill {
+    fn drop(&mut self) {
+        if let Some(pid) = self.pid {
+            crate::sys::kill_process_tree(pid);
+        }
+    }
 }
 
 /// How a CLI's stdout should be parsed into [`AgentEvent`]s.
@@ -261,13 +340,20 @@ impl AgentAdapter for GenericCliAgent {
         // Build argv individually — the user message is a single arg, never a
         // shell string, so it can't break out / inject.
         //
-        // On Windows, npm-installed CLIs resolve to `.cmd`/`.bat` shims.
-        // Using `cmd.exe /C` to run them hits the 8191-char command-line limit
-        // when the prompt includes a context prefix (project rules + repo map).
-        // Instead, we parse the `.cmd` shim to extract the underlying
-        // `node.exe <script>` invocation and call it directly via CreateProcess,
-        // which supports up to 32767 chars. Falls back to `cmd.exe /C` if
-        // parsing fails.
+        // On Windows, npm-installed CLIs resolve to `.cmd`/`.bat` shims. Going
+        // through `cmd.exe` hits its 8191-char command-line limit as soon as
+        // the prompt carries a context prefix (project rules + repo map), and
+        // cmd.exe can't carry a multi-line argument at all. So we parse the
+        // shim to recover the underlying `node.exe <script>` invocation and
+        // call THAT via CreateProcess (32767-char limit, newline-safe). If the
+        // shim can't be parsed we hand the shim itself to `Command::new`:
+        // std runs `.cmd`/`.bat` through cmd.exe with proper escaping (Rust ≥
+        // 1.77.2) and refuses arguments it can't escape safely — never a
+        // hand-built `cmd /C <shim> <prompt>` string, which a prompt containing
+        // `&`, `|` or `"` could break out of. Every child is spawned without a
+        // console window (CREATE_NO_WINDOW) so nothing flashes on the desktop.
+        #[cfg(windows)]
+        let mut shim_fallback = false;
         let mut cmd = {
             #[cfg(windows)]
             {
@@ -275,29 +361,28 @@ impl AgentAdapter for GenericCliAgent {
                     .and_then(|e| e.to_str())
                     .map(|e| e.to_ascii_lowercase());
                 let is_shim = matches!(ext.as_deref(), Some("cmd") | Some("bat"));
-                if is_shim {
-                    match resolve_cmd_shim(&bin) {
-                        Some((node_exe, script)) => {
-                            let mut c = Command::new(node_exe);
-                            c.arg(script).args(&args);
-                            c
-                        }
-                        None => {
-                            let mut c = Command::new("cmd");
-                            c.arg("/C").arg(&bin).args(&args);
-                            c
-                        }
+                let direct = if is_shim { resolve_cmd_shim(&bin) } else { None };
+                match direct {
+                    Some((node_exe, pre_args)) => {
+                        let mut c = crate::sys::tokio_no_window(node_exe);
+                        c.args(&pre_args).args(&args);
+                        c
                     }
-                } else {
-                    let mut c = Command::new(&bin);
-                    c.args(&args);
-                    c
+                    None => {
+                        shim_fallback = is_shim;
+                        let mut c = crate::sys::tokio_no_window(&bin);
+                        c.args(&args);
+                        c
+                    }
                 }
             }
             #[cfg(not(windows))]
             {
-                let mut c = Command::new(&bin);
+                let mut c = crate::sys::tokio_no_window(&bin);
                 c.args(&args);
+                // Own process group, so a Stop can take the CLI's own tool
+                // subprocesses down with it (see `TreeKill`).
+                c.process_group(0);
                 c
             }
         };
@@ -313,15 +398,30 @@ impl AgentAdapter for GenericCliAgent {
                 let _ = tx
                     .send(AgentEvent::Started { agent_id: id.into(), run_id: None })
                     .await;
+                #[cfg(windows)]
+                let hint = if shim_fallback {
+                    format!(
+                        " — `{}` is an npm .cmd shim Cortex could not resolve to node.exe, \
+                         and cmd.exe cannot carry a multi-line prompt. Reinstall the CLI \
+                         (`npm i -g …`) or use its native installer.",
+                        bin.display()
+                    )
+                } else {
+                    String::new()
+                };
+                #[cfg(not(windows))]
+                let hint = String::new();
                 let _ = tx
                     .send(AgentEvent::Error {
-                        message: format!("failed to spawn `{}`: {e}", spec.tag),
+                        message: format!("failed to spawn `{}`: {e}{hint}", spec.tag),
                     })
                     .await;
                 let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
                 return Ok(());
             }
         };
+        // Declared after `child` so it drops first when the future is cancelled.
+        let mut tree = TreeKill { pid: child.id() };
 
         // Announce the run immediately; structured streams may carry a real
         // session id later, but the UI wants a Started promptly.
@@ -435,8 +535,10 @@ impl AgentAdapter for GenericCliAgent {
             tokio::task::spawn_blocking(move || persist_claude_limit(&info));
         }
 
-        // Reap the process and inspect its exit status.
+        // Reap the process and inspect its exit status. Once it has exited on
+        // its own there is no tree left to kill.
         let status = child.wait().await;
+        tree.disarm();
         let stderr_tail = stderr_task.await.unwrap_or_default();
 
         // If the process failed and we never got a terminal result, surface
@@ -966,6 +1068,44 @@ mod tests {
                 "claude-sonnet-4-6",
             ]
         );
+    }
+
+    // ---- Windows npm `.cmd` shim parsing (pure; runs on every platform) ----
+
+    const MODERN_SHIM: &str = "@ECHO off\r\nGOTO start\r\n:find_dp0\r\nSET dp0=%~dp0\r\nEXIT /b\r\n:start\r\nSETLOCAL\r\nCALL :find_dp0\r\n\r\nIF EXIST \"%dp0%\\node.exe\" (\r\n  SET \"_prog=%dp0%\\node.exe\"\r\n) ELSE (\r\n  SET \"_prog=node\"\r\n  SET PATHEXT=%PATHEXT:;.JS;=;%\r\n)\r\n\r\nendLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & \"%_prog%\"  \"%dp0%\\node_modules\\@anthropic-ai\\claude-code\\cli.js\" %*\r\n";
+
+    #[test]
+    fn parses_modern_cmd_shim_to_script_path() {
+        let args = parse_cmd_shim_invocation(MODERN_SHIM, "C:\\Users\\me\\AppData\\Roaming\\npm\\")
+            .expect("modern shim parses");
+        assert_eq!(
+            args,
+            vec!["C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js"]
+        );
+    }
+
+    #[test]
+    fn parses_legacy_cmd_shim_and_keeps_node_flags() {
+        let legacy = "@IF EXIST \"%~dp0\\node.exe\" (\n  \"%~dp0\\node.exe\" --no-warnings \"%~dp0\\node_modules\\codex\\bin\\codex.js\" %*\n) ELSE (\n  node --no-warnings \"%~dp0\\node_modules\\codex\\bin\\codex.js\" %*\n)\n";
+        let args = parse_cmd_shim_invocation(legacy, "D:\\npm").expect("legacy shim parses");
+        assert_eq!(
+            args,
+            vec!["--no-warnings", "D:\\npm\\node_modules\\codex\\bin\\codex.js"]
+        );
+    }
+
+    #[test]
+    fn rejects_files_that_are_not_cmd_shims() {
+        // No `%*` forwarder at all.
+        assert!(parse_cmd_shim_invocation("@echo off\r\necho hi\r\n", "C:\\x").is_none());
+        // Forwarder present but no node program token.
+        assert!(parse_cmd_shim_invocation("python \"%~dp0\\tool.py\" %*", "C:\\x").is_none());
+        // Unexpanded batch variable left in an argument → fall back to the shim.
+        assert!(
+            parse_cmd_shim_invocation("node \"%SOMEWHERE%\\cli.js\" %*", "C:\\x").is_none()
+        );
+        // Only flags, no script.
+        assert!(parse_cmd_shim_invocation("node --version %*", "C:\\x").is_none());
     }
 
     #[test]

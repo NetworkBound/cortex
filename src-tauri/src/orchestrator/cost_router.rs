@@ -418,7 +418,7 @@ pub struct OutcomeRouting {
 
 /// `~/.cortex/outcome-routing.json`.
 pub fn outcome_routing_path() -> Option<std::path::PathBuf> {
-    dirs::home_dir().map(|h| h.join(".cortex").join("outcome-routing.json"))
+    crate::paths::home_dir().map(|h| h.join(".cortex").join("outcome-routing.json"))
 }
 
 /// Parse the toggle file body. Malformed JSON resolves to DEFAULT-OFF —
@@ -573,7 +573,7 @@ struct SessionBudgetFile {
 }
 
 fn session_budgets_dir() -> Option<std::path::PathBuf> {
-    dirs::home_dir().map(|h| h.join(".cortex").join("session-budgets"))
+    crate::paths::home_dir().map(|h| h.join(".cortex").join("session-budgets"))
 }
 
 /// Session ids look like `session-<uuid>`; reject path separators/`..` (same
@@ -1155,19 +1155,16 @@ mod tests {
 
     #[test]
     fn session_budget_cap_round_trips_through_the_real_file() {
-        // Uses the real `~/.cortex/session-budgets/` dir (same idiom as
-        // `outcome_routing_enabled`'s tests would, had it needed round-trip
-        // coverage) — a throwaway, clearly-scoped session id keeps this from
-        // colliding with anything a real session would use.
-        let id = "session-cost-router-budget-roundtrip-test";
-        assert_eq!(session_budget_cap(id), None, "no cap set yet");
-        write_session_budget_cap(id, Some(2.50)).expect("valid cap persists");
-        assert_eq!(session_budget_cap(id), Some(2.50));
-        write_session_budget_cap(id, None).expect("clearing the cap persists");
-        assert_eq!(session_budget_cap(id), None);
-        // Clean up so repeated test runs don't leave stray files behind.
-        if let Some(path) = session_budget_path(id) {
-            let _ = std::fs::remove_file(path);
-        }
+        // Redirected to a temp home (`paths::home_dir` honors CORTEX_TEST_HOME
+        // under cfg(test)) so the test never touches the developer's real
+        // `~/.cortex/session-budgets/`.
+        crate::paths::test_home::with_temp_home(|_| {
+            let id = "session-cost-router-budget-roundtrip-test";
+            assert_eq!(session_budget_cap(id), None, "no cap set yet");
+            write_session_budget_cap(id, Some(2.50)).expect("valid cap persists");
+            assert_eq!(session_budget_cap(id), Some(2.50));
+            write_session_budget_cap(id, None).expect("clearing the cap persists");
+            assert_eq!(session_budget_cap(id), None);
+        });
     }
 }

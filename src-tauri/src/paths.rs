@@ -17,6 +17,43 @@ pub fn home_dir() -> Option<PathBuf> {
     dirs::home_dir()
 }
 
+/// Strip the Windows "verbatim" prefix `std::fs::canonicalize` produces
+/// (`\\?\C:\x` → `C:\x`, `\\?\UNC\srv\share` → `\\srv\share`). Everything
+/// else — including every non-Windows path — is returned unchanged.
+///
+/// Verbatim paths are correct for the Win32 API but wrong almost everywhere a
+/// path is persisted or shown: they don't compare equal to the plain spelling
+/// the user (or `dirs`) hands us, and several tools (older git, node scripts,
+/// `cmd.exe`) choke on them. Use this on anything that came out of
+/// `canonicalize()` before storing or displaying it.
+pub fn strip_verbatim_prefix(p: PathBuf) -> PathBuf {
+    let s = match p.to_str() {
+        Some(s) => s,
+        None => return p,
+    };
+    if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{rest}"));
+    }
+    if let Some(rest) = s.strip_prefix(r"\\?\") {
+        // Only drive-letter forms are safe to unwrap; other `\\?\` shapes
+        // (device paths, `\\?\Volume{…}`) stay as-is.
+        let b = rest.as_bytes();
+        if b.len() >= 2 && b[0].is_ascii_alphabetic() && b[1] == b':' {
+            return PathBuf::from(rest);
+        }
+    }
+    p
+}
+
+/// `canonicalize()` that never returns a verbatim (`\\?\`) path and degrades
+/// to the input when the path can't be canonicalized (missing, permission).
+pub fn canonicalize_lossy(p: &std::path::Path) -> PathBuf {
+    match p.canonicalize() {
+        Ok(c) => strip_verbatim_prefix(c),
+        Err(_) => p.to_path_buf(),
+    }
+}
+
 #[cfg(test)]
 pub mod test_home {
     use std::path::Path;
@@ -46,5 +83,44 @@ pub mod test_home {
         if let Err(p) = result {
             std::panic::resume_unwind(p);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strips_drive_letter_verbatim_prefix() {
+        assert_eq!(
+            strip_verbatim_prefix(PathBuf::from(r"\\?\C:\Users\me\proj")),
+            PathBuf::from(r"C:\Users\me\proj")
+        );
+    }
+
+    #[test]
+    fn rewrites_verbatim_unc_to_plain_unc() {
+        assert_eq!(
+            strip_verbatim_prefix(PathBuf::from(r"\\?\UNC\server\share\dir")),
+            PathBuf::from(r"\\server\share\dir")
+        );
+    }
+
+    #[test]
+    fn leaves_other_paths_alone() {
+        for p in [r"C:\plain\path", "/home/user/proj", r"\\server\share", r"\\?\Volume{abc}\x", "relative/dir"] {
+            assert_eq!(strip_verbatim_prefix(PathBuf::from(p)), PathBuf::from(p), "{p}");
+        }
+    }
+
+    #[test]
+    fn canonicalize_lossy_falls_back_to_input_for_missing_paths() {
+        let missing = std::path::Path::new("definitely/not/a/real/dir/xyzzy-42");
+        assert_eq!(canonicalize_lossy(missing), missing.to_path_buf());
+        // A real dir canonicalizes to an absolute, non-verbatim path.
+        let tmp = tempfile::tempdir().unwrap();
+        let c = canonicalize_lossy(tmp.path());
+        assert!(c.is_absolute());
+        assert!(!c.to_string_lossy().starts_with(r"\\?\"));
     }
 }

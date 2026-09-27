@@ -634,7 +634,9 @@ async fn verify_worktree(worktree_path: &Path) -> String {
     let path = worktree_path.to_path_buf();
     let cmd_label = format!("{program} {}", args.join(" ")).trim().to_string();
     let join = tokio::task::spawn_blocking(move || {
-        crate::sys::no_window(&program)
+        // `resolve_program`: on Windows `npm`/`pnpm` are `.cmd` shims that
+        // CreateProcess won't find by bare name (no PATHEXT lookup).
+        crate::sys::no_window(crate::sys::resolve_program(&program))
             .args(&args)
             .current_dir(&path)
             .output()

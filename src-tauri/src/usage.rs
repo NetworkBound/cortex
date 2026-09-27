@@ -214,19 +214,27 @@ fn read_claude_limit() -> Option<ClaudeLimit> {
 /// SSH to the configured hypervisor and read the Cortex Gateway's auth.json
 /// to surface its credential_pool view: per-provider status, last error,
 /// request count. The SSH target comes from `CORTEX_USAGE_SSH_HOST` /
-/// `~/.cortex/infra.json` (`usage_ssh_host`); the caller's SSH key must
-/// already be trusted on that host.
+/// `~/.cortex/infra.json` (`usage_ssh_host`) and the gateway's Proxmox
+/// container id from `CORTEX_USAGE_GATEWAY_CT` / `usage_gateway_ct`; the
+/// caller's SSH key must already be trusted on that host.
 pub fn fetch_upstream_pool_sync() -> anyhow::Result<Vec<UpstreamProviderStatus>> {
-    fetch_upstream_pool_with_host(crate::infra_config::usage_ssh_host())
+    fetch_upstream_pool_with_host(
+        crate::infra_config::usage_ssh_host(),
+        crate::infra_config::usage_gateway_ct(),
+    )
 }
 
-/// Host-gated worker behind [`fetch_upstream_pool_sync`]. `None` means the
-/// feature is unconfigured: return an empty pool WITHOUT spawning ssh — no
-/// LAN dialing, no error, no log spam. The UI renders "no upstream data".
+/// Host-gated worker behind [`fetch_upstream_pool_sync`]. `None` for either
+/// the host or the CT id means the feature is unconfigured: return an empty
+/// pool WITHOUT spawning ssh — no LAN dialing, no error, no log spam. The UI
+/// renders "no upstream data". (The CT id used to be a literal
+/// `<gateway-ct>` placeholder left behind when homelab ids were scrubbed
+/// from the source, which the remote shell parsed as a redirect and failed.)
 fn fetch_upstream_pool_with_host(
     host: Option<String>,
+    gateway_ct: Option<String>,
 ) -> anyhow::Result<Vec<UpstreamProviderStatus>> {
-    let Some(host) = host else {
+    let (Some(host), Some(ct)) = (host, gateway_ct) else {
         return Ok(Vec::new());
     };
     let output = crate::sys::no_window("ssh")
@@ -237,7 +245,9 @@ fn fetch_upstream_pool_with_host(
         .arg("-o")
         .arg("StrictHostKeyChecking=accept-new")
         .arg(host)
-        .arg("pct exec <gateway-ct> -- cat /home/gateway/.cortex-gateway/auth.json")
+        .arg(format!(
+            "pct exec {ct} -- cat /home/gateway/.cortex-gateway/auth.json"
+        ))
         .output()?;
     if !output.status.success() {
         anyhow::bail!("ssh failed: {}", String::from_utf8_lossy(&output.stderr));
@@ -313,7 +323,10 @@ mod tests {
     #[test]
     fn unconfigured_ssh_host_is_a_quiet_no_op() {
         // No host → empty pool, Ok, and crucially no ssh process spawned.
-        let out = fetch_upstream_pool_with_host(None).expect("must not error");
+        let out = fetch_upstream_pool_with_host(None, Some("154".into())).expect("must not error");
+        assert!(out.is_empty());
+        // A host without the gateway CT id is equally unconfigured.
+        let out = fetch_upstream_pool_with_host(Some("root@hv".into()), None).expect("must not error");
         assert!(out.is_empty());
     }
 

@@ -13,7 +13,7 @@
 //! upstream (WSL IP changed mid-session). No admin, no external deps.
 
 use std::io::copy;
-use std::net::{Ipv4Addr, TcpListener, TcpStream};
+use std::net::{Ipv4Addr, Shutdown, TcpListener, TcpStream};
 use std::thread;
 use std::time::Duration;
 
@@ -94,11 +94,17 @@ pub fn run(listen: &str) {
                 (Ok(a), Ok(b)) => (a, b),
                 _ => return,
             };
+            // Half-close the peer's write side when one direction hits EOF:
+            // without the `shutdown(Write)` the other `copy` never sees EOF
+            // (the upstream keeps its socket open, waiting for more from us),
+            // so every finished connection leaked two blocked threads.
             let t = thread::spawn(move || {
                 let _ = copy(&mut cr, &mut sw);
+                let _ = sw.shutdown(Shutdown::Write);
             });
             let (mut sr, mut cw) = (server, client);
             let _ = copy(&mut sr, &mut cw);
+            let _ = cw.shutdown(Shutdown::Write);
             let _ = t.join();
         });
     }

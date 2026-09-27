@@ -267,7 +267,10 @@ impl AppState {
             .ok_or_else(|| anyhow::anyhow!("no home dir"))?
             .join(".cortex");
         std::fs::create_dir_all(&cfg_dir)?;
-        let canonical = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+        // `canonicalize_lossy` also strips the `\\?\` verbatim prefix Windows'
+        // canonicalize adds — persisting that spelling made the saved root
+        // never compare equal to the trust list / project scanner's spelling.
+        let canonical = crate::paths::canonicalize_lossy(root);
         let json = serde_json::json!({ "root": canonical.to_string_lossy() });
         std::fs::write(cfg_dir.join("last-project.json"), serde_json::to_vec_pretty(&json)?)?;
         Ok(())
