@@ -2,12 +2,22 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "claude/**"]
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  lint-and-test:
-    runs-on: ubuntu-latest
+  test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
 
@@ -27,6 +37,7 @@ jobs:
           workspaces: src-tauri
 
       - name: Install Linux deps
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libssl-dev \
@@ -40,8 +51,14 @@ jobs:
       - name: TS typecheck
         run: pnpm typecheck
 
+      - name: ESLint
+        run: pnpm lint
+
+      - name: Frontend build
+        run: pnpm build
+
       - name: Rust build check
-        run: cargo check --manifest-path src-tauri/Cargo.toml
+        run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets
 
       - name: Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
@@ -52,5 +69,5 @@ jobs:
         continue-on-error: true
 
       - name: Rust clippy (advisory)
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets
         continue-on-error: true

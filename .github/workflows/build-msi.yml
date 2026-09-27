@@ -7,7 +7,7 @@ name: Build Windows MSI (manual)
 on:
   workflow_dispatch:
   push:
-    branches: [master]
+    branches: [main]
     paths:
       - '.github/workflows/build-msi.yml'
       - 'src-tauri/**'
