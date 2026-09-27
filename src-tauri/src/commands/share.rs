@@ -132,8 +132,10 @@ fn validate_target(target: &Path, active_project_root: Option<&str>) -> Result<(
     // symlink-free location is consistent with an allowed root.
     let mut existing = target;
     let resolved = loop {
+        // Windows canonicalize yields `\\?\C:\...`, whose prefix component
+        // never equals the plain `C:` of a lexical root; strip it on both sides.
         match existing.canonicalize() {
-            Ok(p) => break p,
+            Ok(p) => break crate::paths::strip_verbatim_prefix(p),
             Err(_) => match existing.parent() {
                 Some(parent) => existing = parent,
                 // Nothing along the path exists; the lexical check above is the
@@ -150,6 +152,7 @@ fn validate_target(target: &Path, active_project_root: Option<&str>) -> Result<(
     // canonicalised too so the comparison is symlink-free on both sides.
     let canonical_ok = allowed.iter().any(|root| match root.canonicalize() {
         Ok(canon_root) => {
+            let canon_root = crate::paths::strip_verbatim_prefix(canon_root);
             path_starts_with(&resolved, &canon_root) || path_starts_with(&canon_root, &resolved)
         }
         // The root itself doesn't fully exist yet, so it can't have been the
