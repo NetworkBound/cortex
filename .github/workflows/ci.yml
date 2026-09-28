@@ -68,6 +68,14 @@ jobs:
       - name: Format check (prettier + rustfmt)
         run: pnpm format:check
 
+      - name: Show formatting diff
+        if: failure()
+        shell: bash
+        run: |
+          pnpm exec prettier --write "src/**/*.{ts,tsx,css}" "mobile/src/**/*.{ts,tsx,css}" > /dev/null
+          cargo fmt --manifest-path src-tauri/Cargo.toml
+          git --no-pager diff | head -300
+
       - name: Frontend build
         run: pnpm build
 
