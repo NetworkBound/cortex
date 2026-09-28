@@ -61,7 +61,9 @@ pub fn build_router(state: MobileState) -> Router {
     // missing dir — `ServeDir`/`ServeFile` resolve lazily per request).
     let dist = mobile_dist_dir();
     let index = dist.join("index.html");
-    let spa = ServeDir::new(&dist).not_found_service(ServeFile::new(index));
+    // `fallback` (not `not_found_service`) so the SPA shell is served with 200:
+    // a 404 status on deep links breaks service-worker caching and push links.
+    let spa = ServeDir::new(&dist).fallback(ServeFile::new(index));
 
     Router::new()
         .route("/api/health", get(handlers::health))

@@ -116,7 +116,7 @@ jobs:
             --dist mobile/dist --out "$E2E_OUT"
 
       - name: Launch the desktop app (Linux, under Xvfb)
-        if: runner.os == 'Linux'
+        if: (success() || failure()) && runner.os == 'Linux'
         env:
           # WebKitGTK on a GPU-less VM: force software paths so the web process
           # doesn't abort on EGL/DMABuf init (the exact black-screen failure the
@@ -138,7 +138,7 @@ jobs:
               --timeout 180 --settle 25 --out "$E2E_OUT"
 
       - name: Launch the desktop app (Windows, WebView2)
-        if: runner.os == 'Windows'
+        if: (success() || failure()) && runner.os == 'Windows'
         shell: bash
         run: |
           VERSION=$(jq -r .version src-tauri/tauri.conf.json)
