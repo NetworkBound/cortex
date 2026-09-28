@@ -66,10 +66,6 @@ export async function listTools(): Promise<ToolDef[]> {
   return invoke<ToolDef[]>("list_tools");
 }
 
-export async function getTool(name: string): Promise<ToolDef> {
-  return invoke<ToolDef>("get_tool", { name });
-}
-
 export async function saveTool(tool: ToolDef): Promise<ToolDef> {
   return invoke<ToolDef>("save_tool", { tool });
 }

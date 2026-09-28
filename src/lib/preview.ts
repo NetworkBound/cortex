@@ -20,21 +20,6 @@ export async function listDevServers(): Promise<DetectedServer[]> {
 }
 
 /**
- * Start the background dev-server poll loop. Safe to call repeatedly —
- * any existing watcher is replaced. The watcher itself is also kicked off
- * automatically from the Tauri `setup` hook, so most callers won't need
- * this.
- */
-export async function startPreviewWatcher(): Promise<void> {
-  await invoke<void>("start_preview_watcher");
-}
-
-/** Stop the background poll loop. Resolves to `true` if one was running. */
-export async function stopPreviewWatcher(): Promise<boolean> {
-  return invoke<boolean>("stop_preview_watcher");
-}
-
-/**
  * Subscribe to `preview:servers` events. The payload is the full live list
  * of detected dev servers — replace any local state on each event.
  * Returns an unlisten function.

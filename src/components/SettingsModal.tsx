@@ -3,6 +3,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { humanizeError } from "@/lib/errors";
+import { timeAgo } from "@/lib/time";
 import {
   getGatewayConfig,
   getProviderConfig,
@@ -262,20 +263,9 @@ function ImportSettings() {
   );
 }
 
-// Format an epoch-millis timestamp as a short relative "x ago" string, or
-// "never" when absent. Keeps the History Sync rows compact.
+// Short relative "x ago" for the History Sync rows, or "never" when absent.
 function relTime(ms: number | null): string {
-  if (!ms) return "never";
-  const diff = Date.now() - ms;
-  if (diff < 0) return "just now";
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return "just now";
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
+  return timeAgo(ms, { empty: "never", coarse: true });
 }
 
 /**

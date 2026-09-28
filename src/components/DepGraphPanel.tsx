@@ -22,6 +22,7 @@ import {
 } from "@/lib/dep-graph";
 import { useCortexStore } from "@/state/store";
 import { openInEditor } from "@/lib/editor";
+import { join } from "@/lib/path";
 
 // Simulation tunables — gentle physics so the layout looks readable on
 // the first render rather than a tangled hairball. Lifted from
@@ -435,6 +436,5 @@ function openOnDisk(root: string | undefined, relId: string): void {
   if (!root) return;
   // The editor accepts an absolute path or a project-rooted relative
   // one; we hand it the absolute form so it doesn't have to guess.
-  const sep = /[\\/]$/.test(root) ? "" : "/";
-  openInEditor(`${root}${sep}${relId}`);
+  openInEditor(join(root, relId));
 }

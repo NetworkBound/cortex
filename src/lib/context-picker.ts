@@ -6,6 +6,7 @@
 // already filtered to confidence >= 0.5 by the Rust side.
 
 import { invoke } from "@tauri-apps/api/core";
+import { basename } from "@/lib/path";
 
 /** Mirrors `ContextSuggestion` in `src-tauri/src/commands/context_picker.rs`. */
 export interface ContextSuggestion {
@@ -73,6 +74,6 @@ export function suggestionLabel(s: ContextSuggestion): string {
   if (s.kind === "diff") return "@diff";
   if (s.kind === "problems") return "@problems";
   const v = s.value;
-  const trimmed = v.split(/[\\/]/).pop() || v;
+  const trimmed = basename(v);
   return `@${s.kind}:${trimmed}`;
 }

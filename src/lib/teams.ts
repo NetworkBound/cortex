@@ -11,14 +11,6 @@ import { invoke } from "@tauri-apps/api/core";
 
 export type WorkerStatus = "idle" | "working" | "blocked" | "done" | "error";
 
-export const WORKER_STATUSES: WorkerStatus[] = [
-  "idle",
-  "working",
-  "blocked",
-  "done",
-  "error",
-];
-
 /** Team-level run lifecycle (see `Team.run_status`). */
 export type TeamRunStatus = "planning" | "running" | "done" | "error";
 
@@ -139,24 +131,6 @@ export async function createTeam(
     managerRole,
     workerRoles,
     budgetUsd,
-  });
-}
-
-/**
- * Mutate one worker. `status` must be a `WorkerStatus`. `currentTask = null`
- * leaves the existing task untouched; pass a string (including `""`) to set.
- */
-export async function updateTeamWorker(
-  teamId: string,
-  workerId: string,
-  status: WorkerStatus,
-  currentTask: string | null = null,
-): Promise<Team> {
-  return invoke<Team>("update_team_worker", {
-    teamId,
-    workerId,
-    status,
-    currentTask,
   });
 }
 

@@ -7,6 +7,7 @@ import {
   type TestGenResult,
 } from "@/lib/test-gen";
 import { saveFileText } from "@/lib/editor-save";
+import { dirname } from "@/lib/path";
 import { runTests } from "@/lib/test-runner";
 import { pushToast } from "@/lib/toast";
 import { promptDialog } from "@/lib/dialogs";
@@ -138,16 +139,8 @@ export function TestGenModal({
     // Derive a plausible project root: the directory containing the suggested
     // test path is usually the crate/project root for cargo/pytest, and the
     // parent of `__tests__/` for vitest/jest. The backend re-detects anyway.
-    const sep = Math.max(
-      result.suggested_test_path.lastIndexOf("/"),
-      result.suggested_test_path.lastIndexOf("\\"),
-    );
-    const projectRoot =
-      sep > 0
-        ? result.suggested_test_path.slice(0, sep)
-        : sep === 0
-          ? result.suggested_test_path.slice(0, 1) // separator at root, e.g. "/foo" -> "/"
-          : "."; // no separator: bare filename, fall back to current directory
+    // Bare filename (no separator): fall back to the current directory.
+    const projectRoot = dirname(result.suggested_test_path) || ".";
     setRunning(true);
     try {
       const report = await runTests(projectRoot, result.framework);

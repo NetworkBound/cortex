@@ -75,10 +75,7 @@ export function timeAgo(unixMs: number): string {
   return relativeTime(unixMs, { absoluteAfterDays: 30 });
 }
 
-/** Truncate to N chars with an ellipsis. */
-export function truncate(s: string, max = 120): string {
-  return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
-}
+export { truncate } from "@/lib/format";
 
 /** Severity bucket from the crash kind. Drives the badge colour. */
 export type Severity = "fatal" | "error" | "warning";

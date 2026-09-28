@@ -27,24 +27,3 @@ export async function agentsMdStack(
     cwd: cwd ?? null,
   });
 }
-
-/**
- * Returns the merged-with-scope-headers text Cortex injects into the
- * system prompt at session bootstrap. Empty string when no AGENTS.md
- * files exist anywhere — callers should fall back to their own context.
- */
-export async function agentsMdMerged(
-  projectRoot: string,
-  cwd?: string,
-): Promise<string> {
-  return invoke<string>("agents_md_merged", { projectRoot, cwd: cwd ?? null });
-}
-
-/** Human-readable label for a scope. Order matches precedence. */
-export const SCOPE_LABEL: Record<AgentsDocSegment["scope"], string> = {
-  global: "~/.cortex/AGENTS.md",
-  codex: "~/.codex/AGENTS.md",
-  project: "project AGENTS.md",
-  cortex: ".cortex/AGENTS.md",
-  cwd: "cwd AGENTS.md",
-};

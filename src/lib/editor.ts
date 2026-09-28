@@ -48,8 +48,3 @@ export function openInEditor(path: string): void {
     /* not in a browser-like env — ignore */
   }
 }
-
-/** Close the editor pane (clears the path, leaves the tab as-is). */
-export function closeEditor(): void {
-  useCortexStore.getState().openEditorPath(null);
-}

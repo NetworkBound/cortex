@@ -45,6 +45,70 @@ export interface EvalProgress {
   model?: string;
 }
 
+// ── Retrieval-quality eval (same Rust module) ───────────────────────────────
+
+/** One fixture query: which sources should appear among the top-k citations. */
+export interface RetrievalEvalTask {
+  id: string;
+  query: string;
+  expect_sources: string[];
+}
+
+export interface RetrievalEvalResult {
+  id: string;
+  query: string;
+  passed: boolean;
+  /** Fraction of `expect_sources` found among the retrieved references. */
+  score: number;
+  matched: string[];
+  missed: string[];
+  /** Display references of the retrieved top-k. */
+  retrieved: string[];
+  /** How many retrieved chunks were stale (source changed since indexing). */
+  stale_retrieved: number;
+  latency_ms: number;
+}
+
+export interface RetrievalEvalReport {
+  run_id: string;
+  /** Embedding model the index + queries used (retrieval has no chat model). */
+  embed_model: string;
+  started_unix_ms: number;
+  finished_unix_ms: number;
+  total: number;
+  passed: number;
+  score_avg: number;
+  /** Top-k depth each query was scored at. */
+  k: number;
+  results: RetrievalEvalResult[];
+}
+
+/** The user's `~/.cortex/retrieval-eval-tasks.json` fixture; `[]` when absent. */
+export async function listRetrievalEvalTasks(): Promise<RetrievalEvalTask[]> {
+  return invoke<RetrievalEvalTask[]>("list_retrieval_eval_tasks");
+}
+
+export async function listRetrievalEvalReports(): Promise<
+  RetrievalEvalReport[]
+> {
+  return invoke<RetrievalEvalReport[]>("list_retrieval_eval_reports");
+}
+
+/**
+ * Score the retrieval baseline against the fixture (embeds each query with
+ * the local Ollama embedder). `k` is clamped to 1–12 by the backend (default
+ * 8). Rejects when there is no fixture file.
+ */
+export async function runRetrievalEval(
+  k?: number,
+): Promise<RetrievalEvalReport> {
+  return invoke<RetrievalEvalReport>("run_retrieval_eval", {
+    tasks: null,
+    k: k ?? null,
+    persist: null,
+  });
+}
+
 export async function listEvalTasks(): Promise<EvalTask[]> {
   return invoke<EvalTask[]>("list_eval_tasks");
 }

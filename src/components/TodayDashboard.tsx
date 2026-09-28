@@ -19,6 +19,7 @@ import {
 
 import { useCortexStore, type FocusChainTask } from "@/state/store";
 import { humanizeError } from "@/lib/errors";
+import { truncate } from "@/lib/format";
 import { pushToast } from "@/lib/toast";
 import {
   brainSnapshot,
@@ -387,8 +388,4 @@ function greeting(): string {
   if (h < 12) return "Good morning";
   if (h < 18) return "Good afternoon";
   return "Good evening";
-}
-
-function truncate(s: string, max = 80): string {
-  return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
 }

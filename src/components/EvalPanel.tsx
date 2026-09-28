@@ -15,13 +15,21 @@
  * Bindings live in `src/lib/eval.ts`.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Gauge, Check, X } from "lucide-react";
 import { humanizeError } from "@/lib/errors";
 import { pushToast } from "@/lib/toast";
 import { useJobs, startEvalRun } from "@/state/jobs";
 import { PanelLoading } from "./Skeleton";
-import { listEvalTasks, listEvalReports, type EvalReport } from "@/lib/eval";
+import {
+  listEvalTasks,
+  listEvalReports,
+  listRetrievalEvalReports,
+  listRetrievalEvalTasks,
+  runRetrievalEval,
+  type EvalReport,
+  type RetrievalEvalReport,
+} from "@/lib/eval";
 import {
   listModels,
   onModelsChanged,
@@ -49,6 +57,20 @@ export function EvalPanel() {
   // down backend reads as "0 benchmark tasks, no history" (a fresh install).
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  // Retrieval-quality baseline (fixture-driven, embeds via local Ollama). The
+  // run is short and panel-local, so it doesn't go through the job store.
+  const [retTaskCount, setRetTaskCount] = useState(0);
+  const [retHistory, setRetHistory] = useState<RetrievalEvalReport[]>([]);
+  const [retViewed, setRetViewed] = useState<RetrievalEvalReport | null>(null);
+  const [retRunning, setRetRunning] = useState(false);
+  const [retError, setRetError] = useState<string | null>(null);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const evalRun = useJobs((s) => s.evalRun);
 
   const running = evalRun.progress !== null;
@@ -61,12 +83,16 @@ export function EvalPanel() {
   // that finished while another tab was open appended to history.
   const reload = useCallback(async () => {
     try {
-      const [tasks, reports] = await Promise.all([
+      const [tasks, reports, retTasks, retReports] = await Promise.all([
         listEvalTasks(),
         listEvalReports(),
+        listRetrievalEvalTasks(),
+        listRetrievalEvalReports(),
       ]);
       setTaskCount(tasks.length);
       setHistory(reports);
+      setRetTaskCount(retTasks.length);
+      setRetHistory(retReports);
       setLoadError(null);
     } catch (e) {
       const msg = humanizeError(e);
@@ -125,6 +151,23 @@ export function EvalPanel() {
     setViewedPast(null); // show the new run, not a pinned past one
     void startEvalRun(model ? { model } : undefined);
   }, [running, model]);
+
+  const runRetrieval = useCallback(async () => {
+    if (retRunning) return;
+    setRetRunning(true);
+    setRetError(null);
+    setRetViewed(null);
+    try {
+      const report = await runRetrievalEval();
+      if (!mounted.current) return;
+      setRetHistory((h) => [report, ...h]);
+    } catch (e) {
+      if (mounted.current) setRetError(humanizeError(e));
+    } finally {
+      if (mounted.current) setRetRunning(false);
+    }
+  }, [retRunning]);
+  const retReport = retViewed ?? (retHistory.length ? retHistory[0] : null);
 
   return (
     <div className="eval-panel">
@@ -240,6 +283,111 @@ export function EvalPanel() {
           </ul>
         </div>
       )}
+
+      <div className="eval-history">
+        <div className="eval-head">
+          <h3 className="eval-history-title">Retrieval quality</h3>
+          <div className="eval-head-actions">
+            <span className="eval-tasks-count">
+              {retTaskCount} retrieval tasks
+            </span>
+            <button
+              className="eval-run-btn"
+              disabled={retRunning || retTaskCount === 0}
+              title={
+                retTaskCount === 0
+                  ? "Create ~/.cortex/retrieval-eval-tasks.json (see fixtures/retrieval-eval-tasks.example.json)"
+                  : "Embed each fixture query and check the expected sources rank in the top-k"
+              }
+              onClick={() => void runRetrieval()}
+            >
+              <Gauge size={14} strokeWidth={1.9} aria-hidden="true" />
+              {retRunning ? "Running…" : "Run retrieval eval"}
+            </button>
+          </div>
+        </div>
+        {retError && <div className="eval-error">{retError}</div>}
+        {retReport && (
+          <div className="eval-report">
+            <div className="eval-summary">
+              <div className="eval-stat">
+                <span className="eval-stat-val">
+                  {retReport.passed}/{retReport.total}
+                </span>
+                <span className="eval-stat-label">passed</span>
+              </div>
+              <div className="eval-stat">
+                <span className="eval-stat-val">
+                  {Math.round(retReport.score_avg * 100)}%
+                </span>
+                <span className="eval-stat-label">
+                  avg score @{retReport.k}
+                </span>
+              </div>
+              <div className="eval-stat">
+                <span className="eval-stat-val eval-model">
+                  {retReport.embed_model}
+                </span>
+                <span className="eval-stat-label">embedder</span>
+              </div>
+            </div>
+            <ul className="eval-results">
+              {retReport.results.map((r) => (
+                <li key={r.id} className="eval-result">
+                  <span className={`eval-verdict ${r.passed ? "ok" : "fail"}`}>
+                    {r.passed ? (
+                      <Check size={13} strokeWidth={2.25} />
+                    ) : (
+                      <X size={13} strokeWidth={2.25} />
+                    )}
+                  </span>
+                  <div className="eval-result-body">
+                    <div className="eval-result-head">
+                      <span className="eval-result-id">{r.id}</span>
+                      <span className="eval-result-meta">
+                        {Math.round(r.score * 100)}% · {r.latency_ms} ms
+                        {r.stale_retrieved > 0
+                          ? ` · ${r.stale_retrieved} stale`
+                          : ""}
+                      </span>
+                    </div>
+                    <details className="eval-result-detail">
+                      <summary>{r.query}</summary>
+                      <pre>
+                        {r.retrieved.join("\n") || "(nothing retrieved)"}
+                      </pre>
+                      {r.missed.length > 0 && (
+                        <p className="eval-missed">
+                          missed: {r.missed.join(", ")}
+                        </p>
+                      )}
+                    </details>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {retHistory.length > 1 && (
+          <ul className="eval-history-list">
+            {retHistory.map((h) => (
+              <li key={h.run_id}>
+                <button
+                  className="eval-history-row"
+                  onClick={() => setRetViewed(h)}
+                >
+                  <span className="eval-history-score">
+                    {Math.round(h.score_avg * 100)}%
+                  </span>
+                  <span className="eval-history-meta">
+                    {h.passed}/{h.total} · k={h.k} · {h.embed_model}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {history.length > 1 && (
         <div className="eval-history">

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SkeletonText } from "./Skeleton";
 import { humanizeError } from "@/lib/errors";
+import { truncate } from "@/lib/format";
 import { createRoot, type Root } from "react-dom/client";
 import { recentAudit, type AuditRow } from "@/lib/observability";
 import { timeAgo } from "@/lib/time";
@@ -40,11 +41,6 @@ function badgeKind(
     return "approve";
   if (a.includes("agent") || a.includes("spawn")) return "agent";
   return "default";
-}
-
-function truncate(s: string | null, max = 120): string {
-  if (!s) return "";
-  return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
 }
 
 /** RFC 4180-ish: wrap in quotes, double internal quotes. */
@@ -266,7 +262,7 @@ export function AuditLogPanel({ onClose }: AuditLogPanelProps) {
                     </span>
                   </td>
                   <td className="audit-detail" title={r.detail ?? ""}>
-                    {truncate(r.detail)}
+                    {truncate(r.detail ?? "")}
                   </td>
                 </tr>
               ))}

@@ -14,6 +14,7 @@ import {
 } from "@/lib/spaces";
 import { confirmDialog } from "@/lib/dialogs";
 import { openInEditor } from "@/lib/editor";
+import { join } from "@/lib/path";
 import { pushToast } from "@/lib/toast";
 import { useCortexStore } from "@/state/store";
 
@@ -259,7 +260,7 @@ export function SpacesPanel({ initialBrowse, onClose }: SpacesPanelProps) {
             onOpen={(path) => {
               // Resolve relative -> absolute against the active project root
               // so EditorPane can `fs::read_to_string` it directly.
-              const abs = `${activeProject.root.replace(/[\\/]+$/, "")}/${path}`;
+              const abs = join(activeProject.root, path);
               openInEditor(abs);
             }}
             onBack={() => setMode({ kind: "list" })}

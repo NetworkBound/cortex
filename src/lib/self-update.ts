@@ -26,8 +26,3 @@ export async function applyReleaseUpdate(
 ): Promise<string> {
   return invoke<string>("apply_release_update", { downloadUrl, assetKey });
 }
-
-/** Restart the app so a freshly-swapped AppImage takes effect. */
-export async function relaunchApp(): Promise<void> {
-  await invoke("relaunch_app");
-}

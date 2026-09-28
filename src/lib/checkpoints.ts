@@ -32,23 +32,6 @@ export async function restoreCheckpoint(
   return invoke("restore_checkpoint", { projectRoot, id, force });
 }
 
-/**
- * Restore the most-recent checkpoint — the quick "undo" path (aider's `/undo`),
- * complementing the snapshot auto-taken before `/apply`. Returns the restored
- * checkpoint's metadata, or `null` when the project has no checkpoints to undo.
- * Defaults to `force` because undo's purpose is to roll the working tree back to
- * the snapshot even when it has uncommitted changes.
- */
-export async function restoreLastCheckpoint(
-  projectRoot: string,
-  force = true,
-): Promise<CheckpointInfo | null> {
-  return invoke<CheckpointInfo | null>("restore_last_checkpoint", {
-    projectRoot,
-    force,
-  });
-}
-
 /** What restoring this checkpoint would do to a single file. */
 export type CheckpointDiffStatus = "added" | "modified" | "removed";
 
@@ -95,10 +78,6 @@ export async function pruneCheckpoints(projectRoot: string): Promise<number> {
   return invoke<number>("prune_checkpoints", { projectRoot });
 }
 
-export function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / 1024 / 1024).toFixed(2)} MB`;
-}
+export { formatBytes } from "@/lib/format";
 
 export { timeAgo } from "@/lib/time";

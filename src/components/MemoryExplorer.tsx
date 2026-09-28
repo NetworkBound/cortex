@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { humanizeError } from "@/lib/errors";
+import { basename } from "@/lib/path";
 import { timeAgo } from "@/lib/time";
 import {
   Camera,
@@ -67,11 +68,6 @@ const SOURCE_TABS: { key: SourceFilter; label: string; hint: string }[] = [
   { key: "project", label: "Project", hint: "CLAUDE.md, AGENTS.md" },
   { key: "global", label: "Global", hint: "~/CLAUDE.md, ~/.codex/AGENTS.md" },
 ];
-
-function basename(p: string): string {
-  const m = p.match(/([^/\\]+)$/);
-  return m ? m[1] : p;
-}
 
 function sourceMatchesFilter(row: UnifiedRow, filter: SourceFilter): boolean {
   if (filter === "all") return true;

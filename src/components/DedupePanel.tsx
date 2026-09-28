@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { humanizeError } from "@/lib/errors";
+import { basename } from "@/lib/path";
 import { createRoot, type Root } from "react-dom/client";
 import { EDITOR_OPEN_EVENT } from "@/lib/editor";
 import { findDuplicateMemory, type DuplicatePair } from "@/lib/memory-dedupe";
@@ -20,11 +21,6 @@ interface DedupePanelProps {
 const MIN_THRESHOLD = 0.3;
 const MAX_THRESHOLD = 0.9;
 const DEFAULT_THRESHOLD = 0.4;
-
-function basename(p: string): string {
-  const parts = p.split(/[\\/]/);
-  return parts[parts.length - 1] || p;
-}
 
 function openInEditor(path: string): void {
   try {

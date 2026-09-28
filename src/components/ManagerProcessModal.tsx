@@ -170,21 +170,26 @@ export function ManagerProcessModal({
     if (!plan) return;
     setRunAllActive(true);
     setError(null);
-    for (let i = 0; i < plan.subtasks.length; i++) {
-      // Skip already-completed steps so re-runs only fill in the rest.
-      const current = plan.subtasks[i];
-      if (current.status === "done") continue;
-      const validation = await runStep(i);
-      if (!validation || !validation.ok) {
-        pushToast({
-          title: "Run all halted",
-          body: `Step ${i + 1} failed validation.`,
-          kind: "error",
-        });
-        break;
+    try {
+      for (let i = 0; i < plan.subtasks.length; i++) {
+        // Skip already-completed steps so re-runs only fill in the rest.
+        const current = plan.subtasks[i];
+        if (current.status === "done") continue;
+        const validation = await runStep(i);
+        if (!validation || !validation.ok) {
+          pushToast({
+            title: "Run all halted",
+            body: `Step ${i + 1} failed validation.`,
+            kind: "error",
+          });
+          break;
+        }
       }
+    } finally {
+      // `runStep` swallows its own errors, but never leave the "Run all"
+      // button stuck disabled if anything else throws mid-loop.
+      setRunAllActive(false);
     }
-    setRunAllActive(false);
   }, [plan, runStep]);
 
   const toggleOutput = useCallback((idx: number) => {

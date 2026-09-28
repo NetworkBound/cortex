@@ -56,13 +56,6 @@ export async function searchMemory(
   });
 }
 
-export async function writeMemoryEntry(
-  path: string,
-  content: string,
-): Promise<void> {
-  await invoke<void>("write_memory_entry", { path, content });
-}
-
 export async function createMemoryEntry(
   name: string,
   content: string,

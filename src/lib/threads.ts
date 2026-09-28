@@ -75,20 +75,6 @@ export async function deleteThread(
 }
 
 /**
- * Convenience: the Rust side has no dedicated `load_thread`; `list_threads`
- * returns all threads sorted most-recent first, so a single load is just a
- * `.find()` after a list. Exposed as its own function so the call sites read
- * intentionally and we can specialise the backend later without churn.
- */
-export async function loadThread(
-  projectRoot: string | null,
-  id: string,
-): Promise<Thread | null> {
-  const all = await listThreads(projectRoot);
-  return all.find((t) => t.id === id) ?? null;
-}
-
-/**
  * Derive a human-readable title: a user-set custom title (inline rename)
  * always wins; otherwise the first user message (max 60 chars), then the
  * auto label.

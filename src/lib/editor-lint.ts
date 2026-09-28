@@ -25,6 +25,7 @@ import { linter, type Diagnostic as CmDiagnostic } from "@codemirror/lint";
 import type { Extension } from "@codemirror/state";
 
 import { projectDiagnostics, type Diagnostic } from "@/lib/context";
+import { basename } from "@/lib/path";
 import { useCortexStore } from "@/state/store";
 
 /** Idle window before we hit the backend. Matches VS Code's default debounce. */
@@ -36,12 +37,6 @@ function mapSeverity(s: string): CmDiagnostic["severity"] {
   if (lower === "error") return "error";
   if (lower === "warning" || lower === "warn") return "warning";
   return "info";
-}
-
-/** Basename helper — handles both POSIX and Windows separators. */
-function basename(path: string): string {
-  const parts = path.split(/[/\\]/);
-  return parts[parts.length - 1] ?? path;
 }
 
 /**

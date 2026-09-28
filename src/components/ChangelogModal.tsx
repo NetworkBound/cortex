@@ -3,6 +3,7 @@ import { humanizeError } from "@/lib/errors";
 import { createRoot, type Root } from "react-dom/client";
 import { generateChangelog, type ChangelogResult } from "@/lib/changelog";
 import { saveFileText } from "@/lib/editor-save";
+import { join, toPosix } from "@/lib/path";
 import { pushToast } from "@/lib/toast";
 import { confirmDialog } from "@/lib/dialogs";
 import { MarkdownView } from "@/components/MarkdownView";
@@ -94,8 +95,7 @@ export function ChangelogModal({ initialSince, onClose }: ChangelogModalProps) {
     // Resolve `<projectRoot>/CHANGELOG.md` as a forward-slash path. The
     // backend tolerates either separator; we pick `/` to stay consistent
     // with the editor pane's saved paths.
-    const root = String(project.root).replace(/\\/g, "/").replace(/\/$/, "");
-    const target = `${root}/CHANGELOG.md`;
+    const target = join(toPosix(String(project.root)), "CHANGELOG.md");
     const ok = await confirmDialog({
       title: "Save changelog",
       message: `Write the changelog to ${target}?\n\nIf the file already exists it will be overwritten.`,

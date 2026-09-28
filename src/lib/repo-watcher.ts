@@ -16,13 +16,6 @@ export interface RepoWatcherEvent {
   ts: number;
 }
 
-/** Status snapshot returned by `repo_watcher_status`. */
-export interface RepoWatcherStatus {
-  active_projects: string[];
-  last_change_ms: number | null;
-  change_count_since_index: number;
-}
-
 /**
  * Start (or restart) the repo watcher for `projectRoot`. Safe to call
  * repeatedly when the active project changes — the backend replaces any
@@ -35,16 +28,6 @@ export async function startRepoWatcher(projectRoot: string): Promise<void> {
 /** Stop the watcher for `projectRoot`. Resolves to `true` if a watcher was stopped. */
 export async function stopRepoWatcher(projectRoot: string): Promise<boolean> {
   return invoke<boolean>("stop_repo_watcher", { projectRoot });
-}
-
-/** Snapshot of active watchers and aggregate change stats. */
-export async function repoWatcherStatus(): Promise<RepoWatcherStatus> {
-  return invoke<RepoWatcherStatus>("repo_watcher_status");
-}
-
-/** Reset the change counter for `projectRoot` after a successful re-index. */
-export async function repoWatcherReset(projectRoot: string): Promise<void> {
-  await invoke<void>("repo_watcher_reset", { projectRoot });
 }
 
 /**

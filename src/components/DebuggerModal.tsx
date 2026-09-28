@@ -9,6 +9,7 @@ import {
   type DebugSource,
 } from "@/lib/ai-debugger";
 import { openInEditor } from "@/lib/editor";
+import { shortenPath } from "@/lib/path";
 import { pushToast } from "@/lib/toast";
 import { useCortexStore } from "@/state/store";
 
@@ -292,7 +293,7 @@ export function DebuggerModal({
                     className="ai-debugger-location"
                     title={result.source_path}
                   >
-                    {shortenPath(result.source_path)}
+                    {shortenPath(result.source_path, null, 2)}
                     {result.source_line ? `:${result.source_line}` : ""}
                   </span>
                 )}
@@ -371,14 +372,6 @@ export function DebuggerModal({
       </div>
     </div>
   );
-}
-
-/** Shorten an absolute path to the last two segments — keeps the header
- *  scannable without hiding which file the model picked. */
-function shortenPath(p: string): string {
-  const parts = p.split(/[/\\]/).filter(Boolean);
-  if (parts.length <= 2) return p;
-  return ".../" + parts.slice(-2).join("/");
 }
 
 let activeRoot: Root | null = null;

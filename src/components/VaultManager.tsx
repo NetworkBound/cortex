@@ -8,6 +8,7 @@ import { humanizeError } from "@/lib/errors";
 import { invoke } from "@tauri-apps/api/core";
 import { getGatewayConfig } from "@/lib/cortex-bridge";
 import { openInEditor } from "@/lib/editor";
+import { basename, join } from "@/lib/path";
 import { useCortexStore } from "@/state/store";
 
 type SubView = "overview" | "folders" | "tags" | "orphans" | "broken" | "notes";
@@ -85,7 +86,7 @@ function FolderList({ analysis }: { analysis: VaultAnalysis }) {
           <span className="vault-folder-toggle">
             {subs.length > 0 ? (isExpanded ? "v" : ">") : " "}
           </span>
-          <span className="vault-folder-name">{f.path.split("/").pop()}</span>
+          <span className="vault-folder-name">{basename(f.path)}</span>
           <span className="muted">
             {f.note_count} direct / {f.total_count} total
           </span>
@@ -267,8 +268,7 @@ export function VaultManager() {
   function openNote(relPath: string) {
     void getGatewayConfig()
       .then((cfg) => {
-        const root = (cfg.obsidian_vault ?? "").replace(/[\\/]+$/, "");
-        openInEditor(root ? `${root}/${relPath}` : relPath);
+        openInEditor(join(cfg.obsidian_vault ?? "", relPath));
       })
       .catch(() => openInEditor(relPath));
   }

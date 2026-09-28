@@ -46,10 +46,6 @@ export async function pruneSnapshots(keep: number): Promise<number> {
   return invoke<number>("prune_snapshots", { keep });
 }
 
-export function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / 1024 / 1024).toFixed(2)} MB`;
-}
+export { formatBytes } from "@/lib/format";
 
 export { timeAgo } from "@/lib/time";

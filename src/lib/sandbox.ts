@@ -48,28 +48,6 @@ export async function setSandboxTier(
   return invoke("set_sandbox_tier", { projectRoot, tier });
 }
 
-/** Classification of a shell command line. Mirrors `CommandClassification`
- *  in `src-tauri/src/commands/sandbox.rs`. A `readOnly:true` command (Codex's
- *  `is_safe_command`) is safe to run under any tier — including `read-only`,
- *  which is what an untrusted project is forced into. */
-export interface CommandClassification {
-  readOnly: boolean;
-  reason: string;
-}
-
-/** Ask the backend whether a shell command is provably read-only (safe to run
- *  under the read-only sandbox tier). Use to label `/run` input or an approval
- *  prompt. */
-export async function classifyShellCommand(
-  command: string,
-): Promise<CommandClassification> {
-  const r = await invoke<{ read_only: boolean; reason: string }>(
-    "classify_shell_command",
-    { command },
-  );
-  return { readOnly: r.read_only, reason: r.reason };
-}
-
 /** Human label + short description, for use in popovers and settings. */
 export const SANDBOX_TIER_META: Record<
   SandboxTier,

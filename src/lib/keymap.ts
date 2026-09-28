@@ -2,18 +2,13 @@
  * Centralized keyboard shortcut binding registry.
  *
  * Bindings are identified by stable string ids (`send`, `palette`, …) so call
- * sites don't hard-code key combos. Users can override the defaults by
- * dropping a `.cortex/keymap.json` file at the active project root:
- *
- *   { "palette": "Ctrl+P", "shortcuts": "F1" }
- *
- * Anything missing from that file falls back to {@link DEFAULT_KEYMAP}.
+ * sites don't hard-code key combos; {@link DEFAULT_KEYMAP} is the single
+ * source of truth for the combos and {@link matchCombo} matches key events
+ * against them.
  *
  * NOTE: this module intentionally has no React / store coupling — it is a
  * pure data + parsing module so it can be unit-tested and reused.
  */
-
-import { readTextFile, exists } from "@tauri-apps/plugin-fs";
 
 export type KeymapBinding = {
   id: string;
@@ -49,77 +44,6 @@ export const DEFAULT_KEYMAP: KeymapBinding[] = [
   { id: "settings", combo: "Ctrl+,", description: "Open settings" },
   { id: "cycle-mode", combo: "Ctrl+M", description: "Toggle Plan / Act mode" },
 ];
-
-/**
- * Read `<activeProjectRoot>/.cortex/keymap.json` and merge it onto the
- * defaults. User overrides win; unknown ids in the file are ignored so a
- * stale keymap can't add phantom bindings.
- *
- * Returns the defaults unchanged if `projectRoot` is null, the file is
- * missing, or it fails to parse.
- */
-export async function loadKeymap(
-  projectRoot?: string | null,
-): Promise<KeymapBinding[]> {
-  if (!projectRoot) return DEFAULT_KEYMAP;
-
-  const sep =
-    projectRoot.includes("\\") && !projectRoot.includes("/") ? "\\" : "/";
-  const trimmed = projectRoot.replace(/[\\/]+$/, "");
-  const path = `${trimmed}${sep}.cortex${sep}keymap.json`;
-
-  try {
-    if (!(await exists(path))) return DEFAULT_KEYMAP;
-    const raw = await readTextFile(path);
-    const parsed = JSON.parse(raw) as unknown;
-    return mergeKeymap(DEFAULT_KEYMAP, parsed);
-  } catch {
-    // Any failure (missing file in a non-Tauri context, malformed JSON,
-    // permission denied, …) silently falls back to defaults so we never
-    // brick the keyboard.
-    return DEFAULT_KEYMAP;
-  }
-}
-
-/**
- * Accepts either:
- *   - a flat record: `{ "<id>": "<combo>" }`
- *   - an array of partial bindings: `[{ "id": "<id>", "combo": "<combo>" }]`
- * Anything else is ignored.
- */
-function mergeKeymap(
-  defaults: KeymapBinding[],
-  userValue: unknown,
-): KeymapBinding[] {
-  const overrides = new Map<string, string>();
-
-  if (userValue && typeof userValue === "object" && !Array.isArray(userValue)) {
-    for (const [id, combo] of Object.entries(
-      userValue as Record<string, unknown>,
-    )) {
-      if (typeof combo === "string" && combo.trim().length > 0) {
-        overrides.set(id, combo.trim());
-      }
-    }
-  } else if (Array.isArray(userValue)) {
-    for (const entry of userValue) {
-      if (
-        entry &&
-        typeof entry === "object" &&
-        typeof (entry as { id?: unknown }).id === "string" &&
-        typeof (entry as { combo?: unknown }).combo === "string"
-      ) {
-        const id = (entry as { id: string }).id;
-        const combo = (entry as { combo: string }).combo.trim();
-        if (combo.length > 0) overrides.set(id, combo);
-      }
-    }
-  }
-
-  return defaults.map((b) =>
-    overrides.has(b.id) ? { ...b, combo: overrides.get(b.id)! } : b,
-  );
-}
 
 interface ParsedCombo {
   ctrl: boolean;

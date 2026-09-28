@@ -1,4 +1,5 @@
 import React from "react";
+import { recordJsCrash } from "@/lib/observability";
 
 interface Props {
   children: React.ReactNode;
@@ -28,6 +29,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
       error,
       info.componentStack,
     );
+    // Render errors never reach `window.onerror`, so feed the crash store
+    // from here (best-effort; the boundary UI doesn't depend on it).
+    void recordJsCrash(
+      "js_error",
+      `${this.props.label ?? "app"}: ${error.message}`,
+      error.stack ?? info.componentStack ?? undefined,
+    ).catch(() => {});
   }
 
   private reset = () => this.setState({ error: null });

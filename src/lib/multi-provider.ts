@@ -9,7 +9,6 @@
  * project-access design decision that gates dispatch.
  */
 import { invoke } from "@tauri-apps/api/core";
-import { createWorktree, type Worktree } from "@/lib/worktrees";
 
 /**
  * One persisted lane run — the row shape `lane_runs` serves (backend
@@ -120,51 +119,5 @@ export async function listProviders(): Promise<string[]> {
     return Array.isArray(ids) ? ids : [];
   } catch {
     return [];
-  }
-}
-
-/** A planned lane: one provider, its isolated worktree, and the branch. */
-export interface ProviderLane {
-  provider: string;
-  worktree: Worktree;
-}
-
-/**
- * Provision one git worktree per provider so their edits never collide
- * ("ultimate speed, no conflicts"). Best-effort atomic: if any worktree fails
- * to create, the ones already created are rolled back so we don't leak
- * half-provisioned state. Returns the per-provider lane plan.
- *
- * NOTE: this provisions LOCAL worktrees (Cortex side). Whether the executing
- * agent (which runs server-side on the gateway) operates in these worktrees depends
- * on the project-access decision in the spec — until that lands, the lanes are
- * the isolation scaffold the dispatch step will target.
- */
-export async function provisionProviderLanes(
-  projectRoot: string,
-  providers: string[],
-): Promise<ProviderLane[]> {
-  const lanes: ProviderLane[] = [];
-  try {
-    for (const provider of providers) {
-      const worktree = await createWorktree(
-        projectRoot,
-        `parallel:${provider}`,
-      );
-      lanes.push({ provider, worktree });
-    }
-    return lanes;
-  } catch (e) {
-    // Roll back anything we already created so a partial failure leaves no
-    // orphaned worktrees.
-    const { removeWorktree } = await import("@/lib/worktrees");
-    for (const lane of lanes) {
-      try {
-        await removeWorktree(lane.worktree.id, false);
-      } catch {
-        /* best-effort cleanup */
-      }
-    }
-    throw e;
   }
 }

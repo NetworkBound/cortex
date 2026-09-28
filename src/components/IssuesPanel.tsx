@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { humanizeError } from "@/lib/errors";
-import { timeAgo } from "@/lib/backup";
+import { timeAgo } from "@/lib/time";
 import { useCortexStore } from "@/state/store";
 import {
   importIssues,

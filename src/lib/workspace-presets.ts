@@ -20,7 +20,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { humanizeError } from "@/lib/errors";
 import { getGatewayConfig, updateGatewayConfig } from "@/lib/cortex-bridge";
 import {
-  DEFAULT_SANDBOX_TIER,
   SANDBOX_TIERS,
   getSandboxTier,
   setSandboxTier,
@@ -285,6 +284,3 @@ export async function applyPreset(name: string): Promise<ApplyReport | null> {
   if (!preset) return null;
   return applyPresetState(preset);
 }
-
-/** Defaults used by the sandbox badge when a preset doesn't capture a tier. */
-export const SANDBOX_TIER_FALLBACK: SandboxTier = DEFAULT_SANDBOX_TIER;

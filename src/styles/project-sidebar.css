@@ -82,6 +82,13 @@
   max-width: 140px;
 }
 
+/* `.cortexignore` chip beside the active project name; sits between the h2
+   and the Worktrees button, so push the button to the right edge. */
+.sidebar-ignore-chip {
+  flex: none;
+  margin-right: auto;
+}
+
 .sidebar-vault-hint {
   font-size: var(--text-xs);
   color: var(--text-muted);

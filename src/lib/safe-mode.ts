@@ -1,7 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useState } from "react";
-import { subscribeConfigChanges } from "@/lib/config-watcher";
-import type { UnlistenFn } from "@tauri-apps/api/event";
 
 /**
  * Safe Mode (issue 004) bindings. Mirrors `SafeMode` /
@@ -136,40 +133,4 @@ export async function exportAuditLog(
     toTs: toTs ?? null,
     format,
   });
-}
-
-/**
- * Live Safe Mode flag for badges. Reads the backend on mount, refreshes on
- * `config-changed` events for `safe-mode.json` (the `~/.cortex` hot-reload
- * watcher), and polls slowly as a fallback. Backend is the source of truth —
- * no local store.
- */
-export function useSafeMode(): boolean {
-  const [enabled, setEnabled] = useState(false);
-  useEffect(() => {
-    let mounted = true;
-    let off: UnlistenFn | undefined;
-    const refresh = async () => {
-      try {
-        const s = await safeModeStatus();
-        if (mounted) setEnabled(s.enabled);
-      } catch {
-        /* backend warming — keep last known value */
-      }
-    };
-    void refresh();
-    void subscribeConfigChanges((evt) => {
-      if (evt.path.endsWith("safe-mode.json")) void refresh();
-    }).then((fn) => {
-      if (mounted) off = fn;
-      else fn();
-    });
-    const id = setInterval(refresh, 30_000);
-    return () => {
-      mounted = false;
-      off?.();
-      clearInterval(id);
-    };
-  }, []);
-  return enabled;
 }

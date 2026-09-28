@@ -28,7 +28,8 @@ export function projectPath(p: Project): string {
 export function projectName(p: Project): string {
   if (p.name) return p.name;
   const path = projectPath(p);
-  return path.split("/").filter(Boolean).pop() || path || "(unnamed)";
+  // The desktop host may be Windows, so accept either separator.
+  return path.split(/[\\/]/).filter(Boolean).pop() || path || "(unnamed)";
 }
 
 // GET /api/sessions → recent chat sessions (newest first).

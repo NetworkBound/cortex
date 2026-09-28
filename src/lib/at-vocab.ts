@@ -28,7 +28,7 @@ import {
   type CrashRow,
 } from "@/lib/observability";
 import { brainSnapshot } from "@/lib/brain";
-import { timeAgo } from "@/lib/checkpoints";
+import { timeAgo } from "@/lib/time";
 import { listSnippets } from "@/lib/snippets";
 import {
   gitWorkingDiff,

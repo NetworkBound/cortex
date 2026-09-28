@@ -82,6 +82,3 @@ export async function expandSnippets(text: string): Promise<string> {
     return resolved.get(name) ?? full;
   });
 }
-
-/** Bare regex export for callers that want to detect snippet markers themselves. */
-export const SNIPPET_MARKER = SNIPPET_MARKER_RE;

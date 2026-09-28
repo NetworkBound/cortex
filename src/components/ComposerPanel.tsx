@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { humanizeError } from "@/lib/errors";
+import { basename, dirname, isAbsolute, toPosix } from "@/lib/path";
 import { useCortexStore, type ComposerEdit } from "@/state/store";
 import {
   parseUnifiedDiff,
@@ -210,23 +211,10 @@ function groupByPath(edits: ComposerEdit[]): FileGroup[] {
   return out;
 }
 
-function basename(p: string): string {
-  const norm = p.replace(/\\/g, "/");
-  const idx = norm.lastIndexOf("/");
-  return idx >= 0 ? norm.slice(idx + 1) : norm;
-}
-
-function dirname(p: string): string {
-  const norm = p.replace(/\\/g, "/");
-  const idx = norm.lastIndexOf("/");
-  return idx >= 0 ? norm.slice(0, idx) : "";
-}
-
 function looksLikeLocalPath(p: string): boolean {
   // Heuristic: absolute unix path, windows drive path, or starts with ~ or .
   return (
-    p.startsWith("/") ||
-    /^[A-Za-z]:[\\/]/.test(p) ||
+    isAbsolute(p) ||
     p.startsWith("~") ||
     p.startsWith("./") ||
     p.startsWith("../")
@@ -594,7 +582,7 @@ export function ComposerPanel() {
           ) : (
             <ul className="composer-list">
               {groups.map((g) => {
-                const dir = dirname(g.path);
+                const dir = toPosix(dirname(g.path));
                 const name = basename(g.path);
                 const editCount = g.edits.length;
                 const isPending = g.status === "pending";

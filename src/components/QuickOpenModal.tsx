@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { humanizeError } from "@/lib/errors";
 import { timeAgo } from "@/lib/time";
 import { findFiles } from "@/lib/project-search";
+import { basename, dirname, isAbsolute, relativeTo } from "@/lib/path";
 import {
   loadRecentFiles,
   pickFile,
@@ -69,7 +70,7 @@ function parseRangeText(
 /** Absolute path on either OS family — the pick-mode escape hatch for files
  *  outside the project root and the recents list. */
 function looksAbsolute(q: string): boolean {
-  return q.startsWith("/") || /^[A-Za-z]:[\\/]/.test(q);
+  return isAbsolute(q);
 }
 
 interface Row {
@@ -276,7 +277,9 @@ export function QuickOpenModal({
           )}
           {rows.map((row, i) => {
             const base = basename(row.path);
-            const dir = dirname(row.path, activeProject?.root ?? null);
+            const dir = dirname(
+              relativeTo(row.path, activeProject?.root) ?? row.path,
+            );
             return (
               <li
                 key={`${row.path}-${i}`}
@@ -312,22 +315,4 @@ export function QuickOpenModal({
       </div>
     </div>
   );
-}
-
-// ---------- path helpers (kept local to avoid pulling node:path) ----------
-
-function basename(path: string): string {
-  const sep = path.includes("\\") && !path.includes("/") ? "\\" : "/";
-  const i = path.lastIndexOf(sep);
-  return i >= 0 ? path.slice(i + 1) : path;
-}
-
-function dirname(path: string, projectRoot: string | null): string {
-  let rel = path;
-  if (projectRoot && path.startsWith(projectRoot)) {
-    rel = path.slice(projectRoot.length).replace(/^[\\/]/, "");
-  }
-  const sep = rel.includes("\\") && !rel.includes("/") ? "\\" : "/";
-  const i = rel.lastIndexOf(sep);
-  return i >= 0 ? rel.slice(0, i) : "";
 }

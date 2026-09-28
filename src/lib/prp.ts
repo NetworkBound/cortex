@@ -27,15 +27,6 @@ export interface Prp {
   path: string;
 }
 
-export interface PrpProgress {
-  name: string;
-  status: PrpStage;
-  created_unix_ms: number;
-  gates: GateStatuses;
-  gates_resolved: number;
-  gates_passed: number;
-}
-
 export interface GateResult {
   name: string;
   verdict: "pass" | "fail" | "skipped";
@@ -54,18 +45,6 @@ export async function listPrps(projectRoot: string): Promise<Prp[]> {
   } catch (err) {
     console.warn("list_prps failed", err);
     return [];
-  }
-}
-
-export async function getPrp(
-  projectRoot: string,
-  name: string,
-): Promise<Prp | null> {
-  try {
-    return (await invoke<Prp | null>("get_prp", { projectRoot, name })) ?? null;
-  } catch (err) {
-    console.warn("get_prp failed", err);
-    return null;
   }
 }
 
@@ -98,15 +77,6 @@ export async function runPrpGates(
   name: string,
 ): Promise<ValidationReport> {
   return await invoke<ValidationReport>("run_prp_gates", { projectRoot, name });
-}
-
-export async function prpProgress(projectRoot: string): Promise<PrpProgress[]> {
-  try {
-    return (await invoke<PrpProgress[]>("prp_progress", { projectRoot })) ?? [];
-  } catch (err) {
-    console.warn("prp_progress failed", err);
-    return [];
-  }
 }
 
 /** Human-facing label for a stage value. Falls back to the raw string. */

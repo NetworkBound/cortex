@@ -3,14 +3,17 @@ import {
   brainSnapshot,
   brainRag,
   brainMemoryDuplicates,
+  brainStaleNotes,
   type BrainSnapshot,
   type BrainAnswer,
   type DuplicateGroup,
+  type StaleNote,
 } from "@/lib/brain";
 import { timeAgo } from "@/lib/time";
 import { openProjectByPath } from "@/lib/open-project";
 import { pushToast } from "@/lib/toast";
 import { humanizeError } from "@/lib/errors";
+import { basename, join } from "@/lib/path";
 import { PanelLoading } from "./Skeleton";
 import { useCortexStore } from "@/state/store";
 
@@ -33,6 +36,22 @@ export function BrainPanel() {
       setDupError(humanizeError(e));
     } finally {
       setDupLoading(false);
+    }
+  };
+  // Memory-tab stale-index check state.
+  const [staleNotes, setStaleNotes] = useState<StaleNote[] | null>(null);
+  const [staleLoading, setStaleLoading] = useState(false);
+  const [staleError, setStaleError] = useState<string | null>(null);
+  const runStaleScan = async () => {
+    if (staleLoading) return;
+    setStaleLoading(true);
+    setStaleError(null);
+    try {
+      setStaleNotes(await brainStaleNotes());
+    } catch (e) {
+      setStaleError(humanizeError(e));
+    } finally {
+      setStaleLoading(false);
     }
   };
   // "Ask your brain" (unified RAG) state.
@@ -171,7 +190,7 @@ export function BrainPanel() {
                           const path = c.open_path
                             ? c.open_path
                             : snap.obsidian_vault
-                              ? `${snap.obsidian_vault.replace(/[\\/]+$/, "")}/${c.reference}`
+                              ? join(snap.obsidian_vault, c.reference)
                               : c.reference;
                           useCortexStore.getState().setActivityTab("editor");
                           setTimeout(() => {
@@ -342,6 +361,40 @@ export function BrainPanel() {
             <div className="brain-dedup">
               <div className="brain-ask-bar">
                 <div className="muted" style={{ flex: 1 }}>
+                  Indexed notes whose file changed or vanished since they were
+                  embedded — the next reindex pass refreshes them.
+                </div>
+                <button
+                  onClick={() => void runStaleScan()}
+                  disabled={staleLoading}
+                >
+                  {staleLoading ? "Checking…" : "Check stale notes"}
+                </button>
+              </div>
+              {staleError && <div className="settings-err">{staleError}</div>}
+              {staleNotes && staleNotes.length === 0 && !staleError && (
+                <div className="muted">Index is up to date.</div>
+              )}
+              {staleNotes && staleNotes.length > 0 && (
+                <div className="brain-list">
+                  {staleNotes.map((n) => (
+                    <div key={n.path} className="brain-row" title={n.path}>
+                      <div className="brain-row-head">
+                        <strong>{basename(n.path)}</strong>
+                        <span className="muted">
+                          {n.missing
+                            ? "source missing"
+                            : `changed ${timeAgo(n.current_mtime)} · indexed ${timeAgo(n.indexed_ts)}`}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="brain-dedup">
+              <div className="brain-ask-bar">
+                <div className="muted" style={{ flex: 1 }}>
                   Near-duplicate memories — likely copy/paste or repeated-save
                   notes worth merging.
                 </div>
@@ -453,9 +506,4 @@ export function BrainPanel() {
       </div>
     </div>
   );
-}
-
-function basename(p: string): string {
-  const m = p.match(/([^/\\]+)$/);
-  return m ? m[1] : p;
 }

@@ -99,6 +99,23 @@ export interface DuplicateGroup {
  *  UI can flag likely copy/paste duplicates for the user to merge — detection
  *  only, nothing is deleted. `threshold` overrides the default strictness
  *  (0.0-1.0 cosine similarity). */
+/** Mirrors `StaleNote` in `commands/brain_rag.rs` (metadata only). */
+export interface StaleNote {
+  /** Indexed note path (the chunk id in `chat_embeddings`). */
+  path: string;
+  /** File mtime recorded at embed time (unix ms). */
+  indexed_ts: number;
+  /** File mtime now (unix ms); 0 when the file is missing/unreadable. */
+  current_mtime: number;
+  /** The source file no longer exists (or its metadata is unreadable). */
+  missing: boolean;
+}
+
+/** Indexed notes whose source changed (or vanished) since they were embedded. */
+export async function brainStaleNotes(): Promise<StaleNote[]> {
+  return invoke<StaleNote[]>("brain_stale_notes");
+}
+
 export async function brainMemoryDuplicates(
   threshold?: number,
 ): Promise<DuplicateGroup[]> {

@@ -309,10 +309,6 @@ export const BUILTIN_THEMES: Theme[] = [
   },
 ];
 
-export function isValidThemeName(name: string): boolean {
-  return /^[A-Za-z0-9_.-]{1,64}$/.test(name);
-}
-
 /**
  * Apply a theme by writing CSS custom properties straight onto `:root`.
  *

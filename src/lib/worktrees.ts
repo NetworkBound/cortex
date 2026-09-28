@@ -35,12 +35,3 @@ export async function removeWorktree(
     args: { id, archive_commit: archiveCommit },
   });
 }
-
-export async function assignWorktreeSession(
-  id: string,
-  sessionId: string,
-): Promise<void> {
-  return invoke("assign_worktree_session", {
-    args: { id, session_id: sessionId },
-  });
-}

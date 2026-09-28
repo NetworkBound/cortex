@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { useCortexStore, type Message } from "@/state/store";
 
 export interface StoredMessage {
   id: string;
@@ -16,6 +17,25 @@ export async function loadSessionMessages(
   sessionId: string,
 ): Promise<StoredMessage[]> {
   return invoke<StoredMessage[]>("load_session_messages", { sessionId });
+}
+
+/**
+ * Load a stored session and make it the live chat (replacing the current
+ * messages). Throws when the backend can't load the transcript.
+ */
+export async function resumeStoredSession(sessionId: string): Promise<void> {
+  const stored = await loadSessionMessages(sessionId);
+  const msgs: Message[] = stored.map((m) => ({
+    id: m.id,
+    role: (m.role as Message["role"]) || "assistant",
+    agent: m.agent_id ?? undefined,
+    content: m.content,
+    reasoning: m.reasoning ?? undefined,
+    pending: false,
+    tools: [],
+    runId: m.run_id,
+  }));
+  useCortexStore.getState().resumeSession(sessionId, msgs);
 }
 
 /** Result of exporting a chat session to the Obsidian vault as Markdown. */

@@ -33,12 +33,3 @@ export async function getTrustStatus(
 export async function trustProject(projectRoot: string): Promise<void> {
   await invoke<void>("trust_project", { projectRoot });
 }
-
-/**
- * Demote `projectRoot` back to the sandboxed read-only tier. Throws on
- * backend rejection. (Not used by the banner — it's already untrusted there —
- * but provided for symmetry / other call sites.)
- */
-export async function untrustProject(projectRoot: string): Promise<void> {
-  await invoke<void>("untrust_project", { projectRoot });
-}

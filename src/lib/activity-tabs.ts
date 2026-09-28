@@ -114,16 +114,6 @@ const BY_ID: Record<TabId, ActivityTabMeta> = Object.fromEntries(
   ACTIVITY_TABS.map((t) => [t.id, t]),
 ) as Record<TabId, ActivityTabMeta>;
 
-/** Metadata for a tab id. */
-export function tabMeta(id: TabId): ActivityTabMeta {
-  return BY_ID[id];
-}
-
-/** Short rail/palette label for a tab. */
-export function tabLabel(id: TabId): string {
-  return BY_ID[id]?.label ?? id;
-}
-
 /** Longer disambiguated panel-header title for a tab. */
 export function tabTitle(id: TabId): string {
   return BY_ID[id]?.title ?? BY_ID[id]?.label ?? id;

@@ -37,13 +37,6 @@ export async function gitHistory(
   return invoke<Commit[]>("git_history", { projectRoot, limit, offset });
 }
 
-export async function gitShow(
-  projectRoot: string,
-  hash: string,
-): Promise<string> {
-  return invoke<string>("git_show", { projectRoot, hash });
-}
-
 /** Files changed in a single commit (status + path). */
 export async function gitCommitFiles(
   projectRoot: string,

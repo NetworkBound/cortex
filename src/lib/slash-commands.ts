@@ -2699,26 +2699,6 @@ export function findCommand(input: string): SlashCommand | null {
   return parsed ? (INDEX.get(parsed.name.toLowerCase()) ?? null) : null;
 }
 
-/**
- * Prefix match for autocomplete. `prefix` may be `""`, `"c"`, `"/c"`, etc.
- * Each command appears at most once even if multiple aliases match.
- */
-export function listMatching(prefix: string): SlashCommand[] {
-  let p = prefix.trim();
-  if (p.startsWith("/")) p = p.slice(1);
-  // Only autocomplete on the first word — args mode kills the dropdown.
-  p = p.split(/\s/, 1)[0]?.toLowerCase() ?? "";
-  const seen = new Set<SlashCommand>();
-  const out: SlashCommand[] = [];
-  for (const [key, cmd] of INDEX) {
-    if (key.startsWith(p) && !seen.has(cmd)) {
-      seen.add(cmd);
-      out.push(cmd);
-    }
-  }
-  return out.sort((a, b) => a.name.localeCompare(b.name));
-}
-
 /** Build a SlashContext bound to the live store. */
 export function makeContext(): SlashContext {
   return {

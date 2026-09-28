@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { App } from "@/App";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { recordJsCrash } from "@/lib/observability";
 import { restorePrefsAtBoot } from "@/lib/pref-sync";
 import { applyCachedCoreTokens } from "@/lib/theme-engine";
 import "@/styles/fonts.css";
@@ -12,6 +13,24 @@ import "@/styles/global.css";
 // NOT import a vendored hljs stylesheet (e.g. github-dark.css) — those hardcode
 // dark colors whose compound selectors override our tokens and wash out on the
 // light themes.
+
+// Feed uncaught JS errors + unhandled rejections into the crash store so the
+// Crash Viewer ("JS errors" side) actually has data — the `record_js_crash`
+// command was never called before this. Best-effort and capped so a render
+// loop can't flood the table; failures to record are swallowed.
+let crashBudget = 25;
+function report(kind: "js_error" | "js_unhandled_rejection", reason: unknown) {
+  if (crashBudget-- <= 0) return;
+  const err = reason instanceof Error ? reason : null;
+  const message = err?.message ?? String(reason ?? "unknown error");
+  void recordJsCrash(kind, message.slice(0, 2000), err?.stack).catch(() => {});
+}
+window.addEventListener("error", (e) =>
+  report("js_error", e.error ?? e.message),
+);
+window.addEventListener("unhandledrejection", (e) =>
+  report("js_unhandled_rejection", e.reason),
+);
 
 function render() {
   // Paint the last-applied theme on the FIRST frame, synchronously, before

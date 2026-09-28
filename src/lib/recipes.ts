@@ -27,10 +27,6 @@ export async function listRecipes(): Promise<Recipe[]> {
   return invoke<Recipe[]>("list_recipes");
 }
 
-export async function getRecipe(name: string): Promise<Recipe | null> {
-  return invoke<Recipe | null>("get_recipe", { name });
-}
-
 export async function saveRecipe(name: string, yaml: string): Promise<Recipe> {
   return invoke<Recipe>("save_recipe", { name, yaml });
 }

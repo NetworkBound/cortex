@@ -15,13 +15,6 @@ import { timeAgo as relativeTime } from "@/lib/time";
  *      same settings without a restart.
  */
 
-export interface GiteaConfig {
-  base_url: string;
-  token: string;
-  owner: string;
-  repo: string;
-}
-
 export interface BackupReport {
   repo_url: string;
   commits_made: number;
@@ -70,17 +63,6 @@ export async function setSettings(settings: GiteaSettings): Promise<void> {
 }
 
 /**
- * Run an explicit backup. `dry_run: true` walks + counts without writing
- * to the mirror or pushing — used by a future "Preview" button.
- */
-export async function runBackup(
-  config: GiteaConfig,
-  dryRun: boolean,
-): Promise<BackupReport> {
-  return invoke<BackupReport>("gitea_backup", { config, dryRun });
-}
-
-/**
  * Trigger the same backup the scheduler runs, using whatever is currently
  * saved on disk. Errors out if the user hasn't enabled / configured it yet.
  */
@@ -88,12 +70,7 @@ export async function runBackupNow(): Promise<BackupReport> {
   return invoke<BackupReport>("gitea_backup_now");
 }
 
-export function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(2)} MB`;
-  return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
-}
+export { formatBytes } from "@/lib/format";
 
 /** "never" when no backup has run yet, otherwise relative. */
 export function timeAgo(ts: number): string {

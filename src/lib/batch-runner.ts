@@ -87,19 +87,6 @@ export async function listenBatchProgress(
   );
 }
 
-/** Heuristic: does this string look like a unified diff? Same shape as
- *  `git diff` / `diff -u`. The Apply-diffs button checks this before
- *  enabling itself. */
-export function looksLikeUnifiedDiff(text: string): boolean {
-  if (!text || text.length < 8) return false;
-  // `--- a/foo` + `+++ b/foo` is the canonical header pair. A single `@@`
-  // hunk header on its own is enough when files are unknown but unlikely
-  // to false-positive on chat-style markdown.
-  const hasHeader = /^---\s.+\n\+\+\+\s.+$/m.test(text);
-  const hasHunk = /^@@\s.*@@/m.test(text);
-  return hasHeader && hasHunk;
-}
-
 /**
  * Render the run as a markdown document for the "Copy all outputs"
  * button. Mirrors the conversation-export shape — one H3 per item, with

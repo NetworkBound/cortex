@@ -9,6 +9,7 @@ import {
   type ResolvedConflict,
 } from "@/lib/conflict-resolver";
 import { saveFileText } from "@/lib/editor-save";
+import { isAbsolute, join } from "@/lib/path";
 import { pushToast } from "@/lib/toast";
 import { useCortexStore } from "@/state/store";
 
@@ -114,10 +115,9 @@ export function ConflictResolverModal({
         // Absolute on either OS ("/x", "C:\\x", "C:/x", "\\\\server\\share");
         // anything else is project-relative. Forward-slash joins are fine on
         // Windows too.
-        const isAbs = /^(?:[\\/]|[A-Za-z]:[\\/])/.test(row.file.path);
-        const abs = isAbs
+        const abs = isAbsolute(row.file.path)
           ? row.file.path
-          : `${projectRoot.replace(/[\\/]+$/, "")}/${row.file.path}`;
+          : join(projectRoot, row.file.path);
         await saveFileText(abs, row.file.after);
         setRows((prev) =>
           prev.map((r, i) =>

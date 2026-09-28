@@ -24,6 +24,8 @@ import { bootstrapProjectSession, loadSessionMessages } from "@/lib/sessions";
 import { PanelLoading } from "./Skeleton";
 import { setActiveProject } from "@/lib/projects";
 import { openInEditor } from "@/lib/editor";
+import { truncate } from "@/lib/format";
+import { basename } from "@/lib/path";
 import { useCortexStore, type Message } from "@/state/store";
 
 type NodeKind = "project" | "session" | "memory";
@@ -60,16 +62,6 @@ const SPRING_K = 0.012;
 const SPRING_LEN = 90;
 const GRAVITY = 0.012;
 const DAMPING = 0.92;
-
-function basename(p: string): string {
-  const m = p.match(/([^/\\]+)$/);
-  return m ? m[1] : p;
-}
-
-function truncate(s: string, n: number): string {
-  if (s.length <= n) return s;
-  return s.slice(0, Math.max(0, n - 1)) + "…";
-}
 
 function buildGraph(snap: BrainSnapshot): { nodes: GNode[]; edges: GEdge[] } {
   const nodes: GNode[] = [];

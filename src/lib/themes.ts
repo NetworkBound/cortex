@@ -571,14 +571,6 @@ export function loadTheme(): ThemeId {
   return "coral-dark";
 }
 
-export function cycleTheme(): ThemeId {
-  const current = loadTheme();
-  const idx = THEME_IDS.indexOf(current);
-  const next = THEME_IDS[(idx + 1) % THEME_IDS.length];
-  applyTheme(next);
-  return next;
-}
-
 // NOTE: first paint is no longer driven from here. This module used to run
 // `applyTheme(loadTheme())` at import time, but that re-applied the LEGACY
 // `localStorage["cortex.theme"]` palette — a different store from the canonical

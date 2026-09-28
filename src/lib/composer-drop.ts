@@ -191,12 +191,3 @@ export async function extractImageAttachments(
 
   return { attachments: accepted, skipped };
 }
-
-/** Strip the `data:<mime>;base64,` prefix; returns `null` if shape is unexpected. */
-export function dataUrlToBase64(
-  dataUrl: string,
-): { mediaType: string; base64: string } | null {
-  const m = dataUrl.match(/^data:([^;,]+);base64,(.+)$/);
-  if (!m) return null;
-  return { mediaType: m[1], base64: m[2] };
-}

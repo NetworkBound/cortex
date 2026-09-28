@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 /**
@@ -17,27 +16,6 @@ export interface ConfigChangedEvent {
   path: string;
   /** Unix epoch milliseconds. */
   ts: number;
-}
-
-/** Status snapshot returned by `config_watcher_status`. */
-export interface ConfigWatcherStatus {
-  active: boolean;
-  watched_paths: string[];
-}
-
-/**
- * Stop the global config watcher. Resolves to `true` if a watcher was
- * actually stopped. Mostly useful for tests / dev tools — the watcher is
- * auto-started by the Tauri setup hook and normally runs for the lifetime
- * of the app.
- */
-export async function stopConfigWatcher(): Promise<boolean> {
-  return invoke<boolean>("stop_config_watcher");
-}
-
-/** Snapshot of the watcher's current state. */
-export async function configWatcherStatus(): Promise<ConfigWatcherStatus> {
-  return invoke<ConfigWatcherStatus>("config_watcher_status");
 }
 
 /**

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PanelLoading } from "./Skeleton";
 import { humanizeError } from "@/lib/errors";
+import { relativeTo, toPosix } from "@/lib/path";
 import {
   formatBytes,
   formatCount,
@@ -230,9 +231,7 @@ function BiggestDirs({ m }: { m: ProjectMetrics }) {
 /** Trim the project root prefix so the table cells stay readable. */
 function shortenPath(path: string, root: string): string {
   if (!root) return path;
-  const norm = path.replace(/\\/g, "/");
-  const r = root.replace(/\\/g, "/").replace(/\/$/, "");
-  if (norm.startsWith(r + "/")) return norm.slice(r.length + 1);
-  if (norm === r) return ".";
-  return norm;
+  const rel = relativeTo(path, root);
+  if (rel === null) return toPosix(path);
+  return rel === "" ? "." : toPosix(rel);
 }

@@ -15,9 +15,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { humanizeError } from "@/lib/errors";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import { openInEditor } from "@/lib/editor";
-import { loadSessionMessages } from "@/lib/sessions";
+import { resumeStoredSession } from "@/lib/sessions";
 import { pushToast } from "@/lib/toast";
-import { useCortexStore, type Message } from "@/state/store";
+import { useCortexStore } from "@/state/store";
 
 export type BookmarkKind =
   | "memory"
@@ -182,18 +182,7 @@ export async function openBookmark(b: Bookmark): Promise<void> {
     }
     case "session": {
       try {
-        const stored = await loadSessionMessages(b.target);
-        const msgs: Message[] = stored.map((m) => ({
-          id: m.id,
-          role: (m.role as Message["role"]) || "assistant",
-          agent: m.agent_id ?? undefined,
-          content: m.content,
-          reasoning: m.reasoning ?? undefined,
-          pending: false,
-          tools: [],
-          runId: m.run_id,
-        }));
-        useCortexStore.getState().resumeSession(b.target, msgs);
+        await resumeStoredSession(b.target);
       } catch (err) {
         pushToast({
           title: "Resume failed",

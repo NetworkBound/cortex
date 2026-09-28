@@ -27,7 +27,7 @@ import { useAutoCondense } from "./lib/auto-condense";
 import { attachUIStatePersistence, loadUIState } from "./lib/ui-persistence";
 import { openProjectByPath } from "./lib/open-project";
 import { attachPrefMirror } from "./lib/pref-sync";
-import { useCortexStore, type ActivityTab } from "./state/store";
+import { useCortexStore } from "./state/store";
 import { ACTIVITY_TAB_ORDER } from "./lib/activity-tabs";
 import { startRepoWatcher, stopRepoWatcher } from "./lib/repo-watcher";
 import { activateNotificationCenter } from "./lib/notification-center";
@@ -89,21 +89,6 @@ export function App() {
     return () => {
       detachUI();
       detachMirror();
-    };
-  }, []);
-
-  // Expose a minimal driver hook for E2E audits (scripts/e2e-audit.mjs).
-  // The hook isn't gated on dev mode because tauri-driver runs against the
-  // production exe; production users will never call it from devtools.
-  useEffect(() => {
-    (
-      window as unknown as { __cortexTabSwitch?: (t: ActivityTab) => void }
-    ).__cortexTabSwitch = (t) => {
-      useCortexStore.getState().setActivityTab(t);
-    };
-    return () => {
-      delete (window as unknown as { __cortexTabSwitch?: unknown })
-        .__cortexTabSwitch;
     };
   }, []);
 

@@ -52,10 +52,6 @@ export interface PullResult {
   message: string;
 }
 
-export async function hostSpecs(): Promise<HostSpecs> {
-  return invoke<HostSpecs>("cookbook_host_specs");
-}
-
 export async function recommendations(): Promise<CookbookView> {
   return invoke<CookbookView>("cookbook_recommendations");
 }

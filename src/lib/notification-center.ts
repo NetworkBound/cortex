@@ -9,6 +9,8 @@ import {
   type IssueRow,
 } from "@/lib/observability";
 import { subscribeMonitorLines, type MonitorLinePayload } from "@/lib/monitors";
+import { truncate } from "@/lib/format";
+import { basename } from "@/lib/path";
 import {
   subscribeRepoWatcher,
   type RepoWatcherEvent,
@@ -270,11 +272,6 @@ function monitorSeverity(level: MonitorLinePayload["level"]): NotifSeverity {
   return "info";
 }
 
-function truncate(s: string, max = 160): string {
-  if (s.length <= max) return s;
-  return `${s.slice(0, max - 1)}…`;
-}
-
 function buildAll(): Notification[] {
   const out: Notification[] = [];
 
@@ -284,7 +281,7 @@ function buildAll(): Notification[] {
       ts: r.ts,
       severity: crashSeverity(r.kind),
       source: "crash",
-      message: `${r.kind}: ${truncate(r.message)}`,
+      message: `${r.kind}: ${truncate(r.message, 160)}`,
       detail: r.stack ?? null,
       ref: String(r.id),
     });
@@ -295,7 +292,7 @@ function buildAll(): Notification[] {
       ts: r.last_seen,
       severity: "warning",
       source: "issue",
-      message: `${r.error_class ?? "issue"} ×${r.count}: ${truncate(r.message)}`,
+      message: `${r.error_class ?? "issue"} ×${r.count}: ${truncate(r.message, 160)}`,
       detail: r.agent_id ? `agent ${r.agent_id}` : null,
       ref: r.fingerprint,
     });
@@ -306,7 +303,7 @@ function buildAll(): Notification[] {
       ts: r.ts,
       severity: auditSeverity(r.action),
       source: "audit",
-      message: `${r.action}${r.detail ? `: ${truncate(r.detail)}` : ""}`,
+      message: `${r.action}${r.detail ? `: ${truncate(r.detail, 160)}` : ""}`,
       detail: r.detail ?? null,
       ref: r.session_id,
     });
@@ -317,7 +314,7 @@ function buildAll(): Notification[] {
       ts: p.ts,
       severity: monitorSeverity(p.level),
       source: "monitor",
-      message: `[${p.name}] ${truncate(p.line)}`,
+      message: `[${p.name}] ${truncate(p.line, 160)}`,
       detail: null,
       ref: p.name,
     });
@@ -328,7 +325,7 @@ function buildAll(): Notification[] {
       ts: p.ts,
       severity: "info",
       source: "config",
-      message: `config ${p.kind}: ${p.path.split(/[\\/]/).pop() || p.path}`,
+      message: `config ${p.kind}: ${basename(p.path)}`,
       detail: p.path,
       ref: p.path,
     });
@@ -339,7 +336,7 @@ function buildAll(): Notification[] {
       ts: p.ts,
       severity: "info",
       source: "repo",
-      message: `repo ${p.kind}: ${p.path.split(/[\\/]/).pop() || p.path}`,
+      message: `repo ${p.kind}: ${basename(p.path)}`,
       detail: p.path,
       ref: p.path,
     });
@@ -373,23 +370,6 @@ function subscribe(fn: Listener): () => void {
 /** React hook — returns the live notification list. */
 export function useNotifications(): Notification[] {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-}
-
-/** React hook — returns just the unread count + the highest unread severity.
- *  Cheap enough to call from the StatusBar on every render. */
-export function useUnread(): { count: number; severity: NotifSeverity | null } {
-  const all = useNotifications();
-  let count = 0;
-  let highest: NotifSeverity | null = null;
-  for (const n of all) {
-    if (state.read.has(n.id)) continue;
-    count += 1;
-    if (n.severity === "error") highest = "error";
-    else if (n.severity === "warning" && highest !== "error")
-      highest = "warning";
-    else if (!highest) highest = n.severity;
-  }
-  return { count, severity: highest };
 }
 
 /** Mark a single notification as read. */

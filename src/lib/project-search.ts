@@ -79,13 +79,3 @@ export function groupHitsByFile(
   }
   return order.map((p) => ({ path: p, hits: map.get(p)! }));
 }
-
-/** Shorten an absolute path to `…/last-3-segments` for display. */
-export function shortenPath(path: string, projectRoot?: string | null): string {
-  if (projectRoot && path.startsWith(projectRoot)) {
-    return path.slice(projectRoot.length).replace(/^[\\/]/, "");
-  }
-  const parts = path.split(/[\\/]/);
-  if (parts.length <= 3) return path;
-  return "…/" + parts.slice(-3).join("/");
-}

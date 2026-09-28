@@ -15,7 +15,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 
-import { extOf, languageLabel } from "@/lib/editor-langs";
+import { languageLabel } from "@/lib/editor-langs";
 import { saveFileText } from "@/lib/editor-save";
 import { useCortexStore } from "@/state/store";
 
@@ -46,18 +46,6 @@ export interface MultibufferOpenDetail {
 /** Mint a fresh id. `mb-` prefix keeps it visually distinct from message ids. */
 export function newExcerptId(): string {
   return `mb-${crypto.randomUUID()}`;
-}
-
-/** Resolve the language label for a given source path. Thin wrapper so the
- *  React component doesn't need to import editor-langs directly. */
-export function languageFor(path: string): string {
-  return languageLabel(path);
-}
-
-/** Returns the lowercase extension for downstream code that wants the
- *  raw extension rather than the human-readable label. */
-export function extensionOf(path: string): string {
-  return extOf(path);
 }
 
 /** Read a file's full contents using the same fallback chain as EditorPane. */
@@ -189,15 +177,6 @@ export async function saveExcerpt(
 }
 
 /**
- * Replace every excerpt currently in the multibuffer. Convenience wrapper
- * around the store mutator — callers prefer this over reaching into the
- * store directly so the API surface stays small.
- */
-export function replaceMultibufferExcerpts(items: MultibufferExcerpt[]): void {
-  useCortexStore.getState().setMultibufferExcerpts(items);
-}
-
-/**
  * Public helper for search / refactor agents: append (or replace) an
  * excerpt at the given path + range. Switches the activity panel to the
  * multibuffer tab so the user sees it land.
@@ -214,18 +193,4 @@ export async function addExcerpt(
     store.setActivityTab("multibuffer");
   }
   return excerpt;
-}
-
-/** Dispatch the `cortex:multibuffer-open` window event so non-React
- *  callers can hand a fresh excerpt list to the panel in one shot. */
-export function dispatchMultibufferOpen(excerpts: MultibufferExcerpt[]): void {
-  try {
-    window.dispatchEvent(
-      new CustomEvent<MultibufferOpenDetail>(MULTIBUFFER_OPEN_EVENT, {
-        detail: { excerpts },
-      }),
-    );
-  } catch {
-    /* not in a browser env */
-  }
 }

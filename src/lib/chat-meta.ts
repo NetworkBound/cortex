@@ -19,11 +19,6 @@ export const EMPTY_CHAT_META: ChatMeta = {
   tags: [],
 };
 
-export async function getChatMeta(filePath: string): Promise<ChatMeta | null> {
-  const m = await invoke<ChatMeta | null>("get_chat_meta", { filePath });
-  return m ?? null;
-}
-
 export async function setChatMeta(
   filePath: string,
   meta: ChatMeta,

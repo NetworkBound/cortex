@@ -13,6 +13,7 @@
  */
 import type { Message } from "@/state/store";
 import { saveFileText } from "@/lib/editor-save";
+import { join } from "@/lib/path";
 
 export interface ConversationExportMeta {
   sessionId?: string;
@@ -93,14 +94,6 @@ function sanitizeSlug(raw: string): string {
   return raw.replace(/[^A-Za-z0-9._-]/g, "-").replace(/-+/g, "-");
 }
 
-/** Join path segments with forward slashes (backend accepts them). */
-function joinPath(...parts: string[]): string {
-  return parts
-    .map((p) => p.replace(/[\\/]+$/g, ""))
-    .filter((p) => p.length > 0)
-    .join("/");
-}
-
 /**
  * Build the transcript body and write it to disk.
  *
@@ -139,7 +132,7 @@ export async function exportConversation(
 
   // Written directly under the project root: the backend `save_file_text`
   // does not create parent directories, so a subfolder would fail on first use.
-  const path = joinPath(baseDir, fileName);
+  const path = join(baseDir, fileName);
 
   return await saveFileText(path, body);
 }

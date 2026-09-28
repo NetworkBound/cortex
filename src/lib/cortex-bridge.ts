@@ -261,11 +261,6 @@ export async function validateObsidianVault(path: string): Promise<VaultInfo> {
   return invoke<VaultInfo>("validate_obsidian_vault", { path });
 }
 
-/** Persist the git-server URL without cloning. */
-export async function setGitServerUrl(url: string): Promise<void> {
-  return invoke("set_git_server_url", { url });
-}
-
 /** Connect (and persist) an already-cloned local repo path. Registers it as
  *  a project and returns the canonical path. */
 export async function setGitServerClonedPath(path: string): Promise<string> {
@@ -640,11 +635,6 @@ export async function tsStatus(): Promise<TsStatus> {
 /** Store a tailnet auth key in the OS keychain (never logged, never returned). */
 export async function tsSetAuthkey(key: string): Promise<void> {
   return invoke("ts_set_authkey", { key });
-}
-
-/** The local SOCKS5 address (`host:port`) the sidecar listens on. */
-export async function tsGetSocksAddr(): Promise<string> {
-  return invoke<string>("ts_get_socks_addr");
 }
 
 /** External SOCKS5 proxy (`host:port`) Cortex routes home traffic through

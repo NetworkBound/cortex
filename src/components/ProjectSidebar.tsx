@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { BookText, GitBranch } from "lucide-react";
 import { openCodeProject } from "@/lib/open-project";
-import { listProjects, openVaultNote, type ProjectMeta } from "@/lib/projects";
+import {
+  cortexignoreStatus,
+  listProjects,
+  openVaultNote,
+  type CortexIgnoreStatus,
+  type ProjectMeta,
+} from "@/lib/projects";
 import { pushToast } from "@/lib/toast";
 import { useCortexStore } from "@/state/store";
 import { FileExplorer } from "./FileExplorer";
@@ -22,6 +28,24 @@ export function ProjectSidebar() {
   const setProjects = useCortexStore((s) => s.setProjects);
   const setActive = useCortexStore((s) => s.setActiveProject);
   const [worktreesOpen, setWorktreesOpen] = useState(false);
+  const [ignore, setIgnore] = useState<CortexIgnoreStatus | null>(null);
+
+  // `.cortexignore` chip next to the project name. Best-effort: a missing or
+  // unreadable root just hides the chip.
+  const activeRoot = active?.root ?? null;
+  useEffect(() => {
+    setIgnore(null);
+    if (!activeRoot) return;
+    let cancelled = false;
+    cortexignoreStatus(activeRoot)
+      .then((s) => {
+        if (!cancelled) setIgnore(s);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [activeRoot]);
 
   useEffect(() => {
     listProjects()
@@ -200,6 +224,20 @@ export function ProjectSidebar() {
         <>
           <div className="sidebar-section-head" style={{ marginTop: 16 }}>
             <h2>{active ? `${active.name}/` : "Files"}</h2>
+            {ignore?.has_user_patterns && (
+              <span
+                className="meta-chip sidebar-ignore-chip"
+                title={[
+                  `${ignore.user_pattern_count} .cortexignore pattern(s) hide files from indexing & search`,
+                  ignore.project_exists ? ignore.project_path : null,
+                  ignore.global_exists ? ignore.global_path : null,
+                ]
+                  .filter(Boolean)
+                  .join("\n")}
+              >
+                {ignore.user_pattern_count} ignored
+              </span>
+            )}
             <button
               className="sidebar-action-btn"
               onClick={() => setWorktreesOpen(true)}

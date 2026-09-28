@@ -6,11 +6,19 @@ import {
   findFiles,
   groupHitsByFile,
   searchProject,
-  shortenPath,
   type SearchHit,
 } from "@/lib/project-search";
 import { searchMemory, type MemorySearchHit } from "@/lib/memory";
+import {
+  semanticChatReindex,
+  semanticChatSearch,
+  type ChatSemanticHit,
+} from "@/lib/semantic-search";
+import { resumeStoredSession } from "@/lib/sessions";
+import { timeAgo } from "@/lib/time";
+import { pushToast } from "@/lib/toast";
 import { openInEditor } from "@/lib/editor";
+import { basename, shortenPath } from "@/lib/path";
 
 /**
  * Unified project + memory search ("search universes").
@@ -67,12 +75,6 @@ const SCOPES: { key: Mode; label: string; title: string }[] = [
   { key: "files", label: "Go to file", title: "Fuzzy file-path search" },
 ];
 
-/** Last path segment, for memory-hit titles. */
-function basename(p: string): string {
-  const m = p.match(/([^/\\]+)$/);
-  return m ? m[1] : p;
-}
-
 export function SearchPanel() {
   const project = useCortexStore((s) => s.activeProject);
   const [mode, setMode] = useState<Mode>(preloaded.mode ?? "all");
@@ -82,6 +84,8 @@ export function SearchPanel() {
   const [fixedString, setFixedString] = useState(false);
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [memHits, setMemHits] = useState<MemorySearchHit[]>([]);
+  const [chatHits, setChatHits] = useState<ChatSemanticHit[]>([]);
+  const [reindexing, setReindexing] = useState(false);
   const [files, setFiles] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +116,7 @@ export function SearchPanel() {
     if (wantsFiles) {
       setHits([]);
       setMemHits([]);
+      setChatHits([]);
       if (!project) {
         setFiles([]);
         return;
@@ -141,6 +146,7 @@ export function SearchPanel() {
     if (!debounced) {
       setHits([]);
       setMemHits([]);
+      setChatHits([]);
       setLoading(false);
       return;
     }
@@ -178,8 +184,20 @@ export function SearchPanel() {
             if (!cancelled) setMemHits([]);
           }),
       );
+      // Semantic chat recall needs the local embedder (Ollama); when it's
+      // down this section is simply empty rather than failing the search.
+      tasks.push(
+        semanticChatSearch(debounced, 8)
+          .then((r) => {
+            if (!cancelled) setChatHits(r);
+          })
+          .catch(() => {
+            if (!cancelled) setChatHits([]);
+          }),
+      );
     } else {
       setMemHits([]);
+      setChatHits([]);
     }
 
     Promise.all(tasks).finally(() => {
@@ -203,6 +221,28 @@ export function SearchPanel() {
     wantsMemory,
     wantsFiles,
   ]);
+
+  // Embed any chat messages / notes not yet in the semantic index.
+  const reindex = async () => {
+    if (reindexing) return;
+    setReindexing(true);
+    try {
+      const r = await semanticChatReindex();
+      pushToast({
+        title: "Semantic index refreshed",
+        body: `${r.embedded} embedded, ${r.failed} failed · ${r.total_indexed} indexed`,
+        kind: r.failed > 0 ? "warning" : "success",
+      });
+    } catch (e) {
+      pushToast({
+        title: "Reindex failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
+    } finally {
+      setReindexing(false);
+    }
+  };
 
   // Project-scoped modes need an active project; memory search is global.
   const needsProject = mode === "text" || mode === "files";
@@ -262,6 +302,16 @@ export function SearchPanel() {
             </label>
           </div>
         )}
+        {mode === "memory" && (
+          <button
+            className="link-btn"
+            onClick={() => void reindex()}
+            disabled={reindexing}
+            title="Embed chat messages and notes that aren't in the semantic index yet"
+          >
+            {reindexing ? "Reindexing…" : "Reindex"}
+          </button>
+        )}
       </div>
       <div className="search-panel-body">
         {error && <div className="search-panel-error">{error}</div>}
@@ -274,6 +324,7 @@ export function SearchPanel() {
             query={debounced}
             hits={wantsProjectText ? hits : []}
             memHits={wantsMemory ? memHits : []}
+            chatHits={wantsMemory ? chatHits : []}
             projectRoot={project?.root ?? null}
             showProject={wantsProjectText && !!project}
             showMemory={wantsMemory}
@@ -331,6 +382,7 @@ function UnifiedResults({
   query,
   hits,
   memHits,
+  chatHits,
   projectRoot,
   showProject,
   showMemory,
@@ -338,6 +390,7 @@ function UnifiedResults({
   query: string;
   hits: SearchHit[];
   memHits: MemorySearchHit[];
+  chatHits: ChatSemanticHit[];
   projectRoot: string | null;
   showProject: boolean;
   showMemory: boolean;
@@ -363,9 +416,10 @@ function UnifiedResults({
 
   const projectCount = grouped.reduce((n, g) => n + g.hits.length, 0);
   const memoryCount = memHits.length;
+  const chatCount = chatHits.length;
   const totalSections = (showProject ? 1 : 0) + (showMemory ? 1 : 0);
 
-  if (projectCount === 0 && memoryCount === 0) {
+  if (projectCount === 0 && memoryCount === 0 && chatCount === 0) {
     return (
       <div className="search-empty">
         <div className="search-empty-title">No matches</div>
@@ -445,6 +499,38 @@ function UnifiedResults({
               </button>
             ))
           )}
+        </SearchSection>
+      )}
+      {showMemory && chatCount > 0 && (
+        <SearchSection label="Past chats" count={chatCount}>
+          {chatHits.map((h) => (
+            <button
+              key={h.message_id}
+              className="search-mem-hit"
+              onClick={() =>
+                resumeStoredSession(h.session_id).catch((e) =>
+                  pushToast({
+                    title: "Resume failed",
+                    body: humanizeError(e),
+                    kind: "error",
+                  }),
+                )
+              }
+              title={`Resume session ${h.session_id}`}
+            >
+              <div className="search-mem-hit-head">
+                <span className="search-mem-title">
+                  {h.role} · {timeAgo(h.ts)}
+                </span>
+                <span className="search-mem-source">
+                  {Math.round(h.score * 100)}% match
+                </span>
+              </div>
+              {h.snippet && (
+                <div className="search-mem-snippet">{h.snippet}</div>
+              )}
+            </button>
+          ))}
         </SearchSection>
       )}
     </div>
