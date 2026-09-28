@@ -726,10 +726,9 @@ kbd {
   display: grid;
   /* minmax(0, 1fr) on the center track (not bare 1fr = minmax(auto,1fr)) so
      wide chat content can't grow the column past the viewport. */
-  grid-template-columns: var(--activity-w, 172px) var(
-      --sidebar-w,
-      256px
-    ) minmax(0, 1fr) var(--right-w, 340px);
+  grid-template-columns:
+    var(--activity-w, 172px) var(--sidebar-w, 256px)
+    minmax(0, 1fr) var(--right-w, 340px);
   height: 100%;
   min-height: 0;
   min-width: 0;
@@ -740,10 +739,9 @@ kbd {
    Without this, the floating drawer steals pointer events from the
    composer textarea for its full 380px width. */
 .cortex-grid.with-activity-panel {
-  grid-template-columns: var(--activity-w, 172px) var(
-      --sidebar-w,
-      256px
-    ) 380px minmax(0, 1fr) var(--right-w, 340px);
+  grid-template-columns:
+    var(--activity-w, 172px) var(--sidebar-w, 256px)
+    380px minmax(0, 1fr) var(--right-w, 340px);
 }
 
 /* Activity bar — a readable, resizable navigation rail on the far left.
