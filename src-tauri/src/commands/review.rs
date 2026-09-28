@@ -562,7 +562,7 @@ fn pick_reviewer(author: Option<&str>, candidates: &[String]) -> Option<String> 
     let differs = |c: &str| model_family(c) != family && c != author;
     REVIEWER_PREFERENCE
         .iter()
-        .find(|p| candidates.iter().any(|c| c.as_str() == *p) && differs(*p))
+        .find(|p| candidates.iter().any(|c| c.as_str() == **p) && differs(*p))
         .map(|p| (*p).to_string())
         .or_else(|| candidates.iter().find(|c| differs(c.as_str())).cloned())
 }
