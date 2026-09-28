@@ -192,7 +192,7 @@ fn now_ms() -> i64 {
 // ----- store I/O -----
 
 fn store_path() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".cortex").join("routines.json"))
+    crate::paths::cortex_dir().map(|c| c.join("routines.json"))
 }
 
 fn load_store() -> RoutineStore {
@@ -232,7 +232,7 @@ fn save_store(store: &RoutineStore) -> Result<(), String> {
 // updates the routine's last_* fields, so the two files can't disagree.
 
 fn runs_path() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".cortex").join("routine-runs.json"))
+    crate::paths::cortex_dir().map(|c| c.join("routine-runs.json"))
 }
 
 fn load_runs() -> RoutineRunLog {

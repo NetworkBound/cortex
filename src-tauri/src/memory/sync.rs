@@ -25,7 +25,7 @@ pub async fn sync_to_peer(peer: &PeerDevice) -> SyncResult {
     let mut combined_stderr = String::new();
     let mut all_ok = true;
 
-    let home = dirs::home_dir().unwrap_or_default();
+    let home = crate::paths::home_dir().unwrap_or_default();
 
     for rel in &peer.paths {
         let trimmed = rel.trim_start_matches('/');
@@ -107,6 +107,6 @@ pub fn default_paths() -> Vec<String> {
 }
 
 pub fn config_path() -> PathBuf {
-    let cfg = dirs::config_dir().unwrap_or_else(|| dirs::home_dir().unwrap_or_default());
+    let cfg = dirs::config_dir().unwrap_or_else(|| crate::paths::home_dir().unwrap_or_default());
     cfg.join("cortex").join("peers.json")
 }

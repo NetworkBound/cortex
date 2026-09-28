@@ -128,7 +128,7 @@ impl Default for TrustMatrix {
 }
 
 fn trust_matrix_path() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "no home dir".to_string())?;
+    let home = crate::paths::home_dir().ok_or_else(|| "no home dir".to_string())?;
     Ok(home.join(".cortex").join("trust-matrix.json"))
 }
 

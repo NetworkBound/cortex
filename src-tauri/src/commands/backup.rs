@@ -60,7 +60,7 @@ pub struct RestoreReport {
 }
 
 fn backups_dir() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "no home dir".to_string())?;
+    let home = crate::paths::home_dir().ok_or_else(|| "no home dir".to_string())?;
     let dir = home.join(BACKUP_DIR_REL);
     fs::create_dir_all(&dir).map_err(|e| format!("mkdir backups: {e}"))?;
     Ok(dir)
@@ -70,7 +70,7 @@ fn backups_dir() -> Result<PathBuf, String> {
 /// resolves archive entries by their `rN/` prefix back to `roots[N]`.
 fn capture_roots() -> Vec<PathBuf> {
     let mut out: Vec<PathBuf> = Vec::new();
-    let home = match dirs::home_dir() {
+    let home = match crate::paths::home_dir() {
         Some(h) => h,
         None => return out,
     };
@@ -256,7 +256,7 @@ pub fn create(label: &str) -> Result<BackupMeta, String> {
         return Err("nothing to back up (no ~/.cortex and no Claude project memory)".into());
     }
 
-    let home = dirs::home_dir().ok_or_else(|| "no home dir".to_string())?;
+    let home = crate::paths::home_dir().ok_or_else(|| "no home dir".to_string())?;
     let cortex_home = home.join(".cortex");
 
     let ts_ms = Utc::now().timestamp_millis();
@@ -399,7 +399,7 @@ fn mtime_ms(p: &Path) -> i64 {
 /// cannot redirect writes elsewhere.
 fn allowed_root_prefixes() -> Vec<PathBuf> {
     let mut v = Vec::new();
-    if let Some(home) = dirs::home_dir() {
+    if let Some(home) = crate::paths::home_dir() {
         v.push(home.join(".cortex"));
         v.push(home.join(".claude").join("projects"));
     }

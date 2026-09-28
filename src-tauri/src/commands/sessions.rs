@@ -319,7 +319,7 @@ fn resolve_vault_dir(configured: Option<PathBuf>) -> Option<PathBuf> {
             return Some(p);
         }
     }
-    dirs::home_dir().map(|h| h.join("Documents").join("Cortex Brain"))
+    crate::paths::brain_dir()
 }
 
 /// Render + write the export. Takes an explicit `dir` so it is unit-testable

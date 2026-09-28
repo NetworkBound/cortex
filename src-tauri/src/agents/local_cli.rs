@@ -257,7 +257,7 @@ impl CliSpec {
         if self.auth_paths.is_empty() {
             return None;
         }
-        let home = dirs::home_dir()?;
+        let home = crate::paths::home_dir()?;
         Some(self.auth_paths.iter().any(|rel| home.join(rel).exists()))
     }
 }
@@ -331,7 +331,7 @@ impl AgentAdapter for GenericCliAgent {
             .as_ref()
             .filter(|p| p.is_dir())
             .cloned()
-            .or_else(dirs::home_dir)
+            .or_else(crate::paths::home_dir)
             .unwrap_or_else(std::env::temp_dir);
 
         // Build the prompt (history folded in), then let the spec build argv.
@@ -988,7 +988,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// Usage dashboard (`usage.rs`) can surface Claude's rate-limit window/status.
 /// Atomic write; entirely best-effort.
 fn persist_claude_limit(info: &Value) {
-    let Some(home) = dirs::home_dir() else { return };
+    let Some(home) = crate::paths::home_dir() else {
+        return;
+    };
     let dir = home.join(".cortex");
     if std::fs::create_dir_all(&dir).is_err() {
         return;

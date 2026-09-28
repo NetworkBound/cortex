@@ -38,7 +38,7 @@ pub struct ProjectMeta {
 /// "Clone & connect" dead end, where a repo cloned outside `~/projects`
 /// never appeared anywhere in the app.
 pub fn registered_projects_file() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".cortex").join("registered-projects.json"))
+    crate::paths::cortex_dir().map(|c| c.join("registered-projects.json"))
 }
 
 fn load_registered_from(file: &Path) -> Vec<PathBuf> {
@@ -126,7 +126,7 @@ pub fn vault_root() -> Option<PathBuf> {
             return Some(p);
         }
     }
-    dirs::home_dir().map(|h| h.join("vault"))
+    crate::paths::home_dir().map(|h| h.join("vault"))
 }
 
 fn modified_ms(path: &Path) -> i64 {
@@ -214,7 +214,7 @@ fn discover_code_projects() -> Vec<ProjectMeta> {
         }
     }
     let mut home_root: Option<PathBuf> = None;
-    if let Some(h) = dirs::home_dir() {
+    if let Some(h) = crate::paths::home_dir() {
         let dflt = h.join("projects");
         if !roots.iter().any(|r| r == &dflt) {
             roots.push(dflt);
@@ -661,7 +661,7 @@ pub fn ignore_status(project_root: &Path) -> CortexIgnoreStatus {
     let ignore = CortexIgnore::load(project_root);
     let project_path = project_root.join(".cortexignore");
     let project_exists = project_path.exists();
-    let (global_path, global_exists) = match dirs::home_dir() {
+    let (global_path, global_exists) = match crate::paths::home_dir() {
         Some(h) => {
             let p = h.join(".cortex").join("cortexignore");
             let exists = p.exists();

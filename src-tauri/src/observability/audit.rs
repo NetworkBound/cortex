@@ -23,7 +23,7 @@ pub struct AuditEntry<'a> {
 /// security-critical log never lands in a CWD-relative location.
 fn audit_dir() -> anyhow::Result<PathBuf> {
     let base = dirs::data_local_dir()
-        .or_else(dirs::home_dir)
+        .or_else(crate::paths::home_dir)
         .ok_or_else(|| anyhow::anyhow!("no data or home directory for audit log"))?;
     Ok(base.join("cortex"))
 }

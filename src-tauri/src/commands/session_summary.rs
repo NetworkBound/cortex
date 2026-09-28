@@ -204,8 +204,7 @@ fn split_headline(raw: &str) -> (String, String) {
 }
 
 fn brain_dir() -> Option<PathBuf> {
-    let home = dirs::home_dir()?;
-    Some(home.join("Documents").join("Cortex Brain"))
+    crate::paths::brain_dir()
 }
 
 /// Write the summary into `~/Documents/Cortex Brain/sessions/<session_id>-summary.md`

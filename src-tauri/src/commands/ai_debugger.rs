@@ -233,7 +233,7 @@ fn parse_test_failure(blob: &str) -> Result<ResolvedError, String> {
 
 fn test_failure_path() -> Option<PathBuf> {
     Some(
-        dirs::home_dir()?
+        crate::paths::home_dir()?
             .join(".cortex")
             .join("last-test-failure.json"),
     )

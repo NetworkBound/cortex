@@ -26,7 +26,7 @@ use std::path::PathBuf;
 const MAX_AUDIO_BYTES: usize = 64 * 1024 * 1024;
 
 fn model_path() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "no home dir".to_string())?;
+    let home = crate::paths::home_dir().ok_or_else(|| "no home dir".to_string())?;
     let dir = home.join(".cortex").join("models");
     let base = dir.join("ggml-base.en.bin");
     if base.exists() {

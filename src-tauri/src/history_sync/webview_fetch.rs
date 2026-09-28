@@ -120,7 +120,7 @@ fn try_begin_fetch(key: &'static str) -> Option<FetchGuard> {
 /// the background headless re-sync. `None` only if the home dir can't resolve.
 pub fn provider_profile_dir(provider: WebProvider) -> Option<std::path::PathBuf> {
     Some(
-        dirs::home_dir()?
+        crate::paths::home_dir()?
             .join(".cortex")
             .join("webview-sessions")
             .join(provider.key()),

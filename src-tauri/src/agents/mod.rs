@@ -1,8 +1,17 @@
-//! Agent adapters. In Cortex, the Cortex Gateway IS the orchestrator —
-//! The gateway already routes to upstream providers (Claude, Codex, Gemini,
-//! Copilot, etc.) via its credential_pool, so this app keeps only one
-//! adapter and lets the gateway fan out. The old per-provider Rust adapters
-//! were deleted in favor of using `/v1/runs` + SSE on the gateway.
+//! Agent adapters — every way Cortex can talk to a model, behind the single
+//! [`AgentAdapter`] trait:
+//!
+//! * `gateway_remote` — the Cortex Gateway (`/v1/runs` + SSE), which fans out
+//!   to upstream providers via its own credential pool.
+//! * `local_cli` (+ the `*_spec` modules) — locally installed agent CLIs
+//!   (`claude`, `codex`, `gemini`, `grok`, `qwen`, `aider`, …) driven as
+//!   subprocesses and parsed into [`AgentEvent`]s.
+//! * `openai_compat` / `custom_endpoint` / `ollama` / `local_runtime` —
+//!   direct OpenAI-compatible HTTP providers and local model runtimes.
+//! * `anthropic_direct` / `openai_direct` — first-party APIs for the
+//!   `standalone` (no-homelab) build.
+//!
+//! `registry` holds the live set; `roles` maps agents onto orchestration roles.
 
 pub mod adapter;
 pub mod aider_spec;

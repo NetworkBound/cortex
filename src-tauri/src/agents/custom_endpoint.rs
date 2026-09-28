@@ -64,7 +64,7 @@ fn default_true() -> bool {
 }
 
 fn config_path() -> Option<PathBuf> {
-    Some(dirs::home_dir()?.join(".cortex").join("endpoints.json"))
+    Some(crate::paths::cortex_dir()?.join("endpoints.json"))
 }
 
 /// Load persisted endpoints. Missing/malformed file ⇒ empty list (today's

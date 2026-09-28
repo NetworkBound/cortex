@@ -13,6 +13,36 @@ pub struct GatewayClient {
     http: reqwest::Client,
 }
 
+/// Build the HTTP client every `GatewayClient` shares. When embedded
+/// Tailscale is enabled + connected, gateway traffic is routed through the
+/// local SOCKS5 proxy (socks5h://) so home hosts resolve + tunnel over the
+/// tailnet; no-op otherwise.
+///
+/// `reqwest::ClientBuilder::build` can fail (bad proxy URL, TLS backend
+/// unavailable). `GatewayClient::new` is called from ~40 command sites, so
+/// rather than panicking — which used to take the whole app down inside a
+/// Tauri command — degrade step by step: drop the proxy, then drop every
+/// option. The final bare `Client::new()` is reqwest's own documented
+/// infallible-in-practice constructor (rustls + bundled roots, no proxy).
+fn build_http() -> reqwest::Client {
+    let with_timeout = || reqwest::Client::builder().timeout(std::time::Duration::from_secs(600));
+    match crate::tailscale::maybe_tailscale_proxy(with_timeout()).build() {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!("gateway http client (tailscale proxy) failed to build: {e}; retrying without proxy");
+            match with_timeout().build() {
+                Ok(c) => c,
+                Err(e) => {
+                    tracing::error!(
+                        "gateway http client failed to build: {e}; using bare defaults"
+                    );
+                    reqwest::Client::new()
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct ModelList {
     pub data: Vec<ModelInfo>,
@@ -193,16 +223,10 @@ pub enum RunStreamItem {
 
 impl GatewayClient {
     pub fn new(base_url: impl Into<String>, api_key: impl Into<String>) -> Self {
-        // When embedded Tailscale is enabled + connected, route gateway traffic
-        // through the local SOCKS5 proxy (socks5h://) so home hosts resolve +
-        // tunnel over the tailnet. No-op otherwise (behavior unchanged).
-        let builder = crate::tailscale::maybe_tailscale_proxy(
-            reqwest::Client::builder().timeout(std::time::Duration::from_secs(600)),
-        );
         Self {
             base_url: base_url.into(),
             api_key: api_key.into(),
-            http: builder.build().expect("reqwest client"),
+            http: build_http(),
         }
     }
 

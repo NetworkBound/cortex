@@ -37,7 +37,7 @@ pub struct MemorySource {
 /// exist a UNC-hop away.
 fn all_home_roots() -> Vec<PathBuf> {
     let mut roots = Vec::new();
-    if let Some(h) = dirs::home_dir() {
+    if let Some(h) = crate::paths::home_dir() {
         roots.push(h);
     }
     #[cfg(windows)]

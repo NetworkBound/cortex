@@ -532,7 +532,7 @@ pub fn read_terminal_tail(home: &Path, max_lines: usize) -> Option<String> {
 /// redirect their shell or `tee` output into this file.
 #[tauri::command]
 pub async fn recent_terminal_output() -> Result<Option<String>, String> {
-    let Some(home) = dirs::home_dir() else {
+    let Some(home) = crate::paths::home_dir() else {
         return Ok(None);
     };
     Ok(read_terminal_tail(&home, TERMINAL_TAIL_LINES))

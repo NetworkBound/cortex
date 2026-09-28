@@ -58,7 +58,7 @@ fn read_capped(path: &Path) -> Option<String> {
 pub fn build_stack(project_root: &Path, cwd: Option<&Path>) -> Vec<AgentsDocSegment> {
     let mut out: Vec<AgentsDocSegment> = Vec::with_capacity(5);
 
-    if let Some(home) = dirs::home_dir() {
+    if let Some(home) = crate::paths::home_dir() {
         let cortex_global = home.join(".cortex").join("AGENTS.md");
         if let Some(body) = read_capped(&cortex_global) {
             out.push(AgentsDocSegment {

@@ -201,7 +201,7 @@ pub struct TestResult {
 }
 
 fn cortex_dir() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "no home directory".to_string())?;
+    let home = crate::paths::home_dir().ok_or_else(|| "no home directory".to_string())?;
     let dir = home.join(".cortex");
     fs::create_dir_all(&dir).map_err(|e| format!("mkdir ~/.cortex: {e}"))?;
     Ok(dir)

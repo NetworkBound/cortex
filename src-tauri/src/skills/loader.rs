@@ -55,7 +55,7 @@ struct RawFrontmatter {
 /// Root directory holding `<skill>/SKILL.md` subfolders. Public so tests can
 /// override via env once we wire that up; for now it's just convenience.
 pub fn skills_root() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".cortex").join("skills"))
+    crate::paths::cortex_dir().map(|c| c.join("skills"))
 }
 
 fn is_valid_name(name: &str) -> bool {

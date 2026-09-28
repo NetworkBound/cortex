@@ -35,7 +35,7 @@ use serde::Serialize;
 /// Baked-in ed25519 public key (base64 of the raw 32 bytes) used to verify the
 /// signature on every downloaded AppImage. The matching private key lives only
 /// on the release machine (`~/.cortex/update-signing-key.pem`, never committed)
-/// and signs each artifact in `scripts/gitea-publish-release.sh`. Public keys
+/// and signs each artifact as part of the release publish step. Public keys
 /// are safe to ship; a key rotation can override this at runtime via
 /// `CORTEX_UPDATE_PUBKEY` / `infra.json` `update_pubkey` without a rebuild.
 const DEFAULT_UPDATE_PUBKEY: &str = "eX81qpl/U3i/lgrgVGgisAbhGtRFWMZsQvvzYLRqwJo=";

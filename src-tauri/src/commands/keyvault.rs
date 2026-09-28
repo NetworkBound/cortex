@@ -58,7 +58,7 @@ impl From<&KeyEntry> for KeyMetadata {
 }
 
 fn vault_dir() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "no home directory".to_string())?;
+    let home = crate::paths::home_dir().ok_or_else(|| "no home directory".to_string())?;
     Ok(home.join(".cortex"))
 }
 

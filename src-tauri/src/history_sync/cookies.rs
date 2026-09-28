@@ -295,7 +295,7 @@ mod firefox {
         }
         #[cfg(not(windows))]
         {
-            if let Some(home) = dirs::home_dir() {
+            if let Some(home) = crate::paths::home_dir() {
                 out.push(home.join(".mozilla/firefox"));
                 out.push(home.join("snap/firefox/common/.mozilla/firefox"));
                 out.push(home.join(".var/app/org.mozilla.firefox/.mozilla/firefox"));

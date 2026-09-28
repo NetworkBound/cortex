@@ -206,6 +206,7 @@ const CATALOG: &[CatalogItem] = &[
 // ----- pure helpers (unit-tested without a live host/server) -----
 
 /// Parse `/proc/meminfo` into `(total_mb, avail_mb)`.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 fn parse_meminfo(contents: &str) -> (u64, u64) {
     let field = |key: &str| -> u64 {
         contents
@@ -341,10 +342,56 @@ fn rank_catalog(specs: &HostSpecs, installed: &[String]) -> Vec<ModelRec> {
 
 // ----- host / server probes -----
 
+/// `(total_mb, available_mb)` of host RAM; `(0, 0)` when it can't be read
+/// (the recommendations then simply skip the RAM gate).
 fn detect_ram_mb() -> (u64, u64) {
-    std::fs::read_to_string("/proc/meminfo")
-        .map(|c| parse_meminfo(&c))
-        .unwrap_or((0, 0))
+    #[cfg(target_os = "linux")]
+    {
+        std::fs::read_to_string("/proc/meminfo")
+            .map(|c| parse_meminfo(&c))
+            .unwrap_or((0, 0))
+    }
+    #[cfg(windows)]
+    {
+        use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+        let mut st = MEMORYSTATUSEX {
+            dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
+            ..Default::default()
+        };
+        // SAFETY: `st` is a properly sized, initialised MEMORYSTATUSEX and
+        // the call only writes into it.
+        match unsafe { GlobalMemoryStatusEx(&mut st) } {
+            Ok(()) => (
+                st.ullTotalPhys / (1024 * 1024),
+                st.ullAvailPhys / (1024 * 1024),
+            ),
+            Err(_) => (0, 0),
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        // `hw.memsize` is total physical RAM in bytes. macOS has no cheap
+        // "available" figure (vm_stat needs page-size arithmetic), so report
+        // total for both — the recommender only gates on the total anyway.
+        let total = crate::sys::no_window("sysctl")
+            .args(["-n", "hw.memsize"])
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .and_then(|o| {
+                String::from_utf8_lossy(&o.stdout)
+                    .trim()
+                    .parse::<u64>()
+                    .ok()
+            })
+            .map(|b| b / (1024 * 1024))
+            .unwrap_or(0);
+        (total, total)
+    }
+    #[cfg(not(any(target_os = "linux", windows, target_os = "macos")))]
+    {
+        (0, 0)
+    }
 }
 
 fn detect_gpu() -> (Option<String>, Option<u64>, bool) {

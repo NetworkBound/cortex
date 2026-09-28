@@ -73,6 +73,8 @@ qrcode = { version = "0.14.1", default-features = false, features = ["svg"] }
 windows = { version = "0.58", features = [
   "Win32_Foundation",
   "Win32_Security_Cryptography",
+  # GlobalMemoryStatusEx — host RAM probe in `commands::cookbook`.
+  "Win32_System_SystemInformation",
 ] }
 
 [dev-dependencies]

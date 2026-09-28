@@ -83,7 +83,7 @@ pub fn sidecar_path() -> Result<PathBuf, String> {
 
 /// Default tsnet state dir: `~/.cortex/tsnet/<hostname>`.
 fn state_dir(hostname: &str) -> PathBuf {
-    dirs::home_dir()
+    crate::paths::home_dir()
         .unwrap_or_else(std::env::temp_dir)
         .join(".cortex")
         .join("tsnet")

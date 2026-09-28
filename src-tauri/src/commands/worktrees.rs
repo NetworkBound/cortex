@@ -16,7 +16,8 @@ fn store_from(s: &TracingStore) -> WorktreeStore {
 /// - live under the user's home directory (the only place projects are expected),
 /// - contain a `.git` entry, so we only operate on real git project roots.
 fn confine_project_root(project_root: &str) -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "could not determine home directory".to_string())?;
+    let home =
+        crate::paths::home_dir().ok_or_else(|| "could not determine home directory".to_string())?;
     let home = home
         .canonicalize()
         .map_err(|e| format!("could not resolve home directory: {e}"))?;

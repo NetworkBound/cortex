@@ -137,7 +137,7 @@ fn stats_for_source(src: &MemorySource) -> SourceStats {
 }
 
 fn chroma_state() -> ChromaState {
-    let Some(home) = dirs::home_dir() else {
+    let Some(home) = crate::paths::home_dir() else {
         return ChromaState::default();
     };
     let path: &Path = &home

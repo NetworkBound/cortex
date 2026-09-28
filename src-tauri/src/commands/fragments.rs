@@ -17,7 +17,7 @@ pub async fn save_fragment(name: String, body: String) -> Result<String, String>
         if safe.is_empty() {
             return Err("name is empty after sanitisation".into());
         }
-        let home = dirs::home_dir().ok_or_else(|| "no home dir".to_string())?;
+        let home = crate::paths::home_dir().ok_or_else(|| "no home dir".to_string())?;
         let dir = home.join(".cortex").join("fragments");
         std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir {}: {e}", dir.display()))?;
         let path = dir.join(format!("{safe}.md"));
@@ -31,7 +31,7 @@ pub async fn save_fragment(name: String, body: String) -> Result<String, String>
 #[tauri::command]
 pub async fn list_fragments() -> Result<Vec<String>, String> {
     tokio::task::spawn_blocking(|| {
-        let Some(home) = dirs::home_dir() else {
+        let Some(home) = crate::paths::home_dir() else {
             return Vec::<String>::new();
         };
         let dir = home.join(".cortex").join("fragments");

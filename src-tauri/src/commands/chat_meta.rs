@@ -50,7 +50,7 @@ impl ChatMeta {
 static WRITE_LOCK: Mutex<()> = Mutex::new(());
 
 fn store_path() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "no home dir".to_string())?;
+    let home = crate::paths::home_dir().ok_or_else(|| "no home dir".to_string())?;
     Ok(home.join(".cortex").join("chat-meta.json"))
 }
 

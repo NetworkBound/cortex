@@ -156,6 +156,26 @@ fn clip_tail(s: &mut String, cap: usize) -> bool {
     true
 }
 
+/// Drop guard that kills the process tree rooted at `pid` unless disarmed.
+/// Mirrors `agents::local_cli::TreeKill`.
+struct TreeKill {
+    pid: Option<u32>,
+}
+
+impl TreeKill {
+    fn disarm(&mut self) {
+        self.pid = None;
+    }
+}
+
+impl Drop for TreeKill {
+    fn drop(&mut self) {
+        if let Some(pid) = self.pid {
+            crate::sys::kill_process_tree(pid);
+        }
+    }
+}
+
 /// Run `command` inside `cwd` with a timeout, returning a bounded snapshot. The
 /// core of the feature, factored out so it's testable with trivial shell
 /// commands (`true`/`false`/`echo`) on a temp dir.
@@ -187,6 +207,9 @@ async fn run_in_dir(command: &str, cwd: &Path, timeout_ms: u64) -> Result<TestRu
     let mut builder = {
         let mut c = Command::new("sh");
         c.args(["-c", cmd]);
+        // Own process group so the timeout can take `sh`'s children (the
+        // actual test runner and its workers) down with it — see `TreeKill`.
+        c.process_group(0);
         c
     };
     builder
@@ -198,8 +221,22 @@ async fn run_in_dir(command: &str, cwd: &Path, timeout_ms: u64) -> Result<TestRu
 
     let start = Instant::now();
     let child = builder.spawn().map_err(|e| format!("spawn failed: {e}"))?;
-    let result =
-        tokio::time::timeout(Duration::from_millis(timeout_ms), child.wait_with_output()).await;
+    let pid = child.id();
+    // `kill_on_drop` only kills `sh`/`cmd` itself and orphans the runner it
+    // spawned (`cargo test`, `pytest`, `node`…), which then keeps burning CPU
+    // — and on Windows keeps the worktree locked — after we reported a
+    // timeout. So: pin the wait future (it owns the `Child`) and declare the
+    // `TreeKill` guard AFTER it. Locals drop in reverse order, so on a timeout
+    // or task cancellation the guard kills the whole tree while the root is
+    // still alive (`taskkill /T` needs it to walk from), and only then does
+    // `kill_on_drop` finish the root. A normal exit disarms the guard.
+    let wait = child.wait_with_output();
+    tokio::pin!(wait);
+    let mut tree = TreeKill { pid };
+    let result = tokio::time::timeout(Duration::from_millis(timeout_ms), wait.as_mut()).await;
+    if result.is_ok() {
+        tree.disarm();
+    }
     let duration_ms = start.elapsed().as_millis() as u64;
 
     match result {

@@ -46,7 +46,7 @@ impl AutoApproveList {
     /// Resolve `~/.cortex/auto-approve.json`. Returns `None` when the home
     /// directory can't be determined.
     pub fn file_path() -> Option<PathBuf> {
-        dirs::home_dir().map(|h| h.join(".cortex").join("auto-approve.json"))
+        crate::paths::cortex_dir().map(|c| c.join("auto-approve.json"))
     }
 
     /// Load the on-disk allowlist. Missing files yield an empty list;

@@ -106,7 +106,7 @@ fn note_reference(abs: &str, vault_prefix: Option<&str>) -> String {
             return abs[v.len()..].trim_start_matches(['/', '\\']).to_string();
         }
     }
-    if let Some(home) = dirs::home_dir() {
+    if let Some(home) = crate::paths::home_dir() {
         let h = home.display().to_string();
         if !h.is_empty() && abs.starts_with(&h) {
             return abs[h.len()..].trim_start_matches(['/', '\\']).to_string();

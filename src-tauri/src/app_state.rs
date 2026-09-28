@@ -109,7 +109,7 @@ impl AppState {
                 .map(PathBuf::from)
                 .filter(|p| p.is_dir())
                 .or_else(Self::load_default_project_root)
-                .or_else(|| dirs::home_dir().map(|h| h.join("projects"))),
+                .or_else(|| crate::paths::home_dir().map(|h| h.join("projects"))),
             ollama_base_url: crate::infra_config::ollama_base_url().unwrap_or_default(),
             ollama_model: std::env::var("OLLAMA_MODEL")
                 .unwrap_or_else(|_| "qwen2.5:14b".to_string()),
@@ -168,7 +168,7 @@ impl AppState {
         if !matches!(mode, "homelab" | "cloud") {
             anyhow::bail!("invalid runtime mode: {mode} (expected homelab | cloud)");
         }
-        let cfg_dir = dirs::home_dir()
+        let cfg_dir = crate::paths::home_dir()
             .ok_or_else(|| anyhow::anyhow!("no home dir"))?
             .join(".cortex");
         std::fs::create_dir_all(&cfg_dir)?;
@@ -183,7 +183,7 @@ impl AppState {
     /// Read the persisted runtime mode, ignoring missing/malformed files and
     /// any value that isn't an exact `"homelab"` / `"cloud"`.
     pub fn load_runtime_mode() -> Option<String> {
-        let path = dirs::home_dir()?.join(".cortex/runtime-mode.json");
+        let path = crate::paths::cortex_dir()?.join("runtime-mode.json");
         let raw = std::fs::read_to_string(&path).ok()?;
         let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
         match v.get("runtime_mode")?.as_str()? {
@@ -264,7 +264,7 @@ impl AppState {
     /// so the choice survives app restarts. Returns the absolute path that was
     /// saved (after canonicalization fallback to the input on failure).
     pub fn save_default_project_root(root: &std::path::Path) -> anyhow::Result<()> {
-        let cfg_dir = dirs::home_dir()
+        let cfg_dir = crate::paths::home_dir()
             .ok_or_else(|| anyhow::anyhow!("no home dir"))?
             .join(".cortex");
         std::fs::create_dir_all(&cfg_dir)?;
@@ -283,7 +283,7 @@ impl AppState {
     /// Read the persisted active project root, ignoring missing/malformed files
     /// and entries that no longer exist on disk.
     pub fn load_default_project_root() -> Option<PathBuf> {
-        let path = dirs::home_dir()?.join(".cortex/last-project.json");
+        let path = crate::paths::cortex_dir()?.join("last-project.json");
         let raw = std::fs::read_to_string(&path).ok()?;
         let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
         let root = v.get("root")?.as_str()?;
@@ -300,7 +300,7 @@ impl AppState {
     /// existing persisted value untouched (so the URL-only and path-only flows
     /// don't clobber each other). Mirrors the `last-project.json` pattern.
     pub fn save_git_server(url: Option<&str>, cloned_path: Option<&Path>) -> anyhow::Result<()> {
-        let cfg_dir = dirs::home_dir()
+        let cfg_dir = crate::paths::home_dir()
             .ok_or_else(|| anyhow::anyhow!("no home dir"))?
             .join(".cortex");
         std::fs::create_dir_all(&cfg_dir)?;
@@ -330,7 +330,7 @@ impl AppState {
 
     /// Read the persisted git-server URL, ignoring missing/malformed files.
     pub fn load_git_server_url() -> Option<String> {
-        let path = dirs::home_dir()?.join(".cortex/git-config.json");
+        let path = crate::paths::cortex_dir()?.join("git-config.json");
         let raw = std::fs::read_to_string(&path).ok()?;
         let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
         v.get("git_server_url")
@@ -342,7 +342,7 @@ impl AppState {
     /// Read the persisted cloned-repo path, dropping entries that no longer
     /// exist on disk.
     pub fn load_git_server_cloned_path() -> Option<PathBuf> {
-        let path = dirs::home_dir()?.join(".cortex/git-config.json");
+        let path = crate::paths::cortex_dir()?.join("git-config.json");
         let raw = std::fs::read_to_string(&path).ok()?;
         let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
         let p = PathBuf::from(v.get("git_server_cloned_path")?.as_str()?);
@@ -393,10 +393,14 @@ pub(crate) fn default_obsidian_vault() -> Option<PathBuf> {
         return Some(p);
     }
 
-    // 1. Windows: %USERPROFILE%\Documents\Cortex Brain (also Documents\Obsidian).
-    if let Some(profile) = std::env::var_os("USERPROFILE").map(PathBuf::from) {
-        for sub in [["Documents", "Cortex Brain"], ["Documents", "Obsidian"]] {
-            let p = profile.join(sub[0]).join(sub[1]);
+    // 1. Windows: <Documents>\Cortex Brain (also <Documents>\Obsidian).
+    //    `paths::documents_dir` asks the known-folder API, so a OneDrive-
+    //    redirected Documents folder is found too (the old
+    //    `%USERPROFILE%\Documents` probe saw only the empty stub there).
+    #[cfg(windows)]
+    if let Some(docs) = crate::paths::documents_dir() {
+        for sub in ["Cortex Brain", "Obsidian"] {
+            let p = docs.join(sub);
             if p.is_dir() {
                 return Some(p);
             }
@@ -404,7 +408,7 @@ pub(crate) fn default_obsidian_vault() -> Option<PathBuf> {
     }
     // 2. Linux/macOS home + WSL fallback. `vault` / `Obsidian-Vault` are the
     //    homelab clone names; the others are common Obsidian defaults.
-    if let Some(home) = dirs::home_dir() {
+    if let Some(home) = crate::paths::home_dir() {
         for sub in [
             "vault",
             "Obsidian-Vault",
@@ -444,7 +448,7 @@ fn is_obsidian_vault(dir: &Path) -> bool {
 /// every vault the user has opened), across install flavors and platforms.
 fn obsidian_config_files() -> Vec<PathBuf> {
     let mut out = Vec::new();
-    if let Some(home) = dirs::home_dir() {
+    if let Some(home) = crate::paths::home_dir() {
         // Linux native (XDG) and Flatpak.
         out.push(home.join(".config/obsidian/obsidian.json"));
         out.push(home.join(".var/app/md.obsidian.Obsidian/config/obsidian/obsidian.json"));

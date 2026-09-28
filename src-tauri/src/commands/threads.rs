@@ -63,7 +63,7 @@ fn threads_dir(project_root: &Path) -> PathBuf {
 /// home directory; anything else must be an existing directory.
 fn resolve_root(project_root: &str) -> Result<PathBuf, String> {
     if project_root == GLOBAL_PROJECT_ROOT_KEY {
-        return dirs::home_dir()
+        return crate::paths::home_dir()
             .ok_or_else(|| "cannot resolve a home directory for global threads".to_string());
     }
     let root = PathBuf::from(project_root);
@@ -210,7 +210,7 @@ mod tests {
 
     #[test]
     fn resolve_root_maps_global_sentinel_to_home() {
-        let home = dirs::home_dir().expect("test env has a home dir");
+        let home = crate::paths::home_dir().expect("test env has a home dir");
         assert_eq!(resolve_root(GLOBAL_PROJECT_ROOT_KEY).unwrap(), home);
     }
 

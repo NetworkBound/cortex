@@ -1,19 +1,13 @@
-// WIRING (do in lib.rs and commands/mod.rs):
-//   1. In src-tauri/src/lib.rs (top-level module list):
-//        pub mod repo_map;
-//   2. In src-tauri/src/commands/mod.rs:
-//        pub mod repo_map;
-//   3. In the tauri::Builder::default()...invoke_handler in lib.rs, add:
-//        commands::repo_map::repo_map,
-//        commands::repo_map::repo_map_text,
-//
-// These commands expose an Aider-style symbol map of the active project so the
-// The gateway agent always has structural context without manual @-mentions.
+//! Tauri wrappers around `crate::repo_map` — an Aider-style symbol map of the
+//! active project so the agent always has structural context without manual
+//! @-mentions. `repo_map_text` feeds the chat system prompt; `repo_symbols`
+//! backs the @-picker's "Symbols" chip. The structured map is served by
+//! `local_brain::compute_repo_map_command`.
 
 use std::path::PathBuf;
 
 use crate::repo_map::{
-    compute_repo_map, format_as_text, repo_symbols as repo_symbols_impl, RepoMap, SymbolHit,
+    compute_repo_map, format_as_text, repo_symbols as repo_symbols_impl, SymbolHit,
 };
 
 /// Default cap on number of files included in a repo map.
@@ -33,16 +27,6 @@ fn validate_root(project_root: &str) -> Result<PathBuf, String> {
         return Err(format!("project_root is not a directory: {project_root}"));
     }
     Ok(p)
-}
-
-/// Returns the full structured repo map for `project_root`.
-#[tauri::command]
-pub async fn repo_map(project_root: String) -> Result<RepoMap, String> {
-    let root = validate_root(&project_root)?;
-    let map = tokio::task::spawn_blocking(move || compute_repo_map(&root, DEFAULT_MAX_FILES))
-        .await
-        .map_err(|e| format!("repo_map task failed: {e}"))?;
-    Ok(map)
 }
 
 /// Returns up to `limit` (default 50, hard-capped at 50) symbol hits matching

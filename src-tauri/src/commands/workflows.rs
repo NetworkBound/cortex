@@ -133,7 +133,7 @@ fn now_ms() -> i64 {
 }
 
 fn workflows_dir() -> Option<PathBuf> {
-    crate::paths::home_dir().map(|h| h.join(".cortex").join("workflows"))
+    crate::paths::cortex_dir().map(|c| c.join("workflows"))
 }
 
 /// Reject names with path separators / `..` so callers can't escape the

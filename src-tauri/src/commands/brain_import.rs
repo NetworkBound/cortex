@@ -63,8 +63,7 @@ pub async fn import_to_brain(
 }
 
 fn brain_dir() -> Option<PathBuf> {
-    let home = dirs::home_dir()?;
-    Some(home.join("Documents").join("Cortex Brain"))
+    crate::paths::brain_dir()
 }
 
 /// Lowercase, ASCII-alnum-and-dash slug capped at 60 chars. Falls back to

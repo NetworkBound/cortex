@@ -35,7 +35,7 @@ pub async fn import_claude_mem() -> Result<ImportSummary, String> {
 }
 
 fn run_import() -> anyhow::Result<ImportSummary> {
-    let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("no home dir"))?;
+    let home = crate::paths::home_dir().ok_or_else(|| anyhow::anyhow!("no home dir"))?;
     let claude_proj = home.join(".claude").join("projects");
     let dest = imported_memory_dir()?;
     fs::create_dir_all(&dest)?;

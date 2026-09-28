@@ -75,7 +75,7 @@ impl HistorySyncConfig {
 /// Absolute path to the config file (`~/.cortex/history_sync.json`).
 /// `None` only if the home dir can't be resolved.
 pub fn config_path() -> Option<PathBuf> {
-    Some(dirs::home_dir()?.join(".cortex").join("history_sync.json"))
+    Some(crate::paths::cortex_dir()?.join("history_sync.json"))
 }
 
 /// Load the config, returning a default (all-disabled) value if the file is

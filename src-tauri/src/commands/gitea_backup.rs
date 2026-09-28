@@ -71,7 +71,7 @@ pub struct BackupReport {
 // ─────────── config persistence ───────────
 
 fn cortex_home() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "no home dir".to_string())?;
+    let home = crate::paths::home_dir().ok_or_else(|| "no home dir".to_string())?;
     let dir = home.join(".cortex");
     fs::create_dir_all(&dir).map_err(|e| format!("mkdir ~/.cortex: {e}"))?;
     Ok(dir)
@@ -104,7 +104,7 @@ pub fn save_settings(s: &GiteaSettings) -> Result<(), String> {
 /// Each tuple is `(absolute_root, mirror_subdir, file_filter)`.
 fn source_roots() -> Vec<(PathBuf, &'static str, fn(&Path) -> bool)> {
     let mut out: Vec<(PathBuf, &'static str, fn(&Path) -> bool)> = Vec::new();
-    let home = match dirs::home_dir() {
+    let home = match crate::paths::home_dir() {
         Some(h) => h,
         None => return out,
     };
@@ -116,9 +116,10 @@ fn source_roots() -> Vec<(PathBuf, &'static str, fn(&Path) -> bool)> {
     if claude.exists() {
         out.push((claude, "claude-memory", filter_claude_memory));
     }
-    let brain = home.join("Documents").join("Cortex Brain");
-    if brain.exists() {
-        out.push((brain, "brain", filter_brain));
+    if let Some(brain) = crate::paths::brain_dir() {
+        if brain.exists() {
+            out.push((brain, "brain", filter_brain));
+        }
     }
     out
 }

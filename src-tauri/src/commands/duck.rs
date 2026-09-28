@@ -247,8 +247,7 @@ fn render_markdown(topic: &str, transcript: &[DuckTurn]) -> String {
 }
 
 fn brain_dir() -> Option<PathBuf> {
-    let home = dirs::home_dir()?;
-    Some(home.join("Documents").join("Cortex Brain"))
+    crate::paths::brain_dir()
 }
 
 fn slugify(input: &str) -> String {

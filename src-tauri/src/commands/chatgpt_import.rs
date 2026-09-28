@@ -93,7 +93,7 @@ pub async fn import_chatgpt_export(path: String) -> Result<ImportResult, String>
             other => return Err(format!("unexpected top-level type: {other:?}")),
         };
 
-        let home = dirs::home_dir().ok_or_else(|| "no home dir".to_string())?;
+        let home = crate::paths::home_dir().ok_or_else(|| "no home dir".to_string())?;
         let out_dir = home.join(".claude").join("projects").join("chatgpt-import");
         fs::create_dir_all(&out_dir).map_err(|e| format!("mkdir {}: {e}", out_dir.display()))?;
 

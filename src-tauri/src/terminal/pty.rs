@@ -42,8 +42,6 @@ struct Session {
     writer: Arc<Mutex<Box<dyn Write + Send>>>,
     /// Child shell process. Kept so `close()` can kill it on demand.
     child: Arc<Mutex<Box<dyn Child + Send + Sync>>>,
-    /// PID exposed to the frontend purely for display.
-    child_pid: u32,
 }
 
 static SESSIONS: once_cell::sync::Lazy<Mutex<HashMap<String, Session>>> =
@@ -135,7 +133,6 @@ pub fn open_command(
         master: Arc::new(Mutex::new(pair.master)),
         writer: Arc::new(Mutex::new(writer)),
         child: Arc::new(Mutex::new(child)),
-        child_pid,
     };
 
     {
@@ -226,20 +223,6 @@ pub fn close(id: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Snapshot of currently active sessions for debug/UX surfaces.
-pub fn list_active() -> Vec<PtyHandle> {
-    let Ok(sessions) = SESSIONS.lock() else {
-        return Vec::new();
-    };
-    sessions
-        .iter()
-        .map(|(id, s)| PtyHandle {
-            id: id.clone(),
-            child_pid: s.child_pid,
-        })
-        .collect()
-}
-
 /// Returns the command to launch as the child of the PTY.
 ///
 /// Resolution order (see [`default_shell_program`]): an explicit `CORTEX_SHELL`
@@ -320,12 +303,12 @@ fn apply_session_env(cmd: &mut CommandBuilder) {
     // TERM tells the shell + readline what escape sequences to emit.
     // xterm.js advertises itself as xterm-256color compatible.
     cmd.env("TERM", "xterm-256color");
-    // Start in the user's home directory. `dirs::home_dir()` is the canonical,
+    // Start in the user's home directory. `crate::paths::home_dir()` is the canonical,
     // cross-platform resolution used elsewhere in the app (chat_history,
     // editor): on Windows it consults the known-folder API + HOMEDRIVE/HOMEPATH
     // rather than `$HOME` (which is usually unset there, leaving the terminal
     // in an arbitrary cwd); on POSIX it reads `$HOME`.
-    if let Some(home) = dirs::home_dir() {
+    if let Some(home) = crate::paths::home_dir() {
         cmd.cwd(home);
     }
 }

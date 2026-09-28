@@ -196,8 +196,7 @@ fn path_starts_with(target: &Path, root: &Path) -> bool {
 }
 
 fn brain_dir() -> Option<PathBuf> {
-    let home = dirs::home_dir()?;
-    Some(home.join("Documents").join("Cortex Brain"))
+    crate::paths::brain_dir()
 }
 
 #[cfg(test)]

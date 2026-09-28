@@ -101,7 +101,7 @@ fn slot() -> Arc<Mutex<Option<WatcherHandle>>> {
 
 /// Compute `~/.cortex/`. Errors when no home dir is available.
 fn cortex_dir() -> Result<PathBuf> {
-    let home = dirs::home_dir().context("config_watcher: no home dir")?;
+    let home = crate::paths::home_dir().context("config_watcher: no home dir")?;
     Ok(home.join(".cortex"))
 }
 

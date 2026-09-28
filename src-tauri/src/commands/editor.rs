@@ -20,7 +20,7 @@ use std::path::{Component, Path, PathBuf};
 /// blobs — 10 MiB is already orders of magnitude beyond anything reasonable.
 const MAX_BODY_BYTES: usize = 10 * 1024 * 1024;
 
-/// Resolve the user's home directory. Uses `dirs::home_dir()` so this works on
+/// Resolve the user's home directory. Uses `crate::paths::home_dir()` so this works on
 /// Windows (`%USERPROFILE%`) as well as POSIX (`$HOME`) — a bare `$HOME` lookup
 /// is unset on most Windows hosts, which would make `confine_to_home` fail
 /// closed and disable file saving entirely.

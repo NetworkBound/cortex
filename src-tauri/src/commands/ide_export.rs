@@ -150,7 +150,7 @@ fn target_path(format: &str, project_root: &Path) -> Option<PathBuf> {
         "windsurf" => Some(project_root.join(".windsurfrules")),
         "cline" => Some(project_root.join(".clinerules").join("cortex.md")),
         "copilot" => Some(project_root.join(".github").join("copilot-instructions.md")),
-        "codex" => dirs::home_dir().map(|h| h.join(".codex").join("AGENTS.md")),
+        "codex" => crate::paths::home_dir().map(|h| h.join(".codex").join("AGENTS.md")),
         _ => None,
     }
 }

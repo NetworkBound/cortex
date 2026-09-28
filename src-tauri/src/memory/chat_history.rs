@@ -128,7 +128,7 @@ pub fn list_chats() -> Vec<ChatSummary> {
     // WSL side — without this the chat count reads near-zero because the
     // real chats live under `\\wsl.localhost\<distro>\home\<user>\.claude\`.
     let mut homes: Vec<PathBuf> = Vec::new();
-    if let Some(h) = dirs::home_dir() {
+    if let Some(h) = crate::paths::home_dir() {
         homes.push(h);
     }
     #[cfg(windows)]

@@ -359,7 +359,7 @@ pub fn get_authkey() -> Option<String> {
 // ---------- enabled-state + socks addr persistence (~/.cortex/tailscale.json) ----------
 
 fn config_path() -> Option<std::path::PathBuf> {
-    Some(dirs::home_dir()?.join(".cortex").join("tailscale.json"))
+    Some(crate::paths::cortex_dir()?.join("tailscale.json"))
 }
 
 /// Persisted Tailscale settings (NOT the auth key — that lives in the keychain).

@@ -195,7 +195,7 @@ pub fn build_summary(store: &TracingStore) -> anyhow::Result<UsageSummary> {
 /// `~/.cortex/claude-usage.json` (written by the claude_cli adapter).
 /// Returns None if the file is missing or unparseable.
 fn read_claude_limit() -> Option<ClaudeLimit> {
-    let path = dirs::home_dir()?.join(".cortex/claude-usage.json");
+    let path = crate::paths::cortex_dir()?.join("claude-usage.json");
     let bytes = std::fs::read(path).ok()?;
     let v: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
     Some(ClaudeLimit {

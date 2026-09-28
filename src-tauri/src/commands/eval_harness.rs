@@ -144,7 +144,7 @@ fn default_tasks() -> Vec<EvalTask> {
 // ----- custom task file -----
 
 fn custom_tasks_path() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".cortex").join("eval-tasks.json"))
+    crate::paths::cortex_dir().map(|c| c.join("eval-tasks.json"))
 }
 
 /// Parse a user-supplied task file: a JSON array of `EvalTask`. Returns `None`
@@ -223,7 +223,7 @@ fn now_ms() -> i64 {
 // ----- store -----
 
 fn history_path() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".cortex").join("eval-history.json"))
+    crate::paths::cortex_dir().map(|c| c.join("eval-history.json"))
 }
 
 fn load_history() -> Vec<EvalReport> {
@@ -509,11 +509,11 @@ fn score_retrieval(
 }
 
 fn retrieval_tasks_path() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".cortex").join("retrieval-eval-tasks.json"))
+    crate::paths::cortex_dir().map(|c| c.join("retrieval-eval-tasks.json"))
 }
 
 fn retrieval_history_path() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".cortex").join("retrieval-eval-history.json"))
+    crate::paths::cortex_dir().map(|c| c.join("retrieval-eval-history.json"))
 }
 
 /// Parse the retrieval fixture: a JSON array of `RetrievalEvalTask`. Returns

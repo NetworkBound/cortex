@@ -121,12 +121,12 @@ pub struct GiteaPrClient {
 }
 
 impl GiteaPrClient {
-    pub fn new(access: GiteaAccess) -> Self {
+    pub fn new(access: GiteaAccess) -> Result<Self, String> {
         let http = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(20))
             .build()
-            .expect("reqwest client");
-        Self { access, http }
+            .map_err(|e| format!("gitea http client: {e}"))?;
+        Ok(Self { access, http })
     }
 
     fn url(&self, path: &str) -> String {
@@ -354,7 +354,7 @@ pub fn lane_pr_title(provider: &str, task: &str) -> String {
 pub async fn lane_review(run_id: String, app: tauri::AppHandle) -> Result<LaneReview, String> {
     let store = lane_store(&app);
     let (lane, branch) = reviewable_lane(&store, &run_id)?;
-    let client = GiteaPrClient::new(resolve_gitea_access()?);
+    let client = GiteaPrClient::new(resolve_gitea_access()?)?;
     let base = client.default_branch(&lane.owner, &lane.repo).await?;
     let pr = client
         .ensure_pr(
@@ -408,7 +408,7 @@ pub async fn merge_lane_run(
 ) -> Result<LaneRunRecord, String> {
     let store = lane_store(&app);
     let (lane, branch) = reviewable_lane(&store, &run_id)?;
-    let client = GiteaPrClient::new(resolve_gitea_access()?);
+    let client = GiteaPrClient::new(resolve_gitea_access()?)?;
     let pr = client.pr(&lane.owner, &lane.repo, pr_number).await?;
     if pr.head != branch {
         return Err(format!(
@@ -482,7 +482,7 @@ mod tests {
             base_url: base.trim_end_matches('/').to_string(),
             token: token.clone(),
         };
-        let client = GiteaPrClient::new(access.clone());
+        let client = GiteaPrClient::new(access.clone()).expect("gitea client");
         let http = reqwest::Client::new();
         let auth =
             |rb: reqwest::RequestBuilder| rb.header("Authorization", format!("token {token}"));

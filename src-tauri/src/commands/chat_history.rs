@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 /// Resolve the canonical `~/.claude/projects` directory that chat transcripts
 /// must live under. Returns `None` if the home directory can't be determined.
 fn chats_root() -> Option<PathBuf> {
-    let home = dirs::home_dir()?;
+    let home = crate::paths::home_dir()?;
     let root = home.join(".claude").join("projects");
     // Canonicalize so symlinks/`..` in the base itself are resolved.
     root.canonicalize().ok().or(Some(root))

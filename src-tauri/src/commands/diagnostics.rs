@@ -237,7 +237,7 @@ pub async fn export_diagnostics(
     drop(conn);
 
     // Allowlisted ~/.cortex config files (redacted later, with everything else).
-    let home = dirs::home_dir().ok_or_else(|| "no home directory".to_string())?;
+    let home = crate::paths::home_dir().ok_or_else(|| "no home directory".to_string())?;
     let cortex_dir = home.join(".cortex");
     let mut cfg_files: Vec<(String, String)> = Vec::new();
     for name in CORTEX_CONFIG_ALLOWLIST {
@@ -338,7 +338,7 @@ pub async fn export_audit_log(
         .map_err(|e| e.to_string())?;
     let content = format_audit_rows(&rows, &format)?;
     let ext = format.trim().to_ascii_lowercase();
-    let home = dirs::home_dir().ok_or_else(|| "no home directory".to_string())?;
+    let home = crate::paths::home_dir().ok_or_else(|| "no home directory".to_string())?;
     let cortex_dir = home.join(".cortex");
     std::fs::create_dir_all(&cortex_dir).map_err(|e| e.to_string())?;
     let ts = chrono::Utc::now().format("%Y%m%d-%H%M%S");

@@ -108,7 +108,7 @@ pub fn trust_allows(trust: McpTrustLevel, user_approved: bool) -> Result<(), Str
 /// copy of the helper in `commands::themes` so this subsystem stays
 /// self-contained.
 fn cortex_dir() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "no home dir".to_string())?;
+    let home = crate::paths::home_dir().ok_or_else(|| "no home dir".to_string())?;
     Ok(home.join(".cortex"))
 }
 

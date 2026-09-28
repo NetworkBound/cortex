@@ -41,8 +41,3 @@ pub async fn terminal_resize(id: String, cols: u16, rows: u16) -> Result<(), Str
 pub async fn terminal_close(id: String) -> Result<(), String> {
     pty::close(&id)
 }
-
-#[tauri::command]
-pub async fn terminal_list_active() -> Result<Vec<PtyHandle>, String> {
-    Ok(pty::list_active())
-}

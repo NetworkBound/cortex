@@ -140,7 +140,7 @@ fn chatgpt_usage_cached() -> Option<ChatgptUsage> {
 /// Read the Claude OAuth access token from `~/.claude/.credentials.json`.
 /// Returns None if the file is missing or the token isn't present.
 fn read_claude_token() -> Option<String> {
-    let path = dirs::home_dir()?.join(".claude/.credentials.json");
+    let path = crate::paths::home_dir()?.join(".claude/.credentials.json");
     let bytes = std::fs::read(path).ok()?;
     let v: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
     v.get("claudeAiOauth")

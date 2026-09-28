@@ -322,7 +322,7 @@ fn sorted_ratings(store: &EloStore) -> Vec<ModelRating> {
 }
 
 fn elo_path() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "could not resolve home dir".to_string())?;
+    let home = crate::paths::home_dir().ok_or_else(|| "could not resolve home dir".to_string())?;
     let dir = home.join(".cortex");
     fs::create_dir_all(&dir).map_err(|e| format!("create ~/.cortex failed: {e}"))?;
     Ok(dir.join("arena-elo.json"))

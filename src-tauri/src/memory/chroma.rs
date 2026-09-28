@@ -16,7 +16,7 @@ pub struct ChromaHit {
 }
 
 pub fn chroma_db_path() -> Option<PathBuf> {
-    let home = dirs::home_dir()?;
+    let home = crate::paths::home_dir()?;
     let p = home
         .join(".claude-mem")
         .join("chroma")

@@ -42,7 +42,7 @@ pub struct SafeMode {
 }
 
 fn cortex_dir() -> Result<PathBuf, String> {
-    dirs::home_dir()
+    crate::paths::home_dir()
         .map(|h| h.join(".cortex"))
         .ok_or_else(|| "no home directory".to_string())
 }

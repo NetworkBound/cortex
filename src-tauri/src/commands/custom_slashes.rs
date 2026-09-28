@@ -43,7 +43,7 @@ pub struct CustomSlash {
 }
 
 fn store_path() -> Option<PathBuf> {
-    crate::paths::home_dir().map(|h| h.join(".cortex").join("custom-slashes.yaml"))
+    crate::paths::cortex_dir().map(|c| c.join("custom-slashes.yaml"))
 }
 
 /// Lowercase letters, digits, single hyphens. Same flavour as the rest of

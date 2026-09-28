@@ -426,7 +426,7 @@ pub struct OutcomeRouting {
 
 /// `~/.cortex/outcome-routing.json`.
 pub fn outcome_routing_path() -> Option<std::path::PathBuf> {
-    crate::paths::home_dir().map(|h| h.join(".cortex").join("outcome-routing.json"))
+    crate::paths::cortex_dir().map(|c| c.join("outcome-routing.json"))
 }
 
 /// Parse the toggle file body. Malformed JSON resolves to DEFAULT-OFF —
@@ -584,7 +584,7 @@ struct SessionBudgetFile {
 }
 
 fn session_budgets_dir() -> Option<std::path::PathBuf> {
-    crate::paths::home_dir().map(|h| h.join(".cortex").join("session-budgets"))
+    crate::paths::cortex_dir().map(|c| c.join("session-budgets"))
 }
 
 /// Session ids look like `session-<uuid>`; reject path separators/`..` (same

@@ -415,7 +415,6 @@ pub fn run() {
             commands::worktrees::create_worktree,
             commands::worktrees::remove_worktree,
             commands::worktrees::assign_worktree_session,
-            commands::repo_map::repo_map,
             commands::repo_map::repo_map_text,
             commands::repo_map::repo_symbols,
             commands::repo_watcher::start_repo_watcher,
@@ -496,7 +495,6 @@ pub fn run() {
             commands::terminal::terminal_write,
             commands::terminal::terminal_resize,
             commands::terminal::terminal_close,
-            commands::terminal::terminal_list_active,
             commands::notify::desktop_notify,
             commands::ide_export::export_ide_configs,
             commands::inline_completion::inline_complete,
@@ -956,7 +954,7 @@ pub fn build_headless_state() -> (AppState, TracingStore) {
 fn webview_data_should_clear() -> bool {
     use std::fs;
     let current = env!("CARGO_PKG_VERSION");
-    let Some(home) = dirs::home_dir() else {
+    let Some(home) = crate::paths::home_dir() else {
         return false;
     };
     let path = home.join(".cortex").join("webview-version");

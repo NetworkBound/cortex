@@ -181,7 +181,7 @@ pub fn is_valid_status(s: &str) -> bool {
 
 /// Location of the teams directory: `~/.cortex/teams/`.
 pub fn teams_dir() -> Option<PathBuf> {
-    crate::paths::home_dir().map(|h| h.join(".cortex").join("teams"))
+    crate::paths::cortex_dir().map(|c| c.join("teams"))
 }
 
 /// Reject ids/names that contain path separators or `..` so callers can't

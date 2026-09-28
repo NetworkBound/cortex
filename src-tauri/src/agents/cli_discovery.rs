@@ -28,7 +28,7 @@ pub type DirProvider = fn() -> Option<PathBuf>;
 /// Always tried first by `discover`, so it does NOT need to appear in a spec's
 /// `extra_dirs`.
 pub fn local_bin_dir() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".local").join("bin"))
+    crate::paths::home_dir().map(|h| h.join(".local").join("bin"))
 }
 
 /// Windows npm global prefix `%APPDATA%\npm` — the default target of

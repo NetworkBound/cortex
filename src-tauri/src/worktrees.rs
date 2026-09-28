@@ -190,9 +190,9 @@ pub fn create_worktree(
     }
 
     let wt = Worktree {
-        id: id.clone(),
+        id,
         project_root: project_root.display().to_string(),
-        branch: branch.clone(),
+        branch,
         path: path.display().to_string(),
         session_id: None,
         created_at: chrono::Utc::now().timestamp_millis(),
@@ -204,8 +204,9 @@ pub fn create_worktree(
     Ok(wt)
 }
 
-/// Remove a worktree: optionally commit WIP first, then `git worktree remove`,
-/// then mark archived in the store.
+/// Remove a worktree: optionally commit WIP first, then `git worktree remove`
+/// (plus `git branch -D cortex/<id>` when nothing was archived), then mark
+/// archived in the store.
 pub fn remove_worktree(
     store: &WorktreeStore,
     id: &str,
@@ -248,6 +249,22 @@ pub fn remove_worktree(
         .arg("--force")
         .arg(&wt.path)
         .output();
+
+    // Without an archive commit nothing on the `cortex/<id>` branch is worth
+    // keeping (ultimate's fan-out lanes tear down N-1 of these per subtask),
+    // so drop it too instead of leaving a stale branch behind. Best effort:
+    // `-D` also covers an unmerged lane; a branch that was already deleted or
+    // renamed just fails quietly. With `archive_commit` the branch IS the
+    // archive and stays.
+    if !archive_commit && wt.branch.starts_with("cortex/") {
+        let _ = crate::sys::no_window("git")
+            .arg("-C")
+            .arg(&project_root)
+            .arg("branch")
+            .arg("-D")
+            .arg(&wt.branch)
+            .output();
+    }
 
     store.mark_archived(id)?;
     Ok(())

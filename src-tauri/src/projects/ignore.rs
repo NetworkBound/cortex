@@ -61,7 +61,7 @@ impl CortexIgnore {
         let mut count = 0usize;
 
         // Global ignore at ~/.cortex/cortexignore.
-        if let Some(home) = dirs::home_dir() {
+        if let Some(home) = crate::paths::home_dir() {
             let global = home.join(".cortex").join("cortexignore");
             count += merge_file(&mut builder, &global);
         }

@@ -872,7 +872,7 @@ pub async fn issue_open_pr(
             "the lane's branch changed since the preview — preview the PR again".to_string(),
         );
     }
-    let client = GiteaPrClient::new(resolve_gitea_access()?);
+    let client = GiteaPrClient::new(resolve_gitea_access()?)?;
     let base = client.default_branch(&lane.owner, &lane.repo).await?;
     let pr = client
         .ensure_pr(

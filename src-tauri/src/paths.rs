@@ -17,6 +17,39 @@ pub fn home_dir() -> Option<PathBuf> {
     dirs::home_dir()
 }
 
+/// `~/.cortex` — the app's own state directory.
+pub fn cortex_dir() -> Option<PathBuf> {
+    home_dir().map(|h| h.join(".cortex"))
+}
+
+/// The user's Documents folder.
+///
+/// On Windows this asks the known-folder API (`dirs::document_dir()`), which
+/// follows OneDrive "Known Folder Move" redirection — on such machines
+/// `%USERPROFILE%\Documents` is an empty stub and the real folder lives under
+/// `%USERPROFILE%\OneDrive\Documents`. Everywhere else it is `~/Documents`,
+/// exactly what the app has always used (Linux `dirs::document_dir()` depends
+/// on `xdg-user-dirs` being configured and is deliberately not consulted so
+/// behaviour there stays put).
+pub fn documents_dir() -> Option<PathBuf> {
+    #[cfg(test)]
+    if let Some(h) = std::env::var_os("CORTEX_TEST_HOME") {
+        return Some(PathBuf::from(h).join("Documents"));
+    }
+    #[cfg(windows)]
+    if let Some(d) = dirs::document_dir() {
+        return Some(d);
+    }
+    home_dir().map(|h| h.join("Documents"))
+}
+
+/// The default Cortex Brain vault: `<Documents>/Cortex Brain`. This is the
+/// fallback when no Obsidian vault is configured and the single place the
+/// spelling lives (share/export/import/journal/summary all write here).
+pub fn brain_dir() -> Option<PathBuf> {
+    documents_dir().map(|d| d.join("Cortex Brain"))
+}
+
 /// Strip the Windows "verbatim" prefix `std::fs::canonicalize` produces
 /// (`\\?\C:\x` → `C:\x`, `\\?\UNC\srv\share` → `\\srv\share`). Everything
 /// else — including every non-Windows path — is returned unchanged.
@@ -121,6 +154,18 @@ mod tests {
                 "{p}"
             );
         }
+    }
+
+    #[test]
+    fn derived_dirs_hang_off_the_test_home() {
+        test_home::with_temp_home(|tmp| {
+            assert_eq!(cortex_dir().unwrap(), tmp.join(".cortex"));
+            assert_eq!(documents_dir().unwrap(), tmp.join("Documents"));
+            assert_eq!(
+                brain_dir().unwrap(),
+                tmp.join("Documents").join("Cortex Brain")
+            );
+        });
     }
 
     #[test]

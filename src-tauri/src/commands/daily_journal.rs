@@ -431,8 +431,7 @@ pub async fn save_journal(args: SaveJournalArgs) -> Result<SaveJournalResult, St
 }
 
 fn brain_dir() -> Option<PathBuf> {
-    let home = dirs::home_dir()?;
-    Some(home.join("Documents").join("Cortex Brain"))
+    crate::paths::brain_dir()
 }
 
 #[cfg(test)]

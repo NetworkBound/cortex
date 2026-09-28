@@ -56,7 +56,7 @@ struct RoleFile {
 
 /// Location of the roles directory: `~/.cortex/roles/`.
 pub fn roles_dir() -> Option<PathBuf> {
-    crate::paths::home_dir().map(|h| h.join(".cortex").join("roles"))
+    crate::paths::cortex_dir().map(|c| c.join("roles"))
 }
 
 /// Reject `name`s that contain path separators or `..` so callers can't escape

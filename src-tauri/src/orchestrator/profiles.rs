@@ -177,7 +177,7 @@ pub fn load_profile(project_root: &Path, name: &str) -> Option<Profile> {
 // pattern as `trust.rs`.
 
 fn instructions_file() -> Option<PathBuf> {
-    let home = dirs::home_dir()?;
+    let home = crate::paths::home_dir()?;
     Some(home.join(".cortex").join("agent-instructions.json"))
 }
 

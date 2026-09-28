@@ -540,10 +540,15 @@ fn run_brain_inline(
     message: &str,
     project_root: Option<&std::path::Path>,
 ) -> Option<Vec<(std::path::PathBuf, String, f32)>> {
-    let payload = futures::executor::block_on(crate::commands::local_brain::local_brain_suggest(
+    // `expand_at_tokens` runs on a tokio worker inside `chat_send`;
+    // `futures::executor::block_on` parked that worker for the whole vault
+    // scan (`local_brain_suggest` is `spawn_blocking` + a repo-map walk),
+    // starving every other in-flight command. Drive it on a detached
+    // runtime thread instead, like `@web:` / `@websearch:`.
+    let payload = block_on_detached(crate::commands::local_brain::local_brain_suggest(
         message.to_string(),
         project_root.map(|p| p.display().to_string()),
-    ))
+    ))?
     .ok()?;
     let mut out: Vec<(std::path::PathBuf, String, f32)> = Vec::new();
     for s in payload.suggestions.into_iter().take(5) {

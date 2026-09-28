@@ -10,7 +10,7 @@
 use std::path::PathBuf;
 
 fn prefs_path() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or("no home dir")?;
+    let home = crate::paths::home_dir().ok_or("no home dir")?;
     Ok(home.join(".cortex").join("ui-prefs.json"))
 }
 

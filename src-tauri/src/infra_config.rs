@@ -88,7 +88,7 @@ pub struct InfraConfig {
 }
 
 fn config_path() -> Option<PathBuf> {
-    Some(dirs::home_dir()?.join(".cortex/infra.json"))
+    Some(crate::paths::cortex_dir()?.join("infra.json"))
 }
 
 /// Read + parse `~/.cortex/infra.json`. Missing or malformed files quietly

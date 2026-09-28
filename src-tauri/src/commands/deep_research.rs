@@ -218,9 +218,7 @@ async fn llm_complete(
 }
 
 fn research_dir(vault: &Option<PathBuf>) -> Option<PathBuf> {
-    let root = vault
-        .clone()
-        .or_else(|| dirs::home_dir().map(|h| h.join("Documents").join("Cortex Brain")))?;
+    let root = vault.clone().or_else(crate::paths::brain_dir)?;
     Some(root.join("research"))
 }
 
