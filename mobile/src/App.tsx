@@ -22,8 +22,15 @@ const TABS: { id: Tab; label: string; ico: string }[] = [
   { id: "inbox", label: "Inbox", ico: "📥" },
 ];
 
+/** Deep-link support: `/#inbox` (from a phone push notification) opens that
+ * tab on load. Any other or missing hash lands on Chat as before. */
+function initialTab(): Tab {
+  const h = window.location.hash.replace(/^#/, "");
+  return TABS.some((t) => t.id === h) ? (h as Tab) : "chat";
+}
+
 export default function App() {
-  const [tab, setTab] = useState<Tab>("chat");
+  const [tab, setTab] = useState<Tab>(initialTab);
   // When true, the Import sub-screen overlays the Recent slot. Bumping
   // `recentRefresh` forces RecentView to reload after an import.
   const [showImport, setShowImport] = useState(false);

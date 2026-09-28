@@ -61,6 +61,10 @@ pub static QWEN_SPEC: CliSpec = CliSpec {
     default_model: "",
     model_prefixes: &["qwen"],
     auth_paths: &[".qwen/oauth_creds.json"],
+    // No headless resume driven by Cortex: every turn folds history.
+    resume_args: None,
+    native_session_id: None,
+    resume_default_on: false,
 };
 
 #[cfg(test)]

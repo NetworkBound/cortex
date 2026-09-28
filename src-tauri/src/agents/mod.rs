@@ -18,6 +18,7 @@ pub mod aider_spec;
 pub mod claude_cli;
 pub mod claude_spec;
 pub mod cli_discovery;
+pub mod cli_sessions;
 pub mod codex_spec;
 pub mod custom_endpoint;
 pub mod e2e_fake;

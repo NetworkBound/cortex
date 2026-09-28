@@ -25,6 +25,19 @@ const REQUEST_TIMEOUT_SECS: u64 = 5;
 /// reserved ranges. Run this before persisting *and* before sending so a hook
 /// can never be coerced into hitting internal services.
 fn validate_egress_url(raw: &str) -> Result<(), String> {
+    validate_egress_url_allowing_private(raw, false)
+}
+
+/// Same guard, but with an explicit opt-in for *private-network* targets:
+/// RFC1918 (`10/8`, `172.16/12`, `192.168/16`), carrier-grade NAT
+/// `100.64/10` (Tailscale's tailnet range) and IPv6 unique-local `fc00::/7`.
+/// Used by phone push notifications (`commands::push_notify`), where a
+/// self-hosted ntfy/Gotify on the LAN or tailnet is the normal case.
+///
+/// `allow_private` never relaxes loopback, link-local (incl. the cloud
+/// metadata endpoint `169.254.169.254`), multicast, unspecified or other
+/// reserved ranges — those stay rejected unconditionally.
+pub fn validate_egress_url_allowing_private(raw: &str, allow_private: bool) -> Result<(), String> {
     let raw = raw.trim();
 
     // Scheme must be http or https — no file://, gopher://, etc.
@@ -83,13 +96,33 @@ fn validate_egress_url(raw: &str) -> Result<(), String> {
         return Err(format!("host {host} did not resolve"));
     }
     for ip in addrs {
-        if !is_public_ip(&ip) {
-            return Err(format!(
-                "url resolves to a non-routable address ({ip}); refusing for SSRF safety"
-            ));
+        if is_public_ip(&ip) || (allow_private && is_private_network_ip(&ip)) {
+            continue;
         }
+        return Err(format!(
+            "url resolves to a non-routable address ({ip}); refusing for SSRF safety"
+        ));
     }
     Ok(())
+}
+
+/// The private-network ranges an explicit opt-in may target: RFC1918,
+/// 100.64.0.0/10 (CGNAT / Tailscale) and IPv6 unique-local fc00::/7 (which
+/// covers Tailscale's fd7a:115c:a1e0::/48). Deliberately NOT loopback,
+/// link-local or anything else `is_public_ip` rejects.
+fn is_private_network_ip(ip: &IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => {
+            let o = v4.octets();
+            v4.is_private() || (o[0] == 100 && (o[1] & 0xc0) == 64)
+        }
+        IpAddr::V6(v6) => {
+            if let Some(v4) = v6.to_ipv4_mapped() {
+                return is_private_network_ip(&IpAddr::V4(v4));
+            }
+            (v6.segments()[0] & 0xfe00) == 0xfc00
+        }
+    }
 }
 
 /// True only for globally routable unicast addresses. Anything loopback,
@@ -475,6 +508,30 @@ mod tests {
         assert!(!is_public_ip(&"100.64.0.1".parse::<IpAddr>().unwrap()));
         assert!(is_public_ip(&"8.8.8.8".parse::<IpAddr>().unwrap()));
         assert!(is_public_ip(&"1.1.1.1".parse::<IpAddr>().unwrap()));
+    }
+
+    #[test]
+    fn allow_private_opt_in_admits_lan_and_tailnet_but_never_loopback_or_metadata() {
+        // Default (webhooks) path is unchanged: private stays rejected.
+        assert!(validate_egress_url("http://192.168.1.10:8080/x").is_err());
+        assert!(validate_egress_url("http://100.100.1.2/x").is_err());
+        // Opt-in admits RFC1918 + CGNAT/Tailscale + IPv6 ULA...
+        assert!(validate_egress_url_allowing_private("http://192.168.1.10:8080/x", true).is_ok());
+        assert!(validate_egress_url_allowing_private("http://10.0.0.5/x", true).is_ok());
+        assert!(validate_egress_url_allowing_private("http://172.16.4.4/x", true).is_ok());
+        assert!(validate_egress_url_allowing_private("http://100.100.1.2/x", true).is_ok());
+        assert!(validate_egress_url_allowing_private("http://[fd7a:115c:a1e0::1]/x", true).is_ok());
+        // ...but never loopback, link-local/metadata or non-http schemes.
+        assert!(validate_egress_url_allowing_private("http://127.0.0.1/x", true).is_err());
+        assert!(validate_egress_url_allowing_private("http://[::1]/x", true).is_err());
+        assert!(
+            validate_egress_url_allowing_private("http://169.254.169.254/latest/", true).is_err()
+        );
+        assert!(validate_egress_url_allowing_private("http://0.0.0.0/x", true).is_err());
+        assert!(validate_egress_url_allowing_private("file:///etc/passwd", true).is_err());
+        // Public hosts are fine either way.
+        assert!(validate_egress_url_allowing_private("https://8.8.8.8/x", true).is_ok());
+        assert!(validate_egress_url_allowing_private("https://8.8.8.8/x", false).is_ok());
     }
 
     #[test]

@@ -70,6 +70,10 @@ pub static GROK_SPEC: CliSpec = CliSpec {
     // Auth-file location for Grok Build isn't pinned in the public docs; these
     // are best-guess. If neither exists we just report `authenticated: None`.
     auth_paths: &[".grok/auth.json", ".config/grok/auth.json"],
+    // No headless resume driven by Cortex: every turn folds history.
+    resume_args: None,
+    native_session_id: None,
+    resume_default_on: false,
 };
 
 #[cfg(test)]

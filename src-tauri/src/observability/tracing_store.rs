@@ -461,6 +461,24 @@ impl TracingStore {
         Ok(())
     }
 
+    /// Append ` · <note>` to the routing reason of this turn's `chat.turn`
+    /// span, so Run Replay shows a decision made AFTER dispatch (quota-aware
+    /// failover: "failed over from claude-cli: quota (…) → codex-cli").
+    /// Redacted like the original reason; a turn with no reason yet gets the
+    /// note as its reason.
+    pub fn append_routing_reason(&self, trace_id: &str, note: &str) -> anyhow::Result<()> {
+        let note = crate::redact::redact_text(note);
+        let conn = self.inner.lock();
+        conn.execute(
+            "UPDATE spans SET attributes = json_set(attributes, '$.routing_reason',
+                CASE WHEN json_extract(attributes, '$.routing_reason') IS NULL THEN ?2
+                     ELSE json_extract(attributes, '$.routing_reason') || ' · ' || ?2 END)
+             WHERE trace_id = ?1 AND name = 'chat.turn'",
+            params![trace_id, note],
+        )?;
+        Ok(())
+    }
+
     pub fn start_agent_run(
         &self,
         span_id: &str,
@@ -1824,6 +1842,52 @@ fn error_class(msg: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Quota-aware failover appends its note to the turn's routing reason so
+    /// Run Replay shows the reroute; a turn recorded without a reason gets
+    /// the note as its reason; other traces are untouched.
+    #[test]
+    fn append_routing_reason_extends_replay_reason() {
+        let store = TracingStore::in_memory();
+        store
+            .record_chat_turn(
+                "trace-f",
+                "sess-f",
+                "hi",
+                &["claude-cli".into()],
+                Some("model-route → claude-cli"),
+            )
+            .unwrap();
+        store
+            .record_chat_turn("trace-g", "sess-f", "hi", &["codex-cli".into()], None)
+            .unwrap();
+        store
+            .start_agent_run("run-f", "trace-f", "sess-f", "claude-cli", None)
+            .unwrap();
+        store
+            .start_agent_run("run-g", "trace-g", "sess-f", "codex-cli", None)
+            .unwrap();
+        store
+            .append_routing_reason(
+                "trace-f",
+                "failed over from claude-cli: quota (limit reached) → codex-cli",
+            )
+            .unwrap();
+        store
+            .append_routing_reason(
+                "trace-g",
+                "failed over from codex-cli: transient error → ollama",
+            )
+            .unwrap();
+        assert_eq!(
+            store.run_replay("run-f").unwrap().routing_reason.as_deref(),
+            Some("model-route → claude-cli · failed over from claude-cli: quota (limit reached) → codex-cli")
+        );
+        assert_eq!(
+            store.run_replay("run-g").unwrap().routing_reason.as_deref(),
+            Some("failed over from codex-cli: transient error → ollama")
+        );
+    }
 
     /// Exercise the real recording + aggregation path against the production
     /// SQLite engine (in-memory): start agent runs tagged with an effective

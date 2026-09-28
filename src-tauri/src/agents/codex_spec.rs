@@ -18,6 +18,7 @@
 use super::adapter::AgentCapability;
 use super::cli_discovery::{self, DirProvider};
 use super::local_cli::{CliSpec, LaunchCtx, OutputKind};
+use serde_json::Value;
 
 #[cfg(windows)]
 const CODEX_NAMES: &[&str] = &["codex.exe", "codex.cmd", "codex.bat", "codex"];
@@ -67,6 +68,51 @@ fn codex_args(ctx: &LaunchCtx) -> Vec<String> {
     args
 }
 
+/// Resume Codex's own thread `native_id` with `ctx.prompt` as the only new
+/// message: `codex exec resume --json --skip-git-repo-check --sandbox <tier>
+/// [-m <model>] <thread-id> -- <prompt>` (`codex exec resume [SESSION_ID]
+/// [PROMPT]`; `--last` also exists but Cortex always names the thread).
+///
+/// OPT-IN HOOK (`resume_default_on: false`): the resume subcommand's exact
+/// option surface across codex-cli releases was not verified against an
+/// installed binary here, so nothing changes unless
+/// `CORTEX_CLI_NATIVE_RESUME=codex-cli` (or `all`) is set. A resume that
+/// fails before producing output falls back once to the classic fold, so the
+/// worst case of an unsupported flag is one wasted spawn per turn.
+fn codex_resume_args(ctx: &LaunchCtx, native_id: &str) -> Vec<String> {
+    let tier = crate::orchestrator::effective_tier(ctx.req.project_root.as_deref());
+    let mut args = vec![
+        "exec".into(),
+        "resume".into(),
+        "--json".into(),
+        "--skip-git-repo-check".into(),
+        "--sandbox".into(),
+        tier_to_codex_sandbox(tier).into(),
+    ];
+    let model = ctx.model.trim();
+    if !model.is_empty() {
+        args.push("-m".into());
+        args.push(model.to_string());
+    }
+    args.push(native_id.to_string());
+    args.push("--".into());
+    args.push(ctx.prompt.to_string());
+    args
+}
+
+/// Codex `--json` announces the thread on its first event:
+/// `{"type":"thread.started","thread_id":"…"}`. Pure; anything else → `None`.
+pub(crate) fn codex_native_session_id(json: &Value) -> Option<String> {
+    if json.get("type").and_then(Value::as_str) != Some("thread.started") {
+        return None;
+    }
+    json.get("thread_id")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
 pub static CODEX_SPEC: CliSpec = CliSpec {
     id: "codex-cli",
     label: "OpenAI Codex (CLI)",
@@ -92,6 +138,10 @@ pub static CODEX_SPEC: CliSpec = CliSpec {
     default_model: "",
     model_prefixes: &["gpt-", "gpt5", "gpt4", "o1", "o3", "o4", "codex"],
     auth_paths: &[".codex/auth.json"],
+    // Native thread resume: wired but OFF by default — see `codex_resume_args`.
+    resume_args: Some(codex_resume_args),
+    native_session_id: Some(codex_native_session_id),
+    resume_default_on: false,
 };
 
 #[cfg(test)]
@@ -138,6 +188,58 @@ mod tests {
                 "do it",
             ]
         );
+    }
+
+    #[test]
+    fn resume_args_name_the_thread_and_send_only_the_new_message() {
+        let r = ChatRequest {
+            session_id: "s".into(),
+            message: "hi".into(),
+            project_root: None,
+            history: vec![],
+            model: None,
+            reasoning_effort: None,
+        };
+        let args = (CODEX_SPEC.resume_args.expect("codex resume hook"))(
+            &ctx("follow-up", "gpt-5.5", &r),
+            "019a0b1c-2d3e-4f50-8a9b-0c1d2e3f4a5b",
+        );
+        assert_eq!(
+            args,
+            vec![
+                "exec",
+                "resume",
+                "--json",
+                "--skip-git-repo-check",
+                "--sandbox",
+                "read-only",
+                "-m",
+                "gpt-5.5",
+                "019a0b1c-2d3e-4f50-8a9b-0c1d2e3f4a5b",
+                "--",
+                "follow-up",
+            ]
+        );
+        // Opt-in only: nothing changes for Codex unless the env toggle says so.
+        assert!(!CODEX_SPEC.resume_default_on);
+    }
+
+    #[test]
+    fn parses_thread_id_from_thread_started_only() {
+        let started: Value =
+            serde_json::from_str(r#"{"type":"thread.started","thread_id":"thr_abc123"}"#).unwrap();
+        assert_eq!(
+            codex_native_session_id(&started).as_deref(),
+            Some("thr_abc123")
+        );
+        for raw in [
+            r#"{"type":"turn.started"}"#,
+            r#"{"type":"item.completed","item":{"type":"agent_message","text":"x"}}"#,
+            r#"{"type":"thread.started","thread_id":"  "}"#,
+        ] {
+            let v: Value = serde_json::from_str(raw).unwrap();
+            assert_eq!(codex_native_session_id(&v), None, "{raw}");
+        }
     }
 
     #[test]

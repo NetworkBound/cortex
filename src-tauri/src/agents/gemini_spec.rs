@@ -64,6 +64,10 @@ pub static GEMINI_SPEC: CliSpec = CliSpec {
     default_model: "",
     model_prefixes: &["gemini"],
     auth_paths: &[".gemini/oauth_creds.json", ".gemini/google_accounts.json"],
+    // No headless resume driven by Cortex: every turn folds history.
+    resume_args: None,
+    native_session_id: None,
+    resume_default_on: false,
 };
 
 #[cfg(test)]

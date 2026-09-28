@@ -17,6 +17,7 @@
 
 use super::adapter::{AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest};
 use super::cli_discovery::{self, DirProvider};
+use super::cli_sessions;
 use serde_json::Value;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -240,6 +241,17 @@ pub struct CliSpec {
     /// UI then reports `authenticated: None` (it still offers the Sign-in
     /// button). Never a hard gate; just a hint surfaced to the user.
     pub auth_paths: &'static [&'static str],
+    /// Native session continuity (see [`crate::agents::cli_sessions`]). Builds
+    /// the argv that RESUMES the CLI's own session `id` with `ctx.prompt` as
+    /// the new user message only (no folded history). `None` = the CLI has no
+    /// headless resume Cortex knows how to drive; every turn folds history.
+    pub resume_args: Option<fn(&LaunchCtx, &str) -> Vec<String>>,
+    /// Extract the CLI's native session/thread id from one parsed stdout JSON
+    /// event (Claude `system/init` → `session_id`, Codex `thread.started` →
+    /// `thread_id`). Required alongside `resume_args` for resume to engage.
+    pub native_session_id: Option<fn(&Value) -> Option<String>>,
+    /// Whether native resume is ON when `CORTEX_CLI_NATIVE_RESUME` is unset.
+    pub resume_default_on: bool,
 }
 
 impl CliSpec {
@@ -334,113 +346,28 @@ impl AgentAdapter for GenericCliAgent {
             .or_else(crate::paths::home_dir)
             .unwrap_or_else(std::env::temp_dir);
 
-        // Build the prompt (history folded in), then let the spec build argv.
-        let prompt = build_prompt(&req);
-        let ctx = LaunchCtx {
-            prompt: &prompt,
-            model: &model,
-            req: &req,
-        };
-        let args = (spec.headless_args)(&ctx);
-
-        // Build argv individually — the user message is a single arg, never a
-        // shell string, so it can't break out / inject.
-        //
-        // On Windows, npm-installed CLIs resolve to `.cmd`/`.bat` shims. Going
-        // through `cmd.exe` hits its 8191-char command-line limit as soon as
-        // the prompt carries a context prefix (project rules + repo map), and
-        // cmd.exe can't carry a multi-line argument at all. So we parse the
-        // shim to recover the underlying `node.exe <script>` invocation and
-        // call THAT via CreateProcess (32767-char limit, newline-safe). If the
-        // shim can't be parsed we hand the shim itself to `Command::new`:
-        // std runs `.cmd`/`.bat` through cmd.exe with proper escaping (Rust ≥
-        // 1.77.2) and refuses arguments it can't escape safely — never a
-        // hand-built `cmd /C <shim> <prompt>` string, which a prompt containing
-        // `&`, `|` or `"` could break out of. Every child is spawned without a
-        // console window (CREATE_NO_WINDOW) so nothing flashes on the desktop.
-        #[cfg(windows)]
-        let mut shim_fallback = false;
-        let mut cmd = {
-            #[cfg(windows)]
-            {
-                let ext = bin
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .map(|e| e.to_ascii_lowercase());
-                let is_shim = matches!(ext.as_deref(), Some("cmd") | Some("bat"));
-                let direct = if is_shim {
-                    resolve_cmd_shim(&bin)
-                } else {
-                    None
-                };
-                match direct {
-                    Some((node_exe, pre_args)) => {
-                        let mut c = crate::sys::tokio_no_window(node_exe);
-                        c.args(&pre_args).args(&args);
-                        c
-                    }
-                    None => {
-                        shim_fallback = is_shim;
-                        let mut c = crate::sys::tokio_no_window(&bin);
-                        c.args(&args);
-                        c
-                    }
-                }
+        // Native session continuity: resume the CLI's own session (sending only
+        // the new message) instead of re-folding the transcript, when the spec
+        // supports it, the toggle allows it, and a matching id is stored for
+        // this Cortex session (same adapter + model + cwd — see
+        // `cli_sessions::lookup`). An empty history means a fresh conversation:
+        // any stale id for this session is dropped so the CLI starts clean.
+        let resume_on = spec.resume_args.is_some()
+            && spec.native_session_id.is_some()
+            && cli_sessions::resume_enabled(
+                id,
+                std::env::var(cli_sessions::ENV_TOGGLE).ok().as_deref(),
+                spec.resume_default_on,
+            );
+        let cwd_key = cwd.to_string_lossy().into_owned();
+        let mut resume_id: Option<String> = None;
+        if resume_on {
+            if req.history.is_empty() {
+                cli_sessions::forget(&req.session_id);
+            } else {
+                resume_id = cli_sessions::lookup(&req.session_id, id, &model, &cwd_key);
             }
-            #[cfg(not(windows))]
-            {
-                let mut c = crate::sys::tokio_no_window(&bin);
-                c.args(&args);
-                // Own process group, so a Stop can take the CLI's own tool
-                // subprocesses down with it (see `TreeKill`).
-                c.process_group(0);
-                c
-            }
-        };
-        cmd.current_dir(&cwd)
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .kill_on_drop(true);
-
-        let mut child = match cmd.spawn() {
-            Ok(c) => c,
-            Err(e) => {
-                let _ = tx
-                    .send(AgentEvent::Started {
-                        agent_id: id.into(),
-                        run_id: None,
-                    })
-                    .await;
-                #[cfg(windows)]
-                let hint = if shim_fallback {
-                    format!(
-                        " — `{}` is an npm .cmd shim Cortex could not resolve to node.exe, \
-                         and cmd.exe cannot carry a multi-line prompt. Reinstall the CLI \
-                         (`npm i -g …`) or use its native installer.",
-                        bin.display()
-                    )
-                } else {
-                    String::new()
-                };
-                #[cfg(not(windows))]
-                let hint = String::new();
-                let _ = tx
-                    .send(AgentEvent::Error {
-                        message: format!("failed to spawn `{}`: {e}{hint}", spec.tag),
-                    })
-                    .await;
-                let _ = tx
-                    .send(AgentEvent::Done {
-                        total_tokens: None,
-                        run_id: None,
-                    })
-                    .await;
-                return Ok(());
-            }
-        };
-        // Declared after `child` so it drops first when the future is cancelled.
-        let mut tree = TreeKill { pid: child.id() };
+        }
 
         // Announce the run immediately; structured streams may carry a real
         // session id later, but the UI wants a Started promptly.
@@ -451,141 +378,409 @@ impl AgentAdapter for GenericCliAgent {
             })
             .await;
 
-        // Drain stderr concurrently so a chatty CLI can't dead-lock the pipe.
-        // Keep a short tail to surface on a non-zero exit with no result.
-        let stderr = child.stderr.take();
-        let tag = spec.tag;
-        let stderr_task = tokio::spawn(async move {
-            let mut tail = String::new();
-            if let Some(stderr) = stderr {
-                let mut lines = BufReader::new(stderr).lines();
-                while let Ok(Some(line)) = lines.next_line().await {
-                    tracing::debug!(target: "local_cli", tag, "stderr: {line}");
-                    tail.push_str(&line);
-                    tail.push('\n');
-                    if tail.len() > 2048 {
-                        let cut = tail.len() - 2048;
-                        tail.drain(..cut);
-                    }
-                }
-            }
-            tail
-        });
-
-        // Parse stdout keyed by the spec's output_kind. Streaming kinds parse
-        // line-by-line; GeminiJson buffers the whole object and parses once.
-        let mut saw_result = false;
-        let mut last_rate_limit: Option<Value> = None;
-        if let Some(stdout) = child.stdout.take() {
-            if spec.output_kind == OutputKind::GeminiJson {
-                // Buffer the entire stdout, then parse the single JSON object.
-                use tokio::io::AsyncReadExt;
-                let mut buf = String::new();
-                let mut rdr = BufReader::new(stdout);
-                let _ = rdr.read_to_string(&mut buf).await;
-                if handle_gemini_json(&buf, &tx).await {
-                    saw_result = true;
-                }
+        // At most two child runs: a resume attempt (if any) that falls back
+        // ONCE to the classic full-history fold when it fails before producing
+        // any output, then the fold itself.
+        loop {
+            let resuming = resume_id.is_some();
+            // Resume: only the new user turn. Fold: history rendered in-band.
+            let prompt = if resuming {
+                req.message.clone()
             } else {
-                let mut lines = BufReader::new(stdout).lines();
-                // Loop (not `while let Ok(...)`) so a transient read/decode error
-                // on one line skips that line instead of aborting the stream.
-                loop {
-                    let line = match lines.next_line().await {
-                        Ok(Some(line)) => line,
-                        Ok(None) => break,  // EOF
-                        Err(_) => continue, // bad line — skip, keep parsing
-                    };
-                    match spec.output_kind {
-                        OutputKind::ClaudeStreamJson => {
-                            let line = line.trim();
-                            if line.is_empty() {
-                                continue;
-                            }
-                            let Ok(json) = serde_json::from_str::<Value>(line) else {
-                                continue; // skip non-JSON noise
-                            };
-                            // Capture rate-limit events (out-of-band).
-                            if json.get("type").and_then(Value::as_str) == Some("rate_limit_event")
-                            {
-                                if let Some(info) = json.get("rate_limit_info") {
-                                    last_rate_limit = Some(info.clone());
-                                }
-                                continue;
-                            }
-                            if let EventOutcome::Result = handle_claude_event(&json, &tx).await {
-                                saw_result = true;
-                            }
-                        }
-                        OutputKind::CodexJsonl => {
-                            let line = line.trim();
-                            if line.is_empty() {
-                                continue;
-                            }
-                            let Ok(json) = serde_json::from_str::<Value>(line) else {
-                                continue; // skip non-JSON noise
-                            };
-                            if let EventOutcome::Result = handle_codex_event(&json, &tx).await {
-                                saw_result = true;
-                            }
-                        }
-                        OutputKind::PlainTextStream => {
-                            // Each line is forwarded verbatim (newline preserved)
-                            // as a Token. Done is emitted once at EOF below.
-                            let _ = tx
-                                .send(AgentEvent::Token {
-                                    delta: format!("{line}\n"),
-                                })
-                                .await;
-                        }
-                        // Handled above by the buffer-all branch.
-                        OutputKind::GeminiJson => unreachable!(),
-                    }
-                }
-            }
-        }
-
-        // Best-effort: persist the latest rate-limit info for the dashboard.
-        if let Some(info) = last_rate_limit.clone() {
-            tokio::task::spawn_blocking(move || persist_claude_limit(&info));
-        }
-
-        // Reap the process and inspect its exit status. Once it has exited on
-        // its own there is no tree left to kill.
-        let status = child.wait().await;
-        tree.disarm();
-        let stderr_tail = stderr_task.await.unwrap_or_default();
-
-        // If the process failed and we never got a terminal result, surface
-        // stderr. For PlainTextStream there is no in-band result, so any
-        // non-zero exit reports here.
-        let exited_bad = matches!(&status, Ok(s) if !s.success()) || status.is_err();
-        if exited_bad && !saw_result {
-            let tail = stderr_tail.trim();
-            let msg = if tail.is_empty() {
-                match &status {
-                    Ok(s) => format!("`{}` exited with {s}", spec.tag),
-                    Err(e) => format!("`{}` wait failed: {e}", spec.tag),
-                }
-            } else {
-                let last = tail.lines().last().unwrap_or(tail);
-                format!("`{}` failed: {last}", spec.tag)
+                build_prompt(&req)
             };
-            let _ = tx.send(AgentEvent::Error { message: msg }).await;
-        }
+            let ctx = LaunchCtx {
+                prompt: &prompt,
+                model: &model,
+                req: &req,
+            };
+            let args = match (resume_id.as_deref(), spec.resume_args) {
+                (Some(nid), Some(build)) => build(&ctx, nid),
+                _ => (spec.headless_args)(&ctx),
+            };
 
-        // Always close with a Done if a terminal result didn't already emit one.
-        if !saw_result {
-            let _ = tx
-                .send(AgentEvent::Done {
-                    total_tokens: None,
-                    run_id: None,
-                })
-                .await;
-        }
+            let outcome = match run_child(spec, &bin, &cwd, &args, &tx, resuming).await {
+                Ok(o) => o,
+                Err(message) => {
+                    let _ = tx.send(AgentEvent::Error { message }).await;
+                    let _ = tx
+                        .send(AgentEvent::Done {
+                            total_tokens: None,
+                            run_id: None,
+                        })
+                        .await;
+                    return Ok(());
+                }
+            };
 
-        Ok(())
+            if resuming && outcome.should_fallback() {
+                tracing::warn!(
+                    target: "local_cli",
+                    tag = spec.tag,
+                    session = %req.session_id,
+                    "native session resume failed before any output; falling back to folded history"
+                );
+                cli_sessions::forget(&req.session_id);
+                resume_id = None;
+                continue;
+            }
+
+            // Release anything the gate withheld (terminal Error/Done), in order.
+            for evt in outcome.held {
+                let _ = tx.send(evt).await;
+            }
+
+            // Remember the CLI's session id for the next turn. Only after a
+            // terminal result: a run that died without one may not have left a
+            // resumable session behind.
+            if resume_on && outcome.saw_result {
+                if let Some(nid) = outcome.native_id.as_deref() {
+                    cli_sessions::remember(&req.session_id, id, nid, &model, &cwd_key);
+                }
+            }
+            return Ok(());
+        }
     }
+}
+
+/// What one child process run produced, as seen by [`run_child`].
+#[derive(Debug, Default)]
+struct ChildOutcome {
+    /// A terminal in-band result (Claude `result`, Codex `turn.completed`,
+    /// Gemini's single object) was seen — it already emitted Done.
+    saw_result: bool,
+    /// The process exited non-zero (or could not be waited on).
+    exited_bad: bool,
+    /// At least one Token / Reasoning / ToolCall / ToolResult / FileEdit /
+    /// ApprovalRequest was forwarded — the UI has seen real output.
+    produced_output: bool,
+    /// The first `Error` message seen before any output, if any.
+    first_error: Option<String>,
+    /// The CLI's native session/thread id, if the spec parses one.
+    native_id: Option<String>,
+    /// Terminal events (Error / Done) withheld from the caller while a resume
+    /// attempt could still fall back. Empty when not gating.
+    held: Vec<AgentEvent>,
+}
+
+impl ChildOutcome {
+    /// A resume attempt is abandoned in favour of the folded-history spawn
+    /// when it failed BEFORE producing any output: a non-zero exit, or an
+    /// in-band error that looks like "no such session". A rate-limit or API
+    /// error with output already streamed is a real answer, not a stale id.
+    fn should_fallback(&self) -> bool {
+        if self.produced_output {
+            return false;
+        }
+        self.exited_bad
+            || self
+                .first_error
+                .as_deref()
+                .is_some_and(cli_sessions::looks_like_stale_session)
+    }
+}
+
+/// Sits between the per-line parsers and the caller's channel. Always records
+/// what flowed through (for [`ChildOutcome`]); when `gate` is on it withholds
+/// terminal Error/Done events until either real output appears (then they are
+/// flushed in order) or the run ends (then the caller decides: flush, or drop
+/// them and fall back).
+struct EventGate<'a> {
+    tx: &'a mpsc::Sender<AgentEvent>,
+    gate: bool,
+    out: ChildOutcome,
+}
+
+impl<'a> EventGate<'a> {
+    fn new(tx: &'a mpsc::Sender<AgentEvent>, gate: bool) -> Self {
+        Self {
+            tx,
+            gate,
+            out: ChildOutcome::default(),
+        }
+    }
+
+    async fn push(&mut self, evt: AgentEvent) {
+        match &evt {
+            AgentEvent::Token { .. }
+            | AgentEvent::Reasoning { .. }
+            | AgentEvent::ToolCall { .. }
+            | AgentEvent::ToolResult { .. }
+            | AgentEvent::FileEdit { .. }
+            | AgentEvent::ApprovalRequest { .. } => self.out.produced_output = true,
+            AgentEvent::Error { message } => {
+                if !self.out.produced_output && self.out.first_error.is_none() {
+                    self.out.first_error = Some(message.clone());
+                }
+            }
+            _ => {}
+        }
+        if self.gate {
+            if !self.out.produced_output
+                && matches!(evt, AgentEvent::Error { .. } | AgentEvent::Done { .. })
+            {
+                self.out.held.push(evt);
+                return;
+            }
+            // Real output after withheld terminal events: release them first so
+            // ordering is preserved (this also means no fallback any more).
+            for held in std::mem::take(&mut self.out.held) {
+                let _ = self.tx.send(held).await;
+            }
+        }
+        let _ = self.tx.send(evt).await;
+    }
+
+    /// Move everything a bounded local channel has buffered through the gate.
+    async fn drain(&mut self, rx: &mut mpsc::Receiver<AgentEvent>) {
+        while let Ok(evt) = rx.try_recv() {
+            self.push(evt).await;
+        }
+    }
+}
+
+/// Spawn `bin args` in `cwd`, stream its stdout through the spec's parser into
+/// `tx` (via an [`EventGate`]), reap it and report what happened. `Err` is a
+/// spawn failure message (the caller emits Error + Done). The `Started` event
+/// is the caller's job.
+async fn run_child(
+    spec: &CliSpec,
+    bin: &std::path::Path,
+    cwd: &std::path::Path,
+    args: &[String],
+    tx: &mpsc::Sender<AgentEvent>,
+    gate: bool,
+) -> Result<ChildOutcome, String> {
+    // Build argv individually — the user message is a single arg, never a
+    // shell string, so it can't break out / inject.
+    //
+    // On Windows, npm-installed CLIs resolve to `.cmd`/`.bat` shims. Going
+    // through `cmd.exe` hits its 8191-char command-line limit as soon as
+    // the prompt carries a context prefix (project rules + repo map), and
+    // cmd.exe can't carry a multi-line argument at all. So we parse the
+    // shim to recover the underlying `node.exe <script>` invocation and
+    // call THAT via CreateProcess (32767-char limit, newline-safe). If the
+    // shim can't be parsed we hand the shim itself to `Command::new`:
+    // std runs `.cmd`/`.bat` through cmd.exe with proper escaping (Rust ≥
+    // 1.77.2) and refuses arguments it can't escape safely — never a
+    // hand-built `cmd /C <shim> <prompt>` string, which a prompt containing
+    // `&`, `|` or `"` could break out of. Every child is spawned without a
+    // console window (CREATE_NO_WINDOW) so nothing flashes on the desktop.
+    #[cfg(windows)]
+    let mut shim_fallback = false;
+    let mut cmd = {
+        #[cfg(windows)]
+        {
+            let ext = bin
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.to_ascii_lowercase());
+            let is_shim = matches!(ext.as_deref(), Some("cmd") | Some("bat"));
+            let direct = if is_shim { resolve_cmd_shim(bin) } else { None };
+            match direct {
+                Some((node_exe, pre_args)) => {
+                    let mut c = crate::sys::tokio_no_window(node_exe);
+                    c.args(&pre_args).args(args);
+                    c
+                }
+                None => {
+                    shim_fallback = is_shim;
+                    let mut c = crate::sys::tokio_no_window(bin);
+                    c.args(args);
+                    c
+                }
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            let mut c = crate::sys::tokio_no_window(bin);
+            c.args(args);
+            // Own process group, so a Stop can take the CLI's own tool
+            // subprocesses down with it (see `TreeKill`).
+            c.process_group(0);
+            c
+        }
+    };
+    cmd.current_dir(cwd)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+
+    let mut child = match cmd.spawn() {
+        Ok(c) => c,
+        Err(e) => {
+            #[cfg(windows)]
+            let hint = if shim_fallback {
+                format!(
+                    " — `{}` is an npm .cmd shim Cortex could not resolve to node.exe, \
+                     and cmd.exe cannot carry a multi-line prompt. Reinstall the CLI \
+                     (`npm i -g …`) or use its native installer.",
+                    bin.display()
+                )
+            } else {
+                String::new()
+            };
+            #[cfg(not(windows))]
+            let hint = String::new();
+            return Err(format!("failed to spawn `{}`: {e}{hint}", spec.tag));
+        }
+    };
+    // Declared after `child` so it drops first when the future is cancelled.
+    let mut tree = TreeKill { pid: child.id() };
+
+    // Drain stderr concurrently so a chatty CLI can't dead-lock the pipe.
+    // Keep a short tail to surface on a non-zero exit with no result.
+    let stderr = child.stderr.take();
+    let tag = spec.tag;
+    let stderr_task = tokio::spawn(async move {
+        let mut tail = String::new();
+        if let Some(stderr) = stderr {
+            let mut lines = BufReader::new(stderr).lines();
+            while let Ok(Some(line)) = lines.next_line().await {
+                tracing::debug!(target: "local_cli", tag, "stderr: {line}");
+                tail.push_str(&line);
+                tail.push('\n');
+                if tail.len() > 2048 {
+                    let cut = tail.len() - 2048;
+                    tail.drain(..cut);
+                }
+            }
+        }
+        tail
+    });
+
+    // The parsers write into a small local channel which is drained through
+    // the gate after every line (each line yields at most a handful of
+    // events, far below the capacity, so the parsers never block on it).
+    let (ltx, mut lrx) = mpsc::channel::<AgentEvent>(64);
+    let mut gate = EventGate::new(tx, gate);
+
+    // Parse stdout keyed by the spec's output_kind. Streaming kinds parse
+    // line-by-line; GeminiJson buffers the whole object and parses once.
+    let mut last_rate_limit: Option<Value> = None;
+    if let Some(stdout) = child.stdout.take() {
+        if spec.output_kind == OutputKind::GeminiJson {
+            // Buffer the entire stdout, then parse the single JSON object.
+            use tokio::io::AsyncReadExt;
+            let mut buf = String::new();
+            let mut rdr = BufReader::new(stdout);
+            let _ = rdr.read_to_string(&mut buf).await;
+            if handle_gemini_json(&buf, &ltx).await {
+                gate.out.saw_result = true;
+            }
+            gate.drain(&mut lrx).await;
+        } else {
+            let mut lines = BufReader::new(stdout).lines();
+            // Loop (not `while let Ok(...)`) so a transient read/decode error
+            // on one line skips that line instead of aborting the stream.
+            loop {
+                let line = match lines.next_line().await {
+                    Ok(Some(line)) => line,
+                    Ok(None) => break,  // EOF
+                    Err(_) => continue, // bad line — skip, keep parsing
+                };
+                match spec.output_kind {
+                    OutputKind::ClaudeStreamJson => {
+                        let line = line.trim();
+                        if line.is_empty() {
+                            continue;
+                        }
+                        let Ok(json) = serde_json::from_str::<Value>(line) else {
+                            continue; // skip non-JSON noise
+                        };
+                        // Capture rate-limit events (out-of-band).
+                        if json.get("type").and_then(Value::as_str) == Some("rate_limit_event") {
+                            if let Some(info) = json.get("rate_limit_info") {
+                                last_rate_limit = Some(info.clone());
+                            }
+                            continue;
+                        }
+                        if let Some(parse) = spec.native_session_id {
+                            if let Some(nid) = parse(&json) {
+                                gate.out.native_id = Some(nid);
+                            }
+                        }
+                        if let EventOutcome::Result = handle_claude_event(&json, &ltx).await {
+                            gate.out.saw_result = true;
+                        }
+                    }
+                    OutputKind::CodexJsonl => {
+                        let line = line.trim();
+                        if line.is_empty() {
+                            continue;
+                        }
+                        let Ok(json) = serde_json::from_str::<Value>(line) else {
+                            continue; // skip non-JSON noise
+                        };
+                        if let Some(parse) = spec.native_session_id {
+                            if let Some(nid) = parse(&json) {
+                                gate.out.native_id = Some(nid);
+                            }
+                        }
+                        if let EventOutcome::Result = handle_codex_event(&json, &ltx).await {
+                            gate.out.saw_result = true;
+                        }
+                    }
+                    OutputKind::PlainTextStream => {
+                        // Each line is forwarded verbatim (newline preserved)
+                        // as a Token. Done is emitted once at EOF below.
+                        let _ = ltx
+                            .send(AgentEvent::Token {
+                                delta: format!("{line}\n"),
+                            })
+                            .await;
+                    }
+                    // Handled above by the buffer-all branch.
+                    OutputKind::GeminiJson => unreachable!(),
+                }
+                gate.drain(&mut lrx).await;
+            }
+        }
+    }
+    drop(ltx);
+    gate.drain(&mut lrx).await;
+
+    // Best-effort: persist the latest rate-limit info for the dashboard.
+    if let Some(info) = last_rate_limit.clone() {
+        tokio::task::spawn_blocking(move || persist_claude_limit(&info));
+    }
+
+    // Reap the process and inspect its exit status. Once it has exited on
+    // its own there is no tree left to kill.
+    let status = child.wait().await;
+    tree.disarm();
+    let stderr_tail = stderr_task.await.unwrap_or_default();
+
+    // If the process failed and we never got a terminal result, surface
+    // stderr. For PlainTextStream there is no in-band result, so any
+    // non-zero exit reports here.
+    let exited_bad = matches!(&status, Ok(s) if !s.success()) || status.is_err();
+    gate.out.exited_bad = exited_bad;
+    if exited_bad && !gate.out.saw_result {
+        let tail = stderr_tail.trim();
+        let msg = if tail.is_empty() {
+            match &status {
+                Ok(s) => format!("`{}` exited with {s}", spec.tag),
+                Err(e) => format!("`{}` wait failed: {e}", spec.tag),
+            }
+        } else {
+            let last = tail.lines().last().unwrap_or(tail);
+            format!("`{}` failed: {last}", spec.tag)
+        };
+        gate.push(AgentEvent::Error { message: msg }).await;
+    }
+
+    // Always close with a Done if a terminal result didn't already emit one.
+    if !gate.out.saw_result {
+        gate.push(AgentEvent::Done {
+            total_tokens: None,
+            run_id: None,
+        })
+        .await;
+    }
+
+    Ok(gate.out)
 }
 
 /// Resolve the model string for a spec, generically, from its `model_prefixes`
@@ -1157,6 +1352,86 @@ mod tests {
         assert!(parse_cmd_shim_invocation("node \"%SOMEWHERE%\\cli.js\" %*", "C:\\x").is_none());
         // Only flags, no script.
         assert!(parse_cmd_shim_invocation("node --version %*", "C:\\x").is_none());
+    }
+
+    // ---- Native resume: fallback decision + event gate ----
+
+    #[test]
+    fn fallback_only_when_nothing_was_streamed() {
+        // Non-zero exit with no output → fall back to the fold.
+        let o = ChildOutcome {
+            exited_bad: true,
+            ..Default::default()
+        };
+        assert!(o.should_fallback());
+        // A "no such session" error with no output → fall back.
+        let o = ChildOutcome {
+            first_error: Some("No conversation found with session ID: x".into()),
+            ..Default::default()
+        };
+        assert!(o.should_fallback());
+        // An unrelated in-band error (rate limit) is a real answer, not a stale id.
+        let o = ChildOutcome {
+            first_error: Some("429 rate limit".into()),
+            ..Default::default()
+        };
+        assert!(!o.should_fallback());
+        // Anything already streamed to the UI → never fall back.
+        let o = ChildOutcome {
+            exited_bad: true,
+            produced_output: true,
+            first_error: Some("session not found".into()),
+            ..Default::default()
+        };
+        assert!(!o.should_fallback());
+        assert!(!ChildOutcome::default().should_fallback());
+    }
+
+    #[tokio::test]
+    async fn gate_withholds_terminal_events_until_output_or_end() {
+        let (tx, mut rx) = mpsc::channel::<AgentEvent>(16);
+        {
+            let mut gate = EventGate::new(&tx, true);
+            gate.push(AgentEvent::Error {
+                message: "session not found".into(),
+            })
+            .await;
+            gate.push(AgentEvent::Done {
+                total_tokens: None,
+                run_id: None,
+            })
+            .await;
+            // Nothing reached the caller; both are held; fallback is due.
+            assert!(rx.try_recv().is_err());
+            assert_eq!(gate.out.held.len(), 2);
+            assert_eq!(gate.out.first_error.as_deref(), Some("session not found"));
+            assert!(gate.out.should_fallback());
+        }
+        // Output after a withheld error flushes it first, in order.
+        {
+            let mut gate = EventGate::new(&tx, true);
+            gate.push(AgentEvent::Error {
+                message: "warn".into(),
+            })
+            .await;
+            gate.push(AgentEvent::Token { delta: "hi".into() }).await;
+            assert!(matches!(rx.try_recv(), Ok(AgentEvent::Error { .. })));
+            assert!(matches!(rx.try_recv(), Ok(AgentEvent::Token { .. })));
+            assert!(gate.out.held.is_empty());
+            assert!(gate.out.produced_output);
+            assert!(!gate.out.should_fallback());
+        }
+        // Ungated: everything passes straight through.
+        {
+            let mut gate = EventGate::new(&tx, false);
+            gate.push(AgentEvent::Done {
+                total_tokens: None,
+                run_id: None,
+            })
+            .await;
+            assert!(matches!(rx.try_recv(), Ok(AgentEvent::Done { .. })));
+            assert!(gate.out.held.is_empty());
+        }
     }
 
     #[test]

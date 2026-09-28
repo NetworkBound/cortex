@@ -72,6 +72,7 @@ import {
   type UpdateInfo,
 } from "@/lib/updater";
 import { SettingsThemeTab } from "./SettingsThemeTab";
+import { PushNotifySettings } from "./PushNotifySettings";
 import { playSound } from "@/lib/sounds";
 import { useCortexStore } from "@/state/store";
 import { applyProfile, listProfiles, type Profile } from "@/lib/profiles";
@@ -112,6 +113,7 @@ import {
   type PolicyDecision,
 } from "@/lib/safe-mode";
 import { getOutcomeRouting, setOutcomeRouting } from "@/lib/outcome-routing";
+import { FailoverSection } from "@/components/FailoverSettings";
 import { getSessionBudget, setSessionBudget } from "@/lib/session-budget";
 import "@/styles/settings.css";
 
@@ -3004,6 +3006,12 @@ export function SettingsModal() {
         ),
       },
       {
+        tab: "general",
+        heading: "Phone push",
+        text: "phone push notifications ntfy gotify mobile approval tailscale token",
+        render: () => <PushNotifySettings />,
+      },
+      {
         tab: "connections",
         heading: "Gateway backend",
         text: "gateway backend url model id api key bearer v1",
@@ -3256,6 +3264,12 @@ export function SettingsModal() {
         heading: "Outcome-aware routing",
         text: "outcome aware routing cost per success router reliability success rate per dollar auto route default opt-in cheapest reliable provider routing reason outcome-routing.json",
         render: () => <OutcomeRoutingSection />,
+      },
+      {
+        tab: "providers",
+        heading: "Quota-aware failover",
+        text: "failover quota rate limit 429 usage limit exhausted fallback chain switch agent codex gemini ollama automatic reroute transient error failover.json",
+        render: () => <FailoverSection />,
       },
       {
         tab: "providers",

@@ -78,6 +78,10 @@ pub static AIDER_SPEC: CliSpec = CliSpec {
     // aider auths via env API keys — no auth file to probe → `authenticated:
     // None` (the UI explains keys instead of offering a sign-in flow).
     auth_paths: &[],
+    // No headless resume driven by Cortex: every turn folds history.
+    resume_args: None,
+    native_session_id: None,
+    resume_default_on: false,
 };
 
 #[cfg(test)]

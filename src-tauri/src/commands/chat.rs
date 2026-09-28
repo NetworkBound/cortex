@@ -2877,6 +2877,11 @@ pub async fn chat_send(
         }
     }
 
+    // Quota-aware failover policy (`~/.cortex/failover.json`, DEFAULT-OFF).
+    // Re-read per chat_send so an edit applies on the next turn; shared with
+    // the per-agent tasks for the post-error path.
+    let failover_policy = std::sync::Arc::new(orchestrator::failover::load_failover_policy());
+
     // Routing + adapter resolution happen inside a block so the non-`Send`
     // registry read guard is fully dropped before the architect planner
     // `.await` below (an explicit `drop()` isn't enough for the async Send
@@ -2910,18 +2915,44 @@ pub async fn chat_send(
             } else {
                 None
             };
-        let decision = orchestrator::route_with_outcome(
+        let mut decision = orchestrator::route_with_outcome(
             &req,
             &registry,
             args.agent.clone(),
             outcome_hint.as_ref(),
         );
-        let picked = decision.agents.clone();
         // When Auto picked a model, append its reason so the UI shows the choice.
-        let reason = match &auto_reason {
+        let mut reason = match &auto_reason {
             Some(auto) => format!("{} · {}", decision.reason, auto),
             None => decision.reason.clone(),
         };
+        // Quota-aware failover, pre-dispatch (`orchestrator::failover`).
+        // OPT-IN and DEFAULT-OFF: `~/.cortex/failover.json` absent ⇒
+        // `enabled: false` ⇒ nothing here runs. Only a single-agent pick is
+        // ever redirected — a multi-agent (Arena) turn compares providers on
+        // purpose. Today only the local Claude CLI leaves a usage trail
+        // (`claude-usage.json`, its own `rate_limit_event`), so this fires when
+        // Claude itself last reported `rejected` / out of credits. The
+        // post-error path (inside the per-agent task below) covers everyone.
+        if failover_policy.is_armed() && decision.agents.len() == 1 {
+            let primary = decision.agents[0].clone();
+            let usage = orchestrator::failover::usage_snapshot_for(&primary);
+            if let Some(why) =
+                orchestrator::failover::should_failover(None, usage.as_ref(), &failover_policy)
+            {
+                if let Some(next) = orchestrator::failover::pick_fallback_agent(
+                    &failover_policy,
+                    &registry,
+                    &[primary.as_str()],
+                ) {
+                    let note = orchestrator::failover::describe(&primary, &next, &why);
+                    tracing::info!(target: "cortex::chat", session_id = %session_id, "{note}");
+                    reason = format!("{reason} · {note}");
+                    decision.agents = vec![next];
+                }
+            }
+        }
+        let picked = decision.agents.clone();
         let agents = orchestrator::resolve(&decision, &registry);
         // Resolve the architect planner's adapter while we still hold the guard.
         // Route a bare request by the planner model — the same routing the editor
@@ -3031,6 +3062,10 @@ pub async fn chat_send(
         dispatched_message
     );
 
+    // Quota-aware failover is only armed for a single-agent turn (see the
+    // pre-dispatch check above for why).
+    let failover_armed = failover_policy.is_armed() && agents.len() == 1;
+
     for agent in agents {
         let req_clone = ChatRequest {
             session_id: session_for_task.clone(),
@@ -3040,6 +3075,7 @@ pub async fn chat_send(
             model: effective_model.clone(),
             reasoning_effort: effective_effort.clone(),
         };
+        let failover_for_agent = failover_policy.clone();
         let session = session_for_task.clone();
         let app_for_agent = app_handle.clone();
         // Captured separately so the agent.run span can record the effective
@@ -3065,213 +3101,274 @@ pub async fn chat_send(
         let state_for_agent = state.inner().clone();
 
         tauri::async_runtime::spawn(async move {
-            let agent_id = agent.descriptor().id.clone();
-            let (tx, mut rx) = mpsc::channel(64);
-            // Detects ```focus-chain checklists in the streamed text (the
-            // prompt contract injected above) and replays them as the
-            // synthetic `update_focus_chain` tool call — see the Token/Done
-            // arm at the bottom of the loop.
-            let mut focus_scanner = crate::commands::focus_chain::FocusChainScanner::new();
+            // Quota-aware failover (`orchestrator::failover`): the same turn
+            // may be re-dispatched ONCE to the next chain agent when this run
+            // dies with a rate-limit/transient error BEFORE streaming any
+            // output. Each attempt is one full pass of this loop — its own
+            // channel, run id, `agent.run` span and Stop hook — so Run Replay
+            // shows the failed span followed by the fallback span. With the
+            // policy off (the default) the loop body runs exactly once.
+            let base_req = req_clone;
+            let mut current_agent = agent;
+            let mut failed_over_from: Vec<String> = Vec::new();
+            loop {
+                let agent = current_agent.clone();
+                let agent_id = agent.descriptor().id.clone();
+                let (tx, mut rx) = mpsc::channel(64);
+                // Detects ```focus-chain checklists in the streamed text (the
+                // prompt contract injected above) and replays them as the
+                // synthetic `update_focus_chain` tool call — see the Token/Done
+                // arm at the bottom of the loop.
+                let mut focus_scanner = crate::commands::focus_chain::FocusChainScanner::new();
 
-            let agent_for_run = agent.clone();
-            // tokio::spawn (not tauri's wrapper) so we get an AbortHandle —
-            // Stop for local runs aborts this task; kill_on_drop on CLI
-            // children makes that abort also kill any spawned process.
-            let run_handle = tokio::spawn(async move {
-                let _ = agent_for_run.run(req_clone, tx).await;
-            });
-
-            // Register the run so `stop_run` can abort it. Local adapters
-            // report `run_id: None` in their lifecycle events; the loop below
-            // injects this synthetic id so the frontend can track the run and
-            // offer Stop. Gateway runs carry their own ids and are untouched.
-            let local_run_id = format!("local-{}", ulid::Ulid::new());
-            let stopped_by_user = Arc::new(AtomicBool::new(false));
-            LOCAL_RUNS.lock().insert(
-                local_run_id.clone(),
-                LocalRun {
-                    abort: run_handle.abort_handle(),
-                    stopped_by_user: stopped_by_user.clone(),
-                },
-            );
-            let mut saw_done = false;
-
-            let span_id = ulid::Ulid::new().to_string();
-            if let Some(store) = app_for_agent.try_state::<TracingStore>() {
-                let _ = store.start_agent_run(
-                    &span_id,
-                    &trace_id,
-                    &session,
-                    &agent_id,
-                    model_for_run.as_deref(),
-                );
-            }
-
-            while let Some(evt) = rx.recv().await {
-                // Inject the synthetic run id into lifecycle events that have
-                // none, so the frontend tracks the run (enabling Stop) and
-                // untracks it on Done. Gateway-issued ids pass through.
-                let evt = match evt {
-                    AgentEvent::Started {
-                        agent_id,
-                        run_id: None,
-                    } => AgentEvent::Started {
-                        agent_id,
-                        run_id: Some(local_run_id.clone()),
-                    },
-                    AgentEvent::Done {
-                        total_tokens,
-                        run_id: None,
-                    } => AgentEvent::Done {
-                        total_tokens,
-                        run_id: Some(local_run_id.clone()),
-                    },
-                    other => other,
+                // A failed-over attempt drops the model pin: the slug belongs to
+                // the provider that just failed, and the fallback adapter would
+                // substitute its own default anyway (or refuse the foreign slug).
+                let req_attempt = if failed_over_from.is_empty() {
+                    base_req.clone()
+                } else {
+                    ChatRequest {
+                        model: None,
+                        ..base_req.clone()
+                    }
                 };
-                if matches!(evt, AgentEvent::Done { .. }) {
-                    saw_done = true;
+                let agent_for_run = agent.clone();
+                // tokio::spawn (not tauri's wrapper) so we get an AbortHandle —
+                // Stop for local runs aborts this task; kill_on_drop on CLI
+                // children makes that abort also kill any spawned process.
+                let run_handle = tokio::spawn(async move {
+                    let _ = agent_for_run.run(req_attempt, tx).await;
+                });
+                // Failover bookkeeping for THIS attempt: has the UI seen real agent
+                // activity, the first pre-output error, and the UI payloads
+                // (Error/Done) withheld until we know whether we fail over. Armed
+                // for the first attempt only — failover happens at most once.
+                let attempt_failover_armed = failover_armed && failed_over_from.is_empty();
+                let mut produced_output = false;
+                let mut held_error: Option<String> = None;
+                let mut held_payloads: Vec<serde_json::Value> = Vec::new();
+
+                // Register the run so `stop_run` can abort it. Local adapters
+                // report `run_id: None` in their lifecycle events; the loop below
+                // injects this synthetic id so the frontend can track the run and
+                // offer Stop. Gateway runs carry their own ids and are untouched.
+                let local_run_id = format!("local-{}", ulid::Ulid::new());
+                let stopped_by_user = Arc::new(AtomicBool::new(false));
+                LOCAL_RUNS.lock().insert(
+                    local_run_id.clone(),
+                    LocalRun {
+                        abort: run_handle.abort_handle(),
+                        stopped_by_user: stopped_by_user.clone(),
+                    },
+                );
+                let mut saw_done = false;
+                let mut run_error: Option<String> = None;
+
+                let span_id = ulid::Ulid::new().to_string();
+                if let Some(store) = app_for_agent.try_state::<TracingStore>() {
+                    let _ = store.start_agent_run(
+                        &span_id,
+                        &trace_id,
+                        &session,
+                        &agent_id,
+                        model_for_run.as_deref(),
+                    );
                 }
 
-                // Safe Mode: snapshot the pre-gate tool call so EVERY tool
-                // call lands in the audit_log with its gate outcome (allowed
-                // or blocked + reason) — see the record_audit call after the
-                // gate chain below. `None` whenever Safe Mode is off, so the
-                // default path allocates nothing.
-                let safe_mode_audit: Option<(String, String)> = if safe_mode_for_agent {
-                    match &evt {
-                        AgentEvent::ToolCall { name, args, .. } => Some((
-                            name.clone(),
-                            serde_json::to_string(args).unwrap_or_default(),
-                        )),
-                        _ => None,
+                while let Some(evt) = rx.recv().await {
+                    // Inject the synthetic run id into lifecycle events that have
+                    // none, so the frontend tracks the run (enabling Stop) and
+                    // untracks it on Done. Gateway-issued ids pass through.
+                    let evt = match evt {
+                        AgentEvent::Started {
+                            agent_id,
+                            run_id: None,
+                        } => AgentEvent::Started {
+                            agent_id,
+                            run_id: Some(local_run_id.clone()),
+                        },
+                        AgentEvent::Done {
+                            total_tokens,
+                            run_id: None,
+                        } => AgentEvent::Done {
+                            total_tokens,
+                            run_id: Some(local_run_id.clone()),
+                        },
+                        other => other,
+                    };
+                    if matches!(evt, AgentEvent::Done { .. }) {
+                        saw_done = true;
                     }
-                } else {
-                    None
-                };
+                    // Real agent activity (judged on the pre-gate event: a tool
+                    // call the tier later blocks is still activity) disarms the
+                    // failover hold-back below — never fail over after output.
+                    if matches!(
+                        evt,
+                        AgentEvent::Token { .. }
+                            | AgentEvent::Reasoning { .. }
+                            | AgentEvent::ToolCall { .. }
+                            | AgentEvent::ToolResult { .. }
+                            | AgentEvent::FileEdit { .. }
+                            | AgentEvent::ApprovalRequest { .. }
+                    ) {
+                        produced_output = true;
+                    }
+                    // Phone push outcome tracking: an Error immediately followed by
+                    // Done is a failed run; an Error the agent recovered from (more
+                    // tokens/tool calls after it, e.g. a blocked tool call) is not.
+                    match &evt {
+                        AgentEvent::Error { message } => run_error = Some(message.clone()),
+                        AgentEvent::Token { .. }
+                        | AgentEvent::Reasoning { .. }
+                        | AgentEvent::ToolCall { .. }
+                        | AgentEvent::ToolResult { .. } => run_error = None,
+                        _ => {}
+                    }
 
-                // Sandbox tier (deny-bias) → Safe Mode command policy →
-                // guardrails/plan-mode filter: rewrite blocked tool calls
-                // into Error events before they reach the UI or trace store.
-                // Tier is checked FIRST so a deny here overrides any approval
-                // rule that might allow. The command-policy gate sits BETWEEN
-                // tier and guardrails and is inert (`None`) unless Safe Mode
-                // is on; it can only add a Deny, never skip the guardrails
-                // (narrow-only invariant — see maybe_block_by_command_policy).
-                let evt = if let AgentEvent::ToolCall { name, args, .. } = &evt {
-                    let args_json = serde_json::to_string(args).unwrap_or_default();
-                    if let Some(msg) = maybe_block_by_tier(
-                        tier_for_agent,
-                        name,
-                        &args_json,
-                        project_root_for_agent.as_deref(),
-                    ) {
-                        AgentEvent::Error { message: msg }
-                    } else if let Some(msg) = maybe_block_by_command_policy(
-                        command_policy_for_agent.as_deref(),
-                        name,
-                        &args_json,
-                    ) {
-                        AgentEvent::Error { message: msg }
-                    } else if let Some(msg) = maybe_block_tool_call(
-                        &mode_for_agent,
-                        name,
-                        &args_json,
-                        &guardrails_for_agent,
-                    ) {
-                        AgentEvent::Error { message: msg }
+                    // Safe Mode: snapshot the pre-gate tool call so EVERY tool
+                    // call lands in the audit_log with its gate outcome (allowed
+                    // or blocked + reason) — see the record_audit call after the
+                    // gate chain below. `None` whenever Safe Mode is off, so the
+                    // default path allocates nothing.
+                    let safe_mode_audit: Option<(String, String)> = if safe_mode_for_agent {
+                        match &evt {
+                            AgentEvent::ToolCall { name, args, .. } => Some((
+                                name.clone(),
+                                serde_json::to_string(args).unwrap_or_default(),
+                            )),
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    };
+
+                    // Sandbox tier (deny-bias) → Safe Mode command policy →
+                    // guardrails/plan-mode filter: rewrite blocked tool calls
+                    // into Error events before they reach the UI or trace store.
+                    // Tier is checked FIRST so a deny here overrides any approval
+                    // rule that might allow. The command-policy gate sits BETWEEN
+                    // tier and guardrails and is inert (`None`) unless Safe Mode
+                    // is on; it can only add a Deny, never skip the guardrails
+                    // (narrow-only invariant — see maybe_block_by_command_policy).
+                    let evt = if let AgentEvent::ToolCall { name, args, .. } = &evt {
+                        let args_json = serde_json::to_string(args).unwrap_or_default();
+                        if let Some(msg) = maybe_block_by_tier(
+                            tier_for_agent,
+                            name,
+                            &args_json,
+                            project_root_for_agent.as_deref(),
+                        ) {
+                            AgentEvent::Error { message: msg }
+                        } else if let Some(msg) = maybe_block_by_command_policy(
+                            command_policy_for_agent.as_deref(),
+                            name,
+                            &args_json,
+                        ) {
+                            AgentEvent::Error { message: msg }
+                        } else if let Some(msg) = maybe_block_tool_call(
+                            &mode_for_agent,
+                            name,
+                            &args_json,
+                            &guardrails_for_agent,
+                        ) {
+                            AgentEvent::Error { message: msg }
+                        } else {
+                            evt
+                        }
                     } else {
                         evt
-                    }
-                } else {
-                    evt
-                };
-
-                // Safe Mode audit row for the tool call snapshotted above. A
-                // policy/tier/guardrail block shows up as `blocked: <reason>`
-                // (the gates rewrote the event to Error); anything else was
-                // allowed through. Args are capped (paths/commands, never
-                // full file bodies — audit-log contract) and redacted at
-                // write time; the export path redacts again (choke point).
-                if let Some((tool, args_json)) = safe_mode_audit {
-                    let outcome = match &evt {
-                        AgentEvent::Error { message } => format!("blocked: {message}"),
-                        _ => "allowed".to_string(),
                     };
-                    let args_preview: String = args_json.chars().take(2000).collect();
-                    let detail = serde_json::json!({
-                        "tool": tool,
-                        "args": args_preview,
-                        "outcome": outcome,
-                    });
-                    let detail = crate::redact::redact_text(&detail.to_string());
-                    if let Some(store) = app_for_agent.try_state::<TracingStore>() {
-                        if let Err(e) = store.record_audit(
-                            Some(&session),
-                            Some(&agent_id),
-                            "safe-mode.tool-call",
-                            Some(&detail),
-                        ) {
-                            tracing::warn!("safe-mode audit write failed: {e}");
+
+                    // Safe Mode audit row for the tool call snapshotted above. A
+                    // policy/tier/guardrail block shows up as `blocked: <reason>`
+                    // (the gates rewrote the event to Error); anything else was
+                    // allowed through. Args are capped (paths/commands, never
+                    // full file bodies — audit-log contract) and redacted at
+                    // write time; the export path redacts again (choke point).
+                    if let Some((tool, args_json)) = safe_mode_audit {
+                        let outcome = match &evt {
+                            AgentEvent::Error { message } => format!("blocked: {message}"),
+                            _ => "allowed".to_string(),
+                        };
+                        let args_preview: String = args_json.chars().take(2000).collect();
+                        let detail = serde_json::json!({
+                            "tool": tool,
+                            "args": args_preview,
+                            "outcome": outcome,
+                        });
+                        let detail = crate::redact::redact_text(&detail.to_string());
+                        if let Some(store) = app_for_agent.try_state::<TracingStore>() {
+                            if let Err(e) = store.record_audit(
+                                Some(&session),
+                                Some(&agent_id),
+                                "safe-mode.tool-call",
+                                Some(&detail),
+                            ) {
+                                tracing::warn!("safe-mode audit write failed: {e}");
+                            }
                         }
                     }
-                }
 
-                // Auto-approve allowlist short-circuit. When the agent emits an
-                // `ApprovalRequest` whose `(tool, payload)` matches a saved
-                // glob, we silently POST `approve_run(once)` back to the gateway and
-                // never forward the event to the UI. Emits an
-                // `ApprovalResolved` so the trace store still sees a paired
-                // request/response.
-                let evt = if let AgentEvent::ApprovalRequest {
-                    run_id,
-                    tool,
-                    request,
-                    ..
-                } = &evt
-                {
-                    let tool_name = tool.as_deref().unwrap_or("");
-                    let payload_json = serde_json::to_string(request).unwrap_or_default();
-                    // An approval request can be resolved without prompting the
-                    // user in three ways:
-                    //   1. an explicit auto-approve allowlist entry matches,
-                    //   2. the project's approval policy auto-approves it
-                    //      (`never` → everything that already passed; `untrusted`
-                    //      → provably read-only only; `on-request` → never here), or
-                    //   3. the user's granular trust-matrix toggles cover it
-                    //      (`trust_matrix_for_agent` is `None` for an untrusted
-                    //      project — see where it's loaded above).
-                    // NONE of these apply to an MCP-originated request (issue
-                    // 008) — see `eligible_for_generic_auto_approve`.
-                    let choice = if !eligible_for_generic_auto_approve(tool_name) {
-                        None
-                    } else if auto_approve_for_agent.matches(tool_name, request) {
-                        Some("auto-approved")
-                    } else if approval_policy_for_agent.auto_approves(
-                        tool_name,
-                        &payload_json,
-                        project_root_for_agent.as_deref(),
-                    ) {
-                        Some("policy-approved")
-                    } else if trust_matrix_for_agent.as_deref().is_some_and(|m| {
-                        m.auto_approves(tool_name, &payload_json, project_root_for_agent.as_deref())
-                    }) {
-                        Some("trust-matrix-approved")
-                    } else {
-                        None
-                    };
-                    // Deny-bias re-gate. The tier/guardrail gates earlier in
-                    // this loop only fire on `ToolCall` events, but an
-                    // `ApprovalRequest` is a *distinct* event — so an
-                    // auto-approve here (allowlist OR `policy = "never"`) would
-                    // otherwise skip the prompt for a write/exec the active tier
-                    // forbids (e.g. a trusted project pinned to ReadOnly). Re-run
-                    // the SAME gates (tier first, then guardrails/plan-mode) on
-                    // the request payload so an auto-approve can only ever skip
-                    // the prompt for an already-allowed action — upholding the
-                    // documented "auto-approve ⊆ tier-allowed" invariant. A
-                    // blocked action falls through to the normal user prompt (and
-                    // its own ToolCall stays independently tier-blocked).
-                    let choice = choice.filter(|_| {
+                    // Auto-approve allowlist short-circuit. When the agent emits an
+                    // `ApprovalRequest` whose `(tool, payload)` matches a saved
+                    // glob, we silently POST `approve_run(once)` back to the gateway and
+                    // never forward the event to the UI. Emits an
+                    // `ApprovalResolved` so the trace store still sees a paired
+                    // request/response.
+                    let evt = if let AgentEvent::ApprovalRequest {
+                        run_id,
+                        tool,
+                        request,
+                        ..
+                    } = &evt
+                    {
+                        let tool_name = tool.as_deref().unwrap_or("");
+                        let payload_json = serde_json::to_string(request).unwrap_or_default();
+                        // An approval request can be resolved without prompting the
+                        // user in three ways:
+                        //   1. an explicit auto-approve allowlist entry matches,
+                        //   2. the project's approval policy auto-approves it
+                        //      (`never` → everything that already passed; `untrusted`
+                        //      → provably read-only only; `on-request` → never here), or
+                        //   3. the user's granular trust-matrix toggles cover it
+                        //      (`trust_matrix_for_agent` is `None` for an untrusted
+                        //      project — see where it's loaded above).
+                        // NONE of these apply to an MCP-originated request (issue
+                        // 008) — see `eligible_for_generic_auto_approve`.
+                        let choice = if !eligible_for_generic_auto_approve(tool_name) {
+                            None
+                        } else if auto_approve_for_agent.matches(tool_name, request) {
+                            Some("auto-approved")
+                        } else if approval_policy_for_agent.auto_approves(
+                            tool_name,
+                            &payload_json,
+                            project_root_for_agent.as_deref(),
+                        ) {
+                            Some("policy-approved")
+                        } else if trust_matrix_for_agent.as_deref().is_some_and(|m| {
+                            m.auto_approves(
+                                tool_name,
+                                &payload_json,
+                                project_root_for_agent.as_deref(),
+                            )
+                        }) {
+                            Some("trust-matrix-approved")
+                        } else {
+                            None
+                        };
+                        // Deny-bias re-gate. The tier/guardrail gates earlier in
+                        // this loop only fire on `ToolCall` events, but an
+                        // `ApprovalRequest` is a *distinct* event — so an
+                        // auto-approve here (allowlist OR `policy = "never"`) would
+                        // otherwise skip the prompt for a write/exec the active tier
+                        // forbids (e.g. a trusted project pinned to ReadOnly). Re-run
+                        // the SAME gates (tier first, then guardrails/plan-mode) on
+                        // the request payload so an auto-approve can only ever skip
+                        // the prompt for an already-allowed action — upholding the
+                        // documented "auto-approve ⊆ tier-allowed" invariant. A
+                        // blocked action falls through to the normal user prompt (and
+                        // its own ToolCall stays independently tier-blocked).
+                        let choice = choice.filter(|_| {
                         match auto_approve_blocked_by_gates(
                             tier_for_agent,
                             &mode_for_agent,
@@ -3289,13 +3386,13 @@ pub async fn chat_send(
                             }
                         }
                     });
-                    // Safe Mode: a shell command the policy doesn't explicitly
-                    // Allow (Deny/Ask/allowlist-miss/unextractable) can never
-                    // be auto-approved — the request goes to the user instead.
-                    // Inert (`None` policy) when Safe Mode is off. Narrow-only:
-                    // this filter can only turn an auto-approve into a prompt,
-                    // never the reverse.
-                    let choice = choice.filter(|_| {
+                        // Safe Mode: a shell command the policy doesn't explicitly
+                        // Allow (Deny/Ask/allowlist-miss/unextractable) can never
+                        // be auto-approved — the request goes to the user instead.
+                        // Inert (`None` policy) when Safe Mode is off. Narrow-only:
+                        // this filter can only turn an auto-approve into a prompt,
+                        // never the reverse.
+                        let choice = choice.filter(|_| {
                         match command_policy_suppresses_auto_approve(
                             command_policy_for_agent.as_deref(),
                             tool_name,
@@ -3310,205 +3407,339 @@ pub async fn chat_send(
                             }
                         }
                     });
-                    if let Some(choice) = choice {
-                        // Local (in-process) pending approvals — an MCP chat
-                        // tool call paused on an 'ask' server (issue 008) —
-                        // resolve here; the gateway never saw their synthetic
-                        // run ids, so POSTing there could only 404.
-                        if !resolve_local_approval(run_id, "approve") {
-                            let run_id_owned = run_id.clone();
-                            let cfg = state_for_agent.config.read().clone();
-                            let api_key = AppState::get_gateway_api_key().unwrap_or_default();
-                            let client = crate::gateway::client::GatewayClient::new(
-                                cfg.gateway_base_url,
-                                api_key,
-                            );
-                            tauri::async_runtime::spawn(async move {
-                                if let Err(e) = client
-                                    .approve_run(&run_id_owned, "once", None, None, None)
-                                    .await
-                                {
-                                    tracing::warn!(
-                                        "auto-approve POST failed for run {}: {e}",
-                                        run_id_owned
-                                    );
-                                }
-                            });
-                        }
-                        AgentEvent::ApprovalResolved {
-                            run_id: run_id.clone(),
-                            choice: choice.into(),
+                        if let Some(choice) = choice {
+                            // Local (in-process) pending approvals — an MCP chat
+                            // tool call paused on an 'ask' server (issue 008) —
+                            // resolve here; the gateway never saw their synthetic
+                            // run ids, so POSTing there could only 404.
+                            if !resolve_local_approval(run_id, "approve") {
+                                let run_id_owned = run_id.clone();
+                                let cfg = state_for_agent.config.read().clone();
+                                let api_key = AppState::get_gateway_api_key().unwrap_or_default();
+                                let client = crate::gateway::client::GatewayClient::new(
+                                    cfg.gateway_base_url,
+                                    api_key,
+                                );
+                                tauri::async_runtime::spawn(async move {
+                                    if let Err(e) = client
+                                        .approve_run(&run_id_owned, "once", None, None, None)
+                                        .await
+                                    {
+                                        tracing::warn!(
+                                            "auto-approve POST failed for run {}: {e}",
+                                            run_id_owned
+                                        );
+                                    }
+                                });
+                            }
+                            AgentEvent::ApprovalResolved {
+                                run_id: run_id.clone(),
+                                choice: choice.into(),
+                            }
+                        } else {
+                            evt
                         }
                     } else {
                         evt
-                    }
-                } else {
-                    evt
-                };
-
-                // Per-event lifecycle hooks. Fire on the *resolved* event so
-                // matchers see the same tool name the UI/trace store records
-                // (after tier/guardrail rewrites and auto-approve). All are
-                // fire-and-forget so a slow hook can't stall the token stream.
-                match &evt {
-                    AgentEvent::ToolCall { name, args, .. } => {
-                        fire_hook_detached(
-                            &hooks_for_agent,
-                            hook_events::PRE_TOOL_USE,
-                            serde_json::json!({
-                                "event": hook_events::PRE_TOOL_USE,
-                                "session_id": session,
-                                "agent_id": agent_id,
-                                "tool_name": name,
-                                "tool_args": args,
-                            }),
-                        );
-                    }
-                    AgentEvent::ToolResult {
-                        name,
-                        ok,
-                        summary,
-                        duration_ms,
-                    } => {
-                        fire_hook_detached(
-                            &hooks_for_agent,
-                            hook_events::POST_TOOL_USE,
-                            serde_json::json!({
-                                "event": hook_events::POST_TOOL_USE,
-                                "session_id": session,
-                                "agent_id": agent_id,
-                                "tool_name": name,
-                                "ok": ok,
-                                "summary": summary,
-                                "duration_ms": duration_ms,
-                            }),
-                        );
-                    }
-                    AgentEvent::ApprovalRequest { run_id, tool, .. } => {
-                        fire_hook_detached(
-                            &hooks_for_agent,
-                            hook_events::PERMISSION_REQUEST,
-                            serde_json::json!({
-                                "event": hook_events::PERMISSION_REQUEST,
-                                "session_id": session,
-                                "agent_id": agent_id,
-                                "run_id": run_id,
-                                "tool_name": tool,
-                            }),
-                        );
-                    }
-                    AgentEvent::Error { message } => {
-                        fire_hook_detached(
-                            &hooks_for_agent,
-                            hook_events::NOTIFICATION,
-                            serde_json::json!({
-                                "event": hook_events::NOTIFICATION,
-                                "session_id": session,
-                                "agent_id": agent_id,
-                                "message": message,
-                            }),
-                        );
-                    }
-                    _ => {}
-                }
-
-                // Focus-chain scan. Runs on the streamed text and re-emits any
-                // completed ```focus-chain block as the `update_focus_chain`
-                // tool call the frontend handler + FocusChain panel consume.
-                // Emitted directly — NOT routed through the tier/guardrail
-                // gates above — because nothing executes: it's a UI state
-                // update derived from text the model already streamed, and the
-                // tier gate would wrongly block it for untrusted (ReadOnly-
-                // pinned) projects. Ordered before the source event's emit so
-                // the chain update lands ahead of `done` (the frontend
-                // finalizes the assistant bubble on `done`).
-                let scanned = match &evt {
-                    AgentEvent::Token { delta } => focus_scanner.feed(delta),
-                    AgentEvent::Done { .. } => focus_scanner.finish(),
-                    _ => None,
-                };
-                if let Some(items) = scanned {
-                    let done_count = items.iter().filter(|t| t.done).count();
-                    let preview = format!("{done_count}/{} steps done", items.len());
-                    let fc_evt = AgentEvent::ToolCall {
-                        name: "update_focus_chain".to_string(),
-                        args: serde_json::json!({ "items": items }),
-                        preview: Some(preview),
                     };
-                    let _ = app_for_agent.emit(
-                        &format!("agent-event:{}", session),
-                        serde_json::json!({ "agent_id": agent_id, "event": fc_evt }),
-                    );
-                    if let Some(store) = app_for_agent.try_state::<TracingStore>() {
-                        let _ = store.record_event(&span_id, &fc_evt);
+
+                    // Per-event lifecycle hooks. Fire on the *resolved* event so
+                    // matchers see the same tool name the UI/trace store records
+                    // (after tier/guardrail rewrites and auto-approve). All are
+                    // fire-and-forget so a slow hook can't stall the token stream.
+                    match &evt {
+                        AgentEvent::ToolCall { name, args, .. } => {
+                            fire_hook_detached(
+                                &hooks_for_agent,
+                                hook_events::PRE_TOOL_USE,
+                                serde_json::json!({
+                                    "event": hook_events::PRE_TOOL_USE,
+                                    "session_id": session,
+                                    "agent_id": agent_id,
+                                    "tool_name": name,
+                                    "tool_args": args,
+                                }),
+                            );
+                        }
+                        AgentEvent::ToolResult {
+                            name,
+                            ok,
+                            summary,
+                            duration_ms,
+                        } => {
+                            fire_hook_detached(
+                                &hooks_for_agent,
+                                hook_events::POST_TOOL_USE,
+                                serde_json::json!({
+                                    "event": hook_events::POST_TOOL_USE,
+                                    "session_id": session,
+                                    "agent_id": agent_id,
+                                    "tool_name": name,
+                                    "ok": ok,
+                                    "summary": summary,
+                                    "duration_ms": duration_ms,
+                                }),
+                            );
+                        }
+                        AgentEvent::ApprovalRequest { run_id, tool, .. } => {
+                            crate::commands::push_notify::notify_approval_needed(
+                                run_id,
+                                &agent_id,
+                                tool.as_deref(),
+                            );
+                            fire_hook_detached(
+                                &hooks_for_agent,
+                                hook_events::PERMISSION_REQUEST,
+                                serde_json::json!({
+                                    "event": hook_events::PERMISSION_REQUEST,
+                                    "session_id": session,
+                                    "agent_id": agent_id,
+                                    "run_id": run_id,
+                                    "tool_name": tool,
+                                }),
+                            );
+                        }
+                        AgentEvent::Error { message } => {
+                            fire_hook_detached(
+                                &hooks_for_agent,
+                                hook_events::NOTIFICATION,
+                                serde_json::json!({
+                                    "event": hook_events::NOTIFICATION,
+                                    "session_id": session,
+                                    "agent_id": agent_id,
+                                    "message": message,
+                                }),
+                            );
+                        }
+                        _ => {}
                     }
-                }
 
-                // Redact before this event reaches either consumer — the
-                // frontend approval prompt/chat pane (which the user reads
-                // to decide approve/deny) AND the trace store (persisted to
-                // disk). ToolCall/ApprovalRequest payloads are model/tool-
-                // supplied free text and can legitimately embed a live
-                // credential (e.g. a shell command echoing a Bearer token);
-                // everything else passes through unchanged. All gating
-                // logic above (auto-approve matching, tier/guardrail
-                // re-checks) already ran against the ORIGINAL `evt` — only
-                // the outward-facing copy is redacted.
-                let evt_for_display = evt.redacted_for_display();
-                let payload = serde_json::json!({
-                    "agent_id": agent_id,
-                    "event": evt_for_display,
-                });
-                let _ = app_for_agent.emit(&format!("agent-event:{}", session), payload);
-                if let Some(store) = app_for_agent.try_state::<TracingStore>() {
-                    let _ = store.record_event(&span_id, &evt_for_display);
-                }
-            }
+                    // Focus-chain scan. Runs on the streamed text and re-emits any
+                    // completed ```focus-chain block as the `update_focus_chain`
+                    // tool call the frontend handler + FocusChain panel consume.
+                    // Emitted directly — NOT routed through the tier/guardrail
+                    // gates above — because nothing executes: it's a UI state
+                    // update derived from text the model already streamed, and the
+                    // tier gate would wrongly block it for untrusted (ReadOnly-
+                    // pinned) projects. Ordered before the source event's emit so
+                    // the chain update lands ahead of `done` (the frontend
+                    // finalizes the assistant bubble on `done`).
+                    let scanned = match &evt {
+                        AgentEvent::Token { delta } => focus_scanner.feed(delta),
+                        AgentEvent::Done { .. } => focus_scanner.finish(),
+                        _ => None,
+                    };
+                    if let Some(items) = scanned {
+                        let done_count = items.iter().filter(|t| t.done).count();
+                        let preview = format!("{done_count}/{} steps done", items.len());
+                        let fc_evt = AgentEvent::ToolCall {
+                            name: "update_focus_chain".to_string(),
+                            args: serde_json::json!({ "items": items }),
+                            preview: Some(preview),
+                        };
+                        let _ = app_for_agent.emit(
+                            &format!("agent-event:{}", session),
+                            serde_json::json!({ "agent_id": agent_id, "event": fc_evt }),
+                        );
+                        if let Some(store) = app_for_agent.try_state::<TracingStore>() {
+                            let _ = store.record_event(&span_id, &fc_evt);
+                        }
+                    }
 
-            LOCAL_RUNS.lock().remove(&local_run_id);
-
-            // The channel closed without a `Done` — either the user aborted
-            // the run (Stop) or the adapter task died mid-stream. Emit a
-            // terminal Error + Done pair so the frontend clears its thinking
-            // bubble and untracks the run instead of spinning forever.
-            if !saw_done {
-                let message = if stopped_by_user.load(Ordering::SeqCst) {
-                    "run stopped by user".to_string()
-                } else {
-                    "agent stream ended unexpectedly (no completion event)".to_string()
-                };
-                for evt in [
-                    AgentEvent::Error { message },
-                    AgentEvent::Done {
-                        total_tokens: None,
-                        run_id: Some(local_run_id.clone()),
-                    },
-                ] {
-                    let payload = serde_json::json!({ "agent_id": agent_id, "event": evt });
+                    // Redact before this event reaches either consumer — the
+                    // frontend approval prompt/chat pane (which the user reads
+                    // to decide approve/deny) AND the trace store (persisted to
+                    // disk). ToolCall/ApprovalRequest payloads are model/tool-
+                    // supplied free text and can legitimately embed a live
+                    // credential (e.g. a shell command echoing a Bearer token);
+                    // everything else passes through unchanged. All gating
+                    // logic above (auto-approve matching, tier/guardrail
+                    // re-checks) already ran against the ORIGINAL `evt` — only
+                    // the outward-facing copy is redacted.
+                    let evt_for_display = evt.redacted_for_display();
+                    let payload = serde_json::json!({
+                        "agent_id": agent_id,
+                        "event": evt_for_display,
+                    });
+                    // The trace store always sees the event — a failed-over
+                    // attempt still shows its error in Run Replay.
+                    if let Some(store) = app_for_agent.try_state::<TracingStore>() {
+                        let _ = store.record_event(&span_id, &evt_for_display);
+                    }
+                    // Failover hold-back: a terminal Error (and the Done behind
+                    // it) arriving before ANY output is withheld from the UI until
+                    // the run ends — if we then fail over, the user sees the
+                    // reroute note instead of a dead-end error; if output does
+                    // follow after all, the withheld events are released first so
+                    // ordering is preserved.
+                    if attempt_failover_armed && !produced_output {
+                        match &evt {
+                            AgentEvent::Error { message } => {
+                                if held_error.is_none() {
+                                    held_error = Some(message.clone());
+                                }
+                                held_payloads.push(payload);
+                                continue;
+                            }
+                            AgentEvent::Done { .. } if held_error.is_some() => {
+                                held_payloads.push(payload);
+                                continue;
+                            }
+                            _ => {}
+                        }
+                    }
+                    for held in held_payloads.drain(..) {
+                        let _ = app_for_agent.emit(&format!("agent-event:{}", session), held);
+                    }
                     let _ = app_for_agent.emit(&format!("agent-event:{}", session), payload);
-                    if let Some(store) = app_for_agent.try_state::<TracingStore>() {
-                        let _ = store.record_event(&span_id, &evt);
+                }
+
+                LOCAL_RUNS.lock().remove(&local_run_id);
+
+                // Quota-aware failover decision for this attempt: only when the
+                // run produced NO output, was not stopped by the user, and its
+                // first error reads as quota/rate-limit (or transient, per the
+                // policy) — and only if the chain has a capable agent left. The
+                // registry read guard lives inside the closure (no await while
+                // held).
+                let failover_to: Option<(Arc<dyn crate::agents::AgentAdapter>, String)> =
+                    if attempt_failover_armed
+                        && !produced_output
+                        && !stopped_by_user.load(Ordering::SeqCst)
+                    {
+                        held_error.as_deref().and_then(|err| {
+                            let why = orchestrator::failover::should_failover(
+                                Some(err),
+                                None,
+                                &failover_for_agent,
+                            )?;
+                            let exclude: Vec<&str> = failed_over_from
+                                .iter()
+                                .map(String::as_str)
+                                .chain(std::iter::once(agent_id.as_str()))
+                                .collect();
+                            let registry = state_for_agent.registry.read();
+                            let next_id = orchestrator::failover::pick_fallback_agent(
+                                &failover_for_agent,
+                                &registry,
+                                &exclude,
+                            )?;
+                            let adapter = registry.get(&next_id)?;
+                            Some((
+                                adapter,
+                                orchestrator::failover::describe(&agent_id, &next_id, &why),
+                            ))
+                        })
+                    } else {
+                        None
+                    };
+
+                if let Some((_, note)) = &failover_to {
+                    // Close this agent's bubble with the reroute note instead of
+                    // the withheld error (which Run Replay still has): one Token
+                    // carrying the note, then the terminal Done.
+                    for evt in [
+                        AgentEvent::Token {
+                            delta: format!("⚠️ {note}\n"),
+                        },
+                        AgentEvent::Done {
+                            total_tokens: None,
+                            run_id: Some(local_run_id.clone()),
+                        },
+                    ] {
+                        let payload = serde_json::json!({ "agent_id": agent_id, "event": evt });
+                        let _ = app_for_agent.emit(&format!("agent-event:{}", session), payload);
+                    }
+                } else {
+                    // No failover: release anything the hold-back withheld.
+                    for held in held_payloads.drain(..) {
+                        let _ = app_for_agent.emit(&format!("agent-event:{}", session), held);
+                    }
+
+                    // The channel closed without a `Done` — either the user aborted
+                    // the run (Stop) or the adapter task died mid-stream. Emit a
+                    // terminal Error + Done pair so the frontend clears its thinking
+                    // bubble and untracks the run instead of spinning forever.
+                    if !saw_done {
+                        let message = if stopped_by_user.load(Ordering::SeqCst) {
+                            "run stopped by user".to_string()
+                        } else {
+                            "agent stream ended unexpectedly (no completion event)".to_string()
+                        };
+                        for evt in [
+                            AgentEvent::Error { message },
+                            AgentEvent::Done {
+                                total_tokens: None,
+                                run_id: Some(local_run_id.clone()),
+                            },
+                        ] {
+                            let payload = serde_json::json!({ "agent_id": agent_id, "event": evt });
+                            let _ =
+                                app_for_agent.emit(&format!("agent-event:{}", session), payload);
+                            if let Some(store) = app_for_agent.try_state::<TracingStore>() {
+                                let _ = store.record_event(&span_id, &evt);
+                            }
+                        }
                     }
                 }
+
+                // Phone push (opt-in, best-effort): a user-initiated Stop is not
+                // an outcome worth buzzing about; a dead stream is a failure. An
+                // attempt being failed over reports nothing — the fallback
+                // attempt's own outcome is the one that matters.
+                if !stopped_by_user.load(Ordering::SeqCst) && failover_to.is_none() {
+                    let failure = if saw_done {
+                        run_error.as_deref()
+                    } else {
+                        Some("agent stream ended unexpectedly (no completion event)")
+                    };
+                    crate::commands::push_notify::notify_run_outcome(
+                        &local_run_id,
+                        &agent_id,
+                        failure,
+                    );
+                }
+
+                // Stop: the agent run has drained its event channel (the `Done`
+                // path). Fire once per agent run, observational only.
+                fire_hook_detached(
+                    &hooks_for_agent,
+                    hook_events::STOP,
+                    serde_json::json!({
+                        "event": hook_events::STOP,
+                        "session_id": session,
+                        "agent_id": agent_id,
+                    }),
+                );
+
+                if let Some(store) = app_for_agent.try_state::<TracingStore>() {
+                    let _ = store.finish_agent_run(&span_id);
+                }
+
+                let _ = run_handle.await;
+
+                match failover_to {
+                    Some((next_adapter, note)) => {
+                        let next_id = next_adapter.descriptor().id;
+                        tracing::warn!(target: "cortex::chat", session_id = %session, "{note}");
+                        // Tell the UI (route toast) and Run Replay (routing reason).
+                        let _ = app_for_agent.emit(
+                            &format!("agent-event:{}", session),
+                            serde_json::json!({
+                                "type": "orchestrator_route",
+                                "agents": [next_id],
+                                "reason": note,
+                            }),
+                        );
+                        if let Some(store) = app_for_agent.try_state::<TracingStore>() {
+                            let _ = store.append_routing_reason(&trace_id, &note);
+                        }
+                        failed_over_from.push(agent_id);
+                        current_agent = next_adapter;
+                    }
+                    None => break,
+                }
             }
-
-            // Stop: the agent run has drained its event channel (the `Done`
-            // path). Fire once per agent run, observational only.
-            fire_hook_detached(
-                &hooks_for_agent,
-                hook_events::STOP,
-                serde_json::json!({
-                    "event": hook_events::STOP,
-                    "session_id": session,
-                    "agent_id": agent_id,
-                }),
-            );
-
-            if let Some(store) = app_for_agent.try_state::<TracingStore>() {
-                let _ = store.finish_agent_run(&span_id);
-            }
-
-            let _ = run_handle.await;
         });
     }
 

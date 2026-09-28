@@ -69,7 +69,10 @@ pub async fn account_usage() -> Result<AccountUsage, String> {
     // fail the command.
     let claude = claude_usage_cached().await;
     let chatgpt = chatgpt_usage_cached();
-    Ok(AccountUsage { claude, chatgpt })
+    let usage = AccountUsage { claude, chatgpt };
+    // Phone push `quota_low` (opt-in, deduped per reset window, off-thread).
+    crate::commands::push_notify::notify_quota(&usage);
+    Ok(usage)
 }
 
 /// Claude usage with TTL caching + serve-stale-on-error, so a 429 from the

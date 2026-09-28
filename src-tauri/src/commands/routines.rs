@@ -430,6 +430,12 @@ async fn execute_routine(
             &format!("Routine \u{201c}{}\u{201d} failed", run.routine_name),
             &run.error,
         );
+        // Phone push (opt-in, best-effort, off-thread).
+        crate::commands::push_notify::notify_routine_failed(
+            &run.run_id,
+            &run.routine_name,
+            &run.error,
+        );
     }
     Ok(spec)
 }

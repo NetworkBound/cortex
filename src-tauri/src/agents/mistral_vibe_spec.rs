@@ -73,6 +73,10 @@ pub static MISTRAL_VIBE_SPEC: CliSpec = CliSpec {
     // Vibe stores config (incl. the API key) under ~/.vibe — its presence is a
     // reasonable "configured" hint.
     auth_paths: &[".vibe/config.toml", ".vibe/auth.json"],
+    // No headless resume driven by Cortex: every turn folds history.
+    resume_args: None,
+    native_session_id: None,
+    resume_default_on: false,
 };
 
 #[cfg(test)]
