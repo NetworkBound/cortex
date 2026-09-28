@@ -28,6 +28,10 @@ on:
       tag:
         description: "Release tag to create, e.g. v3.2.0"
         required: true
+      draft:
+        description: "Create as a draft (publish by hand)"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -157,7 +161,7 @@ jobs:
           tagName: ${{ inputs.tag || github.ref_name }}
           releaseName: "Cortex ${{ inputs.tag || github.ref_name }}"
           releaseCommitish: ${{ github.sha }}
-          releaseBody: "See CHANGELOG.md for details."
-          releaseDraft: true
+          releaseBody: "See [CHANGELOG.md](https://github.com/NetworkBound/cortex/blob/main/CHANGELOG.md) for details."
+          releaseDraft: ${{ github.event_name != 'workflow_dispatch' || inputs.draft }}
           prerelease: false
           args: ${{ matrix.platform.args }}

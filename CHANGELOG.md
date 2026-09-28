@@ -3,6 +3,62 @@
 All notable changes to Cortex are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.3.0] — 2026-09-28
+
+New ways to reach Cortex from outside the app, cheaper Claude Code turns,
+and proof that the real app starts on Linux and Windows on every push.
+
+### Added
+- `/review [base] [--model <slug>]`: AI code review of the uncommitted diff
+  (or the branch against a base), grouped by severity with click-to-open
+  `file:line`. By default the reviewer is a model from a different provider
+  than the one you're using, so code isn't graded by the model that wrote it.
+  Diffs are secret-redacted and size-capped.
+- Cortex as an MCP server. `POST /mcp` on the local server lets Claude Code,
+  Codex and Gemini CLI search the Brain, ask it questions, list recent
+  sessions, read reliability stats and create checkpoints (restore only if
+  you allow destructive tools). Off by default, bearer-token protected, with
+  paste-ready client config under Settings → Connections.
+- Phone push via ntfy or Gotify (Settings → General → Phone push): approval
+  needed, run finished or failed, failed routine, quota above 90%. Taps open
+  the mobile app's inbox. Token kept in the OS keychain; a self-hosted server
+  on your LAN or tailnet needs an explicit opt-in.
+- Native session resume for Claude Code: each turn resumes the CLI's own
+  session and sends only the new message instead of replaying the whole
+  transcript, which saves quota and keeps the CLI's tool memory. A model or
+  project switch starts fresh; a missing session falls back once to the full
+  history. `CORTEX_CLI_NATIVE_RESUME` controls it; Codex support is opt-in.
+- Quota-aware failover (Settings → Providers, off by default): a turn that
+  fails on quota or a transient error before any output is re-sent once to
+  the next agent in your chain, and Run Replay shows why.
+- UI for backend features that had none: `.cortexignore` chip on the project,
+  stale Brain notes check, past-chat semantic search with reindex, and
+  retrieval-quality evals.
+
+### Fixed
+- The mobile app's deep links (such as `/inbox`) were served with a 404
+  status, which broke service-worker caching and push links.
+- JavaScript crashes were never recorded; window errors and render errors now
+  reach the crash log.
+- The E2E probe patched `console.error` in normal sessions and accepted
+  snapshot writes without `CORTEX_E2E`.
+- The Brain folder follows OneDrive-redirected Documents on Windows.
+- Cookbook RAM detection works on Windows and macOS.
+- Test-run timeouts kill the whole process tree; removing a worktree also
+  removes its branch; the gateway client no longer panics on a broken TLS
+  store.
+
+### Build and CI
+- New E2E workflow builds the release app on Ubuntu and Windows, launches it
+  (Xvfb on Linux, WebView2 on Windows) and checks from the renderer's own
+  heartbeat that it mounted, painted and threw no errors. It also smoke-tests
+  the headless server: web app, API, WebSocket origin checks and `/mcp`.
+- The codebase is formatted with rustfmt and Prettier, and CI enforces it.
+
+### Removed
+- Four unused frontend modules, about 60 unreferenced exports, duplicated
+  path and formatting helpers, and two dead backend commands.
+
 ## [3.2.0] — 2026-09-27
 
 A hardening release: Windows and Linux are now both built and tested on every

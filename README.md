@@ -28,7 +28,9 @@ localhost and cost nothing.
 do before it checks the price, so a chat-only model never gets handed shell
 access. Among capable models, cheaper wins, and a free local model wins ties.
 You can always pick a model explicitly instead. A gateway deployment is
-optional; the local CLIs work standalone.
+optional; the local CLIs work standalone. Claude Code turns resume the CLI's
+own session rather than replaying the transcript, and an optional failover
+chain re-sends a turn to another agent when one runs out of quota.
 
 **Runs multi-agent work when it helps.** Teams pairs a manager model with
 specialist workers. Lanes runs the same task across several providers in
@@ -47,7 +49,13 @@ any OpenAI-compatible endpoint, such as a vLLM or llama.cpp box on your LAN or
 tailnet, health-check it, discover its models, and chat through it. A companion
 HTTP server (`127.0.0.1:8788`) serves a mobile PWA, and an embedded userspace
 Tailscale sidecar (`cortex-tsnet`) gives you access from a phone or tablet
-without touching the host's networking.
+without touching the host's networking. ntfy or Gotify push tells your phone
+when a run needs approval or finishes, and a tap opens the approval.
+
+**Works with the agents you already use.** Cortex can act as an MCP server,
+so Claude Code, Codex or Gemini CLI running in your own terminal can search
+the Brain and create checkpoints through it. `/review` has a second model,
+from a different provider, review your uncommitted diff before you commit.
 
 **Keeps context close at hand.** The Brain indexes chat history and an Obsidian
 vault with local embeddings for semantic search; `@brain` pulls relevant notes
