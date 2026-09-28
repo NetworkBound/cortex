@@ -48,9 +48,11 @@
 //! - `GET  /api/approvals`          → pending approvals
 //! - `POST /api/approvals/{id}`     → resolve an approval
 //! - `GET  /ws`                     → WebSocket fan-out of streaming events
+//! - `POST /mcp`                    → MCP server (bearer-token gated, off by default; `mcp.rs`)
 //! - everything else                → the mobile SPA (`ServeDir` + SPA fallback)
 
 pub mod auth;
+pub mod mcp;
 pub mod state;
 pub mod ws;
 

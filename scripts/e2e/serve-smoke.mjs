@@ -16,6 +16,7 @@
 //   - WS  /ws with no Origin     → 101 (native clients)
 //   - WS  /ws Origin == Host     → 101 (same-origin SPA)
 //   - WS  /ws Origin evil.example→ 403 (cross-site WebSocket hijack blocked)
+//   - POST /mcp                  → 404 (MCP server is off by default)
 //
 // Usage:
 //   node scripts/e2e/serve-smoke.mjs --bin src-tauri/target/release/cortex-serve[.exe]
@@ -302,6 +303,22 @@ async function main() {
       "WS /ws upgrade from https://evil.example rejected",
       wsEvil.status === 403,
       `status=${wsEvil.status} body=${(wsEvil.body ?? "").slice(0, 80)}`,
+    );
+
+    // MCP server endpoint is off by default (no ~/.cortex/mcp-server.json in
+    // the isolated home) → 404, even with a bearer header.
+    const mcp = await get(base, "/mcp", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: "Bearer not-a-real-token",
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping" }),
+    });
+    check(
+      "POST /mcp is 404 while disabled",
+      mcp.res.status === 404,
+      `status=${mcp.res.status} body=${mcp.text.slice(0, 80)}`,
     );
 
     // The server must still be alive after all of that.

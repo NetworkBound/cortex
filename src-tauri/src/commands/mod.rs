@@ -70,6 +70,7 @@ pub mod local_brain;
 pub mod manager_process;
 pub mod manifest;
 pub mod mcp;
+pub mod mcp_server;
 pub mod memory;
 pub mod memory_bridge;
 pub mod memory_dedupe;

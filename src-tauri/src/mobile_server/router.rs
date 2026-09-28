@@ -15,7 +15,7 @@ use tower_http::{
     services::{ServeDir, ServeFile},
 };
 
-use super::{handlers, state::MobileState, ws};
+use super::{handlers, mcp, state::MobileState, ws};
 
 /// Origins permitted cross-origin access to the mobile API. Any real website is
 /// rejected by the browser's CORS check (blocking drive-by exfiltration). The
@@ -86,6 +86,9 @@ pub fn build_router(state: MobileState) -> Router {
         .route("/api/approvals/:id", post(handlers::resolve_approval))
         .route("/api/import/file", post(handlers::import_file))
         .route("/api/import/pull", post(handlers::import_pull))
+        // MCP Streamable HTTP endpoint for external agents. Does its own
+        // bearer-token + Origin gating (see `mcp.rs`); 404 while disabled.
+        .route("/mcp", post(mcp::handle))
         // `any(...)` not `get(...)` so the WS upgrade isn't method-gated.
         .route("/ws", any(ws::ws_handler))
         .fallback_service(spa)

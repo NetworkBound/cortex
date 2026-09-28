@@ -48,6 +48,7 @@ import {
 } from "@/lib/cortex-bridge";
 import { open as openExternal } from "@tauri-apps/plugin-shell";
 import { CliLoginModal } from "./CliLoginModal";
+import McpServerSettings from "./McpServerSettings";
 import { pushToast } from "@/lib/toast";
 import {
   listEndpoints,
@@ -3225,6 +3226,12 @@ export function SettingsModal() {
         heading: "Tailscale (embedded)",
         text: "tailscale embedded userspace tsnet socks5 proxy tailnet magicdns vpn mesh remote home gateway login authkey auth key connect network connectivity no admin",
         render: () => <TailscaleSection />,
+      },
+      {
+        tab: "connections",
+        heading: "Cortex as MCP server",
+        text: "mcp server model context protocol claude code codex gemini cli brain checkpoints bearer token external agents terminal",
+        render: () => <McpServerSettings />,
       },
       {
         tab: "providers",
