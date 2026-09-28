@@ -96,6 +96,7 @@ pub mod repo_map;
 pub mod repo_watcher;
 pub mod rerank;
 pub mod retrieve;
+pub mod review;
 pub mod roles;
 pub mod routines;
 pub mod safe_mode;

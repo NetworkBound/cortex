@@ -3099,6 +3099,41 @@ COMMANDS.push({
     }
   },
 });
+// `/review [base] [--model <slug>]` — AI review of the uncommitted diff (or
+// the branch vs `base`). With no `--model` the backend picks a reviewer from
+// a different provider family than the session's model, so the code is
+// reviewed by a model other than the one that wrote it. Opens the
+// self-mounting `ReviewPanel` portal.
+COMMANDS.push({
+  name: "review",
+  description:
+    "AI code review of uncommitted changes (or vs a base branch), by a different model",
+  usage: "[base] [--model <slug>]",
+  run: async (args, ctx) => {
+    const project = ctx.store.getState().activeProject;
+    if (!project) {
+      ctx.notify(
+        "/review",
+        "No active project — pick one from the sidebar first.",
+        "warning",
+      );
+      return;
+    }
+    try {
+      const { parseReviewArgs } = await import("@/lib/review");
+      const { base, model } = parseReviewArgs(args);
+      const { openReviewPanel } = await import("@/components/ReviewPanel");
+      openReviewPanel(
+        project.root,
+        base,
+        model,
+        ctx.store.getState().selectedModel,
+      );
+    } catch (e) {
+      ctx.append(errorNote(`/review failed to mount: ${humanizeError(e)}`));
+    }
+  },
+});
 rebuildSlashIndex();
 
 // ---------- Bookmarks / favorites ----------
@@ -3318,6 +3353,7 @@ const CATEGORY_MAP: Record<string, string> = (() => {
       "ask",
       "explain",
       "why",
+      "review",
       "fix",
       "debug",
       "refactor",

@@ -643,6 +643,7 @@ pub fn run() {
             commands::doc_gen::generate_docs,
             commands::explain::explain_code,
             commands::explain::save_explanation,
+            commands::review::review_diff,
             commands::arch_diagram::generate_arch_diagram,
             commands::retrieve::retrieve,
             commands::rerank::rerank,
