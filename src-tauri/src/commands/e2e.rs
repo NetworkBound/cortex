@@ -1,19 +1,20 @@
-//! Linux-native end-to-end test bridge.
+//! End-to-end test bridge (Linux + Windows, no browser driver).
 //!
-//! The Windows audit path (`scripts/e2e-setup.md`) drives `cortex.exe` through
-//! `tauri-driver` + `msedgedriver` against WebView2. On Linux the webview is
-//! WebKitGTK, which speaks neither the W3C WebDriver dialect msedgedriver
-//! expects nor full CDP — so there was *no* way to verify a Linux build
-//! headlessly. That gap is exactly how the Fedora "black screen" shipped
-//! unnoticed (the web process aborted on EGL init and nobody could tell from a
-//! script).
+//! On Linux the webview is WebKitGTK, which speaks neither the W3C WebDriver
+//! dialect msedgedriver expects nor full CDP — so there was *no* way to verify
+//! a Linux build headlessly. That gap is exactly how the Fedora "black screen"
+//! shipped unnoticed (the web process aborted on EGL init and nobody could tell
+//! from a script).
 //!
 //! This bridge closes it without a browser driver: when the app is launched
 //! with `CORTEX_E2E=1`, the renderer (`src/lib/e2e-probe.ts`) periodically
 //! hands the backend a JSON snapshot of its own live state — DOM mounted, theme
 //! applied, gateway reachable, console errors — and we persist it to
-//! `~/.cortex/e2e/snapshot.json`. A headless runner (`scripts/e2e-linux.mjs`)
-//! launches the app, polls that file, and asserts on it.
+//! `<e2e dir>/snapshot.json` (see [`e2e_dir`]). The runner
+//! (`scripts/e2e/run-app.mjs`, driven by `.github/workflows/e2e.yml` on
+//! ubuntu + windows) launches the real built binary, polls that file, and
+//! asserts on it. The headless server has its own smoke test
+//! (`scripts/e2e/serve-smoke.mjs`).
 //!
 //! The key insight: the snapshot can only ever be written if the renderer's JS
 //! actually ran, which on WebKitGTK means the web process is alive and
@@ -28,8 +29,19 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+/// Directory the bridge writes into: `$CORTEX_E2E_DIR` when set, else
+/// `~/.cortex/e2e`.
+///
+/// The override exists for the CI runner: on Windows `dirs::home_dir()`
+/// resolves the profile through the known-folder API and ignores
+/// `HOME`/`USERPROFILE`, so an isolated temp home can't redirect it — the env
+/// var is the only way to keep the snapshot (and fixtures) out of the real
+/// profile and at a path the runner knows in advance.
 fn e2e_dir() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or_else(|| "no home dir".to_string())?;
+    if let Some(dir) = std::env::var_os("CORTEX_E2E_DIR").filter(|d| !d.is_empty()) {
+        return Ok(PathBuf::from(dir));
+    }
+    let home = crate::paths::home_dir().ok_or_else(|| "no home dir".to_string())?;
     Ok(home.join(".cortex").join("e2e"))
 }
 
@@ -48,6 +60,9 @@ pub struct E2eConfig {
     pub app_version: String,
     /// Whether the process is running as an AppImage (mirrors selfupdate's gate).
     pub is_appimage: bool,
+    /// Where `e2e_write_snapshot` will land (empty if no home dir resolved), so
+    /// a manual tester can find the file without knowing the resolution rules.
+    pub snapshot_path: String,
 }
 
 /// True when launched with `CORTEX_E2E=1` (or `=true|yes|on`). Gates the
@@ -71,21 +86,29 @@ pub async fn e2e_config() -> Result<E2eConfig, String> {
         .ok()
         .filter(|p| !p.is_empty())
         .is_some();
+    let snapshot_path = e2e_dir()
+        .map(|d| d.join("snapshot.json").to_string_lossy().to_string())
+        .unwrap_or_default();
     Ok(E2eConfig {
         enabled,
         app_version: env!("CARGO_PKG_VERSION").to_string(),
         is_appimage,
+        snapshot_path,
     })
 }
 
-/// Persist a renderer snapshot to `~/.cortex/e2e/snapshot.json` (atomic).
+/// Persist a renderer snapshot to `<e2e dir>/snapshot.json` (atomic).
 ///
 /// The renderer owns the payload shape (see `e2e-probe.ts`); we wrap it with
 /// server-stamped fields the renderer can't trust itself for (`received_at`,
 /// `pid`, `app_version`) so the runner can tell a fresh snapshot from a stale
-/// one left over from a previous run.
+/// one left over from a previous run. Gated on `CORTEX_E2E` like the fixture
+/// commands: a normal session must not be able to write files here.
 #[tauri::command]
 pub async fn e2e_write_snapshot(payload: serde_json::Value) -> Result<String, String> {
+    if !e2e_enabled() {
+        return Err("e2e mode not enabled".into());
+    }
     tokio::task::spawn_blocking(move || {
         let dir = e2e_dir()?;
         fs::create_dir_all(&dir).map_err(|e| format!("mkdir failed: {e}"))?;
@@ -115,7 +138,7 @@ pub async fn e2e_write_snapshot(payload: serde_json::Value) -> Result<String, St
 // Clone-flow fixtures (probe flow #5: Setup "Clone & connect" → project).
 //
 // The probe needs a REAL local git repo to clone from. These two commands are
-// hard-gated on CORTEX_E2E and confined to `~/.cortex/e2e/fixtures/`, so a
+// hard-gated on CORTEX_E2E and confined to `<e2e dir>/fixtures/`, so a
 // production session can neither create nor delete anything through them.
 // `make` also snapshots `~/.cortex/last-project.json` and `cleanup` restores
 // it, because the flow exercises the real `set_active_project` hand-off and
@@ -172,8 +195,9 @@ pub async fn e2e_make_clone_fixture() -> Result<serde_json::Value, String> {
         fs::create_dir_all(&dir).map_err(|e| format!("mkdir failed: {e}"))?;
 
         // Snapshot the user's persisted active project (or record its absence).
-        let home = dirs::home_dir().ok_or_else(|| "no home dir".to_string())?;
-        let last_project = home.join(".cortex").join("last-project.json");
+        let last_project = crate::paths::cortex_dir()
+            .ok_or_else(|| "no home dir".to_string())?
+            .join("last-project.json");
         let backup = dir.join("last-project.pre-e2e.json");
         let absent_marker = dir.join("last-project.was-absent");
         if last_project.exists() {
@@ -263,8 +287,9 @@ pub async fn e2e_cleanup_clone_fixture(src: String, dst: String) -> Result<(), S
         }
 
         // Restore the user's persisted active project exactly as it was.
-        let home = dirs::home_dir().ok_or_else(|| "no home dir".to_string())?;
-        let last_project = home.join(".cortex").join("last-project.json");
+        let last_project = crate::paths::cortex_dir()
+            .ok_or_else(|| "no home dir".to_string())?
+            .join("last-project.json");
         let backup = dir.join("last-project.pre-e2e.json");
         let absent_marker = dir.join("last-project.was-absent");
         if backup.exists() {

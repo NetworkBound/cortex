@@ -1,0 +1,157 @@
+name: E2E
+
+# Proves Cortex works END TO END on Linux and Windows: builds the real
+# release-profile desktop binary (frontend embedded, no installer), launches it
+# with the E2E probe armed (CORTEX_E2E=1) and asserts the renderer painted, the
+# theme applied and no JS errors surfaced — then smoke-tests the headless
+# `cortex-serve` binary over real HTTP + WebSocket. See scripts/e2e/*.mjs.
+#
+# Unit tests, typecheck and lint live in ci.yml; this workflow only launches
+# the built apps.
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      CARGO_TERM_COLOR: always
+      E2E_OUT: e2e-out
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          # Release-profile artifacts; keep this cache apart from ci.yml's
+          # dev-profile one.
+          key: e2e-release
+
+      - name: Install Linux deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev build-essential \
+            curl wget file libxdo-dev libdbus-1-dev pkg-config \
+            xvfb dbus dbus-x11 xauth
+
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+
+      # tauri.conf.json bundles the Go tsnet sidecar as an externalBin, and
+      # tauri-build refuses to run until the per-triple binary exists.
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          cache-dependency-path: sidecar/cortex-tsnet/go.sum
+
+      - name: Build tsnet sidecar
+        shell: bash
+        run: bash scripts/build-tsnet-sidecar.sh
+
+      # The committed config carries the maintainer's local self-signed cert
+      # thumbprint; signtool would fail on a hosted runner (see build-msi.yml).
+      - name: Drop the local signing cert from tauri.conf.json (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          jq 'del(.bundle.windows.certificateThumbprint)' \
+            src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
+          mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
+
+      # Release-profile `cortex` binary with the frontend EMBEDDED (the Tauri
+      # CLI runs beforeBuildCommand — `pnpm build:mobile && pnpm build` — and
+      # enables the `custom-protocol` feature). `--no-bundle` skips the
+      # installer/AppImage step, which needs tooling we don't want here.
+      # Cargo builds every bin target of the package, so `cortex-serve` comes
+      # out of the same invocation.
+      - name: Build app (tauri build --no-bundle)
+        shell: bash
+        run: pnpm tauri build --no-bundle
+
+      - name: Ensure cortex-serve was built
+        shell: bash
+        run: |
+          EXT=""; [ "$RUNNER_OS" = "Windows" ] && EXT=".exe"
+          if [ ! -f "src-tauri/target/release/cortex-serve$EXT" ]; then
+            echo "cortex-serve not produced by tauri build; building it explicitly"
+            cargo build --release --manifest-path src-tauri/Cargo.toml \
+              --bin cortex-serve --features custom-protocol
+          fi
+          ls -la src-tauri/target/release/cortex$EXT src-tauri/target/release/cortex-serve$EXT
+
+      - name: Smoke-test cortex-serve (HTTP + WebSocket)
+        shell: bash
+        run: |
+          EXT=""; [ "$RUNNER_OS" = "Windows" ] && EXT=".exe"
+          node scripts/e2e/serve-smoke.mjs \
+            --bin "src-tauri/target/release/cortex-serve$EXT" \
+            --dist mobile/dist --out "$E2E_OUT"
+
+      - name: Launch the desktop app (Linux, under Xvfb)
+        if: runner.os == 'Linux'
+        env:
+          # WebKitGTK on a GPU-less VM: force software paths so the web process
+          # doesn't abort on EGL/DMABuf init (the exact black-screen failure the
+          # probe exists to catch — we want to catch OUR regressions, not the
+          # runner's missing GPU).
+          WEBKIT_DISABLE_COMPOSITING_MODE: "1"
+          WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          GDK_BACKEND: x11
+          NO_AT_BRIDGE: "1"
+        run: |
+          VERSION=$(jq -r .version src-tauri/tauri.conf.json)
+          # dbus-run-session gives keyring/secret-service a session bus to fail
+          # fast against instead of trying to autolaunch one.
+          dbus-run-session -- xvfb-run -a -s "-screen 0 1600x1000x24" \
+            node scripts/e2e/run-app.mjs \
+              --bin src-tauri/target/release/cortex \
+              --expect-version "$VERSION" \
+              --timeout 180 --settle 25 --out "$E2E_OUT"
+
+      - name: Launch the desktop app (Windows, WebView2)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          VERSION=$(jq -r .version src-tauri/tauri.conf.json)
+          node scripts/e2e/run-app.mjs \
+            --bin src-tauri/target/release/cortex.exe \
+            --expect-version "$VERSION" \
+            --timeout 180 --settle 25 --out "$E2E_OUT"
+
+      - name: Upload snapshot + logs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: e2e-${{ matrix.os }}
+          path: ${{ env.E2E_OUT }}
+          if-no-files-found: ignore
+          retention-days: 14

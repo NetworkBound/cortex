@@ -1,11 +1,13 @@
-// Linux-native E2E probe (renderer side). Pairs with `commands/e2e.rs` and
-// `scripts/e2e-linux.mjs`.
+// E2E probe (renderer side). Pairs with `src-tauri/src/commands/e2e.rs` and the
+// runner `scripts/e2e/run-app.mjs` (run on Linux + Windows by
+// `.github/workflows/e2e.yml`).
 //
 // When the app is launched with `CORTEX_E2E=1`, this collects a snapshot of the
 // renderer's *own* live state — proof the web process is alive and painting,
 // plus the signals a headless runner can't see from outside (theme applied,
 // DOM mounted, gateway reachable, console errors) — and hands it to the backend
-// to persist at `~/.cortex/e2e/snapshot.json` every few seconds.
+// to persist at `$CORTEX_E2E_DIR/snapshot.json` (default
+// `~/.cortex/e2e/snapshot.json`) every few seconds.
 //
 // On WebKitGTK (the Linux webview) none of this code can run unless the web
 // process survived EGL init and is rendering. So a black-screen build writes
@@ -906,8 +908,8 @@ async function exerciseRoutinesFlow(): Promise<void> {
 // binary using the CORTEX_E2E-gated `[[e2e:assist]]`/`[[e2e:assist-err]]`
 // markers (deterministic + offline — only the LLM call itself is faked; the
 // command registration, arg/result shapes, and error path are production
-// code). The UI side (Ctrl+L mention + popover apply) is covered by the
-// Playwright flow in scripts/e2e-editor-assist.mjs.
+// code). The UI side (Ctrl+L mention + popover apply) has no automated
+// coverage — the former Playwright flow script no longer exists in the repo.
 const inlineAssistFlow = {
   attempted: false,
   settled: false,
@@ -2595,15 +2597,28 @@ export function useE2EProbe(): void {
     let cancelled = false;
     let timer: ReturnType<typeof setInterval> | undefined;
 
+    // Hook errors immediately so boot-time failures aren't missed while the
+    // `e2e_config` round-trip is in flight; torn back down below the moment
+    // the backend says E2E isn't armed, so a production session keeps its
+    // original `console.error` and no error buffer.
     installErrorHooks();
     (window as unknown as { __cortexE2E?: unknown }).__cortexE2E = {
       snapshot: () => collectSnapshot(),
       write: () => writeOnce(),
     };
+    const disarm = () => {
+      uninstallErrorHooks();
+      errorLog.length = 0;
+      delete (window as unknown as { __cortexE2E?: unknown }).__cortexE2E;
+    };
 
     invoke<{ enabled: boolean }>("e2e_config")
       .then((cfg) => {
-        if (cancelled || !cfg?.enabled) return;
+        if (cancelled) return;
+        if (!cfg?.enabled) {
+          disarm();
+          return;
+        }
         // Write immediately (proves first paint happened), then keep a fresh
         // heartbeat so the runner can distinguish "alive now" from "wrote once
         // then the web process died".
@@ -2632,7 +2647,11 @@ export function useE2EProbe(): void {
           .then(() => exerciseHelpReferenceFlow())
           .then(() => exerciseAtVocabReferenceFlow());
       })
-      .catch(() => {});
+      .catch(() => {
+        // Backend unreachable / command missing: behave exactly like "not
+        // armed" rather than leaving console.error patched for the session.
+        if (!cancelled) disarm();
+      });
 
     return () => {
       cancelled = true;
