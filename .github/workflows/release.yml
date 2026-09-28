@@ -20,7 +20,14 @@ on:
   push:
     tags:
       - "v*.*.*"
+  # Manual run: pass the tag to create (e.g. v3.2.0). tauri-action makes a
+  # draft release pointing at the dispatched commit; GitHub creates the tag
+  # when the draft is published.
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create, e.g. v3.2.0"
+        required: true
 
 permissions:
   contents: write
@@ -147,8 +154,9 @@ jobs:
           # current glibc/GTK; skipping strip only makes the AppImage larger.
           NO_STRIP: true
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Cortex ${{ github.ref_name }}"
+          tagName: ${{ inputs.tag || github.ref_name }}
+          releaseName: "Cortex ${{ inputs.tag || github.ref_name }}"
+          releaseCommitish: ${{ github.sha }}
           releaseBody: "See CHANGELOG.md for details."
           releaseDraft: true
           prerelease: false
