@@ -112,7 +112,9 @@ pub async fn set_chat_meta(file_path: String, meta: ChatMeta) -> Result<(), Stri
     }
     let cleaned = sanitize(meta);
     tokio::task::spawn_blocking(move || {
-        let _guard = WRITE_LOCK.lock().map_err(|e| format!("lock poisoned: {e}"))?;
+        let _guard = WRITE_LOCK
+            .lock()
+            .map_err(|e| format!("lock poisoned: {e}"))?;
         let mut map = load_all();
         if cleaned.is_empty() {
             map.remove(&file_path);

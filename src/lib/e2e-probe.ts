@@ -70,7 +70,8 @@ function uninstallErrorHooks(): void {
   errorHooksInstalled = false;
 
   if (errorHandler) window.removeEventListener("error", errorHandler);
-  if (rejectionHandler) window.removeEventListener("unhandledrejection", rejectionHandler);
+  if (rejectionHandler)
+    window.removeEventListener("unhandledrejection", rejectionHandler);
   errorHandler = undefined;
   rejectionHandler = undefined;
 
@@ -85,7 +86,8 @@ function uninstallErrorHooks(): void {
 
 function pushError(kind: string, message: string): void {
   errorLog.push({ at: Date.now(), kind, message: message.slice(0, 500) });
-  if (errorLog.length > MAX_ERRORS) errorLog.splice(0, errorLog.length - MAX_ERRORS);
+  if (errorLog.length > MAX_ERRORS)
+    errorLog.splice(0, errorLog.length - MAX_ERRORS);
 }
 
 function safeStringify(v: unknown): string {
@@ -209,8 +211,11 @@ async function exerciseJobStoreFlow(): Promise<void> {
     while (Date.now() < probeDeadline) {
       if (!jobStoreFlow.activePullsSeen) {
         try {
-          const rows = await invoke<Array<{ name: string }>>("cookbook_active_pulls");
-          if (rows.some((r) => r.name === name)) jobStoreFlow.activePullsSeen = true;
+          const rows = await invoke<Array<{ name: string }>>(
+            "cookbook_active_pulls",
+          );
+          if (rows.some((r) => r.name === name))
+            jobStoreFlow.activePullsSeen = true;
         } catch {
           /* keep polling */
         }
@@ -331,7 +336,9 @@ async function exerciseEvalJobStoreFlow(): Promise<void> {
     // the HTTP client's full 600s timeout.
     const timedOut = await Promise.race([
       done.then(() => false),
-      new Promise<boolean>((r) => setTimeout(() => r(true), EVAL_FLOW_TIMEOUT_MS)),
+      new Promise<boolean>((r) =>
+        setTimeout(() => r(true), EVAL_FLOW_TIMEOUT_MS),
+      ),
     ]);
     if (timedOut) {
       evalJobStoreFlow.detail = `error: eval run still in flight after ${EVAL_FLOW_TIMEOUT_MS / 1000}s (gateway black-holing?)`;
@@ -344,7 +351,8 @@ async function exerciseEvalJobStoreFlow(): Promise<void> {
     // The model param must round-trip onto the report — this is the new
     // adapter-registry plumbing (requested slug → report.model), checked
     // offline because the markers short-circuit before any adapter dials out.
-    evalJobStoreFlow.modelEchoed = !!report && report.model === EVAL_PROBE_MODEL;
+    evalJobStoreFlow.modelEchoed =
+      !!report && report.model === EVAL_PROBE_MODEL;
     // Both fake verdicts must land exactly: echo task passed (answer carries
     // "pong"), err task failed → 1/2. Any other outcome means scoring or the
     // marker gate regressed.
@@ -359,7 +367,8 @@ async function exerciseEvalJobStoreFlow(): Promise<void> {
       fail?.passed === false &&
       !!fail.error;
     evalJobStoreFlow.notificationRecorded = getNotificationsSnapshot().some(
-      (n) => n.source === "job" && n.message.toLowerCase().includes("benchmark"),
+      (n) =>
+        n.source === "job" && n.message.toLowerCase().includes("benchmark"),
     );
 
     // Real-model leg: prove the registry-routed path against a LIVE local
@@ -370,7 +379,10 @@ async function exerciseEvalJobStoreFlow(): Promise<void> {
     // can't stall the probe.
     try {
       const models = await invoke<Array<{ id: string }>>("list_models");
-      if (Array.isArray(models) && models.some((m) => m.id === EVAL_REAL_MODEL)) {
+      if (
+        Array.isArray(models) &&
+        models.some((m) => m.id === EVAL_REAL_MODEL)
+      ) {
         evalJobStoreFlow.realModelAttempted = true;
         const realDone = startEvalRun({
           tasks: [
@@ -414,7 +426,9 @@ async function exerciseEvalJobStoreFlow(): Promise<void> {
       useCortexStore.getState().setActivityTab("eval");
       const deadline = Date.now() + 5_000;
       for (;;) {
-        const select = document.querySelector<HTMLSelectElement>("select.eval-model-select");
+        const select = document.querySelector<HTMLSelectElement>(
+          "select.eval-model-select",
+        );
         if (select && select.options.length >= 2) {
           evalJobStoreFlow.pickerRendered = true;
           break;
@@ -433,7 +447,9 @@ async function exerciseEvalJobStoreFlow(): Promise<void> {
       `report=${evalJobStoreFlow.reportInStore} modelEchoed=${evalJobStoreFlow.modelEchoed} ` +
       `verdicts=${evalJobStoreFlow.verdictsDeterministic} picker=${evalJobStoreFlow.pickerRendered} ` +
       `notified=${evalJobStoreFlow.notificationRecorded}` +
-      (report ? ` (passed=${report.passed}/${report.total} model=${report.model})` : "");
+      (report
+        ? ` (passed=${report.passed}/${report.total} model=${report.model})`
+        : "");
   } catch (e) {
     evalJobStoreFlow.detail = `error: ${safeStringify(e).slice(0, 200)}`;
   } finally {
@@ -564,7 +580,9 @@ async function exerciseCloneConnectFlow(): Promise<void> {
   const prevSession = store().sessionId;
   let fixture: { src: string; dst: string } | null = null;
   try {
-    fixture = await invoke<{ src: string; dst: string }>("e2e_make_clone_fixture");
+    fixture = await invoke<{ src: string; dst: string }>(
+      "e2e_make_clone_fixture",
+    );
     cloneConnectFlow.fixtureCreated = true;
 
     // Subscribe BEFORE cloning so the event can't race past us.
@@ -580,7 +598,10 @@ async function exerciseCloneConnectFlow(): Promise<void> {
         project_root: string | null;
         stderr_tail: string;
         exit_code: number;
-      }>("clone_git_repo", { url: `file://${fixture.src}`, targetDir: fixture.dst });
+      }>("clone_git_repo", {
+        url: `file://${fixture.src}`,
+        targetDir: fixture.dst,
+      });
       cloneConnectFlow.cloneOk = res.ok && !!res.project_root;
       if (!cloneConnectFlow.cloneOk) {
         cloneConnectFlow.detail = `error: clone failed (exit ${res.exit_code}): ${res.stderr_tail.slice(0, 160)}`;
@@ -589,9 +610,10 @@ async function exerciseCloneConnectFlow(): Promise<void> {
       const root = res.project_root as string;
       cloneConnectFlow.eventSeen = await eventArrived;
 
-      const projects = await invoke<Array<{ root: string; kind: string; group: string }>>(
-        "list_projects",
-      );
+      const projects =
+        await invoke<Array<{ root: string; kind: string; group: string }>>(
+          "list_projects",
+        );
       cloneConnectFlow.inProjectList = projects.some(
         (p) => p.root === root && p.kind === "code",
       );
@@ -599,7 +621,8 @@ async function exerciseCloneConnectFlow(): Promise<void> {
       // The real "Open project" hand-off: active project + Projects sidebar.
       cloneConnectFlow.openedByPath = await openProjectByPath(root);
       cloneConnectFlow.activeInStore =
-        store().activeProject?.root === root && store().activityTab === "projects";
+        store().activeProject?.root === root &&
+        store().activityTab === "projects";
 
       // Painted ground truth: the sidebar row for the fixture goes active.
       const fixtureName = root.split(/[\\/]/).pop() ?? "";
@@ -629,20 +652,29 @@ async function exerciseCloneConnectFlow(): Promise<void> {
     // code project when there was one.
     try {
       if (fixture) {
-        await invoke("e2e_cleanup_clone_fixture", { src: fixture.src, dst: fixture.dst });
+        await invoke("e2e_cleanup_clone_fixture", {
+          src: fixture.src,
+          dst: fixture.dst,
+        });
       }
       // Opening the fixture bootstrapped a throwaway project session (one
       // system context message) — delete it so nightly runs don't accumulate
       // dead `clone-dst-*` rows in the sessions list.
       const fixtureSession = store().sessionId;
       if (fixtureSession && fixtureSession !== prevSession) {
-        await invoke("e2e_delete_session", { sessionId: fixtureSession }).catch(() => {});
+        await invoke("e2e_delete_session", { sessionId: fixtureSession }).catch(
+          () => {},
+        );
       }
       if (prevActive?.root && prevActive.kind === "code") {
-        await invoke("set_active_project", { path: prevActive.root }).catch(() => {});
+        await invoke("set_active_project", { path: prevActive.root }).catch(
+          () => {},
+        );
       }
       store().setActiveProject(prevActive ?? null);
-      const refreshed = await invoke<ProjectMeta[]>("list_projects").catch(() => null);
+      const refreshed = await invoke<ProjectMeta[]>("list_projects").catch(
+        () => null,
+      );
       if (refreshed) store().setProjects(refreshed);
       cloneConnectFlow.cleanedUp = true;
     } catch {
@@ -686,16 +718,32 @@ async function exerciseRoutinesFlow(): Promise<void> {
   if (routinesFlow.attempted) return;
   routinesFlow.attempted = true;
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  interface SpecRow { id: string; name: string; last_status: string; last_error: string }
+  interface SpecRow {
+    id: string;
+    name: string;
+    last_status: string;
+    last_error: string;
+  }
   interface RunRow {
-    run_id: string; routine_id: string; status: string; output: string;
-    error: string; trigger: string; duration_ms: number;
+    run_id: string;
+    routine_id: string;
+    status: string;
+    output: string;
+    error: string;
+    trigger: string;
+    duration_ms: number;
   }
   const NAME_OK = "e2e-probe-routine";
   const NAME_ERR = "e2e-probe-routine-fail";
   const blank = {
-    id: "", prompt: "", interval_minutes: 0, enabled: true,
-    last_run_unix_ms: 0, last_status: "", last_output: "", last_error: "",
+    id: "",
+    prompt: "",
+    interval_minutes: 0,
+    enabled: true,
+    last_run_unix_ms: 0,
+    last_status: "",
+    last_output: "",
+    last_error: "",
   };
   let okId: string | null = null;
   let errId: string | null = null;
@@ -726,7 +774,9 @@ async function exerciseRoutinesFlow(): Promise<void> {
     });
     let spec: { last_status: string };
     try {
-      spec = await invoke<{ last_status: string }>("run_routine_now", { id: okId });
+      spec = await invoke<{ last_status: string }>("run_routine_now", {
+        id: okId,
+      });
       routinesFlow.runOk = spec.last_status === "ok";
       const evt = await eventArrived;
       routinesFlow.eventSeen = evt?.status === "ok" && evt.trigger === "manual";
@@ -735,10 +785,15 @@ async function exerciseRoutinesFlow(): Promise<void> {
     }
 
     // 2. Persistent history: newest-first run record with the fake output.
-    const runs = await invoke<RunRow[]>("list_routine_runs", { routineId: okId, limit: null });
+    const runs = await invoke<RunRow[]>("list_routine_runs", {
+      routineId: okId,
+      limit: null,
+    });
     const newest = runs[0];
     routinesFlow.historyRecorded =
-      !!newest && newest.status === "ok" && newest.trigger === "manual" &&
+      !!newest &&
+      newest.status === "ok" &&
+      newest.trigger === "manual" &&
       newest.output.includes("e2e fake routine output");
 
     // 3. The module-scope bridge (armed by the always-mounted StatusBar) must
@@ -747,8 +802,11 @@ async function exerciseRoutinesFlow(): Promise<void> {
     const notifDeadline = Date.now() + 5_000;
     while (Date.now() < notifDeadline && !routinesFlow.notificationRecorded) {
       routinesFlow.notificationRecorded = getNotificationsSnapshot().some(
-        (n) => n.source === "job" && n.ref === "routine" &&
-          n.message.includes(NAME_OK) && n.severity === "info",
+        (n) =>
+          n.source === "job" &&
+          n.ref === "routine" &&
+          n.message.includes(NAME_OK) &&
+          n.severity === "info",
       );
       if (!routinesFlow.notificationRecorded) await sleep(150);
     }
@@ -760,37 +818,55 @@ async function exerciseRoutinesFlow(): Promise<void> {
     errId = specs.find((s) => s.name === NAME_ERR)?.id ?? null;
     if (errId) {
       const failSpec = await invoke<SpecRow>("run_routine_now", { id: errId });
-      const failRuns = await invoke<RunRow[]>("list_routine_runs", { routineId: errId, limit: null });
+      const failRuns = await invoke<RunRow[]>("list_routine_runs", {
+        routineId: errId,
+        limit: null,
+      });
       const failNewest = failRuns[0];
       let failNotified = false;
       const failDeadline = Date.now() + 5_000;
       while (Date.now() < failDeadline && !failNotified) {
         failNotified = getNotificationsSnapshot().some(
-          (n) => n.source === "job" && n.ref === "routine" &&
-            n.message.includes(NAME_ERR) && n.severity === "error",
+          (n) =>
+            n.source === "job" &&
+            n.ref === "routine" &&
+            n.message.includes(NAME_ERR) &&
+            n.severity === "error",
         );
         if (!failNotified) await sleep(150);
       }
       routinesFlow.failureRecorded =
         failSpec.last_status === "error" &&
-        !!failNewest && failNewest.status === "error" &&
-        failNewest.error.length > 0 && failNotified;
+        !!failNewest &&
+        failNewest.status === "error" &&
+        failNewest.error.length > 0 &&
+        failNotified;
     }
 
     // 5. Open-as-chat: materialize the ok run as a session, then drive the
     //    REAL `cortex:chat-replay` handler and confirm the store adopted it.
     if (newest) {
-      chatSession = await invoke<string>("routine_run_as_session", { runId: newest.run_id });
+      chatSession = await invoke<string>("routine_run_as_session", {
+        runId: newest.run_id,
+      });
       window.dispatchEvent(
-        new CustomEvent("cortex:chat-replay", { detail: { session_id: chatSession } }),
+        new CustomEvent("cortex:chat-replay", {
+          detail: { session_id: chatSession },
+        }),
       );
       const chatDeadline = Date.now() + 8_000;
       while (Date.now() < chatDeadline && !routinesFlow.openedAsChat) {
         const st = useCortexStore.getState();
         routinesFlow.openedAsChat =
           st.sessionId === chatSession &&
-          st.messages.some((m) => m.role === "assistant" && m.content.includes("e2e fake routine output")) &&
-          st.messages.some((m) => m.role === "user" && m.content.includes(NAME_OK));
+          st.messages.some(
+            (m) =>
+              m.role === "assistant" &&
+              m.content.includes("e2e fake routine output"),
+          ) &&
+          st.messages.some(
+            (m) => m.role === "user" && m.content.includes(NAME_OK),
+          );
         if (!routinesFlow.openedAsChat) await sleep(150);
       }
     }
@@ -809,7 +885,9 @@ async function exerciseRoutinesFlow(): Promise<void> {
       if (okId) await invoke("delete_routine", { id: okId });
       if (errId) await invoke("delete_routine", { id: errId });
       if (chatSession) {
-        await invoke("e2e_delete_session", { sessionId: chatSession }).catch(() => {});
+        await invoke("e2e_delete_session", { sessionId: chatSession }).catch(
+          () => {},
+        );
         useCortexStore.getState().adoptSession({
           ...(prevSession ? { sessionId: prevSession } : {}),
           messages: prevMessages,
@@ -842,20 +920,21 @@ async function exerciseInlineAssistFlow(): Promise<void> {
   if (inlineAssistFlow.attempted) return;
   inlineAssistFlow.attempted = true;
   try {
-    const res = await invoke<{ replacement: string; model: string; latency_ms: number }>(
-      "inline_assist",
-      {
-        args: {
-          selection: "let total = a + b;",
-          before: "fn sum(a: i64, b: i64) -> i64 {",
-          after: "}",
-          language: "Rust",
-          instruction: "[[e2e:assist]] uppercase it",
-          model: null,
-          path: "/tmp/e2e-fake.rs",
-        },
+    const res = await invoke<{
+      replacement: string;
+      model: string;
+      latency_ms: number;
+    }>("inline_assist", {
+      args: {
+        selection: "let total = a + b;",
+        before: "fn sum(a: i64, b: i64) -> i64 {",
+        after: "}",
+        language: "Rust",
+        instruction: "[[e2e:assist]] uppercase it",
+        model: null,
+        path: "/tmp/e2e-fake.rs",
       },
-    );
+    });
     inlineAssistFlow.okPath =
       res?.replacement === "LET TOTAL = A + B;" && res?.model === "e2e-fake";
 
@@ -935,7 +1014,9 @@ async function exerciseTeamRunFlow(): Promise<void> {
     try {
       await teams.runTeam("team-00000000", "   ");
     } catch (e) {
-      teamRunFlow.rejectsEmptyGoal = safeStringify(e).toLowerCase().includes("goal");
+      teamRunFlow.rejectsEmptyGoal = safeStringify(e)
+        .toLowerCase()
+        .includes("goal");
     }
 
     // A leftover probe team from an interrupted earlier run would collide on
@@ -974,7 +1055,9 @@ async function exerciseTeamRunFlow(): Promise<void> {
     let last = started;
     while (Date.now() < deadline) {
       last = await teams.getTeam(teamId);
-      if (last.workers.some((w) => w.status === "working" && !!w.current_task)) {
+      if (
+        last.workers.some((w) => w.status === "working" && !!w.current_task)
+      ) {
         teamRunFlow.liveProgressSeen = true;
       }
       if (last.run_status === "done" || last.run_status === "error") break;
@@ -984,7 +1067,9 @@ async function exerciseTeamRunFlow(): Promise<void> {
     teamRunFlow.runSettled =
       last.run_status === "done" || last.run_status === "error";
     teamRunFlow.runDone = last.run_status === "done";
-    teamRunFlow.workerTaskAssigned = last.workers.every((w) => !!w.current_task);
+    teamRunFlow.workerTaskAssigned = last.workers.every(
+      (w) => !!w.current_task,
+    );
     teamRunFlow.transcriptsRecorded =
       !!last.plan_session_id && last.workers.every((w) => !!w.session_id);
 
@@ -1079,7 +1164,12 @@ async function exerciseTeamCodeLaneFlow(): Promise<void> {
     // worker tagged code; repo bound → the lane dispatcher engages (forced to
     // the e2e-fake lane producer under CORTEX_E2E, so no gateway dialing).
     const goal = "Edit the repository. [[e2e:team-code]]";
-    const started = await teams.runTeam(teamId, goal, "e2e-fake", "e2e/probe-lane-team");
+    const started = await teams.runTeam(
+      teamId,
+      goal,
+      "e2e-fake",
+      "e2e/probe-lane-team",
+    );
     teamCodeLaneFlow.startAccepted = started.run_status === "planning";
 
     const deadline = Date.now() + TEAM_LANE_TIMEOUT_MS;
@@ -1218,11 +1308,15 @@ async function exerciseFocusChainFlow(): Promise<void> {
     focusChainFlow.agentRouted = res.picked_agents.includes("e2e-fake");
 
     const deadline = Date.now() + FOCUS_FLOW_TIMEOUT_MS;
-    while (Date.now() < deadline && !(doneSeen && focusChainFlow.toolCallSeen)) {
+    while (
+      Date.now() < deadline &&
+      !(doneSeen && focusChainFlow.toolCallSeen)
+    ) {
       await new Promise((r) => setTimeout(r, 200));
     }
     focusChainFlow.itemsCorrect =
-      lastItems.length === 3 && lastItems.every((t) => t.done === true && !!t.title);
+      lastItems.length === 3 &&
+      lastItems.every((t) => t.done === true && !!t.title);
 
     // The store mutation runs in ChatPane's listener — a separate consumer of
     // the same event — so give it its own (short) settle window.
@@ -1243,7 +1337,11 @@ async function exerciseFocusChainFlow(): Promise<void> {
         "load_focus_chain",
         { sessionId: sid },
       );
-      if (Array.isArray(onDisk) && onDisk.length === 3 && onDisk.every((t) => !!t.done)) {
+      if (
+        Array.isArray(onDisk) &&
+        onDisk.length === 3 &&
+        onDisk.every((t) => !!t.done)
+      ) {
         focusChainFlow.persisted = true;
         break;
       }
@@ -1265,7 +1363,9 @@ async function exerciseFocusChainFlow(): Promise<void> {
       if (sid) {
         const fc = await import("./focus-chain");
         fc.clearChain();
-        const after = await invoke<unknown[]>("load_focus_chain", { sessionId: sid });
+        const after = await invoke<unknown[]>("load_focus_chain", {
+          sessionId: sid,
+        });
         await invoke("e2e_delete_session", { sessionId: sid }).catch(() => {});
         focusChainFlow.cleanedUp = Array.isArray(after) && after.length === 0;
       }
@@ -1400,7 +1500,9 @@ async function exerciseLanesFlow(): Promise<void> {
     try {
       await mp.mergeLaneRun("lane-e2e-does-not-exist", 1);
     } catch (e) {
-      lanesFlow.mergeCmdGuard = safeStringify(e).toLowerCase().includes("not found");
+      lanesFlow.mergeCmdGuard = safeStringify(e)
+        .toLowerCase()
+        .includes("not found");
     }
 
     // Lane 3: born `interrupted` (the shape the startup sweep leaves after a
@@ -1530,29 +1632,41 @@ async function exerciseMultibufferPickFlow(): Promise<void> {
 
     // A real file on disk through the production save path, under $HOME so the
     // home-directory write guard in `save_file_text` lets it through.
-    const mbFile = await join(await homeDir(), ".cortex", "e2e", MB_PICK_BASENAME);
-    const body = Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join("\n");
+    const mbFile = await join(
+      await homeDir(),
+      ".cortex",
+      "e2e",
+      MB_PICK_BASENAME,
+    );
+    const body = Array.from({ length: 60 }, (_, i) => `line ${i + 1}`).join(
+      "\n",
+    );
     await saveFileText(mbFile, body);
 
     const pickPromise = pickFileWithRange({ title: "E2E add excerpt" });
     await waitFor(() => !!document.querySelector(".quick-open-modal"), 5_000);
-    const search = document.querySelector<HTMLInputElement>(".quick-open-search");
-    const range = document.querySelector<HTMLInputElement>(".quick-open-range-input");
+    const search =
+      document.querySelector<HTMLInputElement>(".quick-open-search");
+    const range = document.querySelector<HTMLInputElement>(
+      ".quick-open-range-input",
+    );
     multibufferPickFlow.modalRendered = !!search && !!range;
 
     if (search && range) {
       setReactInput(search, mbFile);
       multibufferPickFlow.fallbackRowShown = await waitFor(
         () =>
-          Array.from(document.querySelectorAll(".quick-open-result")).some((r) =>
-            (r.textContent ?? "").includes("cortex-e2e-multibuffer.txt"),
+          Array.from(document.querySelectorAll(".quick-open-result")).some(
+            (r) => (r.textContent ?? "").includes("cortex-e2e-multibuffer.txt"),
           ),
         5_000,
       );
       setReactInput(range, "10:20");
       const row = Array.from(
         document.querySelectorAll<HTMLElement>(".quick-open-result"),
-      ).find((r) => (r.textContent ?? "").includes("cortex-e2e-multibuffer.txt"));
+      ).find((r) =>
+        (r.textContent ?? "").includes("cortex-e2e-multibuffer.txt"),
+      );
       row?.click();
     }
 
@@ -1561,7 +1675,9 @@ async function exerciseMultibufferPickFlow(): Promise<void> {
       sleep(MB_PICK_FLOW_TIMEOUT_MS).then(() => null),
     ]);
     multibufferPickFlow.pickResolved =
-      pick?.path === mbFile && pick?.range?.start === 10 && pick?.range?.end === 20;
+      pick?.path === mbFile &&
+      pick?.range?.start === 10 &&
+      pick?.range?.end === 20;
 
     if (multibufferPickFlow.pickResolved && pick) {
       // The exact call promptAdd() makes with this pick.
@@ -1643,8 +1759,11 @@ async function exerciseResearchGateFlow(): Promise<void> {
     // The gateway-configured check inside the panel is async; let it settle.
     await sleep(400);
 
-    const notice = document.querySelector<HTMLElement>(".research-gateway-notice");
-    const input = document.querySelector<HTMLTextAreaElement>(".research-input");
+    const notice = document.querySelector<HTMLElement>(
+      ".research-gateway-notice",
+    );
+    const input =
+      document.querySelector<HTMLTextAreaElement>(".research-input");
     researchGateFlow.noticeShown = !!notice;
     researchGateFlow.runDisabled = runBtn?.disabled === true;
     researchGateFlow.inputDisabled = input?.disabled === true;
@@ -1795,7 +1914,8 @@ async function exerciseGitHistoryFlow(): Promise<void> {
     fixtureRoot = fixture.root;
     gitHistoryFlow.fixtureCreated = true;
 
-    const { gitHistory, gitCommitFiles, gitCommitFileDiff } = await import("./git");
+    const { gitHistory, gitCommitFiles, gitCommitFileDiff } =
+      await import("./git");
 
     // ── Load-more: page the 5-commit fixture two-at-a-time via the offset
     // cursor and confirm the deeper page is a DIFFERENT, non-overlapping slice
@@ -1819,7 +1939,11 @@ async function exerciseGitHistoryFlow(): Promise<void> {
 
     // ── Per-file diff: the edit commit changed one line of a.txt; its
     // single-file diff must carry a hunk header and the changed text.
-    const diff = await gitCommitFileDiff(fixture.root, fixture.edit_hash, "a.txt");
+    const diff = await gitCommitFileDiff(
+      fixture.root,
+      fixture.edit_hash,
+      "a.txt",
+    );
     gitHistoryFlow.fileDiffOk =
       diff.includes("@@") && diff.includes("alpha two CHANGED");
 
@@ -1879,14 +2003,16 @@ async function exerciseGitHistoryFlow(): Promise<void> {
     // Restore the user's project + tab, then delete the fixture repo.
     try {
       if (prevActive?.root && prevActive.kind === "code") {
-        await invoke("set_active_project", { path: prevActive.root }).catch(() => {});
+        await invoke("set_active_project", { path: prevActive.root }).catch(
+          () => {},
+        );
       }
       store().setActiveProject(prevActive ?? null);
       store().setActivityTab(prevTab ?? null);
       if (fixtureRoot) {
-        await invoke("e2e_cleanup_history_fixture", { root: fixtureRoot }).catch(
-          () => {},
-        );
+        await invoke("e2e_cleanup_history_fixture", {
+          root: fixtureRoot,
+        }).catch(() => {});
       }
     } catch {
       /* best-effort cleanup */
@@ -1961,10 +2087,13 @@ async function exerciseHelpReferenceFlow(): Promise<void> {
       document.querySelectorAll<HTMLButtonElement>(".help-section-head"),
     );
     const slashHead = heads.find(
-      (h) => h.querySelector(".help-section-title")?.textContent?.trim() === "Slash commands",
+      (h) =>
+        h.querySelector(".help-section-title")?.textContent?.trim() ===
+        "Slash commands",
     );
     if (!slashHead) {
-      helpReferenceFlow.detail = "error: 'Slash commands' section header not found";
+      helpReferenceFlow.detail =
+        "error: 'Slash commands' section header not found";
       return;
     }
     slashHead.click();
@@ -1977,16 +2106,20 @@ async function exerciseHelpReferenceFlow(): Promise<void> {
     helpReferenceFlow.renderedCount = countRows();
     // Every registered command must paint a row — the whole point of going live.
     helpReferenceFlow.rowsRendered =
-      helpReferenceFlow.renderedCount === registered.size && registered.size > 20;
+      helpReferenceFlow.renderedCount === registered.size &&
+      registered.size > 20;
 
     const filter = document.querySelector<HTMLInputElement>(".help-cmd-filter");
     if (filter) {
       // Narrow to a command we know exists in the registry.
-      const probe = registered.has("commit") ? "commit" : COMMANDS[0]?.name ?? "help";
+      const probe = registered.has("commit")
+        ? "commit"
+        : (COMMANDS[0]?.name ?? "help");
       setReactInput(filter, probe);
       await waitFor(() => countRows() < helpReferenceFlow.renderedCount, 1500);
       const narrowed = countRows();
-      helpReferenceFlow.filterNarrows = narrowed > 0 && narrowed < helpReferenceFlow.renderedCount;
+      helpReferenceFlow.filterNarrows =
+        narrowed > 0 && narrowed < helpReferenceFlow.renderedCount;
 
       // A query that can't match anything → the humanized empty state.
       setReactInput(filter, "zzzznotacommandzzzz");
@@ -2091,7 +2224,9 @@ async function exerciseAtVocabReferenceFlow(): Promise<void> {
       document.querySelectorAll<HTMLButtonElement>(".help-section-head"),
     );
     const atHead = heads.find(
-      (h) => h.querySelector(".help-section-title")?.textContent?.trim() === "@-mentions",
+      (h) =>
+        h.querySelector(".help-section-title")?.textContent?.trim() ===
+        "@-mentions",
     );
     if (!atHead) {
       atVocabFlow.detail = "error: '@-mentions' section header not found";
@@ -2113,7 +2248,8 @@ async function exerciseAtVocabReferenceFlow(): Promise<void> {
     atVocabFlow.renderedCount = countRows();
     // Every registered provider must paint a row — the whole point of going live.
     atVocabFlow.rowsRendered =
-      atVocabFlow.renderedCount === AT_PROVIDERS.length && AT_PROVIDERS.length > 15;
+      atVocabFlow.renderedCount === AT_PROVIDERS.length &&
+      AT_PROVIDERS.length > 15;
 
     // The flagship providers must all be discoverable. `@codebase` and `@docs`
     // are the two that had shipped fully wired yet undocumented — the exact
@@ -2152,13 +2288,15 @@ async function exerciseAtVocabReferenceFlow(): Promise<void> {
       setReactInput(filter, "codebase");
       await waitFor(() => countRows() < atVocabFlow.renderedCount, 1500);
       const narrowed = countRows();
-      atVocabFlow.filterNarrows = narrowed > 0 && narrowed < atVocabFlow.renderedCount;
+      atVocabFlow.filterNarrows =
+        narrowed > 0 && narrowed < atVocabFlow.renderedCount;
 
       // A query that can't match anything → the humanized empty state.
       setReactInput(filter, "zzzznotaproviderzzzz");
       atVocabFlow.filterEmptyState = await waitFor(
         () =>
-          !!document.querySelector(".help-at-body .help-cmd-empty") && countRows() === 0,
+          !!document.querySelector(".help-at-body .help-cmd-empty") &&
+          countRows() === 0,
         1500,
       );
 
@@ -2235,7 +2373,9 @@ async function collectSnapshot(): Promise<Record<string, unknown>> {
   const themeModeAttr = document.documentElement.dataset.themeMode ?? "";
   const legacyThemeAttr = document.documentElement.dataset.theme ?? "";
   const totalNodes = document.getElementsByTagName("*").length;
-  const hasChatComposer = !!document.querySelector("textarea, [contenteditable=true]");
+  const hasChatComposer = !!document.querySelector(
+    "textarea, [contenteditable=true]",
+  );
   // Legacy: the status-bar ModelStrip (`.model-pill`) was removed with the
   // StatusBar, so this is normally empty. Kept in the snapshot shape so older
   // runner assertions keep parsing; the ModelPicker options below are the
@@ -2250,7 +2390,9 @@ async function collectSnapshot(): Promise<Record<string, unknown>> {
     .slice(0, 60)
     .map((o) => o.value)
     .filter(Boolean);
-  const headings = Array.from(document.querySelectorAll("h1,h2,h3,[role=heading]"))
+  const headings = Array.from(
+    document.querySelectorAll("h1,h2,h3,[role=heading]"),
+  )
     .slice(0, 8)
     .map((el) => (el.textContent ?? "").trim())
     .filter(Boolean);
@@ -2274,7 +2416,11 @@ async function collectSnapshot(): Promise<Record<string, unknown>> {
   // a computed `background-color` (which the engine always reports as rgb()).
   const hexToRgb = (hex: string): string | null => {
     let h = hex.trim().replace(/^#/, "");
-    if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+    if (h.length === 3)
+      h = h
+        .split("")
+        .map((c) => c + c)
+        .join("");
     if (h.length !== 6 || /[^0-9a-fA-F]/.test(h)) return null;
     const r = parseInt(h.slice(0, 2), 16);
     const g = parseInt(h.slice(2, 4), 16);
@@ -2307,7 +2453,8 @@ async function collectSnapshot(): Promise<Record<string, unknown>> {
           norm(rootComputedBg) === norm(expectedBg) &&
           norm(rootComputedAccent) === norm(expectedAccent);
         const appliedMatches =
-          norm(cssBg) === norm(expectedBg) && norm(cssAccent) === norm(expectedAccent);
+          norm(cssBg) === norm(expectedBg) &&
+          norm(cssAccent) === norm(expectedAccent);
         const paintMatches =
           !expectedBgRgb || norm(paintedBodyBg) === norm(expectedBgRgb);
         themeMatches = rootReflectsActive && appliedMatches && paintMatches;

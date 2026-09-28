@@ -7,7 +7,11 @@ import { listCheckpoints } from "@/lib/checkpoints";
 import { reviewCheckpointRestore } from "@/lib/checkpoint-review";
 import { KEEP_RECENT, shouldCompact } from "@/lib/compressor";
 import { performCondense } from "@/lib/condense";
-import { estimateContextBreakdown, fetchUrl, type ContextBreakdown } from "@/lib/context";
+import {
+  estimateContextBreakdown,
+  fetchUrl,
+  type ContextBreakdown,
+} from "@/lib/context";
 import { confirmDialog } from "@/lib/dialogs";
 import { desktopNotify } from "@/lib/notify";
 import { createPrp } from "@/lib/prp";
@@ -30,7 +34,11 @@ type StoreApi = {
 export interface SlashContext {
   store: StoreApi;
   append: (msg: Message) => void;
-  notify: (title: string, body?: string, kind?: "info" | "success" | "error" | "warning") => void;
+  notify: (
+    title: string,
+    body?: string,
+    kind?: "info" | "success" | "error" | "warning",
+  ) => void;
 }
 
 export interface SlashCommand {
@@ -77,8 +85,13 @@ function formatTestOutcome(o: TestRunOutcome): string {
     : o.passed
       ? `✅ Tests passed — \`${o.command}\` (${o.durationMs} ms)`
       : `❌ Tests failed — \`${o.command}\` (exit ${o.exitCode ?? "killed"}, ${o.durationMs} ms)`;
-  const body = [o.stdout, o.stderr].filter((s) => s.trim()).join("\n").trim();
-  const trunc = o.truncated ? "\n\n_(output tail shown — earlier lines clipped)_" : "";
+  const body = [o.stdout, o.stderr]
+    .filter((s) => s.trim())
+    .join("\n")
+    .trim();
+  const trunc = o.truncated
+    ? "\n\n_(output tail shown — earlier lines clipped)_"
+    : "";
   return body ? `${head}\n\n\`\`\`\n${body}\n\`\`\`${trunc}` : head;
 }
 
@@ -93,10 +106,16 @@ async function runConfiguredTests(
 ): Promise<TestRunOutcome | null> {
   try {
     const { invoke } = await import("@tauri-apps/api/core");
-    const outcome = await invoke<TestRunOutcome>("run_test_command", { projectRoot: root });
+    const outcome = await invoke<TestRunOutcome>("run_test_command", {
+      projectRoot: root,
+    });
     ctx.append(systemNote(formatTestOutcome(outcome)));
     ctx.notify(
-      outcome.passed ? "Tests passed" : outcome.timedOut ? "Tests timed out" : "Tests failed",
+      outcome.passed
+        ? "Tests passed"
+        : outcome.timedOut
+          ? "Tests timed out"
+          : "Tests failed",
       outcome.command,
       outcome.passed ? "success" : "error",
     );
@@ -127,7 +146,10 @@ type LintRunOutcome = {
  *  code doesn't always mean "no findings" (plain `cargo clippy` exits 0 with
  *  warnings), so we always show captured output and keep the headline factual. */
 function formatLintOutcome(o: LintRunOutcome): string {
-  const body = [o.stdout, o.stderr].filter((s) => s.trim()).join("\n").trim();
+  const body = [o.stdout, o.stderr]
+    .filter((s) => s.trim())
+    .join("\n")
+    .trim();
   const head = o.timedOut
     ? `⏱️ Lint timed out — \`${o.command}\` (${o.durationMs} ms)`
     : o.clean
@@ -135,7 +157,9 @@ function formatLintOutcome(o: LintRunOutcome): string {
         ? `🔍 Lint clean (exit 0) — \`${o.command}\` (${o.durationMs} ms)`
         : `✅ Lint clean — \`${o.command}\` (${o.durationMs} ms)`
       : `⚠️ Lint found issues — \`${o.command}\` (exit ${o.exitCode ?? "killed"}, ${o.durationMs} ms)`;
-  const trunc = o.truncated ? "\n\n_(output head shown — later lines clipped)_" : "";
+  const trunc = o.truncated
+    ? "\n\n_(output head shown — later lines clipped)_"
+    : "";
   return body ? `${head}\n\n\`\`\`\n${body}\n\`\`\`${trunc}` : head;
 }
 
@@ -158,7 +182,8 @@ function formatManifest(entries: ManifestEntry[]): string {
   }
   const lines = entries.map((e) => {
     const flag = e.exists ? "" : "  _(missing on disk)_";
-    const kb = e.exists && e.size != null ? `  (${(e.size / 1024).toFixed(1)} KB)` : "";
+    const kb =
+      e.exists && e.size != null ? `  (${(e.size / 1024).toFixed(1)} KB)` : "";
     return `- \`${e.path}\`${kb}${flag}`;
   });
   return `📂 Files in the chat (${entries.length}) — their full contents are sent with every message:\n${lines.join("\n")}\n\nDrop one with \`/drop <path>\`, or clear all with \`/drop\`.`;
@@ -197,7 +222,12 @@ function tabCmd(
   description: string,
   aliases?: string[],
 ): SlashCommand {
-  return { name, aliases, description, run: (_a, ctx) => ctx.store.getState().setActivityTab(tab) };
+  return {
+    name,
+    aliases,
+    description,
+    run: (_a, ctx) => ctx.store.getState().setActivityTab(tab),
+  };
 }
 
 export const COMMANDS: SlashCommand[] = [
@@ -230,10 +260,13 @@ export const COMMANDS: SlashCommand[] = [
     description: "Open the keyboard-shortcuts cheat sheet",
     run: async (_a, ctx) => {
       try {
-        const { openShortcutsModal } = await import("@/components/ShortcutsModal");
+        const { openShortcutsModal } =
+          await import("@/components/ShortcutsModal");
         openShortcutsModal();
       } catch (e) {
-        ctx.append(errorNote(`/shortcuts failed to mount: ${humanizeError(e)}`));
+        ctx.append(
+          errorNote(`/shortcuts failed to mount: ${humanizeError(e)}`),
+        );
       }
     },
   },
@@ -244,7 +277,8 @@ export const COMMANDS: SlashCommand[] = [
   },
   {
     name: "tokens",
-    description: "Show an Aider-style breakdown of what's in the context window",
+    description:
+      "Show an Aider-style breakdown of what's in the context window",
     run: async (_a, ctx) => {
       const state = ctx.store.getState();
       const sessionId = state.sessionId;
@@ -285,14 +319,22 @@ export const COMMANDS: SlashCommand[] = [
   tabCmd("brain", "brain", "Jump to the Brain panel"),
   tabCmd("memory", "memory", "Jump to the Memory panel"),
   tabCmd("projects", "projects", "Jump to the Projects panel"),
-  tabCmd("obs", "observability", "Jump to the Observability panel", ["observability"]),
+  tabCmd("obs", "observability", "Jump to the Observability panel", [
+    "observability",
+  ]),
   // P0-FINAL Wave 5 — the five newest tabs were unreachable from the palette
   // (it derives its entries from this registry) and from slash commands.
   // `/research` already exists above as a full command (it can also start a
   // run); these four just jump. Together they make all five keyboard-reachable.
-  tabCmd("cookbook", "cookbook", "Jump to the model Cookbook (pull + serve local models)"),
+  tabCmd(
+    "cookbook",
+    "cookbook",
+    "Jump to the model Cookbook (pull + serve local models)",
+  ),
   tabCmd("routines", "routines", "Jump to the Routines scheduler", ["routine"]),
-  tabCmd("eval", "eval", "Jump to the Eval harness (run + compare reports)", ["evals"]),
+  tabCmd("eval", "eval", "Jump to the Eval harness (run + compare reports)", [
+    "evals",
+  ]),
   tabCmd("setup", "setup", "Jump to the Setup panel (git server + onboarding)"),
   {
     name: "worktree",
@@ -312,18 +354,27 @@ export const COMMANDS: SlashCommand[] = [
         return;
       }
       for (const rid of ids) {
-        try { await stopRun(rid); } catch { /* best-effort */ }
+        try {
+          await stopRun(rid);
+        } catch {
+          /* best-effort */
+        }
       }
     },
   },
   {
     name: "compact",
     aliases: ["condense"],
-    description: "Condense older turns into an LLM summary, keep last 8 verbatim",
+    description:
+      "Condense older turns into an LLM summary, keep last 8 verbatim",
     run: async (_a, ctx) => {
       const state = ctx.store.getState();
       if (!shouldCompact(state.messages.length, KEEP_RECENT)) {
-        ctx.notify("Compact skipped", `Only ${state.messages.length} messages — nothing to fold.`, "info");
+        ctx.notify(
+          "Compact skipped",
+          `Only ${state.messages.length} messages — nothing to fold.`,
+          "info",
+        );
         return;
       }
       // The single shared condenser (also used by the TokenHUD button and
@@ -352,7 +403,8 @@ export const COMMANDS: SlashCommand[] = [
   {
     name: "export",
     aliases: ["save"],
-    description: "Export conversation — '/export' to clipboard, '/export md|json' to a file under the project root",
+    description:
+      "Export conversation — '/export' to clipboard, '/export md|json' to a file under the project root",
     run: async (args, ctx) => {
       const state = ctx.store.getState();
       const messages = state.messages;
@@ -374,10 +426,16 @@ export const COMMANDS: SlashCommand[] = [
         return;
       }
       // Default / unrecognized arg → clipboard markdown (back-compat).
-      const md = messages.map((m) => `### ${m.agent ?? m.role}\n\n${m.content}\n`).join("\n");
+      const md = messages
+        .map((m) => `### ${m.agent ?? m.role}\n\n${m.content}\n`)
+        .join("\n");
       try {
         await navigator.clipboard.writeText(md);
-        ctx.notify("Copied", `${messages.length} messages copied as markdown.`, "success");
+        ctx.notify(
+          "Copied",
+          `${messages.length} messages copied as markdown.`,
+          "success",
+        );
       } catch (e) {
         ctx.notify("Copy failed", humanizeError(e), "error");
       }
@@ -386,7 +444,8 @@ export const COMMANDS: SlashCommand[] = [
   {
     name: "mcp",
     aliases: ["servers"],
-    description: "Manage MCP servers — connect to local Model Context Protocol tools",
+    description:
+      "Manage MCP servers — connect to local Model Context Protocol tools",
     run: (_a, _ctx) => openMcpPanel(),
   },
   {
@@ -436,7 +495,8 @@ export const COMMANDS: SlashCommand[] = [
   {
     name: "retrieve",
     aliases: ["context", "ctx"],
-    description: "Find the most relevant project context for a query and insert it into the composer",
+    description:
+      "Find the most relevant project context for a query and insert it into the composer",
     run: async (args, ctx) => {
       const query = args.trim();
       if (!query) {
@@ -458,14 +518,21 @@ export const COMMANDS: SlashCommand[] = [
           return;
         }
         const block = hits
-          .map((h) => `- [${h.source}] ${h.path}${h.snippet ? ` — ${h.snippet}` : ""}`)
+          .map(
+            (h) =>
+              `- [${h.source}] ${h.path}${h.snippet ? ` — ${h.snippet}` : ""}`,
+          )
           .join("\n");
         window.dispatchEvent(
           new CustomEvent("cortex:composer-insert", {
             detail: { value: `Relevant context for "${query}":\n${block}\n` },
           }),
         );
-        ctx.notify("Retrieve", `Inserted ${hits.length} context hits.`, "success");
+        ctx.notify(
+          "Retrieve",
+          `Inserted ${hits.length} context hits.`,
+          "success",
+        );
       } catch (e) {
         ctx.notify("Retrieve failed", humanizeError(e), "error");
       }
@@ -474,7 +541,8 @@ export const COMMANDS: SlashCommand[] = [
   {
     name: "rerank",
     aliases: ["rr"],
-    description: "Retrieve project context and LLM-rerank it by relevance, then insert into the composer",
+    description:
+      "Retrieve project context and LLM-rerank it by relevance, then insert into the composer",
     run: async (args, ctx) => {
       const query = args.trim();
       if (!query) {
@@ -496,14 +564,21 @@ export const COMMANDS: SlashCommand[] = [
           return;
         }
         const block = hits
-          .map((h) => `- [${h.source}] ${h.path}${h.snippet ? ` — ${h.snippet}` : ""}`)
+          .map(
+            (h) =>
+              `- [${h.source}] ${h.path}${h.snippet ? ` — ${h.snippet}` : ""}`,
+          )
           .join("\n");
         window.dispatchEvent(
           new CustomEvent("cortex:composer-insert", {
             detail: { value: `Reranked context for "${query}":\n${block}\n` },
           }),
         );
-        ctx.notify("Rerank", `Inserted ${hits.length} reranked hits.`, "success");
+        ctx.notify(
+          "Rerank",
+          `Inserted ${hits.length} reranked hits.`,
+          "success",
+        );
       } catch (e) {
         ctx.notify("Rerank failed", humanizeError(e), "error");
       }
@@ -512,7 +587,8 @@ export const COMMANDS: SlashCommand[] = [
   {
     name: "voice",
     aliases: ["mic"],
-    description: "Start voice input (browser SpeechRecognition, whisper.cpp fallback)",
+    description:
+      "Start voice input (browser SpeechRecognition, whisper.cpp fallback)",
     run: async (_a, ctx) => {
       // Feature-detected so unsupported browsers get a graceful toast
       // instead of an unhandled ReferenceError.
@@ -527,7 +603,11 @@ export const COMMANDS: SlashCommand[] = [
         // through whisper.cpp via the Rust `voice_transcribe` command.
         try {
           const { recordAndTranscribe } = await import("@/lib/voice-fallback");
-          ctx.notify("Listening… (whisper)", "Recording a short clip — speak now.", "info");
+          ctx.notify(
+            "Listening… (whisper)",
+            "Recording a short clip — speak now.",
+            "info",
+          );
           const { promise, stop } = recordAndTranscribe();
           // The toast system has no action-button slot, so we surface the
           // early-stop affordance via the in-app confirm dialog. "Stop now"
@@ -537,7 +617,8 @@ export const COMMANDS: SlashCommand[] = [
           if (
             await confirmDialog({
               title: "Recording…",
-              message: "Stop the clip now, or keep recording until the 4s auto-stop.",
+              message:
+                "Stop the clip now, or keep recording until the 4s auto-stop.",
               confirmLabel: "Stop now",
               cancelLabel: "Keep recording",
             })
@@ -548,7 +629,11 @@ export const COMMANDS: SlashCommand[] = [
           if (text) ctx.append(systemNote(`🎤 ${text}`));
           else ctx.notify("Voice", "No speech captured.", "info");
         } catch (e) {
-          ctx.notify("Voice unavailable", `whisper fallback failed: ${humanizeError(e)}`, "warning");
+          ctx.notify(
+            "Voice unavailable",
+            `whisper fallback failed: ${humanizeError(e)}`,
+            "warning",
+          );
         }
         return;
       }
@@ -560,7 +645,8 @@ export const COMMANDS: SlashCommand[] = [
           const text = ev.results[0]?.[0]?.transcript ?? "";
           if (text) ctx.append(systemNote(`🎤 ${text}`));
         };
-        rec.onerror = (ev) => ctx.notify("Voice error", ev.error ?? "unknown", "error");
+        rec.onerror = (ev) =>
+          ctx.notify("Voice error", ev.error ?? "unknown", "error");
         rec.start();
         ctx.notify("Listening…", "Speak now.", "info");
       } catch (e) {
@@ -574,7 +660,9 @@ export const COMMANDS: SlashCommand[] = [
     run: async (_a, ctx) => {
       const project = ctx.store.getState().activeProject;
       if (!project) {
-        ctx.append(errorNote("No active project — pick one from the sidebar first."));
+        ctx.append(
+          errorNote("No active project — pick one from the sidebar first."),
+        );
         return;
       }
       try {
@@ -602,7 +690,9 @@ export const COMMANDS: SlashCommand[] = [
         const head = page.title
           ? `🌐 **${page.title}** — ${page.url}`
           : `🌐 ${page.url}`;
-        const trunc = page.truncated ? "\n\n_…response truncated at 256 KiB._" : "";
+        const trunc = page.truncated
+          ? "\n\n_…response truncated at 256 KiB._"
+          : "";
         ctx.append(systemNote(`${head}\n\n${page.markdown}${trunc}`));
       } catch (e) {
         ctx.append(errorNote(`/web failed: ${humanizeError(e)}`));
@@ -623,7 +713,8 @@ export const COMMANDS: SlashCommand[] = [
   {
     name: "run",
     aliases: ["sh", "exec"],
-    description: "Run a shell command in the active project and stream the output back",
+    description:
+      "Run a shell command in the active project and stream the output back",
     usage: "<command>",
     run: async (args, ctx) => {
       const cmd = args.trim();
@@ -666,7 +757,11 @@ export const COMMANDS: SlashCommand[] = [
       }
       if (raw === "on" || raw === "off") {
         s.setArchitectMode(raw === "on");
-        ctx.notify("Architect mode", `${raw === "on" ? "enabled" : "disabled"}.`, "success");
+        ctx.notify(
+          "Architect mode",
+          `${raw === "on" ? "enabled" : "disabled"}.`,
+          "success",
+        );
         return;
       }
       // Model overrides: `planner_model=foo` / `editor_model=bar`. Multiple
@@ -683,11 +778,19 @@ export const COMMANDS: SlashCommand[] = [
         else editor = value;
       }
       if (!matched) {
-        ctx.notify("/architect", "Usage: /architect on|off|status|planner_model=<m>|editor_model=<m>", "warning");
+        ctx.notify(
+          "/architect",
+          "Usage: /architect on|off|status|planner_model=<m>|editor_model=<m>",
+          "warning",
+        );
         return;
       }
       s.setArchitectModels(planner, editor);
-      ctx.notify("Architect models updated", `planner=${planner ?? "default"} editor=${editor ?? "default"}`, "success");
+      ctx.notify(
+        "Architect models updated",
+        `planner=${planner ?? "default"} editor=${editor ?? "default"}`,
+        "success",
+      );
     },
   },
   {
@@ -698,7 +801,8 @@ export const COMMANDS: SlashCommand[] = [
     // without writing so you can check before committing.
     name: "apply",
     aliases: ["apply-edits"],
-    description: "Apply SEARCH/REPLACE edit blocks from the last reply to project files",
+    description:
+      "Apply SEARCH/REPLACE edit blocks from the last reply to project files",
     usage: "[preview]",
     run: async (args, ctx) => {
       const dryRun = /^(preview|dry|dry-run|check)$/i.test(args.trim());
@@ -710,7 +814,10 @@ export const COMMANDS: SlashCommand[] = [
       }
       let text: string | undefined;
       for (let i = state.messages.length - 1; i >= 0; i--) {
-        if (state.messages[i].role === "assistant" && state.messages[i].content.trim()) {
+        if (
+          state.messages[i].role === "assistant" &&
+          state.messages[i].content.trim()
+        ) {
           text = state.messages[i].content;
           break;
         }
@@ -722,7 +829,13 @@ export const COMMANDS: SlashCommand[] = [
       try {
         const { invoke } = await import("@tauri-apps/api/core");
         const report = await invoke<{
-          results: { path: string; status: string; reason?: string; searchLines: number; replaceLines: number }[];
+          results: {
+            path: string;
+            status: string;
+            reason?: string;
+            searchLines: number;
+            replaceLines: number;
+          }[];
           applied: number;
           created: number;
           failed: number;
@@ -730,13 +843,20 @@ export const COMMANDS: SlashCommand[] = [
           checkpointId?: string;
         }>("apply_edit_blocks", { projectRoot: root, text, dryRun });
         if (!report.results.length) {
-          ctx.notify("Apply edits", "No SEARCH/REPLACE blocks found in the reply.", "info");
+          ctx.notify(
+            "Apply edits",
+            "No SEARCH/REPLACE blocks found in the reply.",
+            "info",
+          );
           return;
         }
         const icon = (s: string) =>
           s === "applied" ? "✓" : s === "created" ? "+" : "✗";
         const lines = report.results
-          .map((r) => `- ${icon(r.status)} \`${r.path}\` — ${r.status}${r.reason ? ` (${r.reason})` : ""}`)
+          .map(
+            (r) =>
+              `- ${icon(r.status)} \`${r.path}\` — ${r.status}${r.reason ? ` (${r.reason})` : ""}`,
+          )
           .join("\n");
         const verb = report.dryRun ? "Would apply" : "Applied";
         const summary = `${verb}: ${report.applied} edited · ${report.created} created · ${report.failed} failed`;
@@ -782,7 +902,9 @@ export const COMMANDS: SlashCommand[] = [
         const { invoke } = await import("@tauri-apps/api/core");
         const raw = args.trim();
         if (!raw) {
-          const cur = await invoke<string | null>("get_test_command", { projectRoot: root });
+          const cur = await invoke<string | null>("get_test_command", {
+            projectRoot: root,
+          });
           ctx.append(
             systemNote(
               cur
@@ -794,7 +916,11 @@ export const COMMANDS: SlashCommand[] = [
         }
         const next = /^(clear|unset|none|off)$/i.test(raw) ? "" : raw;
         await invoke("set_test_command", { projectRoot: root, command: next });
-        ctx.notify("Test command", next ? `Set to: ${next}` : "Cleared.", "success");
+        ctx.notify(
+          "Test command",
+          next ? `Set to: ${next}` : "Cleared.",
+          "success",
+        );
       } catch (e) {
         ctx.notify("Test command failed", humanizeError(e), "error");
       }
@@ -822,7 +948,8 @@ export const COMMANDS: SlashCommand[] = [
     // ESLint/Ruff config, `cargo clippy`, `go vet`) or taken from a persisted
     // override set with `/lintcmd`. Manual run — prints the head of the output.
     name: "lint",
-    description: "Run the project's linter (auto-detected) and surface violations",
+    description:
+      "Run the project's linter (auto-detected) and surface violations",
     run: async (_args, ctx) => {
       const root = ctx.store.getState().activeProject?.root;
       if (!root) {
@@ -832,10 +959,16 @@ export const COMMANDS: SlashCommand[] = [
       ctx.append(systemNote("🔍 Linting…"));
       try {
         const { invoke } = await import("@tauri-apps/api/core");
-        const outcome = await invoke<LintRunOutcome>("run_lint", { projectRoot: root });
+        const outcome = await invoke<LintRunOutcome>("run_lint", {
+          projectRoot: root,
+        });
         ctx.append(systemNote(formatLintOutcome(outcome)));
         ctx.notify(
-          outcome.clean ? "Lint clean" : outcome.timedOut ? "Lint timed out" : "Lint found issues",
+          outcome.clean
+            ? "Lint clean"
+            : outcome.timedOut
+              ? "Lint timed out"
+              : "Lint found issues",
           outcome.command,
           outcome.clean ? "success" : "warning",
         );
@@ -864,8 +997,12 @@ export const COMMANDS: SlashCommand[] = [
         const { invoke } = await import("@tauri-apps/api/core");
         const raw = args.trim();
         if (!raw) {
-          const override = await invoke<string | null>("get_lint_command", { projectRoot: root });
-          const resolved = await invoke<string | null>("detect_lint", { projectRoot: root });
+          const override = await invoke<string | null>("get_lint_command", {
+            projectRoot: root,
+          });
+          const resolved = await invoke<string | null>("detect_lint", {
+            projectRoot: root,
+          });
           ctx.append(
             systemNote(
               override
@@ -879,7 +1016,11 @@ export const COMMANDS: SlashCommand[] = [
         }
         const next = /^(clear|unset|none|off)$/i.test(raw) ? "" : raw;
         await invoke("set_lint_command", { projectRoot: root, command: next });
-        ctx.notify("Lint command", next ? `Set to: ${next}` : "Cleared (auto-detect).", "success");
+        ctx.notify(
+          "Lint command",
+          next ? `Set to: ${next}` : "Cleared (auto-detect).",
+          "success",
+        );
       } catch (e) {
         ctx.notify("Lint command failed", humanizeError(e), "error");
       }
@@ -903,7 +1044,11 @@ export const COMMANDS: SlashCommand[] = [
       }
       const paths = splitPaths(args.trim());
       if (paths.length === 0) {
-        ctx.append(systemNote("Usage: `/add <path>` — e.g. `/add src/main.rs`. List with `/ls`."));
+        ctx.append(
+          systemNote(
+            "Usage: `/add <path>` — e.g. `/add src/main.rs`. List with `/ls`.",
+          ),
+        );
         return;
       }
       try {
@@ -913,16 +1058,28 @@ export const COMMANDS: SlashCommand[] = [
           paths,
         });
         const parts: string[] = [];
-        if (res.added.length) parts.push(`Added ${res.added.map((p) => `\`${p}\``).join(", ")}.`);
+        if (res.added.length)
+          parts.push(`Added ${res.added.map((p) => `\`${p}\``).join(", ")}.`);
         if (res.already.length)
-          parts.push(`Already in chat: ${res.already.map((p) => `\`${p}\``).join(", ")}.`);
-        for (const s of res.skipped) parts.push(`Skipped \`${s.path}\`: ${s.reason}.`);
+          parts.push(
+            `Already in chat: ${res.already.map((p) => `\`${p}\``).join(", ")}.`,
+          );
+        for (const s of res.skipped)
+          parts.push(`Skipped \`${s.path}\`: ${s.reason}.`);
         parts.push("", formatManifest(res.manifest));
         ctx.append(systemNote(parts.join("\n")));
         if (res.added.length)
-          ctx.notify("Added to chat", `${res.added.length} file(s) now in context`, "success");
+          ctx.notify(
+            "Added to chat",
+            `${res.added.length} file(s) now in context`,
+            "success",
+          );
         else if (res.skipped.length)
-          ctx.notify("Add to chat", `${res.skipped.length} path(s) skipped`, "warning");
+          ctx.notify(
+            "Add to chat",
+            `${res.skipped.length} path(s) skipped`,
+            "warning",
+          );
       } catch (e) {
         ctx.notify("Add to chat failed", humanizeError(e), "error");
       }
@@ -948,7 +1105,8 @@ export const COMMANDS: SlashCommand[] = [
           projectRoot: root,
           paths,
         });
-        const head = paths.length === 0 ? "Cleared all files from the chat." : "Dropped.";
+        const head =
+          paths.length === 0 ? "Cleared all files from the chat." : "Dropped.";
         ctx.append(systemNote(`${head}\n\n${formatManifest(manifest)}`));
         ctx.notify("Chat files", head, "success");
       } catch (e) {
@@ -969,7 +1127,9 @@ export const COMMANDS: SlashCommand[] = [
       }
       try {
         const { invoke } = await import("@tauri-apps/api/core");
-        const manifest = await invoke<ManifestEntry[]>("get_manifest", { projectRoot: root });
+        const manifest = await invoke<ManifestEntry[]>("get_manifest", {
+          projectRoot: root,
+        });
         ctx.append(systemNote(formatManifest(manifest)));
       } catch (e) {
         ctx.notify("Chat files failed", humanizeError(e), "error");
@@ -992,7 +1152,9 @@ export const COMMANDS: SlashCommand[] = [
       }
       try {
         const { invoke } = await import("@tauri-apps/api/core");
-        const agents = await invoke<MicroAgentInfo[]>("list_microagents", { projectRoot: root });
+        const agents = await invoke<MicroAgentInfo[]>("list_microagents", {
+          projectRoot: root,
+        });
         ctx.append(systemNote(formatMicroAgents(agents)));
       } catch (e) {
         ctx.notify("Microagents failed", humanizeError(e), "error");
@@ -1010,7 +1172,8 @@ export const COMMANDS: SlashCommand[] = [
     // picking an older checkpoint.
     name: "undo",
     aliases: ["rollback"],
-    description: "Preview and undo the last /apply by restoring the most recent workspace checkpoint",
+    description:
+      "Preview and undo the last /apply by restoring the most recent workspace checkpoint",
     run: async (_args, ctx) => {
       const root = ctx.store.getState().activeProject?.root;
       if (!root) {
@@ -1022,7 +1185,11 @@ export const COMMANDS: SlashCommand[] = [
         const all = await listCheckpoints(root);
         const latest = all[0];
         if (!latest) {
-          ctx.notify("Nothing to undo", "No workspace checkpoints found for this project.", "info");
+          ctx.notify(
+            "Nothing to undo",
+            "No workspace checkpoints found for this project.",
+            "info",
+          );
           return;
         }
         const when = new Date(latest.ts).toLocaleString();
@@ -1030,7 +1197,11 @@ export const COMMANDS: SlashCommand[] = [
         // Read-only preview → restore only on explicit confirm.
         const res = await reviewCheckpointRestore(root, latest);
         if (res.outcome === "cancelled") {
-          ctx.notify("Undo cancelled", "Your working tree was left unchanged.", "info");
+          ctx.notify(
+            "Undo cancelled",
+            "Your working tree was left unchanged.",
+            "info",
+          );
           return;
         }
         if (res.outcome === "error") {
@@ -1042,7 +1213,11 @@ export const COMMANDS: SlashCommand[] = [
             `↩ **Restored checkpoint**${label} from ${when} — ${latest.file_count} files. The working tree was rolled back to that snapshot.`,
           ),
         );
-        ctx.notify("Undo complete", `Restored snapshot${label} from ${when}.`, "success");
+        ctx.notify(
+          "Undo complete",
+          `Restored snapshot${label} from ${when}.`,
+          "success",
+        );
       } catch (e) {
         ctx.notify("Undo failed", humanizeError(e), "error");
       }
@@ -1050,12 +1225,17 @@ export const COMMANDS: SlashCommand[] = [
   },
   {
     name: "notify",
-    description: "Fire an OS desktop notification (for smoke-testing the task-complete hook)",
+    description:
+      "Fire an OS desktop notification (for smoke-testing the task-complete hook)",
     usage: "<title> <body>",
     run: async (args, ctx) => {
       const raw = args.trim();
       if (!raw) {
-        ctx.notify("/notify skipped", "Usage: /notify <title> [body]", "warning");
+        ctx.notify(
+          "/notify skipped",
+          "Usage: /notify <title> [body]",
+          "warning",
+        );
         return;
       }
       // Split on the first run of whitespace — title is one word-ish chunk,
@@ -1066,11 +1246,17 @@ export const COMMANDS: SlashCommand[] = [
         ? [quoted[1], quoted[2] ?? ""]
         : (() => {
             const idx = raw.search(/\s/);
-            return idx < 0 ? [raw, ""] : [raw.slice(0, idx), raw.slice(idx + 1)];
+            return idx < 0
+              ? [raw, ""]
+              : [raw.slice(0, idx), raw.slice(idx + 1)];
           })();
       try {
         await desktopNotify(title, body);
-        ctx.notify("Notified", `${title}${body ? ` — ${body}` : ""}`, "success");
+        ctx.notify(
+          "Notified",
+          `${title}${body ? ` — ${body}` : ""}`,
+          "success",
+        );
       } catch (e) {
         ctx.append(errorNote(`/notify failed: ${humanizeError(e)}`));
       }
@@ -1087,8 +1273,13 @@ export const COMMANDS: SlashCommand[] = [
     description: "Capture / list / restore point-in-time memory snapshots",
     usage: "create|list|rollback [label|id]",
     run: async (args, ctx) => {
-      const { createSnapshot, listSnapshots, rollbackSnapshot, formatBytes, timeAgo } =
-        await import("@/lib/snapshots");
+      const {
+        createSnapshot,
+        listSnapshots,
+        rollbackSnapshot,
+        formatBytes,
+        timeAgo,
+      } = await import("@/lib/snapshots");
       const parts = args.trim().split(/\s+/);
       const sub = (parts[0] || "list").toLowerCase();
       const rest = parts.slice(1).join(" ").trim();
@@ -1107,19 +1298,33 @@ export const COMMANDS: SlashCommand[] = [
         if (sub === "list" || sub === "ls") {
           const items = await listSnapshots();
           if (items.length === 0) {
-            ctx.append(systemNote("📸 no snapshots yet — `/snapshot create <label>` to capture one."));
+            ctx.append(
+              systemNote(
+                "📸 no snapshots yet — `/snapshot create <label>` to capture one.",
+              ),
+            );
             return;
           }
-          const lines = items.slice(0, 20).map(
-            (s) =>
-              `- \`${s.id}\` · **${s.label}** · ${timeAgo(s.created_unix_ms)} · ${s.file_count} files · ${formatBytes(s.size_bytes)}`,
+          const lines = items
+            .slice(0, 20)
+            .map(
+              (s) =>
+                `- \`${s.id}\` · **${s.label}** · ${timeAgo(s.created_unix_ms)} · ${s.file_count} files · ${formatBytes(s.size_bytes)}`,
+            );
+          ctx.append(
+            systemNote(
+              `📸 snapshots (${items.length}):\n\n${lines.join("\n")}`,
+            ),
           );
-          ctx.append(systemNote(`📸 snapshots (${items.length}):\n\n${lines.join("\n")}`));
           return;
         }
         if (sub === "rollback" || sub === "restore") {
           if (!rest) {
-            ctx.notify("/snapshot rollback", "Usage: /snapshot rollback <id>", "warning");
+            ctx.notify(
+              "/snapshot rollback",
+              "Usage: /snapshot rollback <id>",
+              "warning",
+            );
             return;
           }
           if (
@@ -1139,7 +1344,11 @@ export const COMMANDS: SlashCommand[] = [
           );
           return;
         }
-        ctx.notify("/snapshot", "Usage: /snapshot create|list|rollback", "warning");
+        ctx.notify(
+          "/snapshot",
+          "Usage: /snapshot create|list|rollback",
+          "warning",
+        );
       } catch (e) {
         ctx.append(errorNote(`/snapshot failed: ${humanizeError(e)}`));
       }
@@ -1167,12 +1376,16 @@ export const COMMANDS: SlashCommand[] = [
       const name = createMatch[1];
       const projectRoot = state.activeProject?.root;
       if (!projectRoot) {
-        ctx.append(errorNote("No active project — pick one from the sidebar first."));
+        ctx.append(
+          errorNote("No active project — pick one from the sidebar first."),
+        );
         return;
       }
       try {
         const prp = await createPrp(projectRoot, name);
-        ctx.append(systemNote(`📐 created PRP **${prp.name}** at \`${prp.path}\``));
+        ctx.append(
+          systemNote(`📐 created PRP **${prp.name}** at \`${prp.path}\``),
+        );
         state.setActivityTab("prp");
       } catch (e) {
         ctx.append(errorNote(`/prp create failed: ${humanizeError(e)}`));
@@ -1206,15 +1419,19 @@ export const COMMANDS: SlashCommand[] = [
     // project and renders a per-format written/skipped breakdown.
     name: "export-ide",
     aliases: ["ide-export", "ide"],
-    description: "Export merged CLAUDE.md/AGENTS.md/.cortex/rules to IDE rule files",
+    description:
+      "Export merged CLAUDE.md/AGENTS.md/.cortex/rules to IDE rule files",
     run: async (_a, ctx) => {
       try {
         // Dynamic import keeps the export modal out of the main bundle until
         // the user actually summons it.
-        const { openIDEExportModal } = await import("@/components/IDEExportModal");
+        const { openIDEExportModal } =
+          await import("@/components/IDEExportModal");
         openIDEExportModal();
       } catch (e) {
-        ctx.append(errorNote(`/export-ide failed to mount: ${humanizeError(e)}`));
+        ctx.append(
+          errorNote(`/export-ide failed to mount: ${humanizeError(e)}`),
+        );
       }
     },
   },
@@ -1230,7 +1447,8 @@ export const COMMANDS: SlashCommand[] = [
     description: "Open the encrypted provider key vault",
     run: async (_a, ctx) => {
       try {
-        const { openKeyVaultPanel } = await import("@/components/KeyVaultPanel");
+        const { openKeyVaultPanel } =
+          await import("@/components/KeyVaultPanel");
         openKeyVaultPanel();
       } catch (e) {
         ctx.append(errorNote(`/vault failed to mount: ${humanizeError(e)}`));
@@ -1245,7 +1463,8 @@ export const COMMANDS: SlashCommand[] = [
     description: "Open the agent audit log viewer",
     run: async (_a, ctx) => {
       try {
-        const { openAuditLogPanel } = await import("@/components/AuditLogPanel");
+        const { openAuditLogPanel } =
+          await import("@/components/AuditLogPanel");
         openAuditLogPanel();
       } catch (e) {
         ctx.append(errorNote(`/audit failed to mount: ${humanizeError(e)}`));
@@ -1263,7 +1482,8 @@ export const COMMANDS: SlashCommand[] = [
     description: "Manage outbound webhook subscriptions",
     run: async (_a, ctx) => {
       try {
-        const { openWebhooksPanel } = await import("@/components/WebhooksPanel");
+        const { openWebhooksPanel } =
+          await import("@/components/WebhooksPanel");
         openWebhooksPanel();
       } catch (e) {
         ctx.append(errorNote(`/webhook failed to mount: ${humanizeError(e)}`));
@@ -1321,7 +1541,9 @@ export const COMMANDS: SlashCommand[] = [
         const { openSchemaEditor } = await import("@/components/SchemaEditor");
         openSchemaEditor(name);
       } catch (e) {
-        ctx.append(errorNote(`/edit-config failed to mount: ${humanizeError(e)}`));
+        ctx.append(
+          errorNote(`/edit-config failed to mount: ${humanizeError(e)}`),
+        );
       }
     },
   },
@@ -1350,7 +1572,9 @@ export const COMMANDS: SlashCommand[] = [
           const { listTeams, timeAgo } = await import("@/lib/teams");
           const all = await listTeams();
           if (all.length === 0) {
-            ctx.append(systemNote("🛰️ no teams yet — `/team create` to spin one up."));
+            ctx.append(
+              systemNote("🛰️ no teams yet — `/team create` to spin one up."),
+            );
             return;
           }
           const teams = rest
@@ -1371,18 +1595,26 @@ export const COMMANDS: SlashCommand[] = [
               );
             }
           }
-          ctx.append(systemNote(`🛰️ teams (${teams.length}):\n\n${lines.join("\n")}`));
+          ctx.append(
+            systemNote(`🛰️ teams (${teams.length}):\n\n${lines.join("\n")}`),
+          );
           return;
         } catch (e) {
           ctx.append(errorNote(`/team status failed: ${humanizeError(e)}`));
           return;
         }
       }
-      ctx.notify("/team", "Usage: /team list | /team create | /team status [name]", "warning");
+      ctx.notify(
+        "/team",
+        "Usage: /team list | /team create | /team status [name]",
+        "warning",
+      );
     },
   },
   tabCmd("tools", "tools", "Jump to the REST→MCP tool registry", ["tool"]),
-  tabCmd("snippets", "snippets", "Jump to the saved-prompt snippets panel", ["snippet"]),
+  tabCmd("snippets", "snippets", "Jump to the saved-prompt snippets panel", [
+    "snippet",
+  ]),
   {
     // AI commit-message suggester. Reads the staged diff (falls back to
     // unstaged) from the active project, asks the gateway for a Conventional
@@ -1390,24 +1622,37 @@ export const COMMANDS: SlashCommand[] = [
     // paste it into their git client of choice.
     name: "commit-msg",
     aliases: ["commit", "commitmsg"],
-    description: "Generate a Conventional Commits message for the active project's diff",
+    description:
+      "Generate a Conventional Commits message for the active project's diff",
     run: async (_a, ctx) => {
       const project = ctx.store.getState().activeProject;
       if (!project) {
-        ctx.append(errorNote("No active project — pick one from the sidebar first."));
+        ctx.append(
+          errorNote("No active project — pick one from the sidebar first."),
+        );
         return;
       }
-      ctx.append(systemNote(`✍️ generating commit message for **${project.name}**…`));
+      ctx.append(
+        systemNote(`✍️ generating commit message for **${project.name}**…`),
+      );
       try {
         const { suggestCommitMessage } = await import("@/lib/commit-suggest");
         const msg = await suggestCommitMessage(project.root);
         try {
           await navigator.clipboard.writeText(msg);
-          ctx.notify("Commit message copied", msg.split("\n")[0] ?? "", "success");
+          ctx.notify(
+            "Commit message copied",
+            msg.split("\n")[0] ?? "",
+            "success",
+          );
         } catch {
           // Clipboard can fail in dev (no user gesture, denied permission, …)
           // — still surface the message in chat so the user can grab it.
-          ctx.notify("Generated (clipboard unavailable)", msg.split("\n")[0] ?? "", "info");
+          ctx.notify(
+            "Generated (clipboard unavailable)",
+            msg.split("\n")[0] ?? "",
+            "info",
+          );
         }
         ctx.append(systemNote("```\n" + msg + "\n```"));
       } catch (e) {
@@ -1421,7 +1666,8 @@ export const COMMANDS: SlashCommand[] = [
     // `~/Documents/Cortex Brain/shared/<name>.md` (the `.md` suffix is added
     // when missing). The backend enforces the same root for path safety.
     name: "share",
-    description: "Export this chat as markdown (clipboard, or a file under Cortex Brain/shared)",
+    description:
+      "Export this chat as markdown (clipboard, or a file under Cortex Brain/shared)",
     usage: "[filename]",
     run: async (args, ctx) => {
       const state = ctx.store.getState();
@@ -1446,7 +1692,11 @@ export const COMMANDS: SlashCommand[] = [
           const md = await shareChatAsMarkdown(payload, null, projectRoot);
           try {
             await navigator.clipboard.writeText(md);
-            ctx.notify("Chat copied", `${messages.length} messages as markdown.`, "success");
+            ctx.notify(
+              "Chat copied",
+              `${messages.length} messages as markdown.`,
+              "success",
+            );
           } catch (e) {
             ctx.notify("Copy failed", humanizeError(e), "error");
           }
@@ -1455,7 +1705,13 @@ export const COMMANDS: SlashCommand[] = [
         const { homeDir, join } = await import("@tauri-apps/api/path");
         const home = await homeDir();
         const filename = /\.md$/i.test(name) ? name : `${name}.md`;
-        const target = await join(home, "Documents", "Cortex Brain", "shared", filename);
+        const target = await join(
+          home,
+          "Documents",
+          "Cortex Brain",
+          "shared",
+          filename,
+        );
         await shareChatAsMarkdown(payload, target, projectRoot);
         ctx.append(systemNote(`📤 chat saved to \`${target}\``));
         ctx.notify("Chat shared", filename, "success");
@@ -1522,7 +1778,12 @@ export const COMMANDS: SlashCommand[] = [
       ctx.store.getState().setActivityTab("search");
     },
   },
-  tabCmd("gateway", "gateway", "Jump to the Cortex Gateway models + capabilities panel", ["caps"]),
+  tabCmd(
+    "gateway",
+    "gateway",
+    "Jump to the Cortex Gateway models + capabilities panel",
+    ["caps"],
+  ),
   {
     // Workflow templates — preset multi-step recipes at
     // `~/.cortex/workflows/<name>.yaml`. `/workflow <name>` launches the
@@ -1539,8 +1800,12 @@ export const COMMANDS: SlashCommand[] = [
         return;
       }
       try {
-        const { getWorkflow, collectWorkflowInputs, runWorkflow, formatStepPrompt } =
-          await import("@/lib/workflows");
+        const {
+          getWorkflow,
+          collectWorkflowInputs,
+          runWorkflow,
+          formatStepPrompt,
+        } = await import("@/lib/workflows");
         const wf = await getWorkflow(name);
         if (!wf) {
           ctx.append(errorNote(`/workflow: '${name}' not found.`));
@@ -1685,7 +1950,9 @@ export const COMMANDS: SlashCommand[] = [
         const { openMemoryWizard } = await import("@/lib/memory-wizard");
         await openMemoryWizard(title);
       } catch (e) {
-        ctx.append(errorNote(`/new-memory failed to mount: ${humanizeError(e)}`));
+        ctx.append(
+          errorNote(`/new-memory failed to mount: ${humanizeError(e)}`),
+        );
       }
     },
   },
@@ -1729,7 +1996,8 @@ export const COMMANDS: SlashCommand[] = [
     description: "Open the memory-bridge stats panel",
     run: async (_a, ctx) => {
       try {
-        const { openMemoryStatsPanel } = await import("@/components/MemoryStatsPanel");
+        const { openMemoryStatsPanel } =
+          await import("@/components/MemoryStatsPanel");
         openMemoryStatsPanel();
       } catch (e) {
         ctx.append(errorNote(`/memstats failed to mount: ${humanizeError(e)}`));
@@ -1791,7 +2059,8 @@ export const COMMANDS: SlashCommand[] = [
     // `/space <name>` — alias that jumps straight into the browse view for a
     // named space. No arg falls back to the same panel as `/spaces`.
     name: "space",
-    description: "Browse a named space (alias for /spaces, accepts a space name)",
+    description:
+      "Browse a named space (alias for /spaces, accepts a space name)",
     usage: "[name]",
     run: async (args, ctx) => {
       const name = args.trim();
@@ -1809,17 +2078,24 @@ export const COMMANDS: SlashCommand[] = [
     // free-form intent. The backend is conservative by design: when the
     // intent is ambiguous, it stages nothing rather than guessing wrong.
     name: "stage",
-    description: "AI-guided git staging — pick files to stage by free-form intent",
+    description:
+      "AI-guided git staging — pick files to stage by free-form intent",
     usage: "<intent>",
     run: async (args, ctx) => {
       const intent = args.trim();
       const project = ctx.store.getState().activeProject;
       if (!project) {
-        ctx.append(errorNote("No active project — pick one from the sidebar first."));
+        ctx.append(
+          errorNote("No active project — pick one from the sidebar first."),
+        );
         return;
       }
       if (!intent) {
-        ctx.append(errorNote("/stage needs an intent, e.g. `/stage just the backend changes`."));
+        ctx.append(
+          errorNote(
+            "/stage needs an intent, e.g. `/stage just the backend changes`.",
+          ),
+        );
         return;
       }
       ctx.append(systemNote(`🪄 staging in **${project.name}**…`));
@@ -1859,7 +2135,8 @@ export const COMMANDS: SlashCommand[] = [
     // sessions/<session_id>-summary.md` with YAML frontmatter.
     name: "summary",
     aliases: ["summarize", "summarise"],
-    description: "Summarise the current session via AI (headline + bullets + next steps)",
+    description:
+      "Summarise the current session via AI (headline + bullets + next steps)",
     run: async (_a, ctx) => {
       const sessionId = ctx.store.getState().sessionId;
       if (!sessionId) {
@@ -1867,7 +2144,8 @@ export const COMMANDS: SlashCommand[] = [
         return;
       }
       try {
-        const { openSessionSummaryModal } = await import("@/components/SessionSummaryModal");
+        const { openSessionSummaryModal } =
+          await import("@/components/SessionSummaryModal");
         openSessionSummaryModal(sessionId);
       } catch (e) {
         ctx.append(errorNote(`/summary failed to mount: ${humanizeError(e)}`));
@@ -1917,16 +2195,13 @@ export const COMMANDS: SlashCommand[] = [
   {
     name: "budget",
     aliases: ["cap", "limit"],
-    description: "Set or check the USD spend cap — warns at 80%, confirms sends past 100%",
+    description:
+      "Set or check the USD spend cap — warns at 80%, confirms sends past 100%",
     usage: "[<usd> | off]",
     run: async (args, ctx) => {
       const arg = args.trim().toLowerCase();
-      const {
-        getBudgetCap,
-        setBudgetCap,
-        clearBudgetCap,
-        budgetLevel,
-      } = await import("@/lib/budget");
+      const { getBudgetCap, setBudgetCap, clearBudgetCap, budgetLevel } =
+        await import("@/lib/budget");
 
       if (arg === "off" || arg === "clear" || arg === "none") {
         clearBudgetCap();
@@ -1941,11 +2216,19 @@ export const COMMANDS: SlashCommand[] = [
           return;
         }
         if (!setBudgetCap(usd)) {
-          ctx.notify("Budget", "Could not save the cap (storage unavailable).", "error");
+          ctx.notify(
+            "Budget",
+            "Could not save the cap (storage unavailable).",
+            "error",
+          );
           return;
         }
         const { formatUsd } = await import("@/lib/cost-tracker");
-        ctx.notify("Budget set", `Cap: ${formatUsd(usd)} — warns at 80%, sends past 100% ask to confirm.`, "success");
+        ctx.notify(
+          "Budget set",
+          `Cap: ${formatUsd(usd)} — warns at 80%, sends past 100% ask to confirm.`,
+          "success",
+        );
         return;
       }
 
@@ -1966,7 +2249,8 @@ export const COMMANDS: SlashCommand[] = [
         }
         const pct = Math.round((spent / cap) * 100);
         const level = budgetLevel(spent, cap);
-        const kind = level === "over" ? "error" : level === "warn" ? "warning" : "success";
+        const kind =
+          level === "over" ? "error" : level === "warn" ? "warning" : "success";
         const lead =
           level === "over"
             ? "Over budget"
@@ -1999,12 +2283,16 @@ export const COMMANDS: SlashCommand[] = [
       const intent = args.trim();
       const project = ctx.store.getState().activeProject;
       if (!project) {
-        ctx.append(errorNote("No active project — pick one from the sidebar first."));
+        ctx.append(
+          errorNote("No active project — pick one from the sidebar first."),
+        );
         return;
       }
       try {
         if (intent) {
-          ctx.append(systemNote(`🪄 staging in **${project.name}** — _${intent}_…`));
+          ctx.append(
+            systemNote(`🪄 staging in **${project.name}** — _${intent}_…`),
+          );
           const { smartStage } = await import("@/lib/smart-stage");
           const stageReport = await smartStage(project.root, intent);
           const lines: string[] = [`**${stageReport.reason}**`];
@@ -2012,7 +2300,10 @@ export const COMMANDS: SlashCommand[] = [
             lines.push("", "Staged:");
             for (const p of stageReport.staged) lines.push(`- \`${p}\``);
           } else {
-            lines.push("", "_No files staged — falling back to existing index._");
+            lines.push(
+              "",
+              "_No files staged — falling back to existing index._",
+            );
           }
           if (stageReport.skipped.length > 0) {
             lines.push("", "Skipped:");
@@ -2020,13 +2311,21 @@ export const COMMANDS: SlashCommand[] = [
           }
           ctx.append(systemNote(lines.join("\n")));
         }
-        ctx.append(systemNote(`✍️ generating commit message for **${project.name}**…`));
+        ctx.append(
+          systemNote(`✍️ generating commit message for **${project.name}**…`),
+        );
         const { suggestCommitMessage } = await import("@/lib/commit-suggest");
         const message = await suggestCommitMessage(project.root);
-        ctx.append(systemNote("Proposed commit message:\n\n```\n" + message + "\n```"));
+        ctx.append(
+          systemNote("Proposed commit message:\n\n```\n" + message + "\n```"),
+        );
         const { gitCommitStaged } = await import("@/lib/git-push");
         await gitCommitStaged(project.root, message);
-        ctx.append(systemNote(`✓ committed: ${message.split("\n")[0] ?? "(no subject)"}`));
+        ctx.append(
+          systemNote(
+            `✓ committed: ${message.split("\n")[0] ?? "(no subject)"}`,
+          ),
+        );
         ctx.notify("/commit complete", message.split("\n")[0] ?? "", "success");
       } catch (e) {
         ctx.append(errorNote(`/commit failed: ${humanizeError(e)}`));
@@ -2044,7 +2343,9 @@ export const COMMANDS: SlashCommand[] = [
     run: async (args, ctx) => {
       const project = ctx.store.getState().activeProject;
       if (!project) {
-        ctx.append(errorNote("No active project — pick one from the sidebar first."));
+        ctx.append(
+          errorNote("No active project — pick one from the sidebar first."),
+        );
         return;
       }
       const tokens = args.trim().split(/\s+/).filter(Boolean);
@@ -2055,13 +2356,23 @@ export const COMMANDS: SlashCommand[] = [
         else positional.push(t);
       }
       const branch = positional[0] ?? null;
-      ctx.append(systemNote(`🚀 pushing **${project.name}** → \`${branch ?? "HEAD"}\`${force ? " _(force)_" : ""}…`));
+      ctx.append(
+        systemNote(
+          `🚀 pushing **${project.name}** → \`${branch ?? "HEAD"}\`${force ? " _(force)_" : ""}…`,
+        ),
+      );
       try {
         const { gitPush, summarizePushResult } = await import("@/lib/git-push");
         const result = await gitPush(project.root, branch, force);
-        const lead = result.ok ? "✓ push ok" : `✗ push failed (exit ${result.exit_code})`;
+        const lead = result.ok
+          ? "✓ push ok"
+          : `✗ push failed (exit ${result.exit_code})`;
         const summary = summarizePushResult(result);
-        ctx.append(systemNote(`${lead} — \`${result.branch}\`\n\n\`\`\`\n${summary}\n\`\`\``));
+        ctx.append(
+          systemNote(
+            `${lead} — \`${result.branch}\`\n\n\`\`\`\n${summary}\n\`\`\``,
+          ),
+        );
         ctx.notify(
           result.ok ? "/push ok" : "/push failed",
           `${result.branch}: ${summary}`,
@@ -2083,13 +2394,19 @@ export const COMMANDS: SlashCommand[] = [
       const intent = args.trim();
       const project = ctx.store.getState().activeProject;
       if (!project) {
-        ctx.append(errorNote("No active project — pick one from the sidebar first."));
+        ctx.append(
+          errorNote("No active project — pick one from the sidebar first."),
+        );
         return;
       }
       try {
         let stagedCount = 0;
         if (intent) {
-          ctx.append(systemNote(`🪄 [1/4] staging in **${project.name}** — _${intent}_…`));
+          ctx.append(
+            systemNote(
+              `🪄 [1/4] staging in **${project.name}** — _${intent}_…`,
+            ),
+          );
           const { smartStage } = await import("@/lib/smart-stage");
           const stageReport = await smartStage(project.root, intent);
           stagedCount = stageReport.staged.length;
@@ -2110,10 +2427,13 @@ export const COMMANDS: SlashCommand[] = [
         ctx.append(systemNote(`✍️ [2/4] generating commit message…`));
         const { suggestCommitMessage } = await import("@/lib/commit-suggest");
         const message = await suggestCommitMessage(project.root);
-        ctx.append(systemNote("Proposed commit message:\n\n```\n" + message + "\n```"));
+        ctx.append(
+          systemNote("Proposed commit message:\n\n```\n" + message + "\n```"),
+        );
 
         ctx.append(systemNote(`💾 [3/4] committing…`));
-        const { gitCommitStaged, gitPush, summarizePushResult } = await import("@/lib/git-push");
+        const { gitCommitStaged, gitPush, summarizePushResult } =
+          await import("@/lib/git-push");
         await gitCommitStaged(project.root, message);
 
         ctx.append(systemNote(`🚀 [4/4] pushing to origin…`));
@@ -2130,13 +2450,20 @@ export const COMMANDS: SlashCommand[] = [
         }
 
         const subject = message.split("\n")[0] ?? "(no subject)";
-        const fileSummary = stagedCount > 0 ? `${stagedCount} file${stagedCount === 1 ? "" : "s"}` : "staged index";
+        const fileSummary =
+          stagedCount > 0
+            ? `${stagedCount} file${stagedCount === 1 ? "" : "s"}`
+            : "staged index";
         ctx.append(
           systemNote(
             `✓ shipped: \`${subject}\` · ${fileSummary} · pushed to \`${result.branch}\``,
           ),
         );
-        ctx.notify("/ship complete", `${subject} → ${result.branch}`, "success");
+        ctx.notify(
+          "/ship complete",
+          `${subject} → ${result.branch}`,
+          "success",
+        );
       } catch (e) {
         ctx.append(errorNote(`/ship halted: ${humanizeError(e)}`));
         ctx.notify("/ship failed", humanizeError(e), "error");
@@ -2155,12 +2482,15 @@ export const COMMANDS: SlashCommand[] = [
     run: async (args, ctx) => {
       const project = ctx.store.getState().activeProject;
       if (!project) {
-        ctx.append(errorNote("No active project — pick one from the sidebar first."));
+        ctx.append(
+          errorNote("No active project — pick one from the sidebar first."),
+        );
         return;
       }
       const fw = args.trim() || undefined;
       try {
-        const { openTestRunnerPanel } = await import("@/components/TestRunnerPanel");
+        const { openTestRunnerPanel } =
+          await import("@/components/TestRunnerPanel");
         openTestRunnerPanel(fw);
       } catch (e) {
         ctx.append(errorNote(`/test failed to mount: ${humanizeError(e)}`));
@@ -2186,7 +2516,8 @@ export const COMMANDS: SlashCommand[] = [
     // `/refactor <path> :: <intent>` to pre-seed the focus input.
     name: "refactor",
     aliases: ["refac", "refactors"],
-    description: "AI-propose specific refactors for a file (before/after, with rationale)",
+    description:
+      "AI-propose specific refactors for a file (before/after, with rationale)",
     usage: "[path] [:: intent]",
     run: async (args, ctx) => {
       const raw = args.trim();
@@ -2212,9 +2543,8 @@ export const COMMANDS: SlashCommand[] = [
         return;
       }
       try {
-        const { openRefactorSuggesterModal } = await import(
-          "@/components/RefactorSuggesterModal"
-        );
+        const { openRefactorSuggesterModal } =
+          await import("@/components/RefactorSuggesterModal");
         openRefactorSuggesterModal(path, intent);
       } catch (e) {
         ctx.append(errorNote(`/refactor failed to mount: ${humanizeError(e)}`));
@@ -2308,7 +2638,10 @@ function tokensBreakdownMessage(b: ContextBreakdown): Message {
     { label: "CLAUDE.md", chars: b.claude_md_chars },
     { label: "rules", chars: b.rules_chars },
     { label: "repo map", chars: b.repo_map_chars },
-    { label: `history (${b.history_message_count} msgs)`, chars: b.history_chars },
+    {
+      label: `history (${b.history_message_count} msgs)`,
+      chars: b.history_chars,
+    },
     { label: "attached files", chars: b.attached_files_chars },
   ];
   const totalChars = rows.reduce((acc, r) => acc + r.chars, 0);
@@ -2323,7 +2656,8 @@ function tokensBreakdownMessage(b: ContextBreakdown): Message {
     "| Component | Chars | ~Tokens | % |",
     "|---|---:|---:|---:|",
     ...rows.map(
-      (r) => `| ${r.label} | ${fmt(r.chars)} | ${fmt(tokens(r.chars))} | ${pct(r.chars)}% |`,
+      (r) =>
+        `| ${r.label} | ${fmt(r.chars)} | ${fmt(tokens(r.chars))} | ${pct(r.chars)}% |`,
     ),
     `| **total** | **${fmt(totalChars)}** | **${fmt(b.total_estimated_tokens)}** | **100%** |`,
   ];
@@ -2351,7 +2685,9 @@ const INDEX: Map<string, SlashCommand> = (() => {
  * Split a raw input like `"/compact   foo bar"` into `{ name, args }`.
  * Returns null when the input doesn't start with `/` or has no name word.
  */
-export function parseInput(input: string): { name: string; args: string } | null {
+export function parseInput(
+  input: string,
+): { name: string; args: string } | null {
   if (!input.startsWith("/")) return null;
   const match = input.slice(1).match(/^(\S+)\s*([\s\S]*)$/);
   return match ? { name: match[1], args: match[2] } : null;
@@ -2386,9 +2722,13 @@ export function listMatching(prefix: string): SlashCommand[] {
 /** Build a SlashContext bound to the live store. */
 export function makeContext(): SlashContext {
   return {
-    store: { getState: useCortexStore.getState, setState: useCortexStore.setState },
+    store: {
+      getState: useCortexStore.getState,
+      setState: useCortexStore.setState,
+    },
     append: (msg) => useCortexStore.getState().appendMessage(msg),
-    notify: (title, body, kind) => pushToast({ title, body, kind: kind ?? "info" }),
+    notify: (title, body, kind) =>
+      pushToast({ title, body, kind: kind ?? "info" }),
   };
 }
 
@@ -2419,9 +2759,8 @@ COMMANDS.push({
   description: "Open the custom slash command builder",
   run: async (_a, ctx) => {
     try {
-      const { openCustomSlashBuilder } = await import(
-        "@/components/CustomSlashBuilder"
-      );
+      const { openCustomSlashBuilder } =
+        await import("@/components/CustomSlashBuilder");
       openCustomSlashBuilder();
     } catch (e) {
       ctx.append({
@@ -2442,9 +2781,8 @@ rebuildSlashIndex();
 // rather than blocking the chat input.
 void (async () => {
   try {
-    const { loadCustomSlashes, pushCustomSlashes } = await import(
-      "@/lib/custom-slashes"
-    );
+    const { loadCustomSlashes, pushCustomSlashes } =
+      await import("@/lib/custom-slashes");
     const loaded = await loadCustomSlashes();
     if (loaded.length > 0) {
       pushCustomSlashes(loaded);
@@ -2464,9 +2802,8 @@ COMMANDS.push({
   description: "Toggle the markdown preview pane in the editor",
   run: async (_a, ctx) => {
     const path = ctx.store.getState().editorPath;
-    const { isMarkdownPath, toggleMarkdownPreview } = await import(
-      "@/lib/markdown-preview"
-    );
+    const { isMarkdownPath, toggleMarkdownPreview } =
+      await import("@/lib/markdown-preview");
     if (!path) {
       ctx.notify("Preview", "Open a markdown file first.", "info");
       return;
@@ -2496,9 +2833,8 @@ COMMANDS.push({
   usage: "[since]",
   run: async (args, ctx) => {
     try {
-      const { openChangelogModal } = await import(
-        "@/components/ChangelogModal"
-      );
+      const { openChangelogModal } =
+        await import("@/components/ChangelogModal");
       openChangelogModal(args.trim() || undefined);
     } catch (e) {
       ctx.append({
@@ -2513,7 +2849,8 @@ COMMANDS.push({
 COMMANDS.push({
   name: "metrics",
   aliases: ["stats"],
-  description: "Jump to the Project metrics panel (lines / langs / largest files)",
+  description:
+    "Jump to the Project metrics panel (lines / langs / largest files)",
   run: (_a, ctx) => ctx.store.getState().setActivityTab("metrics"),
 });
 rebuildSlashIndex();
@@ -2540,9 +2877,8 @@ COMMANDS.push({
       return;
     }
     try {
-      const { openProjectDocGenModal } = await import(
-        "@/components/ProjectDocGenModal"
-      );
+      const { openProjectDocGenModal } =
+        await import("@/components/ProjectDocGenModal");
       openProjectDocGenModal("readme");
     } catch (e) {
       ctx.append({
@@ -2557,7 +2893,8 @@ COMMANDS.push({
 COMMANDS.push({
   name: "claude-md",
   aliases: ["claudemd", "claude"],
-  description: "AI-generate a CLAUDE.md (agent instructions) for the active project",
+  description:
+    "AI-generate a CLAUDE.md (agent instructions) for the active project",
   run: async (_a, ctx) => {
     const project = ctx.store.getState().activeProject;
     if (!project) {
@@ -2570,9 +2907,8 @@ COMMANDS.push({
       return;
     }
     try {
-      const { openProjectDocGenModal } = await import(
-        "@/components/ProjectDocGenModal"
-      );
+      const { openProjectDocGenModal } =
+        await import("@/components/ProjectDocGenModal");
       openProjectDocGenModal("claude-md");
     } catch (e) {
       ctx.append({
@@ -2600,9 +2936,8 @@ COMMANDS.push({
     const name = args.trim();
     if (!name) {
       try {
-        const { openWorkspacePresetsModal } = await import(
-          "@/components/WorkspacePresetsModal"
-        );
+        const { openWorkspacePresetsModal } =
+          await import("@/components/WorkspacePresetsModal");
         openWorkspacePresetsModal();
       } catch (e) {
         ctx.append({
@@ -2622,9 +2957,13 @@ COMMANDS.push({
         return;
       }
       const appliedSummary =
-        report.applied.length > 0 ? `applied: ${report.applied.join(", ")}` : "nothing applied";
+        report.applied.length > 0
+          ? `applied: ${report.applied.join(", ")}`
+          : "nothing applied";
       const skippedSummary =
-        report.skipped.length > 0 ? ` · skipped: ${report.skipped.join(", ")}` : "";
+        report.skipped.length > 0
+          ? ` · skipped: ${report.skipped.join(", ")}`
+          : "";
       ctx.notify(
         `Preset '${name}' applied`,
         `${appliedSummary}${skippedSummary}`,
@@ -2645,9 +2984,8 @@ COMMANDS.push({
   description: "Open the workspace presets modal (alias of /preset)",
   run: async (_a, ctx) => {
     try {
-      const { openWorkspacePresetsModal } = await import(
-        "@/components/WorkspacePresetsModal"
-      );
+      const { openWorkspacePresetsModal } =
+        await import("@/components/WorkspacePresetsModal");
       openWorkspacePresetsModal();
     } catch (e) {
       ctx.append({
@@ -2685,12 +3023,12 @@ rebuildSlashIndex();
 COMMANDS.push({
   name: "notifs",
   aliases: ["notifications"],
-  description: "Open the unified notification center (crashes + issues + audit + monitors + repo)",
+  description:
+    "Open the unified notification center (crashes + issues + audit + monitors + repo)",
   run: async (_a, ctx) => {
     try {
-      const { openNotificationCenter } = await import(
-        "@/lib/notification-center"
-      );
+      const { openNotificationCenter } =
+        await import("@/lib/notification-center");
       await openNotificationCenter();
     } catch (e) {
       ctx.append({
@@ -2833,7 +3171,8 @@ COMMANDS.push({
 COMMANDS.push({
   name: "bookmarks",
   aliases: ["stars"],
-  description: "Open the Bookmarks panel (pinned files, traces, sessions, URLs)",
+  description:
+    "Open the Bookmarks panel (pinned files, traces, sessions, URLs)",
   run: (_a, ctx) => ctx.store.getState().setActivityTab("bookmarks"),
 });
 rebuildSlashIndex();
@@ -2900,7 +3239,8 @@ rebuildSlashIndex();
 COMMANDS.push({
   name: "fix",
   aliases: ["debug"],
-  description: "AI-debug the most recent error and propose a unified-diff patch",
+  description:
+    "AI-debug the most recent error and propose a unified-diff patch",
   usage: "[crash|issue|test|chat|manual]",
   run: async (args, ctx) => {
     const raw = args.trim().toLowerCase();
@@ -2985,26 +3325,97 @@ rebuildSlashIndex();
 const CATEGORY_MAP: Record<string, string> = (() => {
   const m: Record<string, string> = {};
   const groups: Record<string, string[]> = {
-    Git: ["commit", "push", "ship", "stage", "conflict", "audit-deps", "commit-msg"],
+    Git: [
+      "commit",
+      "push",
+      "ship",
+      "stage",
+      "conflict",
+      "audit-deps",
+      "commit-msg",
+    ],
     AI: [
-      "ask", "explain", "why", "fix", "debug", "refactor", "docgen", "readme",
-      "claude-md", "summary", "gentest", "testgen", "changelog", "duck", "journal",
+      "ask",
+      "explain",
+      "why",
+      "fix",
+      "debug",
+      "refactor",
+      "docgen",
+      "readme",
+      "claude-md",
+      "summary",
+      "gentest",
+      "testgen",
+      "changelog",
+      "duck",
+      "journal",
     ],
     Memory: [
-      "memory", "memstats", "memnew", "new-memory", "brain-save", "dedupe",
-      "sync", "snapshot", "snap",
+      "memory",
+      "memstats",
+      "memnew",
+      "new-memory",
+      "brain-save",
+      "dedupe",
+      "sync",
+      "snapshot",
+      "snap",
     ],
     Project: [
-      "projects", "search", "find", "open", "p", "metrics", "stats", "deps",
-      "graph", "knowledge",
+      "projects",
+      "search",
+      "find",
+      "open",
+      "p",
+      "metrics",
+      "stats",
+      "deps",
+      "graph",
+      "knowledge",
     ],
-    Workflow: ["workflow", "wf", "preset", "layout", "team", "teams", "focus", "trust"],
+    Workflow: [
+      "workflow",
+      "wf",
+      "preset",
+      "layout",
+      "team",
+      "teams",
+      "focus",
+      "trust",
+    ],
     Cortex: [
-      "clear", "new", "reset", "settings", "shortcuts", "help", "tour",
-      "export", "save", "stop", "tokens", "usage", "compact", "note",
-      "cookbook", "routines", "eval", "setup", "research", "deep-research",
+      "clear",
+      "new",
+      "reset",
+      "settings",
+      "shortcuts",
+      "help",
+      "tour",
+      "export",
+      "save",
+      "stop",
+      "tokens",
+      "usage",
+      "compact",
+      "note",
+      "cookbook",
+      "routines",
+      "eval",
+      "setup",
+      "research",
+      "deep-research",
     ],
-    Debug: ["test", "audit", "crashes", "crash", "obs", "observability", "vault", "webhook"],
+    Debug: [
+      "test",
+      "audit",
+      "crashes",
+      "crash",
+      "obs",
+      "observability",
+      "vault",
+      "webhook",
+    ],
   };
   for (const [cat, names] of Object.entries(groups)) {
     for (const n of names) m[n.toLowerCase()] = cat;
@@ -3058,9 +3469,8 @@ COMMANDS.push({
       return;
     }
     try {
-      const { openConflictResolverModal } = await import(
-        "@/components/ConflictResolverModal"
-      );
+      const { openConflictResolverModal } =
+        await import("@/components/ConflictResolverModal");
       openConflictResolverModal(project.root);
     } catch (e) {
       ctx.append({
@@ -3098,9 +3508,7 @@ COMMANDS.push({
       return;
     }
     try {
-      const { openDepAuditModal } = await import(
-        "@/components/DepAuditModal"
-      );
+      const { openDepAuditModal } = await import("@/components/DepAuditModal");
       openDepAuditModal(project.root);
     } catch (e) {
       ctx.append({
@@ -3123,7 +3531,8 @@ COMMANDS.push({
 // `~/Documents/Cortex Brain/duck/<date>-<slug>.md`.
 COMMANDS.push({
   name: "duck",
-  description: "Open a Socratic rubber-duck chat (asks questions, never answers)",
+  description:
+    "Open a Socratic rubber-duck chat (asks questions, never answers)",
   usage: "[topic]",
   run: async (args, ctx) => {
     try {
@@ -3154,9 +3563,8 @@ COMMANDS.push({
   usage: "[YYYY-MM-DD]",
   run: async (args, ctx) => {
     try {
-      const { openDailyJournalModal } = await import(
-        "@/components/DailyJournalModal"
-      );
+      const { openDailyJournalModal } =
+        await import("@/components/DailyJournalModal");
       openDailyJournalModal(args.trim() || undefined);
     } catch (e) {
       ctx.append({
@@ -3192,9 +3600,8 @@ COMMANDS.push({
       return;
     }
     try {
-      const { openStashManagerModal } = await import(
-        "@/components/StashManagerModal"
-      );
+      const { openStashManagerModal } =
+        await import("@/components/StashManagerModal");
       openStashManagerModal();
     } catch (e) {
       ctx.append({
@@ -3250,9 +3657,8 @@ COMMANDS.push({
   description: "Configure + trigger the Gitea backup auto-mirror",
   run: async (_a, ctx) => {
     try {
-      const { openGiteaBackupPanel } = await import(
-        "@/components/GiteaBackupPanel"
-      );
+      const { openGiteaBackupPanel } =
+        await import("@/components/GiteaBackupPanel");
       openGiteaBackupPanel();
     } catch (e) {
       ctx.append({
@@ -3388,7 +3794,8 @@ rebuildSlashIndex();
 COMMANDS.push({
   name: "arena",
   aliases: ["compare"],
-  description: "Open the Model Arena (side-by-side A/B compare across 2-4 models)",
+  description:
+    "Open the Model Arena (side-by-side A/B compare across 2-4 models)",
   usage: "[prompt]",
   run: async (args, ctx) => {
     const prompt = args.trim();
@@ -3414,15 +3821,20 @@ rebuildSlashIndex();
 COMMANDS.push({
   name: "batch",
   aliases: ["kickoff", "foreach"],
-  description: "Run one prompt across N items in parallel (CrewAI kickoff_for_each)",
+  description:
+    "Run one prompt across N items in parallel (CrewAI kickoff_for_each)",
   usage: "[items pipe-separated] :: [prompt with {{item}}]",
   run: async (args, ctx) => {
     try {
-      const { openBatchRunnerModal } = await import("@/components/BatchRunnerModal");
+      const { openBatchRunnerModal } =
+        await import("@/components/BatchRunnerModal");
       const { parseBatchSlash } = await import("@/lib/batch-runner");
       const parsed = parseBatchSlash(args);
       if (parsed) {
-        openBatchRunnerModal({ items: parsed.items, prompt: parsed.promptTemplate });
+        openBatchRunnerModal({
+          items: parsed.items,
+          prompt: parsed.promptTemplate,
+        });
       } else {
         openBatchRunnerModal();
       }
@@ -3447,14 +3859,16 @@ rebuildSlashIndex();
 COMMANDS.push({
   name: "channel",
   aliases: ["channels"],
-  description: "Open multi-agent Channels (optionally pre-select / create by name)",
+  description:
+    "Open multi-agent Channels (optionally pre-select / create by name)",
   usage: "[name]",
   run: async (args, ctx) => {
     const name = args.trim();
     try {
       if (name) {
         const { openOrCreateChannelByName } = await import("@/lib/channels");
-        const { setChannelsPreselect } = await import("@/components/ChannelsPanel");
+        const { setChannelsPreselect } =
+          await import("@/components/ChannelsPanel");
         const channel = await openOrCreateChannelByName(name);
         setChannelsPreselect(channel.id);
       }
@@ -3485,9 +3899,8 @@ COMMANDS.push({
   run: async (args, ctx) => {
     const goal = args.trim();
     try {
-      const { openManagerProcessModal } = await import(
-        "@/components/ManagerProcessModal"
-      );
+      const { openManagerProcessModal } =
+        await import("@/components/ManagerProcessModal");
       openManagerProcessModal(goal || undefined);
     } catch (e) {
       ctx.append({
@@ -3548,7 +3961,10 @@ COMMANDS.push({
     }
     // Read the live textarea value — `input` is local to ChatPane, not in
     // the Zustand store, so the store doesn't reflect drafts.
-    const body = (document.querySelector<HTMLTextAreaElement>(".chat-input textarea")?.value ?? "").trim();
+    const body = (
+      document.querySelector<HTMLTextAreaElement>(".chat-input textarea")
+        ?.value ?? ""
+    ).trim();
     if (!body) {
       ctx.append(errorNote("/save-frag: composer is empty."));
       return;
@@ -3556,7 +3972,11 @@ COMMANDS.push({
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       await invoke("save_fragment", { name, body });
-      ctx.notify("Fragment saved", `Use @frag:${name} to inline it later.`, "success");
+      ctx.notify(
+        "Fragment saved",
+        `Use @frag:${name} to inline it later.`,
+        "success",
+      );
     } catch (e) {
       ctx.append(errorNote(`/save-frag failed: ${humanizeError(e)}`));
     }
@@ -3575,11 +3995,19 @@ COMMANDS.push({
       const { invoke } = await import("@tauri-apps/api/core");
       const names = await invoke<string[]>("list_fragments");
       if (names.length === 0) {
-        ctx.append(systemNote("No fragments yet. Save one with `/save-frag <name>` while a draft is open."));
+        ctx.append(
+          systemNote(
+            "No fragments yet. Save one with `/save-frag <name>` while a draft is open.",
+          ),
+        );
         return;
       }
       const body = names.map((n) => `- \`@frag:${n}\``).join("\n");
-      ctx.append(systemNote(`### Fragments (${names.length})\n\n${body}\n\nInline any of them with the listed @-token.`));
+      ctx.append(
+        systemNote(
+          `### Fragments (${names.length})\n\n${body}\n\nInline any of them with the listed @-token.`,
+        ),
+      );
     } catch (e) {
       ctx.append(errorNote(`/fragments failed: ${humanizeError(e)}`));
     }
@@ -3599,7 +4027,9 @@ COMMANDS.push({
     const p = (a ?? "").trim();
     if (!p) return;
     window.dispatchEvent(
-      new CustomEvent("cortex:composer-insert", { detail: { value: `@grep:${p}` } }),
+      new CustomEvent("cortex:composer-insert", {
+        detail: { value: `@grep:${p}` },
+      }),
     );
   },
 });
@@ -3610,7 +4040,8 @@ COMMANDS.push({
 // headline + body inline so the user can scan without context-switching.
 COMMANDS.push({
   name: "summarize",
-  description: "AI summary of this session (headline + body); add 'save' to also write to brain",
+  description:
+    "AI summary of this session (headline + body); add 'save' to also write to brain",
   usage: "[save]",
   run: async (a, ctx) => {
     const state = ctx.store.getState();
@@ -3627,7 +4058,11 @@ COMMANDS.push({
       ctx.notify("/summarize skipped", "Session has no messages.", "warning");
       return;
     }
-    ctx.notify("/summarize started", `Summarizing ${msgCount} message(s)…`, "info");
+    ctx.notify(
+      "/summarize started",
+      `Summarizing ${msgCount} message(s)…`,
+      "info",
+    );
     try {
       const { summarizeSession } = await import("@/lib/session-summary");
       const summary = await summarizeSession(sessionId, save);
@@ -3635,9 +4070,7 @@ COMMANDS.push({
         ? `\n\n_saved → ${summary.saved_path}_`
         : "";
       ctx.append(
-        systemNote(
-          `**${summary.headline}**\n\n${summary.body}${where}`,
-        ),
+        systemNote(`**${summary.headline}**\n\n${summary.body}${where}`),
       );
       ctx.notify(
         save ? "/summarize saved" : "/summarize done",
@@ -3676,9 +4109,9 @@ COMMANDS.push({
   run: async (_a, ctx) => {
     try {
       const { invoke } = await import("@tauri-apps/api/core");
-      const dirs = await invoke<Array<{ label: string; root: string; kind: string }>>(
-        "list_memory_sources",
-      );
+      const dirs = await invoke<
+        Array<{ label: string; root: string; kind: string }>
+      >("list_memory_sources");
       if (dirs.length === 0) {
         ctx.notify("/memory-paths", "No memory sources discovered.", "info");
         return;
@@ -3697,8 +4130,14 @@ COMMANDS.push({
       const sorted = [...dirs].sort(
         (a, b) => (kindOrder[b.kind] ?? 0) - (kindOrder[a.kind] ?? 0),
       );
-      const lines = sorted.map((d) => `${d.label}: ${d.root} (${d.kind})`).join("\n");
-      ctx.append(systemNote(`**Brain memory sources** (highest weight first)\n\n\`\`\`\n${lines}\n\`\`\``));
+      const lines = sorted
+        .map((d) => `${d.label}: ${d.root} (${d.kind})`)
+        .join("\n");
+      ctx.append(
+        systemNote(
+          `**Brain memory sources** (highest weight first)\n\n\`\`\`\n${lines}\n\`\`\``,
+        ),
+      );
     } catch (e) {
       ctx.notify("/memory-paths failed", humanizeError(e), "error");
     }
@@ -3743,7 +4182,8 @@ COMMANDS.push({
 // project. Cheaper view than @diff for "what's changed this session".
 COMMANDS.push({
   name: "diff-stats",
-  description: "Show git diff --stat (default vs HEAD; pass a ref to compare vs that)",
+  description:
+    "Show git diff --stat (default vs HEAD; pass a ref to compare vs that)",
   usage: "[ref]",
   run: async (a, ctx) => {
     const state = ctx.store.getState();
@@ -3763,13 +4203,21 @@ COMMANDS.push({
         ctx.notify("/diff-stats skipped", `Bad ref "${ref}".`, "warning");
         return;
       }
-      const out = await Command.create("git", ["-C", root, "diff", "--stat", ref]).execute();
+      const out = await Command.create("git", [
+        "-C",
+        root,
+        "diff",
+        "--stat",
+        ref,
+      ]).execute();
       const txt = (out.stdout ?? "").trim();
       if (!txt) {
         ctx.notify("/diff-stats", `No diff vs ${ref}.`, "info");
         return;
       }
-      ctx.append(systemNote(`**git diff --stat ${ref}**\n\n\`\`\`\n${txt}\n\`\`\``));
+      ctx.append(
+        systemNote(`**git diff --stat ${ref}**\n\n\`\`\`\n${txt}\n\`\`\``),
+      );
     } catch (e) {
       ctx.append(errorNote(`/diff-stats failed: ${humanizeError(e)}`));
     }
@@ -3792,10 +4240,13 @@ COMMANDS.push({
     }
     try {
       const { invoke } = await import("@tauri-apps/api/core");
-      const map = await invoke<{ files: Array<{ path: string; pagerank: number; symbols: Array<unknown> }> }>(
-        "compute_repo_map_command",
-        { projectRoot: root, maxFiles: 500 },
-      );
+      const map = await invoke<{
+        files: Array<{
+          path: string;
+          pagerank: number;
+          symbols: Array<unknown>;
+        }>;
+      }>("compute_repo_map_command", { projectRoot: root, maxFiles: 500 });
       // Wave 202 — accept optional N (clamp 1..=50; default 10).
       const argN = parseInt((a ?? "").trim(), 10);
       const n = Number.isFinite(argN) && argN > 0 ? Math.min(50, argN) : 10;
@@ -3812,9 +4263,14 @@ COMMANDS.push({
         return;
       }
       const lines = top
-        .map((f, i) => `${i + 1}. ${f.path} ★${f.pagerank.toFixed(2)} (${f.symbols.length} symbols)`)
+        .map(
+          (f, i) =>
+            `${i + 1}. ${f.path} ★${f.pagerank.toFixed(2)} (${f.symbols.length} symbols)`,
+        )
         .join("\n");
-      ctx.append(systemNote(`**Top ${n} by PageRank**\n\n\`\`\`\n${lines}\n\`\`\``));
+      ctx.append(
+        systemNote(`**Top ${n} by PageRank**\n\n\`\`\`\n${lines}\n\`\`\``),
+      );
     } catch (e) {
       ctx.append(errorNote(`/repomap-top failed: ${humanizeError(e)}`));
     }
@@ -3826,10 +4282,12 @@ COMMANDS.push({
 // understand why specific files surface in @brain results.
 COMMANDS.push({
   name: "extracted",
-  description: "Show the terms the brain extracts from <text> (or current draft if empty)",
+  description:
+    "Show the terms the brain extracts from <text> (or current draft if empty)",
   usage: "[text]",
   run: async (a, ctx) => {
-    const draft = (a ?? "").trim() ||
+    const draft =
+      (a ?? "").trim() ||
       "(empty — pass text after /extracted to test extraction)";
     try {
       const { invoke } = await import("@tauri-apps/api/core");
@@ -3838,13 +4296,17 @@ COMMANDS.push({
         { message: draft },
       );
       if (terms.length === 0) {
-        ctx.notify("/extracted", "No terms after stopword + length filters.", "info");
+        ctx.notify(
+          "/extracted",
+          "No terms after stopword + length filters.",
+          "info",
+        );
         return;
       }
-      const lines = terms.map((t) => `  ${t.text} ×${t.boost.toFixed(1)}`).join("\n");
-      ctx.append(
-        systemNote(`**Extracted terms**\n\n\`\`\`\n${lines}\n\`\`\``),
-      );
+      const lines = terms
+        .map((t) => `  ${t.text} ×${t.boost.toFixed(1)}`)
+        .join("\n");
+      ctx.append(systemNote(`**Extracted terms**\n\n\`\`\`\n${lines}\n\`\`\``));
     } catch (e) {
       ctx.append(errorNote(`/extracted failed: ${humanizeError(e)}`));
     }
@@ -3855,7 +4317,8 @@ COMMANDS.push({
 // + ChatGPT button uses, then runs the Rust importer. Result toasted.
 COMMANDS.push({
   name: "import-chatgpt",
-  description: "Pick a ChatGPT conversations.json and import threads into Cortex",
+  description:
+    "Pick a ChatGPT conversations.json and import threads into Cortex",
   run: async (_a, ctx) => {
     try {
       const { open } = await import("@tauri-apps/plugin-dialog");
@@ -3864,12 +4327,17 @@ COMMANDS.push({
         filters: [{ name: "ChatGPT export", extensions: ["json"] }],
       });
       if (!selected || typeof selected !== "string") return;
-      ctx.notify("ChatGPT import started", "Parsing conversations.json…", "info");
-      const { invoke } = await import("@tauri-apps/api/core");
-      const result = await invoke<{ imported: number; skipped: number; out_dir: string }>(
-        "import_chatgpt_export",
-        { path: selected },
+      ctx.notify(
+        "ChatGPT import started",
+        "Parsing conversations.json…",
+        "info",
       );
+      const { invoke } = await import("@tauri-apps/api/core");
+      const result = await invoke<{
+        imported: number;
+        skipped: number;
+        out_dir: string;
+      }>("import_chatgpt_export", { path: selected });
       ctx.notify(
         "ChatGPT import complete",
         `${result.imported} new, ${result.skipped} skipped → ${result.out_dir}`,
@@ -3881,7 +4349,17 @@ COMMANDS.push({
   },
 });
 
-for (const tok of ["brain", "diff", "recent", "status", "repomap", "cwd", "env", "ls", "log"]) {
+for (const tok of [
+  "brain",
+  "diff",
+  "recent",
+  "status",
+  "repomap",
+  "cwd",
+  "env",
+  "ls",
+  "log",
+]) {
   COMMANDS.push({
     name: tok,
     description: `Attach @${tok} to the current draft (one-shot context from the brain / git)`,
@@ -3891,11 +4369,17 @@ for (const tok of ["brain", "diff", "recent", "status", "repomap", "cwd", "env",
       // `/brain on|off` flips the auto-trigger flag instead of inserting.
       if (tok === "brain" && (arg === "on" || arg === "off")) {
         ctx.store.getState().setBrainAutoEnabled(arg === "on");
-        ctx.notify(`Brain auto-trigger ${arg === "on" ? "ON" : "OFF"}`, "", "info");
+        ctx.notify(
+          `Brain auto-trigger ${arg === "on" ? "ON" : "OFF"}`,
+          "",
+          "info",
+        );
         return;
       }
       window.dispatchEvent(
-        new CustomEvent("cortex:composer-insert", { detail: { value: `@${tok}` } }),
+        new CustomEvent("cortex:composer-insert", {
+          detail: { value: `@${tok}` },
+        }),
       );
     },
   });

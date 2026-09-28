@@ -80,8 +80,8 @@ pub async fn import_chatgpt_export(path: String) -> Result<ImportResult, String>
         }
         let raw = fs::read_to_string(&p).map_err(|e| format!("read {}: {e}", p.display()))?;
         // Top level may be either an array of conversations OR a single object.
-        let value: serde_json::Value = serde_json::from_str(&raw)
-            .map_err(|e| format!("parse {}: {e}", p.display()))?;
+        let value: serde_json::Value =
+            serde_json::from_str(&raw).map_err(|e| format!("parse {}: {e}", p.display()))?;
         let convs: Vec<Conversation> = match value {
             serde_json::Value::Array(arr) => arr
                 .into_iter()
@@ -100,8 +100,20 @@ pub async fn import_chatgpt_export(path: String) -> Result<ImportResult, String>
         let mut imported = 0usize;
         let mut skipped = 0usize;
         for conv in convs {
-            let id = conv.id.clone().unwrap_or_else(|| format!("conv-{}", imported));
-            let safe_id: String = id.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' }).collect();
+            let id = conv
+                .id
+                .clone()
+                .unwrap_or_else(|| format!("conv-{}", imported));
+            let safe_id: String = id
+                .chars()
+                .map(|c| {
+                    if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                        c
+                    } else {
+                        '-'
+                    }
+                })
+                .collect();
             let out_path = out_dir.join(format!("{safe_id}.jsonl"));
             if out_path.exists() {
                 skipped += 1;
@@ -121,7 +133,8 @@ pub async fn import_chatgpt_export(path: String) -> Result<ImportResult, String>
                     "timestamp": ms_to_iso(ts_ms),
                     "message": { "role": role, "content": text }
                 });
-                writeln!(file, "{}", row).map_err(|e| format!("write {}: {e}", out_path.display()))?;
+                writeln!(file, "{}", row)
+                    .map_err(|e| format!("write {}: {e}", out_path.display()))?;
             }
             imported += 1;
         }
@@ -152,12 +165,26 @@ fn flatten(conv: &Conversation) -> Vec<(String, String, i64)> {
     // (seq, role, text, ts_ms). `seq` is the tree-traversal index.
     let mut rows: Vec<(usize, String, String, i64)> = Vec::new();
     for (node_key, node) in conv.mapping.iter() {
-        let Some(msg) = node.message.as_ref() else { continue };
-        let role = msg.author.as_ref().and_then(|a| a.role.clone()).unwrap_or_default();
-        if role != "user" && role != "assistant" { continue; }
-        let Some(content) = msg.content.as_ref() else { continue };
-        if content.content_type.as_deref().unwrap_or("text") != "text" { continue; }
-        let Some(parts) = content.parts.as_ref() else { continue };
+        let Some(msg) = node.message.as_ref() else {
+            continue;
+        };
+        let role = msg
+            .author
+            .as_ref()
+            .and_then(|a| a.role.clone())
+            .unwrap_or_default();
+        if role != "user" && role != "assistant" {
+            continue;
+        }
+        let Some(content) = msg.content.as_ref() else {
+            continue;
+        };
+        if content.content_type.as_deref().unwrap_or("text") != "text" {
+            continue;
+        }
+        let Some(parts) = content.parts.as_ref() else {
+            continue;
+        };
         let text: String = parts
             .iter()
             .filter_map(|p| match p {
@@ -167,7 +194,9 @@ fn flatten(conv: &Conversation) -> Vec<(String, String, i64)> {
             .collect::<Vec<_>>()
             .join("\n");
         let text = text.trim();
-        if text.is_empty() { continue; }
+        if text.is_empty() {
+            continue;
+        }
         let ts_ms = msg
             .create_time
             .map(|t| (t * 1000.0) as i64)
@@ -183,7 +212,9 @@ fn flatten(conv: &Conversation) -> Vec<(String, String, i64)> {
     // Stable sort by timestamp, with the tree-traversal sequence as a
     // deterministic secondary key so equal/zero timestamps keep a defined order.
     rows.sort_by(|a, b| a.3.cmp(&b.3).then(a.0.cmp(&b.0)));
-    rows.into_iter().map(|(_, role, text, ts)| (role, text, ts)).collect()
+    rows.into_iter()
+        .map(|(_, role, text, ts)| (role, text, ts))
+        .collect()
 }
 
 /// Build a map from node-id to its position in a depth-first walk of the
@@ -227,8 +258,11 @@ fn node_order(conv: &Conversation) -> HashMap<String, usize> {
 
     // Any nodes unreachable from a root (malformed export): append in sorted
     // key order so they still get a deterministic sequence.
-    let mut leftovers: Vec<&String> =
-        conv.mapping.keys().filter(|k| !order.contains_key(*k)).collect();
+    let mut leftovers: Vec<&String> = conv
+        .mapping
+        .keys()
+        .filter(|k| !order.contains_key(*k))
+        .collect();
     leftovers.sort();
     for key in leftovers {
         order.insert(key.clone(), seq);

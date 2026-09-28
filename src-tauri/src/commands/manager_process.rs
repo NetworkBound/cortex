@@ -80,7 +80,9 @@ pub struct Subtask {
     pub output: Option<String>,
 }
 
-fn default_status() -> String { "pending".into() }
+fn default_status() -> String {
+    "pending".into()
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Plan {
@@ -141,7 +143,10 @@ fn store_plan(plan: Plan) {
     prune(&mut reg);
     reg.insert(
         plan.plan_id.clone(),
-        StoredPlan { plan, last_touch: Instant::now() },
+        StoredPlan {
+            plan,
+            last_touch: Instant::now(),
+        },
     );
 }
 
@@ -168,10 +173,7 @@ fn update_plan<F: FnOnce(&mut Plan)>(plan_id: &str, f: F) -> Result<Plan, String
 // ── Tauri commands ─────────────────────────────────────────────────────────
 
 #[tauri::command]
-pub async fn manager_decompose(
-    goal: String,
-    state: State<'_, AppState>,
-) -> Result<Plan, String> {
+pub async fn manager_decompose(goal: String, state: State<'_, AppState>) -> Result<Plan, String> {
     let goal_trim = goal.trim().to_string();
     if goal_trim.is_empty() {
         return Err("goal is required".into());
@@ -195,9 +197,8 @@ pub async fn manager_decompose(
         .collect::<Vec<_>>()
         .join("\n");
 
-    let user_prompt = format!(
-        "GOAL:\n{goal_trim}\n\nAVAILABLE ROLES:\n{role_summary}\n\nReturn the JSON plan.",
-    );
+    let user_prompt =
+        format!("GOAL:\n{goal_trim}\n\nAVAILABLE ROLES:\n{role_summary}\n\nReturn the JSON plan.",);
 
     let raw = call_gateway(
         &client,
@@ -271,7 +272,12 @@ pub async fn manager_run_step(
     let subtask = plan
         .subtasks
         .get(step_index)
-        .ok_or_else(|| format!("step {step_index} out of range (plan has {} subtasks)", plan.subtasks.len()))?
+        .ok_or_else(|| {
+            format!(
+                "step {step_index} out of range (plan has {} subtasks)",
+                plan.subtasks.len()
+            )
+        })?
         .clone();
 
     // Resolve the role's system prompt. Missing roles fall back to a neutral
@@ -281,7 +287,12 @@ pub async fn manager_run_step(
     let system_prompt = role
         .as_ref()
         .and_then(|r| r.system_prompt.clone())
-        .unwrap_or_else(|| format!("You are a '{}' specialist. Complete the task precisely.", subtask.role));
+        .unwrap_or_else(|| {
+            format!(
+                "You are a '{}' specialist. Complete the task precisely.",
+                subtask.role
+            )
+        });
 
     let cfg = state.config.read().clone();
     let api_key = AppState::get_gateway_api_key().unwrap_or_default();
@@ -302,14 +313,14 @@ pub async fn manager_run_step(
         for dep in &subtask.depends_on {
             if let Some(prev) = plan.subtasks.get(*dep) {
                 let body = prev.output.as_deref().unwrap_or("(no output)");
-                context.push_str(&format!(
-                    "--- Step {dep} ({}) ---\n{body}\n\n",
-                    prev.name
-                ));
+                context.push_str(&format!("--- Step {dep} ({}) ---\n{body}\n\n", prev.name));
             }
         }
     }
-    context.push_str(&format!("YOUR TASK ({}):\n{}", subtask.name, subtask.prompt));
+    context.push_str(&format!(
+        "YOUR TASK ({}):\n{}",
+        subtask.name, subtask.prompt
+    ));
 
     let run_result = call_gateway(
         &client,
@@ -373,7 +384,12 @@ pub async fn manager_validate(
     let subtask = plan
         .subtasks
         .get(step_index)
-        .ok_or_else(|| format!("step {step_index} out of range (plan has {} subtasks)", plan.subtasks.len()))?
+        .ok_or_else(|| {
+            format!(
+                "step {step_index} out of range (plan has {} subtasks)",
+                plan.subtasks.len()
+            )
+        })?
         .clone();
 
     let cfg = state.config.read().clone();
@@ -434,8 +450,14 @@ async fn call_gateway(
     let req = ChatCompletionRequest {
         model: model.to_string(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: system_prompt.into() },
-            ChatMessage { role: "user".into(), content: user_prompt.into() },
+            ChatMessage {
+                role: "system".into(),
+                content: system_prompt.into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: user_prompt.into(),
+            },
         ],
         stream: true,
         temperature,
@@ -464,7 +486,10 @@ async fn call_gateway(
     .await
     {
         Ok(body) => Ok(body),
-        Err(_) => Err(format!("The gateway timed out after {}s", timeout.as_secs())),
+        Err(_) => Err(format!(
+            "The gateway timed out after {}s",
+            timeout.as_secs()
+        )),
     }
 }
 

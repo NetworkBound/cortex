@@ -3,7 +3,7 @@
   --accent: #fb923c;
   --accent-fg: #1a1206;
   --accent-glow: rgba(251, 146, 60, 0.22);
-  --accent-soft: rgba(251, 146, 60, 0.10);
+  --accent-soft: rgba(251, 146, 60, 0.1);
 
   --bg: #0a0a0b;
   --bg-elev: #141416;
@@ -45,8 +45,9 @@ body,
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
   font-size: 15px;
   line-height: 1.5;
   overscroll-behavior-y: none;

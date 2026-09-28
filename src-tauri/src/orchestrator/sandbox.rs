@@ -143,14 +143,14 @@ pub(crate) const READ_TOKENS: &[&str] = &[
 /// require `WorkspaceWrite` or higher and (for writes) a path inside the
 /// project root.
 pub(crate) const WRITE_TOKENS: &[&str] = &[
-    "write", "edit", "patch", "create", "delete", "remove", "apply", "run_",
-    "exec", "shell", "bash", "save", "modify", "append", "update", "insert",
-    "mkdir", "rmdir", "move", "rename", "copy", "chmod", "chown", "touch",
-    "mv", "cp", "rm", "set", "put", "upload", "format", "truncate", "replace",
+    "write", "edit", "patch", "create", "delete", "remove", "apply", "run_", "exec", "shell",
+    "bash", "save", "modify", "append", "update", "insert", "mkdir", "rmdir", "move", "rename",
+    "copy", "chmod", "chown", "touch", "mv", "cp", "rm", "set", "put", "upload", "format",
+    "truncate", "replace",
     // State-mutating verbs that can pair with a read token (e.g.
     // `git_status_reset`) and would otherwise slip through ReadOnly.
-    "reset", "revert", "drop", "destroy", "kill", "prune", "clean", "wipe",
-    "purge", "push", "commit", "merge", "rebase", "stash", "checkout",
+    "reset", "revert", "drop", "destroy", "kill", "prune", "clean", "wipe", "purge", "push",
+    "commit", "merge", "rebase", "stash", "checkout",
 ];
 
 pub(crate) fn name_matches_any(name: &str, tokens: &[&str]) -> bool {
@@ -162,8 +162,20 @@ pub(crate) fn name_matches_any(name: &str, tokens: &[&str]) -> bool {
 /// path. Matched as substrings so adapter-specific spellings (`out_path`,
 /// `dst_file`, `output_filename`, …) are all covered.
 const PATH_KEY_TOKENS: &[&str] = &[
-    "path", "file", "dir", "dest", "destination", "src", "source", "target",
-    "output", "out", "input", "filename", "folder", "location",
+    "path",
+    "file",
+    "dir",
+    "dest",
+    "destination",
+    "src",
+    "source",
+    "target",
+    "output",
+    "out",
+    "input",
+    "filename",
+    "folder",
+    "location",
 ];
 
 /// Heuristic: does this string value look like a filesystem path we must
@@ -441,10 +453,7 @@ pub fn tier_allows(
             // since their command string isn't a single confined target; pure
             // write/edit tools must name an in-root path.
             if paths.is_empty() {
-                let is_exec = name_matches_any(
-                    tool_name,
-                    &["run_", "exec", "shell", "bash"],
-                );
+                let is_exec = name_matches_any(tool_name, &["run_", "exec", "shell", "bash"]);
                 if is_exec {
                     return Ok(());
                 }
@@ -489,8 +498,8 @@ pub fn tier_allows_mcp(
     payload_json: &str,
     project_root: Option<&Path>,
 ) -> Result<(), String> {
-    let is_read = name_matches_any(bare_tool, READ_TOKENS)
-        && !name_matches_any(bare_tool, WRITE_TOKENS);
+    let is_read =
+        name_matches_any(bare_tool, READ_TOKENS) && !name_matches_any(bare_tool, WRITE_TOKENS);
     let is_write = name_matches_any(bare_tool, WRITE_TOKENS);
     if is_read || is_write {
         return tier_allows(tier, bare_tool, payload_json, project_root);
@@ -527,7 +536,11 @@ mod tests {
 
     #[test]
     fn parse_and_stringify_round_trip() {
-        for t in [SandboxTier::ReadOnly, SandboxTier::WorkspaceWrite, SandboxTier::DangerFullAccess] {
+        for t in [
+            SandboxTier::ReadOnly,
+            SandboxTier::WorkspaceWrite,
+            SandboxTier::DangerFullAccess,
+        ] {
             assert_eq!(SandboxTier::parse(t.as_str()), Some(t));
         }
         assert_eq!(SandboxTier::parse("READ-ONLY"), Some(SandboxTier::ReadOnly));
@@ -549,10 +562,16 @@ mod tests {
         let p: Option<&Path> = None;
         let t = SandboxTier::ReadOnly;
         for name in ["read_file", "fs.search", "grep_files", "view_file"] {
-            assert!(tier_allows(t, name, "{}", p).is_ok(), "expected allow: {name}");
+            assert!(
+                tier_allows(t, name, "{}", p).is_ok(),
+                "expected allow: {name}"
+            );
         }
         for name in ["write_file", "run_bash", "patch_apply"] {
-            assert!(tier_allows(t, name, "{}", p).is_err(), "expected deny: {name}");
+            assert!(
+                tier_allows(t, name, "{}", p).is_err(),
+                "expected deny: {name}"
+            );
         }
     }
 
@@ -613,8 +632,7 @@ mod tests {
             }
         }
         // A read-only shell command targeting the registry is denied as well.
-        let payload =
-            serde_json::json!({ "cmd": "cat ~/.cortex/mcp-servers.json" }).to_string();
+        let payload = serde_json::json!({ "cmd": "cat ~/.cortex/mcp-servers.json" }).to_string();
         assert!(tier_allows(SandboxTier::ReadOnly, "shell_exec", &payload, p).is_err());
     }
 
@@ -664,7 +682,12 @@ mod tests {
             );
         }
         // A mutating / executing command stays denied.
-        for cmd in ["rm -rf build", "git push --force", "python evil.py", "cargo build"] {
+        for cmd in [
+            "rm -rf build",
+            "git push --force",
+            "python evil.py",
+            "cargo build",
+        ] {
             let payload = serde_json::json!({ "cmd": cmd }).to_string();
             assert!(
                 tier_allows(t, "run_shell", &payload, p).is_err(),
@@ -692,10 +715,13 @@ mod tests {
 
     #[test]
     fn danger_full_access_allows_anything() {
-        assert!(
-            tier_allows(SandboxTier::DangerFullAccess, "rm_rf", r#"{"path":"/"}"#, None)
-                .is_ok()
-        );
+        assert!(tier_allows(
+            SandboxTier::DangerFullAccess,
+            "rm_rf",
+            r#"{"path":"/"}"#,
+            None
+        )
+        .is_ok());
     }
 
     /// Issue 008: classified MCP names inherit `tier_allows` behavior exactly.

@@ -93,18 +93,114 @@ struct CatalogItem {
 // rough working-set to run quantized on CPU; `recommended_vram_gb` is the GPU
 // path (0 = comfortably CPU-friendly). Kept deliberately small + opinionated.
 const CATALOG: &[CatalogItem] = &[
-    CatalogItem { name: "llama3.2:1b",        label: "Llama 3.2 1B",        tier: "general",   params_b: 1.0,  download_gb: 1.3, min_ram_gb: 3.0,  recommended_vram_gb: 0.0 },
-    CatalogItem { name: "qwen2.5-coder:1.5b", label: "Qwen2.5 Coder 1.5B",  tier: "coding",    params_b: 1.5,  download_gb: 1.0, min_ram_gb: 4.0,  recommended_vram_gb: 0.0 },
-    CatalogItem { name: "deepseek-r1:1.5b",   label: "DeepSeek-R1 1.5B",    tier: "reasoning", params_b: 1.5,  download_gb: 1.1, min_ram_gb: 4.0,  recommended_vram_gb: 0.0 },
-    CatalogItem { name: "gemma2:2b",          label: "Gemma 2 2B",          tier: "general",   params_b: 2.0,  download_gb: 1.6, min_ram_gb: 5.0,  recommended_vram_gb: 0.0 },
-    CatalogItem { name: "llama3.2:3b",        label: "Llama 3.2 3B",        tier: "general",   params_b: 3.0,  download_gb: 2.0, min_ram_gb: 6.0,  recommended_vram_gb: 0.0 },
-    CatalogItem { name: "qwen2.5:7b",         label: "Qwen 2.5 7B",         tier: "general",   params_b: 7.0,  download_gb: 4.7, min_ram_gb: 9.0,  recommended_vram_gb: 6.0 },
-    CatalogItem { name: "qwen2.5-coder:7b",   label: "Qwen2.5 Coder 7B",    tier: "coding",    params_b: 7.0,  download_gb: 4.7, min_ram_gb: 9.0,  recommended_vram_gb: 6.0 },
-    CatalogItem { name: "deepseek-r1:7b",     label: "DeepSeek-R1 7B",      tier: "reasoning", params_b: 7.0,  download_gb: 4.7, min_ram_gb: 9.0,  recommended_vram_gb: 6.0 },
-    CatalogItem { name: "mistral:7b",         label: "Mistral 7B",          tier: "general",   params_b: 7.0,  download_gb: 4.1, min_ram_gb: 9.0,  recommended_vram_gb: 6.0 },
-    CatalogItem { name: "llava:7b",           label: "LLaVA 7B (vision)",   tier: "vision",    params_b: 7.0,  download_gb: 4.7, min_ram_gb: 9.0,  recommended_vram_gb: 6.0 },
-    CatalogItem { name: "llama3.1:8b",        label: "Llama 3.1 8B",        tier: "general",   params_b: 8.0,  download_gb: 4.9, min_ram_gb: 10.0, recommended_vram_gb: 6.0 },
-    CatalogItem { name: "qwen2.5:14b",        label: "Qwen 2.5 14B",        tier: "general",   params_b: 14.0, download_gb: 9.0, min_ram_gb: 18.0, recommended_vram_gb: 12.0 },
+    CatalogItem {
+        name: "llama3.2:1b",
+        label: "Llama 3.2 1B",
+        tier: "general",
+        params_b: 1.0,
+        download_gb: 1.3,
+        min_ram_gb: 3.0,
+        recommended_vram_gb: 0.0,
+    },
+    CatalogItem {
+        name: "qwen2.5-coder:1.5b",
+        label: "Qwen2.5 Coder 1.5B",
+        tier: "coding",
+        params_b: 1.5,
+        download_gb: 1.0,
+        min_ram_gb: 4.0,
+        recommended_vram_gb: 0.0,
+    },
+    CatalogItem {
+        name: "deepseek-r1:1.5b",
+        label: "DeepSeek-R1 1.5B",
+        tier: "reasoning",
+        params_b: 1.5,
+        download_gb: 1.1,
+        min_ram_gb: 4.0,
+        recommended_vram_gb: 0.0,
+    },
+    CatalogItem {
+        name: "gemma2:2b",
+        label: "Gemma 2 2B",
+        tier: "general",
+        params_b: 2.0,
+        download_gb: 1.6,
+        min_ram_gb: 5.0,
+        recommended_vram_gb: 0.0,
+    },
+    CatalogItem {
+        name: "llama3.2:3b",
+        label: "Llama 3.2 3B",
+        tier: "general",
+        params_b: 3.0,
+        download_gb: 2.0,
+        min_ram_gb: 6.0,
+        recommended_vram_gb: 0.0,
+    },
+    CatalogItem {
+        name: "qwen2.5:7b",
+        label: "Qwen 2.5 7B",
+        tier: "general",
+        params_b: 7.0,
+        download_gb: 4.7,
+        min_ram_gb: 9.0,
+        recommended_vram_gb: 6.0,
+    },
+    CatalogItem {
+        name: "qwen2.5-coder:7b",
+        label: "Qwen2.5 Coder 7B",
+        tier: "coding",
+        params_b: 7.0,
+        download_gb: 4.7,
+        min_ram_gb: 9.0,
+        recommended_vram_gb: 6.0,
+    },
+    CatalogItem {
+        name: "deepseek-r1:7b",
+        label: "DeepSeek-R1 7B",
+        tier: "reasoning",
+        params_b: 7.0,
+        download_gb: 4.7,
+        min_ram_gb: 9.0,
+        recommended_vram_gb: 6.0,
+    },
+    CatalogItem {
+        name: "mistral:7b",
+        label: "Mistral 7B",
+        tier: "general",
+        params_b: 7.0,
+        download_gb: 4.1,
+        min_ram_gb: 9.0,
+        recommended_vram_gb: 6.0,
+    },
+    CatalogItem {
+        name: "llava:7b",
+        label: "LLaVA 7B (vision)",
+        tier: "vision",
+        params_b: 7.0,
+        download_gb: 4.7,
+        min_ram_gb: 9.0,
+        recommended_vram_gb: 6.0,
+    },
+    CatalogItem {
+        name: "llama3.1:8b",
+        label: "Llama 3.1 8B",
+        tier: "general",
+        params_b: 8.0,
+        download_gb: 4.9,
+        min_ram_gb: 10.0,
+        recommended_vram_gb: 6.0,
+    },
+    CatalogItem {
+        name: "qwen2.5:14b",
+        label: "Qwen 2.5 14B",
+        tier: "general",
+        params_b: 14.0,
+        download_gb: 9.0,
+        min_ram_gb: 18.0,
+        recommended_vram_gb: 12.0,
+    },
 ];
 
 // ----- pure helpers (unit-tested without a live host/server) -----
@@ -159,21 +255,36 @@ fn parse_lspci_vga(out: &str) -> Option<String> {
 fn parse_pull_line(name: &str, line: &str) -> Option<PullProgress> {
     let v: serde_json::Value = serde_json::from_str(line.trim()).ok()?;
     let status = v.get("status").and_then(|s| s.as_str())?.to_string();
-    let total = v.get("total").and_then(serde_json::Value::as_u64).unwrap_or(0);
-    let completed = v.get("completed").and_then(serde_json::Value::as_u64).unwrap_or(0);
+    let total = v
+        .get("total")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
+    let completed = v
+        .get("completed")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
     let pct = if total > 0 {
         ((completed as f32 / total as f32) * 100.0).clamp(0.0, 100.0)
     } else {
         0.0
     };
-    Some(PullProgress { name: name.to_string(), status, completed, total, pct })
+    Some(PullProgress {
+        name: name.to_string(),
+        status,
+        completed,
+        total,
+        pct,
+    })
 }
 
 /// Rank the catalog against the host: fitting models first (installed bubble to
 /// the very top), then smallest-first within a bucket so the safe pick leads.
 fn rank_catalog(specs: &HostSpecs, installed: &[String]) -> Vec<ModelRec> {
     let ram_gb = specs.ram_avail_mb as f32 / 1024.0;
-    let vram_gb = specs.vram_total_mb.map(|m| m as f32 / 1024.0).unwrap_or(0.0);
+    let vram_gb = specs
+        .vram_total_mb
+        .map(|m| m as f32 / 1024.0)
+        .unwrap_or(0.0);
     let mut recs: Vec<ModelRec> = CATALOG
         .iter()
         .map(|c| {
@@ -185,9 +296,21 @@ fn rank_catalog(specs: &HostSpecs, installed: &[String]) -> Vec<ModelRec> {
             let (fits, fit_reason) = if gpu_fits {
                 (true, format!("fits your {vram_gb:.0} GB GPU"))
             } else if cpu_fits {
-                (true, format!("runs on CPU — {ram_gb:.0} GB free, needs ~{:.0}", c.min_ram_gb))
+                (
+                    true,
+                    format!(
+                        "runs on CPU — {ram_gb:.0} GB free, needs ~{:.0}",
+                        c.min_ram_gb
+                    ),
+                )
             } else {
-                (false, format!("needs ~{:.0} GB RAM (you have {ram_gb:.0} free)", c.min_ram_gb))
+                (
+                    false,
+                    format!(
+                        "needs ~{:.0} GB RAM (you have {ram_gb:.0} free)",
+                        c.min_ram_gb
+                    ),
+                )
             };
             ModelRec {
                 name: c.name.to_string(),
@@ -207,7 +330,11 @@ fn rank_catalog(specs: &HostSpecs, installed: &[String]) -> Vec<ModelRec> {
         b.installed
             .cmp(&a.installed)
             .then(b.fits.cmp(&a.fits))
-            .then(a.params_b.partial_cmp(&b.params_b).unwrap_or(std::cmp::Ordering::Equal))
+            .then(
+                a.params_b
+                    .partial_cmp(&b.params_b)
+                    .unwrap_or(std::cmp::Ordering::Equal),
+            )
     });
     recs
 }
@@ -224,7 +351,10 @@ fn detect_gpu() -> (Option<String>, Option<u64>, bool) {
     // `no_window`: on Windows a bare `Command::new` flashes a console window
     // for every probe (nvidia-smi ships on Windows too).
     if let Ok(out) = crate::sys::no_window("nvidia-smi")
-        .args(["--query-gpu=name,memory.total", "--format=csv,noheader,nounits"])
+        .args([
+            "--query-gpu=name,memory.total",
+            "--format=csv,noheader,nounits",
+        ])
         .output()
     {
         if out.status.success() {
@@ -253,7 +383,10 @@ async fn probe_ollama(base: &str) -> bool {
     if base.is_empty() {
         return false;
     }
-    let Ok(client) = reqwest::Client::builder().timeout(Duration::from_secs(2)).build() else {
+    let Ok(client) = reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+    else {
         return false;
     };
     client
@@ -268,7 +401,10 @@ async fn fetch_installed_tags(base: &str) -> Vec<String> {
     if base.is_empty() {
         return Vec::new();
     }
-    let Ok(client) = reqwest::Client::builder().timeout(Duration::from_secs(3)).build() else {
+    let Ok(client) = reqwest::Client::builder()
+        .timeout(Duration::from_secs(3))
+        .build()
+    else {
         return Vec::new();
     };
     let Ok(resp) = client.get(format!("{base}/api/tags")).send().await else {
@@ -288,7 +424,9 @@ async fn fetch_installed_tags(base: &str) -> Vec<String> {
 }
 
 async fn gather_specs(base: &str) -> HostSpecs {
-    let cpu_cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1);
+    let cpu_cores = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1);
     // spawn_blocking: the /proc read + nvidia-smi/lspci probes are
     // synchronous subprocess/file I/O and were running directly on the async
     // command handler's worker thread. Fast usually, but nvidia-smi can
@@ -319,7 +457,12 @@ async fn resolve_base(state: &State<'_, AppState>) -> String {
     if probe_ollama(LOCAL_OLLAMA).await {
         return LOCAL_OLLAMA.to_string();
     }
-    state.config.read().ollama_base_url.trim_end_matches('/').to_string()
+    state
+        .config
+        .read()
+        .ollama_base_url
+        .trim_end_matches('/')
+        .to_string()
 }
 
 // ----- Tauri commands -----
@@ -336,7 +479,10 @@ pub async fn cookbook_recommendations(state: State<'_, AppState>) -> Result<Cook
     let specs = gather_specs(&base).await;
     let installed = fetch_installed_tags(&base).await;
     let recommendations = rank_catalog(&specs, &installed);
-    Ok(CookbookView { specs, recommendations })
+    Ok(CookbookView {
+        specs,
+        recommendations,
+    })
 }
 
 /// Snapshot of every pull currently in flight (latest progress per model).
@@ -404,11 +550,7 @@ fn pull_event_name(name: &str) -> String {
     format!("cookbook:pull:{safe}")
 }
 
-async fn run_pull(
-    app: &tauri::AppHandle,
-    base: &str,
-    name: &str,
-) -> Result<PullResult, String> {
+async fn run_pull(app: &tauri::AppHandle, base: &str, name: &str) -> Result<PullResult, String> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(60 * 60))
         .build()
@@ -419,10 +561,15 @@ async fn run_pull(
         .send()
         .await
         .map_err(|e| {
-            format!("Ollama isn't reachable at {base} — install and start Ollama, then retry. ({e})")
+            format!(
+                "Ollama isn't reachable at {base} — install and start Ollama, then retry. ({e})"
+            )
         })?;
     if !resp.status().is_success() {
-        return Err(format!("Ollama returned {} for pull of '{name}'.", resp.status()));
+        return Err(format!(
+            "Ollama returned {} for pull of '{name}'.",
+            resp.status()
+        ));
     }
     let event = pull_event_name(name);
     let mut stream = resp.bytes_stream();
@@ -517,7 +664,11 @@ mod tests {
 
     #[test]
     fn pull_line_computes_percent() {
-        let p = parse_pull_line("llama3.2:3b", "{\"status\":\"downloading\",\"total\":100,\"completed\":40}").unwrap();
+        let p = parse_pull_line(
+            "llama3.2:3b",
+            "{\"status\":\"downloading\",\"total\":100,\"completed\":40}",
+        )
+        .unwrap();
         assert_eq!(p.status, "downloading");
         assert!((p.pct - 40.0).abs() < 0.01);
         // a status-only line (no total) is still valid at 0%.
@@ -548,15 +699,24 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn live_local_ollama_detects_installed_model() {
-        assert!(probe_ollama(LOCAL_OLLAMA).await, "local ollama must be running on 11434");
+        assert!(
+            probe_ollama(LOCAL_OLLAMA).await,
+            "local ollama must be running on 11434"
+        );
         let specs = gather_specs(LOCAL_OLLAMA).await;
         assert!(specs.ollama_running, "specs should report ollama_running");
         let installed = fetch_installed_tags(LOCAL_OLLAMA).await;
         assert!(!installed.is_empty(), "expected at least one pulled model");
         let recs = rank_catalog(&specs, &installed);
         // an installed catalog model must be flagged installed and sort first
-        if installed.iter().any(|t| CATALOG.iter().any(|c| c.name == t)) {
-            assert!(recs[0].installed, "an installed model should bubble to the top");
+        if installed
+            .iter()
+            .any(|t| CATALOG.iter().any(|c| c.name == t))
+        {
+            assert!(
+                recs[0].installed,
+                "an installed model should bubble to the top"
+            );
         }
     }
 

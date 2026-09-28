@@ -26,7 +26,10 @@ export interface MemorySearchHit {
   score: number;
 }
 
-export async function listMemoryFiles(activeProject?: string, obsidianVault?: string): Promise<MemoryFile[]> {
+export async function listMemoryFiles(
+  activeProject?: string,
+  obsidianVault?: string,
+): Promise<MemoryFile[]> {
   return invoke<MemoryFile[]>("list_memory_files", {
     activeProject: activeProject ?? null,
     obsidianVault: obsidianVault ?? null,
@@ -39,7 +42,11 @@ export async function getMemoryEntry(path: string): Promise<MarkdownEntry> {
 
 export async function searchMemory(
   query: string,
-  opts: { activeProject?: string; obsidianVault?: string; includeChroma?: boolean } = {},
+  opts: {
+    activeProject?: string;
+    obsidianVault?: string;
+    includeChroma?: boolean;
+  } = {},
 ): Promise<MemorySearchHit[]> {
   return invoke<MemorySearchHit[]>("search_memory", {
     query,
@@ -49,16 +56,29 @@ export async function searchMemory(
   });
 }
 
-export async function writeMemoryEntry(path: string, content: string): Promise<void> {
+export async function writeMemoryEntry(
+  path: string,
+  content: string,
+): Promise<void> {
   await invoke<void>("write_memory_entry", { path, content });
 }
 
-export async function createMemoryEntry(name: string, content: string, projectRoot?: string): Promise<string> {
+export async function createMemoryEntry(
+  name: string,
+  content: string,
+  projectRoot?: string,
+): Promise<string> {
   const slug =
-    name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 60).replace(/^-+|-+$/g, "") ||
-    `pinned-${Date.now()}`;
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .slice(0, 60)
+      .replace(/^-+|-+$/g, "") || `pinned-${Date.now()}`;
   const relPath = `runbooks/pinned-${slug}.md`;
-  const fullPath = projectRoot ? `${projectRoot.replace(/[/\\]$/, "")}/${relPath}` : relPath;
+  const fullPath = projectRoot
+    ? `${projectRoot.replace(/[/\\]$/, "")}/${relPath}`
+    : relPath;
   const body = `# ${name}\n\n${content}\n`;
   await invoke<void>("create_memory_entry", { path: fullPath, content: body });
   return fullPath;

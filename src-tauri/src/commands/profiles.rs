@@ -91,10 +91,7 @@ pub async fn get_agent_instructions(agent_id: String) -> Result<Option<String>, 
 /// removes the entry. Returns the trimmed value (or empty string after a
 /// remove) so the UI can confirm what landed on disk.
 #[tauri::command]
-pub async fn set_agent_instructions(
-    agent_id: String,
-    text: String,
-) -> Result<String, String> {
+pub async fn set_agent_instructions(agent_id: String, text: String) -> Result<String, String> {
     validate_agent_id(&agent_id)?;
     orchestrator::set_agent_instructions(&agent_id, &text).map_err(|e| e.to_string())
 }
@@ -118,10 +115,7 @@ pub struct ApprovePlanArgs {
 }
 
 #[tauri::command]
-pub async fn approve_plan(
-    args: ApprovePlanArgs,
-    app: tauri::AppHandle,
-) -> Result<(), String> {
+pub async fn approve_plan(args: ApprovePlanArgs, app: tauri::AppHandle) -> Result<(), String> {
     if args.session_id.trim().is_empty() {
         return Err("session_id is required".into());
     }
@@ -207,9 +201,12 @@ pub async fn apply_profile_v2(
         return Err(format!("invalid profile name '{name}'"));
     }
 
-    let path = root.join(".cortex").join("profiles").join(format!("{name}.toml"));
-    let raw = std::fs::read_to_string(&path)
-        .map_err(|e| format!("profile '{name}' not found: {e}"))?;
+    let path = root
+        .join(".cortex")
+        .join("profiles")
+        .join(format!("{name}.toml"));
+    let raw =
+        std::fs::read_to_string(&path).map_err(|e| format!("profile '{name}' not found: {e}"))?;
     let file: ProfileV2File =
         toml::from_str(&raw).map_err(|e| format!("profile '{name}' malformed: {e}"))?;
 
@@ -226,7 +223,10 @@ pub async fn apply_profile_v2(
     // 2. Sandbox — accept `sandbox_mode` (v2) and fall back to `sandbox_tier`
     //    (v1) for backward-compat. Persist via the existing `write_tier` and
     //    mirror into AppState so chat picks it up without a reload.
-    let sandbox_raw = file.sandbox_mode.as_deref().or(file.sandbox_tier.as_deref());
+    let sandbox_raw = file
+        .sandbox_mode
+        .as_deref()
+        .or(file.sandbox_tier.as_deref());
     if let Some(tier_str) = sandbox_raw {
         match SandboxTier::parse(tier_str) {
             Some(tier) => match orchestrator::write_tier(&root, tier) {

@@ -99,7 +99,11 @@ pub async fn search_notes(
                         if let Ok(body) = client.read_note(&h.path).await {
                             let snip = head_snippet(&body);
                             if !snip.is_empty() {
-                                scored.push((vault_path.join(&h.path).display().to_string(), snip, 1));
+                                scored.push((
+                                    vault_path.join(&h.path).display().to_string(),
+                                    snip,
+                                    1,
+                                ));
                             }
                         }
                     }
@@ -132,7 +136,11 @@ pub async fn search_notes(
             .collect();
         for path in candidates {
             if let Some(snip) = snippet_of(&path) {
-                let s = if terms.is_empty() { 1 } else { lexical_score(&snip, &terms) };
+                let s = if terms.is_empty() {
+                    1
+                } else {
+                    lexical_score(&snip, &terms)
+                };
                 if s > 0 || terms.is_empty() {
                     scored.push((path.display().to_string(), snip, s));
                 }
@@ -188,7 +196,11 @@ pub async fn search_notes(
             if failures > 0 {
                 tracing::warn!(target: "cortex::semantic", failures, embedded = out.len(), "some candidate embeds failed (skipped)");
             }
-            out.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+            out.sort_by(|a, b| {
+                b.score
+                    .partial_cmp(&a.score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             out
         }
         Err(e) => {

@@ -122,11 +122,7 @@ export function ThemePicker({ onChange }: ThemePickerProps) {
       <div className="theme-bg-row">
         <div className="theme-bg-preview">
           {bgUrl ? (
-            <img
-              src={bgUrl}
-              alt="Background"
-              className="theme-bg-thumb"
-            />
+            <img src={bgUrl} alt="Background" className="theme-bg-thumb" />
           ) : (
             <div className="theme-bg-thumb theme-bg-thumb-empty">No image</div>
           )}

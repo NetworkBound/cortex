@@ -47,7 +47,10 @@ function xtermThemeFromTokens(): ITheme {
     // rgba() strings are valid xterm colors — the selection keeps the text
     // underneath legible at any theme's accent.
     selectionBackground: token("--accent-glow", "rgba(251, 146, 60, 0.25)"),
-    selectionInactiveBackground: token("--accent-soft", "rgba(251, 146, 60, 0.10)"),
+    selectionInactiveBackground: token(
+      "--accent-soft",
+      "rgba(251, 146, 60, 0.10)",
+    ),
   };
 }
 
@@ -56,7 +59,9 @@ export function TerminalPane() {
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const idRef = useRef<string | null>(null);
-  const [status, setStatus] = useState<"booting" | "ready" | "closed" | "error">("booting");
+  const [status, setStatus] = useState<
+    "booting" | "ready" | "closed" | "error"
+  >("booting");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -152,7 +157,9 @@ export function TerminalPane() {
         fit.fit();
         const id = idRef.current;
         if (id) void resizeTerminal(id, term.cols, term.rows).catch(() => {});
-      } catch { /* ignore mid-mount races */ }
+      } catch {
+        /* ignore mid-mount races */
+      }
     });
     ro.observe(hostRef.current);
 
@@ -174,10 +181,16 @@ export function TerminalPane() {
   return (
     <div className="terminal-pane">
       <div className="terminal-pane-host" ref={hostRef} />
-      {status === "booting" && <div className="terminal-pane-status muted">starting shell…</div>}
-      {status === "closed" && <div className="terminal-pane-status muted">shell exited.</div>}
+      {status === "booting" && (
+        <div className="terminal-pane-status muted">starting shell…</div>
+      )}
+      {status === "closed" && (
+        <div className="terminal-pane-status muted">shell exited.</div>
+      )}
       {status === "error" && (
-        <div className="terminal-pane-status error">terminal failed: {error ?? "unknown error"}</div>
+        <div className="terminal-pane-status error">
+          terminal failed: {error ?? "unknown error"}
+        </div>
       )}
     </div>
   );

@@ -123,7 +123,10 @@ pub async fn import_conversations(
                 // user can tell, in the transcript and in the Recent-chats
                 // title/preview, that this is imported history.
                 content: if idx == 0 {
-                    format!("[Imported from {} — {}]\n\n{}", conv.source, conv.title, msg.content)
+                    format!(
+                        "[Imported from {} — {}]\n\n{}",
+                        conv.source, conv.title, msg.content
+                    )
                 } else {
                     msg.content.clone()
                 },
@@ -181,7 +184,9 @@ mod tests {
         let recent = store.recent_chat_sessions(50).unwrap();
         assert_eq!(recent.len(), 2);
         // The provenance banner rides the first message → title.
-        assert!(recent.iter().any(|r| r.title.contains("Imported from claude.ai")));
+        assert!(recent
+            .iter()
+            .any(|r| r.title.contains("Imported from claude.ai")));
 
         // Searchable via the same messages-table search Cortex uses.
         let hits = store.search_messages("message 1 of Alpha", 10).unwrap();

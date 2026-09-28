@@ -25,7 +25,11 @@ export function writeTerminal(id: string, data: string): Promise<void> {
   return invoke("terminal_write", { id, dataB64: bytesToBase64(bytes) });
 }
 
-export function resizeTerminal(id: string, cols: number, rows: number): Promise<void> {
+export function resizeTerminal(
+  id: string,
+  cols: number,
+  rows: number,
+): Promise<void> {
   return invoke("terminal_resize", { id, cols, rows });
 }
 
@@ -34,14 +38,20 @@ export function closeTerminal(id: string): Promise<void> {
 }
 
 /** Subscribe to raw stdout chunks. Each event carries a base64 string. */
-export function onTerminalOutput(id: string, handler: (chunk: Uint8Array) => void): Promise<UnlistenFn> {
+export function onTerminalOutput(
+  id: string,
+  handler: (chunk: Uint8Array) => void,
+): Promise<UnlistenFn> {
   return listen<string>(`terminal:output:${id}`, (evt) => {
     handler(base64ToBytes(evt.payload));
   });
 }
 
 /** Subscribe to the "child exited" notification. */
-export function onTerminalClosed(id: string, handler: () => void): Promise<UnlistenFn> {
+export function onTerminalClosed(
+  id: string,
+  handler: () => void,
+): Promise<UnlistenFn> {
   return listen<void>(`terminal:closed:${id}`, () => handler());
 }
 

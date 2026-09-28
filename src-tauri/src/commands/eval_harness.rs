@@ -279,8 +279,12 @@ pub async fn run_eval(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<EvalReport, String> {
-    let tasks = tasks.filter(|t| !t.is_empty()).unwrap_or_else(effective_tasks);
-    let model = model.map(|m| m.trim().to_string()).filter(|m| !m.is_empty());
+    let tasks = tasks
+        .filter(|t| !t.is_empty())
+        .unwrap_or_else(effective_tasks);
+    let model = model
+        .map(|m| m.trim().to_string())
+        .filter(|m| !m.is_empty());
     // What the report/history rows display: the requested slug, else the
     // configured gateway model (the default route's upstream).
     let display_model = match &model {
@@ -300,7 +304,15 @@ pub async fn run_eval(
             model: display_model.clone(),
         });
     }
-    let result = run_eval_inner(tasks, model, display_model, persist.unwrap_or(true), app, state).await;
+    let result = run_eval_inner(
+        tasks,
+        model,
+        display_model,
+        persist.unwrap_or(true),
+        app,
+        state,
+    )
+    .await;
     *ACTIVE_EVAL.lock() = None;
     result
 }
@@ -330,11 +342,9 @@ async fn run_eval_inner(
             .flatten()
         {
             Some(fake) => fake,
-            None => {
-                oneshot::complete_with_fallback(&state.registry, &chain, &task.prompt, &policy)
-                    .await
-                    .map(|o| o.text)
-            }
+            None => oneshot::complete_with_fallback(&state.registry, &chain, &task.prompt, &policy)
+                .await
+                .map(|o| o.text),
         };
         let latency_ms = (now_ms() - t0).max(0) as u64;
         let result = match outcome {
@@ -387,7 +397,11 @@ async fn run_eval_inner(
         0.0
     };
     let report = EvalReport {
-        run_id: format!("eval-{}-{}", started, RUN_SEQ.fetch_add(1, Ordering::Relaxed)),
+        run_id: format!(
+            "eval-{}-{}",
+            started,
+            RUN_SEQ.fetch_add(1, Ordering::Relaxed)
+        ),
         model: display_model,
         started_unix_ms: started,
         finished_unix_ms: now_ms(),
@@ -621,7 +635,10 @@ pub async fn run_retrieval_eval(
             score,
             matched,
             missed,
-            retrieved: cites.iter().map(|c| crate::redact::redact_text(&c.reference)).collect(),
+            retrieved: cites
+                .iter()
+                .map(|c| crate::redact::redact_text(&c.reference))
+                .collect(),
             stale_retrieved: cites.iter().filter(|c| c.stale).count(),
             latency_ms,
         });
@@ -634,7 +651,11 @@ pub async fn run_retrieval_eval(
         0.0
     };
     let report = RetrievalEvalReport {
-        run_id: format!("retrieval-{}-{}", started, RUN_SEQ.fetch_add(1, Ordering::Relaxed)),
+        run_id: format!(
+            "retrieval-{}-{}",
+            started,
+            RUN_SEQ.fetch_add(1, Ordering::Relaxed)
+        ),
         embed_model,
         started_unix_ms: started,
         finished_unix_ms: now_ms(),
@@ -663,8 +684,7 @@ mod tests {
 
     #[test]
     fn full_match_passes_with_score_one() {
-        let (passed, score, matched, missed) =
-            score_answer("The answer is 4.", &ex(&["4"]));
+        let (passed, score, matched, missed) = score_answer("The answer is 4.", &ex(&["4"]));
         assert!(passed);
         assert_eq!(score, 1.0);
         assert_eq!(matched, vec!["4".to_string()]);
@@ -684,8 +704,10 @@ mod tests {
 
     #[test]
     fn partial_match_fails_with_fractional_score() {
-        let (passed, score, matched, missed) =
-            score_answer("HyperText Protocol", &ex(&["hypertext", "transfer", "protocol"]));
+        let (passed, score, matched, missed) = score_answer(
+            "HyperText Protocol",
+            &ex(&["hypertext", "transfer", "protocol"]),
+        );
         assert!(!passed);
         assert!((score - 2.0 / 3.0).abs() < 0.001);
         assert_eq!(matched.len(), 2);
@@ -703,7 +725,9 @@ mod tests {
     fn default_tasks_are_well_formed() {
         let tasks = default_tasks();
         assert!(tasks.len() >= 5);
-        assert!(tasks.iter().all(|t| !t.id.is_empty() && !t.prompt.is_empty() && !t.expect_contains.is_empty()));
+        assert!(tasks
+            .iter()
+            .all(|t| !t.id.is_empty() && !t.prompt.is_empty() && !t.expect_contains.is_empty()));
         // Unique ids: they're React keys + per-task history keys.
         let mut seen = std::collections::HashSet::new();
         for t in &tasks {
@@ -736,7 +760,10 @@ mod tests {
 
     #[test]
     fn retrieval_full_match_passes() {
-        let retrieved = ex(&["homelab-topology.md C:\\vault\\homelab-topology.md", "sess-abc123 "]);
+        let retrieved = ex(&[
+            "homelab-topology.md C:\\vault\\homelab-topology.md",
+            "sess-abc123 ",
+        ]);
         let (passed, score, matched, missed) =
             score_retrieval(&retrieved, &ex(&["homelab", "sess-abc"]));
         assert!(passed);
@@ -805,7 +832,10 @@ mod tests {
             e2e_fake_result("[[e2e:echo]] pong"),
             Some(Ok("pong".to_string()))
         );
-        assert!(matches!(e2e_fake_result("[[e2e:err]] anything"), Some(Err(_))));
+        assert!(matches!(
+            e2e_fake_result("[[e2e:err]] anything"),
+            Some(Err(_))
+        ));
         assert_eq!(e2e_fake_result("What is 2 + 2?"), None);
     }
 }

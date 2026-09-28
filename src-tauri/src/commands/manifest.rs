@@ -428,11 +428,7 @@ mod tests {
     #[test]
     fn add_rejects_escape_and_missing() {
         let td = TempDir::new().unwrap();
-        let r = add_paths(
-            td.path(),
-            &["../../etc/passwd".into(), "nope.rs".into()],
-        )
-        .unwrap();
+        let r = add_paths(td.path(), &["../../etc/passwd".into(), "nope.rs".into()]).unwrap();
         assert!(r.added.is_empty());
         assert_eq!(r.skipped.len(), 2);
         assert!(r.skipped[0].reason.contains("escapes"));
@@ -458,11 +454,17 @@ mod tests {
         add_paths(td.path(), &["a.rs".into(), "b.rs".into()]).unwrap();
         // Drop one by a non-canonical spelling (`./a.rs`) — still matches.
         let left = drop_paths(td.path(), &["./a.rs".into()]).unwrap();
-        assert_eq!(left.iter().map(|e| e.path.clone()).collect::<Vec<_>>(), vec!["b.rs"]);
+        assert_eq!(
+            left.iter().map(|e| e.path.clone()).collect::<Vec<_>>(),
+            vec!["b.rs"]
+        );
         // Bare drop clears everything and removes the file.
         let empty = drop_paths(td.path(), &[]).unwrap();
         assert!(empty.is_empty());
-        assert!(!config_path(td.path()).exists(), "empty manifest removes the file");
+        assert!(
+            !config_path(td.path()).exists(),
+            "empty manifest removes the file"
+        );
     }
 
     #[test]

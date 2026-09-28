@@ -37,7 +37,11 @@ static CALL_TIMES: Lazy<Mutex<HashMap<(String, String), Vec<Instant>>>> =
 /// achieve that, but a `0` limit is not special-cased away). Otherwise the
 /// call is allowed iff fewer than `max` calls to this exact `(server_id,
 /// tool)` pair landed in the trailing 60 seconds.
-pub fn check_and_record(server_id: &str, tool: &str, max_per_minute: Option<u32>) -> Result<(), String> {
+pub fn check_and_record(
+    server_id: &str,
+    tool: &str,
+    max_per_minute: Option<u32>,
+) -> Result<(), String> {
     let Some(max) = max_per_minute else {
         return Ok(());
     };

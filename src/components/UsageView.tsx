@@ -45,7 +45,10 @@ export function UsageView() {
     };
     void tick();
     const id = setInterval(tick, 8_000);
-    return () => { mounted = false; clearInterval(id); };
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
   }, []);
 
   // Live account usage polls the external provider endpoints on a gentler 60s
@@ -57,11 +60,16 @@ export function UsageView() {
       try {
         const a = await accountUsage();
         if (mounted) setAcct(a);
-      } catch { /* */ }
+      } catch {
+        /* */
+      }
     };
     void tick();
     const id = setInterval(tick, 60_000);
-    return () => { mounted = false; clearInterval(id); };
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
   }, []);
 
   if (!data && loading) return <PanelLoading label="Loading usage" />;
@@ -83,7 +91,10 @@ export function UsageView() {
           <div className="usage-gateway-head">
             <span className={`dot ${gateway.up ? "ok" : "off"}`} />
             <strong>Cortex Gateway</strong>
-            <span className="muted" style={{ fontFamily: "var(--font-mono)", marginLeft: "auto" }}>
+            <span
+              className="muted"
+              style={{ fontFamily: "var(--font-mono)", marginLeft: "auto" }}
+            >
               {gateway.latency_ms != null ? `${gateway.latency_ms}ms` : "—"}
             </span>
           </div>
@@ -117,16 +128,24 @@ export function UsageView() {
           <div className="usage-section-title">by provider</div>
           <div className="usage-bars">
             {data.by_provider.map((p) => {
-              const max = Math.max(...data.by_provider.map((x) => x.total_tokens), 1);
+              const max = Math.max(
+                ...data.by_provider.map((x) => x.total_tokens),
+                1,
+              );
               const width = (p.total_tokens / max) * 100;
               return (
                 <div key={p.agent_id} className="usage-bar">
                   <div className="usage-bar-head">
                     <span>{p.agent_id}</span>
-                    <span className="muted">{fmtNum(p.total_tokens)} · {p.runs} runs</span>
+                    <span className="muted">
+                      {fmtNum(p.total_tokens)} · {p.runs} runs
+                    </span>
                   </div>
                   <div className="usage-bar-track">
-                    <div className="usage-bar-fill" style={{ width: `${width}%` }} />
+                    <div
+                      className="usage-bar-fill"
+                      style={{ width: `${width}%` }}
+                    />
                   </div>
                 </div>
               );
@@ -140,19 +159,29 @@ export function UsageView() {
           <div className="usage-section-title">by model</div>
           <div className="usage-bars">
             {data.by_model.map((m) => {
-              const max = Math.max(...data.by_model.map((x) => x.total_tokens), 1);
+              const max = Math.max(
+                ...data.by_model.map((x) => x.total_tokens),
+                1,
+              );
               const width = (m.total_tokens / max) * 100;
               return (
                 <div key={m.model} className="usage-bar">
                   <div className="usage-bar-head">
                     <span>
                       {m.model}
-                      {m.agent_id && <span className="muted"> · {m.agent_id}</span>}
+                      {m.agent_id && (
+                        <span className="muted"> · {m.agent_id}</span>
+                      )}
                     </span>
-                    <span className="muted">{fmtNum(m.total_tokens)} · {m.runs} runs</span>
+                    <span className="muted">
+                      {fmtNum(m.total_tokens)} · {m.runs} runs
+                    </span>
                   </div>
                   <div className="usage-bar-track">
-                    <div className="usage-bar-fill" style={{ width: `${width}%` }} />
+                    <div
+                      className="usage-bar-fill"
+                      style={{ width: `${width}%` }}
+                    />
                   </div>
                 </div>
               );
@@ -167,12 +196,22 @@ export function UsageView() {
           <div className="usage-sessions">
             {data.by_session.slice(0, 12).map((s) => (
               <div key={s.session_id} className="usage-session-row">
-                <span className="usage-session-id">{s.session_id.slice(-12)}</span>
-                <span className="muted" style={{ fontFamily: "var(--font-mono)" }}>
+                <span className="usage-session-id">
+                  {s.session_id.slice(-12)}
+                </span>
+                <span
+                  className="muted"
+                  style={{ fontFamily: "var(--font-mono)" }}
+                >
                   {timeAgo(s.last_active_ms)}
                 </span>
                 <span className="usage-tokens">{fmtNum(s.total_tokens)}t</span>
-                <span className="muted" style={{ fontFamily: "var(--font-mono)" }}>{s.runs}r</span>
+                <span
+                  className="muted"
+                  style={{ fontFamily: "var(--font-mono)" }}
+                >
+                  {s.runs}r
+                </span>
               </div>
             ))}
           </div>
@@ -181,17 +220,30 @@ export function UsageView() {
 
       {data.upstream_pool.length > 0 && (
         <>
-          <div className="usage-section-title">upstream credential pool (live)</div>
+          <div className="usage-section-title">
+            upstream credential pool (live)
+          </div>
           <div className="usage-pool">
             {data.upstream_pool.map((p, i) => {
               const isOk = !p.status || p.status === "ready";
-              const cls = isOk ? "ok" : p.status === "exhausted" ? "exhausted" : "error";
+              const cls = isOk
+                ? "ok"
+                : p.status === "exhausted"
+                  ? "exhausted"
+                  : "error";
               return (
-                <div key={`${p.provider}-${i}`} className={`usage-pool-row ${cls}`}>
+                <div
+                  key={`${p.provider}-${i}`}
+                  className={`usage-pool-row ${cls}`}
+                >
                   <div className="usage-pool-head">
                     <strong>{p.provider}</strong>
-                    {p.label && <span className="muted usage-pool-label">{p.label}</span>}
-                    <span className={`usage-pool-status ${cls}`}>{isOk ? "ready" : p.status}</span>
+                    {p.label && (
+                      <span className="muted usage-pool-label">{p.label}</span>
+                    )}
+                    <span className={`usage-pool-status ${cls}`}>
+                      {isOk ? "ready" : p.status}
+                    </span>
                   </div>
                   {p.last_error_code != null && (
                     <div className="muted usage-pool-error">
@@ -260,24 +312,15 @@ function ClaudeAccountCard({ claude }: { claude: ClaudeUsage | null }) {
         <strong>Claude</strong>
         <span className="acct-card-plan">Max</span>
       </div>
-      <AcctBar
-        label="5h"
-        pct={claude.five_hour_pct}
-        reset={fiveReset}
-      />
-      <AcctBar
-        label="7d"
-        pct={claude.seven_day_pct}
-        reset={sevenReset}
-        thin
-      />
+      <AcctBar label="5h" pct={claude.five_hour_pct} reset={fiveReset} />
+      <AcctBar label="7d" pct={claude.seven_day_pct} reset={sevenReset} thin />
       {claude.sonnet_pct != null && (
         <AcctBar label="7d sonnet" pct={claude.sonnet_pct} thin />
       )}
       {claude.extra_monthly_limit != null && (
         <div className="acct-card-extra muted">
-          Extra credits: {fmtMoney(claude.extra_used_credits, claude.currency)} /{" "}
-          {fmtMoney(claude.extra_monthly_limit, claude.currency)}
+          Extra credits: {fmtMoney(claude.extra_used_credits, claude.currency)}{" "}
+          / {fmtMoney(claude.extra_monthly_limit, claude.currency)}
         </div>
       )}
     </div>
@@ -319,12 +362,11 @@ function ChatgptAccountCard({ chatgpt }: { chatgpt: ChatgptUsage | null }) {
         reset={fmtResetInEpoch(chatgpt.secondary_reset_at)}
         thin
       />
-      {chatgpt.credits_balance != null &&
-        chatgpt.credits_balance !== "0" && (
-          <div className="acct-card-extra muted">
-            Credits balance: {chatgpt.credits_balance}
-          </div>
-        )}
+      {chatgpt.credits_balance != null && chatgpt.credits_balance !== "0" && (
+        <div className="acct-card-extra muted">
+          Credits balance: {chatgpt.credits_balance}
+        </div>
+      )}
     </div>
   );
 }
@@ -446,7 +488,8 @@ function ClaudeLimitRow({ claude }: { claude: ClaudeLimit | null }) {
       </span>
       {claude.out_of_credits && (
         <span className="provider-limit-warn">
-          <TriangleAlert size={12} strokeWidth={1.75} aria-hidden="true" /> out of credits
+          <TriangleAlert size={12} strokeWidth={1.75} aria-hidden="true" /> out
+          of credits
         </span>
       )}
     </div>
@@ -512,4 +555,3 @@ function fmtNum(n: number): string {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
 }
-

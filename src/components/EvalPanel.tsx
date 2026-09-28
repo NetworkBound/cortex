@@ -21,11 +21,7 @@ import { humanizeError } from "@/lib/errors";
 import { pushToast } from "@/lib/toast";
 import { useJobs, startEvalRun } from "@/state/jobs";
 import { PanelLoading } from "./Skeleton";
-import {
-  listEvalTasks,
-  listEvalReports,
-  type EvalReport,
-} from "@/lib/eval";
+import { listEvalTasks, listEvalReports, type EvalReport } from "@/lib/eval";
 import {
   listModels,
   onModelsChanged,
@@ -58,13 +54,17 @@ export function EvalPanel() {
   const running = evalRun.progress !== null;
   const progress = evalRun.progress;
   const error = evalRun.error;
-  const report = viewedPast ?? evalRun.report ?? (history.length ? history[0] : null);
+  const report =
+    viewedPast ?? evalRun.report ?? (history.length ? history[0] : null);
 
   // Reload on mount AND whenever a run settles (running flips false) — a run
   // that finished while another tab was open appended to history.
   const reload = useCallback(async () => {
     try {
-      const [tasks, reports] = await Promise.all([listEvalTasks(), listEvalReports()]);
+      const [tasks, reports] = await Promise.all([
+        listEvalTasks(),
+        listEvalReports(),
+      ]);
       setTaskCount(tasks.length);
       setHistory(reports);
       setLoadError(null);
@@ -161,10 +161,14 @@ export function EvalPanel() {
           <div className="eval-progress-bar">
             <div
               className="eval-progress-fill"
-              style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }}
+              style={{
+                width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%`,
+              }}
             />
           </div>
-          <span className="eval-progress-label">{progress.done}/{progress.total} tasks</span>
+          <span className="eval-progress-label">
+            {progress.done}/{progress.total} tasks
+          </span>
         </div>
       )}
 
@@ -187,11 +191,15 @@ export function EvalPanel() {
         <div className="eval-report">
           <div className="eval-summary">
             <div className="eval-stat">
-              <span className="eval-stat-val">{report.passed}/{report.total}</span>
+              <span className="eval-stat-val">
+                {report.passed}/{report.total}
+              </span>
               <span className="eval-stat-label">passed</span>
             </div>
             <div className="eval-stat">
-              <span className="eval-stat-val">{Math.round(report.score_avg * 100)}%</span>
+              <span className="eval-stat-val">
+                {Math.round(report.score_avg * 100)}%
+              </span>
               <span className="eval-stat-label">avg score</span>
             </div>
             <div className="eval-stat">
@@ -204,7 +212,11 @@ export function EvalPanel() {
             {report.results.map((r) => (
               <li key={r.id} className="eval-result">
                 <span className={`eval-verdict ${r.passed ? "ok" : "fail"}`}>
-                  {r.passed ? <Check size={13} strokeWidth={2.25} /> : <X size={13} strokeWidth={2.25} />}
+                  {r.passed ? (
+                    <Check size={13} strokeWidth={2.25} />
+                  ) : (
+                    <X size={13} strokeWidth={2.25} />
+                  )}
                 </span>
                 <div className="eval-result-body">
                   <div className="eval-result-head">
@@ -217,7 +229,9 @@ export function EvalPanel() {
                     <summary>{r.prompt}</summary>
                     <pre>{r.error ? `error: ${r.error}` : r.answer}</pre>
                     {r.missed.length > 0 && (
-                      <p className="eval-missed">missed: {r.missed.join(", ")}</p>
+                      <p className="eval-missed">
+                        missed: {r.missed.join(", ")}
+                      </p>
                     )}
                   </details>
                 </div>
@@ -233,9 +247,16 @@ export function EvalPanel() {
           <ul className="eval-history-list">
             {history.map((h) => (
               <li key={h.run_id}>
-                <button className="eval-history-row" onClick={() => setViewedPast(h)}>
-                  <span className="eval-history-score">{Math.round(h.score_avg * 100)}%</span>
-                  <span className="eval-history-meta">{h.passed}/{h.total} · {h.model}</span>
+                <button
+                  className="eval-history-row"
+                  onClick={() => setViewedPast(h)}
+                >
+                  <span className="eval-history-score">
+                    {Math.round(h.score_avg * 100)}%
+                  </span>
+                  <span className="eval-history-meta">
+                    {h.passed}/{h.total} · {h.model}
+                  </span>
                 </button>
               </li>
             ))}

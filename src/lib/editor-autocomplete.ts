@@ -143,8 +143,8 @@ function makePlugin(opts: CompleterOptions) {
         // The accept path tags its transaction with `userEvent:
         // "input.complete"` so we can ignore self-inflicted edits.
         if (!u.docChanged && !u.selectionSet) return;
-        const isAccept = u.transactions.some(
-          (t) => t.isUserEvent("input.complete"),
+        const isAccept = u.transactions.some((t) =>
+          t.isUserEvent("input.complete"),
         );
         if (isAccept) return;
         // Existing field-level rules already drop the visible ghost on doc /
@@ -195,16 +195,21 @@ function makePlugin(opts: CompleterOptions) {
           effects: setSuggestion.of({ pos, text }),
         });
       }
-    }
+    },
   );
 }
 
-function sliceContext(doc: string, pos: number): { before: string; after: string } {
+function sliceContext(
+  doc: string,
+  pos: number,
+): { before: string; after: string } {
   const head = doc.slice(0, pos);
   const tail = doc.slice(pos);
 
   const beforeLines = head.split("\n");
-  const before = beforeLines.slice(Math.max(0, beforeLines.length - LINES_BEFORE)).join("\n");
+  const before = beforeLines
+    .slice(Math.max(0, beforeLines.length - LINES_BEFORE))
+    .join("\n");
 
   const afterLines = tail.split("\n");
   const after = afterLines.slice(0, LINES_AFTER).join("\n");

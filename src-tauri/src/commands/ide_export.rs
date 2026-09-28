@@ -67,7 +67,9 @@ fn collect_source(project_root: &Path) -> String {
         if let Ok(entries) = fs::read_dir(&rules_dir) {
             for e in entries.flatten() {
                 let p = e.path();
-                let Some(name) = p.file_name().and_then(|n| n.to_str()) else { continue };
+                let Some(name) = p.file_name().and_then(|n| n.to_str()) else {
+                    continue;
+                };
                 if !p.is_file() {
                     continue;
                 }
@@ -139,14 +141,15 @@ fn render_codex(body: &str) -> String {
 /// where the Codex CLI looks for its global memory.
 fn target_path(format: &str, project_root: &Path) -> Option<PathBuf> {
     match format {
-        "cursor" => Some(project_root.join(".cursor").join("rules").join("cortex.mdc")),
+        "cursor" => Some(
+            project_root
+                .join(".cursor")
+                .join("rules")
+                .join("cortex.mdc"),
+        ),
         "windsurf" => Some(project_root.join(".windsurfrules")),
         "cline" => Some(project_root.join(".clinerules").join("cortex.md")),
-        "copilot" => Some(
-            project_root
-                .join(".github")
-                .join("copilot-instructions.md"),
-        ),
+        "copilot" => Some(project_root.join(".github").join("copilot-instructions.md")),
         "codex" => dirs::home_dir().map(|h| h.join(".codex").join("AGENTS.md")),
         _ => None,
     }

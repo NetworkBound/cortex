@@ -24,13 +24,17 @@ export function ProjectSidebar() {
   const [worktreesOpen, setWorktreesOpen] = useState(false);
 
   useEffect(() => {
-    listProjects().then(setProjects).catch(() => {});
+    listProjects()
+      .then(setProjects)
+      .catch(() => {});
     // Re-fetch when the backend registers a new project (Setup's
     // "Clone & connect") so the new repo appears without a remount.
     let unlisten: (() => void) | undefined;
     let disposed = false;
     listen("projects:changed", () => {
-      listProjects().then(setProjects).catch(() => {});
+      listProjects()
+        .then(setProjects)
+        .catch(() => {});
     })
       .then((u) => {
         if (disposed) u();
@@ -127,8 +131,9 @@ export function ProjectSidebar() {
           <div className="sidebar-empty-icon">∅</div>
           <div className="sidebar-empty-title">No projects yet</div>
           <div className="sidebar-empty-sub">
-            Drop a folder into <code>~/projects/</code> (or set <code>CORTEX_PROJECTS_ROOT</code>),
-            or add a project note under <code>30-Projects/</code> in your vault — Cortex surfaces both here.
+            Drop a folder into <code>~/projects/</code> (or set{" "}
+            <code>CORTEX_PROJECTS_ROOT</code>), or add a project note under{" "}
+            <code>30-Projects/</code> in your vault — Cortex surfaces both here.
           </div>
         </div>
       )}
@@ -151,15 +156,28 @@ export function ProjectSidebar() {
                     {p.kind === "vault" ? (
                       <>
                         <span className="meta-chip meta-chip-vault">
-                          <BookText size={12} strokeWidth={1.75} aria-hidden="true" /> vault
+                          <BookText
+                            size={12}
+                            strokeWidth={1.75}
+                            aria-hidden="true"
+                          />{" "}
+                          vault
                         </span>
-                        {p.subtitle && <span className="project-row-subtitle">{p.subtitle}</span>}
+                        {p.subtitle && (
+                          <span className="project-row-subtitle">
+                            {p.subtitle}
+                          </span>
+                        )}
                       </>
                     ) : (
                       <>
                         {p.has_git && <span className="meta-chip">git</span>}
-                        {p.has_claude_md && <span className="meta-chip">claude</span>}
-                        {p.has_runbooks && <span className="meta-chip">runbooks</span>}
+                        {p.has_claude_md && (
+                          <span className="meta-chip">claude</span>
+                        )}
+                        {p.has_runbooks && (
+                          <span className="meta-chip">runbooks</span>
+                        )}
                         {!p.has_git && !p.has_claude_md && !p.has_runbooks && (
                           <span className="muted">—</span>
                         )}
@@ -186,17 +204,26 @@ export function ProjectSidebar() {
               className="sidebar-action-btn"
               onClick={() => setWorktreesOpen(true)}
               disabled={!active}
-              title={active ? "Manage git worktrees" : "Pick an active project first"}
+              title={
+                active ? "Manage git worktrees" : "Pick an active project first"
+              }
               aria-label="Worktrees"
             >
-              <GitBranch size={13} strokeWidth={1.75} aria-hidden="true" /> Worktrees
+              <GitBranch size={13} strokeWidth={1.75} aria-hidden="true" />{" "}
+              Worktrees
             </button>
           </div>
-          <FileExplorer root={active?.root ?? null} projectName={active?.name} />
+          <FileExplorer
+            root={active?.root ?? null}
+            projectName={active?.name}
+          />
         </>
       )}
 
-      <WorktreePicker open={worktreesOpen} onClose={() => setWorktreesOpen(false)} />
+      <WorktreePicker
+        open={worktreesOpen}
+        onClose={() => setWorktreesOpen(false)}
+      />
     </aside>
   );
 }

@@ -20,7 +20,9 @@ export type TrustStatus = boolean;
  * sandboxed to the read-only tier. Throws if the backend rejects the query —
  * callers should fail closed (treat as untrusted / render nothing) and toast.
  */
-export async function getTrustStatus(projectRoot: string): Promise<TrustStatus> {
+export async function getTrustStatus(
+  projectRoot: string,
+): Promise<TrustStatus> {
   return await invoke<TrustStatus>("get_trust_status", { projectRoot });
 }
 

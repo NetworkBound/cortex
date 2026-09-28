@@ -155,12 +155,15 @@ export function BookmarksPanel() {
   }
 
   async function handleDelete(b: Bookmark) {
-    if (!(await confirmDialog({
-      title: "Remove bookmark?",
-      message: `"${b.label}" will be removed from your bookmarks.`,
-      confirmLabel: "Remove",
-      danger: true,
-    }))) return;
+    if (
+      !(await confirmDialog({
+        title: "Remove bookmark?",
+        message: `"${b.label}" will be removed from your bookmarks.`,
+        confirmLabel: "Remove",
+        danger: true,
+      }))
+    )
+      return;
     const ok = await deleteBookmark(b.id);
     if (!ok) {
       pushToast({
@@ -177,7 +180,11 @@ export function BookmarksPanel() {
     try {
       await openBookmark(b);
     } catch (e) {
-      pushToast({ title: "Couldn't open bookmark", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Couldn't open bookmark",
+        body: humanizeError(e),
+        kind: "error",
+      });
       return;
     }
     // Best-effort reload so the row jumps to the top after touch-bookmark
@@ -236,7 +243,11 @@ export function BookmarksPanel() {
           >
             {showAdd ? "× Cancel" : "+ Add bookmark"}
           </button>
-          <button type="button" className="link-btn" onClick={() => void reload()}>
+          <button
+            type="button"
+            className="link-btn"
+            onClick={() => void reload()}
+          >
             Refresh
           </button>
         </div>
@@ -249,7 +260,10 @@ export function BookmarksPanel() {
             <select
               value={draft.kind}
               onChange={(e) =>
-                setDraft((d) => ({ ...d, kind: e.target.value as BookmarkKind }))
+                setDraft((d) => ({
+                  ...d,
+                  kind: e.target.value as BookmarkKind,
+                }))
               }
             >
               {BOOKMARK_KINDS.map((k) => (
@@ -265,7 +279,9 @@ export function BookmarksPanel() {
               type="text"
               value={draft.label}
               placeholder="Quick title shown in the list"
-              onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, label: e.target.value }))
+              }
             />
           </label>
           <label className="bookmarks-field">
@@ -274,7 +290,9 @@ export function BookmarksPanel() {
               type="text"
               value={draft.target}
               placeholder={targetPlaceholder(draft.kind)}
-              onChange={(e) => setDraft((d) => ({ ...d, target: e.target.value }))}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, target: e.target.value }))
+              }
             />
           </label>
           <label className="bookmarks-field">
@@ -294,7 +312,9 @@ export function BookmarksPanel() {
               type="text"
               value={draft.note}
               placeholder="Optional one-liner"
-              onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, note: e.target.value }))
+              }
             />
           </label>
           <div className="bookmarks-form-actions">
@@ -312,9 +332,17 @@ export function BookmarksPanel() {
 
       <div className="bookmarks-list">
         {loadError && (
-          <div className="bookmarks-empty" role="alert" style={{ color: "var(--danger)" }}>
+          <div
+            className="bookmarks-empty"
+            role="alert"
+            style={{ color: "var(--danger)" }}
+          >
             Couldn't load bookmarks. {loadError}{" "}
-            <button type="button" className="link-btn" onClick={() => void reload()}>
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => void reload()}
+            >
               Retry
             </button>
           </div>

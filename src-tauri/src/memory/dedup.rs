@@ -29,7 +29,9 @@ struct DisjointSet {
 
 impl DisjointSet {
     fn new(n: usize) -> Self {
-        Self { parent: (0..n).collect() }
+        Self {
+            parent: (0..n).collect(),
+        }
     }
     fn find(&mut self, x: usize) -> usize {
         if self.parent[x] != x {
@@ -87,10 +89,17 @@ pub fn cluster_duplicates(vectors: &[Vec<f32>], threshold: f32) -> Vec<Duplicate
                     }
                 }
             }
-            DuplicateCluster { members, max_similarity }
+            DuplicateCluster {
+                members,
+                max_similarity,
+            }
         })
         .collect();
-    clusters.sort_by(|a, b| b.max_similarity.partial_cmp(&a.max_similarity).unwrap_or(std::cmp::Ordering::Equal));
+    clusters.sort_by(|a, b| {
+        b.max_similarity
+            .partial_cmp(&a.max_similarity)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     clusters
 }
 
@@ -107,9 +116,17 @@ mod tests {
     #[test]
     fn near_identical_pair_clusters_together() {
         // Cosine of these two is > 0.999 — a clear near-duplicate.
-        let vectors = vec![vec![1.0, 0.0, 0.0], vec![0.999, 0.001, 0.0], vec![0.0, 1.0, 0.0]];
+        let vectors = vec![
+            vec![1.0, 0.0, 0.0],
+            vec![0.999, 0.001, 0.0],
+            vec![0.0, 1.0, 0.0],
+        ];
         let clusters = cluster_duplicates(&vectors, 0.99);
-        assert_eq!(clusters.len(), 1, "exactly one cluster expected: {clusters:?}");
+        assert_eq!(
+            clusters.len(),
+            1,
+            "exactly one cluster expected: {clusters:?}"
+        );
         let mut members = clusters[0].members.clone();
         members.sort_unstable();
         assert_eq!(members, vec![0, 1]);
@@ -125,7 +142,11 @@ mod tests {
         let c = vec![0.98, 0.199]; // cos(b,c) ~ 0.997, cos(a,c) ~ 0.98
         let vectors = vec![a, b, c];
         let clusters = cluster_duplicates(&vectors, 0.99);
-        assert_eq!(clusters.len(), 1, "transitive chain must merge: {clusters:?}");
+        assert_eq!(
+            clusters.len(),
+            1,
+            "transitive chain must merge: {clusters:?}"
+        );
         let mut members = clusters[0].members.clone();
         members.sort_unstable();
         assert_eq!(members, vec![0, 1, 2]);

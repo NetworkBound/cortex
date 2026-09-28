@@ -308,7 +308,11 @@ pub fn outcome_score(stats: &OutcomeStats, now_ms: i64) -> Option<f64> {
 /// weights cost more heavily than raw success-rate-per-dollar, which is how
 /// [`pick_agent_by_outcome_with_budget`] biases toward cheaper providers once
 /// a session's spend is approaching its cap. Pure.
-fn outcome_score_with_exponent(stats: &OutcomeStats, now_ms: i64, cost_exponent: f64) -> Option<f64> {
+fn outcome_score_with_exponent(
+    stats: &OutcomeStats,
+    now_ms: i64,
+    cost_exponent: f64,
+) -> Option<f64> {
     if stats.finished_runs < OUTCOME_MIN_RUNS {
         return None;
     }
@@ -316,7 +320,11 @@ fn outcome_score_with_exponent(stats: &OutcomeStats, now_ms: i64, cost_exponent:
         return None;
     }
     let cost = stats.est_cost_per_run();
-    let denom = if cost_exponent == 1.0 { cost } else { cost.powf(cost_exponent) };
+    let denom = if cost_exponent == 1.0 {
+        cost
+    } else {
+        cost.powf(cost_exponent)
+    };
     Some(stats.success_rate.clamp(0.0, 1.0) / denom)
 }
 
@@ -443,8 +451,7 @@ pub fn outcome_routing_enabled() -> bool {
 
 /// Persist the toggle, creating `~/.cortex/` if needed.
 pub fn write_outcome_routing(enabled: bool) -> anyhow::Result<()> {
-    let path = outcome_routing_path()
-        .ok_or_else(|| anyhow::anyhow!("no home directory"))?;
+    let path = outcome_routing_path().ok_or_else(|| anyhow::anyhow!("no home directory"))?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -560,7 +567,11 @@ pub fn pick_agent_by_outcome_with_budget(
         budget.map(budget_state).unwrap_or(BudgetState::Unlimited),
         BudgetState::Approaching | BudgetState::Exceeded
     );
-    let exponent = if biased { BUDGET_COST_BIAS_EXPONENT } else { 1.0 };
+    let exponent = if biased {
+        BUDGET_COST_BIAS_EXPONENT
+    } else {
+        1.0
+    };
     pick_best(stats, registry, now_ms, exponent, biased)
 }
 
@@ -633,9 +644,7 @@ pub fn write_session_budget_cap(session_id: &str, cap_usd: Option<f64>) -> anyho
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agents::adapter::{
-        AgentAdapter, AgentDescriptor, AgentEvent, ChatRequest,
-    };
+    use crate::agents::adapter::{AgentAdapter, AgentDescriptor, AgentEvent, ChatRequest};
     use async_trait::async_trait;
     use std::sync::Arc;
     use tokio::sync::mpsc;
@@ -738,7 +747,10 @@ mod tests {
             &["ollama:llama3.2:1b".to_string()],
         )
         .expect("a chat model should be pickable");
-        assert!(pick.local, "free local model must win on cost for easy work");
+        assert!(
+            pick.local,
+            "free local model must win on cost for easy work"
+        );
         assert_eq!(pick.model, "ollama:llama3.2:1b");
         assert_eq!(pick.agent_id, "ollama");
         assert_eq!(pick.price_sum(), 0.0);
@@ -772,7 +784,10 @@ mod tests {
         assert_eq!(pick.agent_id, "claude-cli");
         assert_eq!(pick.model, "claude-opus-4-8");
         assert_eq!(
-            (pick.input_price_per_million_usd, pick.output_price_per_million_usd),
+            (
+                pick.input_price_per_million_usd,
+                pick.output_price_per_million_usd
+            ),
             (15.00, 75.00)
         );
     }
@@ -782,10 +797,7 @@ mod tests {
         // A ShellExec-requiring task with ONLY a chat-only direct adapter (and a
         // chat/edit-only Ollama) available must yield nothing — never the
         // chat-only adapter.
-        let reg = reg_with(vec![
-            anthropic_direct(),
-            ollama(),
-        ]);
+        let reg = reg_with(vec![anthropic_direct(), ollama()]);
         let pick = pick_model_for(
             Difficulty::Hard,
             &[AgentCapability::ShellExec],
@@ -830,9 +842,7 @@ mod tests {
     #[test]
     fn empty_registry_yields_none() {
         let reg = reg_with(vec![]);
-        assert!(
-            pick_model_for(Difficulty::Easy, &[AgentCapability::Chat], &reg, &[]).is_none()
-        );
+        assert!(pick_model_for(Difficulty::Easy, &[AgentCapability::Chat], &reg, &[]).is_none());
     }
 
     // ────────── Cost-per-success (outcome-aware) routing — issue 006 ─────────
@@ -893,7 +903,7 @@ mod tests {
         // fails often is de-prioritized vs a cheaper reliable one.
         let reg = reg_with(vec![claude_cli(), gateway()]);
         let all = vec![
-            stats("claude-cli", 20, 0.5, 10.0),     // $0.50/run, coin-flip → 1.0
+            stats("claude-cli", 20, 0.5, 10.0), // $0.50/run, coin-flip → 1.0
             stats("gateway-remote", 20, 0.95, 2.0), // $0.10/run, reliable → 9.5
         ];
         let pick = pick_agent_by_outcome(&all, &reg, NOW).expect("both scoreable");
@@ -904,7 +914,11 @@ mod tests {
             "rationale must surface the pick: {}",
             pick.reason
         );
-        assert!(pick.reason.contains("95% success over 20 runs"), "{}", pick.reason);
+        assert!(
+            pick.reason.contains("95% success over 20 runs"),
+            "{}",
+            pick.reason
+        );
     }
 
     #[test]
@@ -956,7 +970,10 @@ mod tests {
         let a = stats("claude-cli", 10, 0.9, 1.0); // 0.9 / 0.1 = 9.0
         let b = stats("gateway-remote", 20, 0.45, 1.0); // 0.45 / 0.05 = 9.0
         let pick = pick_agent_by_outcome(&[a.clone(), b.clone()], &reg, NOW).unwrap();
-        assert_eq!(pick.agent_id, "claude-cli", "higher success rate breaks the tie");
+        assert_eq!(
+            pick.agent_id, "claude-cli",
+            "higher success rate breaks the tie"
+        );
         // Order of the input slice must not matter.
         let pick2 = pick_agent_by_outcome(&[b, a], &reg, NOW).unwrap();
         assert_eq!(pick2.agent_id, "claude-cli");
@@ -1022,11 +1039,23 @@ mod tests {
         assert_eq!(budget_state(&budget(Some(10.0), 0.0)), BudgetState::Ok);
         assert_eq!(budget_state(&budget(Some(10.0), 7.99)), BudgetState::Ok);
         // Exactly at the approaching fraction (80%) tips into Approaching.
-        assert_eq!(budget_state(&budget(Some(10.0), 8.0)), BudgetState::Approaching);
-        assert_eq!(budget_state(&budget(Some(10.0), 9.5)), BudgetState::Approaching);
+        assert_eq!(
+            budget_state(&budget(Some(10.0), 8.0)),
+            BudgetState::Approaching
+        );
+        assert_eq!(
+            budget_state(&budget(Some(10.0), 9.5)),
+            BudgetState::Approaching
+        );
         // Exactly at the cap, and over it, are both Exceeded.
-        assert_eq!(budget_state(&budget(Some(10.0), 10.0)), BudgetState::Exceeded);
-        assert_eq!(budget_state(&budget(Some(10.0), 15.0)), BudgetState::Exceeded);
+        assert_eq!(
+            budget_state(&budget(Some(10.0), 10.0)),
+            BudgetState::Exceeded
+        );
+        assert_eq!(
+            budget_state(&budget(Some(10.0), 15.0)),
+            BudgetState::Exceeded
+        );
     }
 
     #[test]
@@ -1036,10 +1065,22 @@ mod tests {
         // a nonsensical cap must not look "fine"; zero spend is not yet a
         // problem.
         assert_eq!(budget_state(&budget(Some(0.0), 0.0)), BudgetState::Ok);
-        assert_eq!(budget_state(&budget(Some(0.0), 0.01)), BudgetState::Exceeded);
-        assert_eq!(budget_state(&budget(Some(-5.0), 1.0)), BudgetState::Exceeded);
-        assert_eq!(budget_state(&budget(Some(f64::NAN), 1.0)), BudgetState::Exceeded);
-        assert_eq!(budget_state(&budget(Some(f64::INFINITY), 1.0)), BudgetState::Ok);
+        assert_eq!(
+            budget_state(&budget(Some(0.0), 0.01)),
+            BudgetState::Exceeded
+        );
+        assert_eq!(
+            budget_state(&budget(Some(-5.0), 1.0)),
+            BudgetState::Exceeded
+        );
+        assert_eq!(
+            budget_state(&budget(Some(f64::NAN), 1.0)),
+            BudgetState::Exceeded
+        );
+        assert_eq!(
+            budget_state(&budget(Some(f64::INFINITY), 1.0)),
+            BudgetState::Ok
+        );
     }
 
     #[test]
@@ -1053,18 +1094,17 @@ mod tests {
                 stats("claude-cli", 20, 0.5, 10.0),
                 stats("gateway-remote", 20, 0.95, 2.0),
             ],
-            vec![stats("claude-cli", 10, 0.99, 3.0), stats("gateway-remote", 10, 0.6, 2.0)],
+            vec![
+                stats("claude-cli", 10, 0.99, 3.0),
+                stats("gateway-remote", 10, 0.6, 2.0),
+            ],
             vec![],
         ];
         for case in cases {
             let plain = pick_agent_by_outcome(&case, &reg, NOW);
             let no_budget = pick_agent_by_outcome_with_budget(&case, &reg, NOW, None);
-            let empty_cap = pick_agent_by_outcome_with_budget(
-                &case,
-                &reg,
-                NOW,
-                Some(&budget(None, 123.0)),
-            );
+            let empty_cap =
+                pick_agent_by_outcome_with_budget(&case, &reg, NOW, Some(&budget(None, 123.0)));
             assert_eq!(no_budget, plain, "None budget must match plain pick");
             assert_eq!(empty_cap, plain, "cap_usd:None must match plain pick");
         }
@@ -1081,7 +1121,10 @@ mod tests {
             stats("gateway-remote", 10, 0.60, 2.0),
         ];
         let plain = pick_agent_by_outcome(&all, &reg, NOW).expect("both scoreable");
-        assert_eq!(plain.agent_id, "claude-cli", "expensive-but-reliable wins with no budget pressure");
+        assert_eq!(
+            plain.agent_id, "claude-cli",
+            "expensive-but-reliable wins with no budget pressure"
+        );
 
         // Once spend is Approaching the session cap, squaring the cost term
         // flips the ranking: claude-cli's biased score (0.99/0.3^2 = 11.0) now
@@ -1093,7 +1136,9 @@ mod tests {
             .expect("both still scoreable under the bias");
         assert_eq!(biased.agent_id, "gateway-remote");
         assert!(
-            biased.reason.contains("budget: preferring cheaper reliable provider"),
+            biased
+                .reason
+                .contains("budget: preferring cheaper reliable provider"),
             "{}",
             biased.reason
         );
@@ -1131,7 +1176,10 @@ mod tests {
 
     #[test]
     fn session_budget_toggle_parses_and_defaults_to_no_cap() {
-        assert_eq!(parse_session_budget(r#"{"cap_usd": 5.0}"#).cap_usd, Some(5.0));
+        assert_eq!(
+            parse_session_budget(r#"{"cap_usd": 5.0}"#).cap_usd,
+            Some(5.0)
+        );
         assert_eq!(parse_session_budget(r#"{"cap_usd": null}"#).cap_usd, None);
         assert_eq!(parse_session_budget("{}").cap_usd, None);
         // Malformed / empty bodies default to "no cap" — the only safe

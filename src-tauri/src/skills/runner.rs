@@ -19,9 +19,8 @@ use super::loader::load_skill_by_name;
 
 /// `{{ identifier }}` — at least one alphanumeric/underscore, no leading digit.
 /// Whitespace inside the braces is allowed and trimmed.
-static TEMPLATE_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}").expect("valid regex")
-});
+static TEMPLATE_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}").expect("valid regex"));
 
 /// Substitute every `{{var}}` marker in `body` with the matching `vars` entry.
 /// Returns the first missing-var error encountered so the user sees *which*
@@ -50,12 +49,8 @@ pub fn render(body: &str, vars: &HashMap<String, String>) -> Result<String, Stri
 
 /// Load a skill by name and render its body against `vars`. Returns the
 /// expanded prompt that the UI will then drop into chat as a system message.
-pub fn expand_skill(
-    name: &str,
-    vars: HashMap<String, String>,
-) -> Result<String, String> {
-    let skill = load_skill_by_name(name)
-        .ok_or_else(|| format!("skill '{name}' not found"))?;
+pub fn expand_skill(name: &str, vars: HashMap<String, String>) -> Result<String, String> {
+    let skill = load_skill_by_name(name).ok_or_else(|| format!("skill '{name}' not found"))?;
     render(&skill.body, &vars)
 }
 

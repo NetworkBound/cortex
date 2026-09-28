@@ -59,5 +59,7 @@ export async function isWatchModeActive(): Promise<boolean> {
 export async function subscribeWatchTriggers(
   cb: (payload: WatchTriggerPayload) => void,
 ): Promise<UnlistenFn> {
-  return listen<WatchTriggerPayload>("watch-mode-trigger", (evt) => cb(evt.payload));
+  return listen<WatchTriggerPayload>("watch-mode-trigger", (evt) =>
+    cb(evt.payload),
+  );
 }

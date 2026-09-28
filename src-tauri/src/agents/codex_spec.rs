@@ -97,8 +97,8 @@ pub static CODEX_SPEC: CliSpec = CliSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agents::adapter::ChatRequest;
     use crate::agents::adapter::AgentAdapter;
+    use crate::agents::adapter::ChatRequest;
     use crate::agents::local_cli::GenericCliAgent;
 
     fn ctx<'a>(prompt: &'a str, model: &'a str, req: &'a ChatRequest) -> LaunchCtx<'a> {

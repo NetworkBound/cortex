@@ -22,8 +22,14 @@ export const RUNTIME_INSTALL_HINTS: Record<
   string,
   { runtime: string; install: string }
 > = {
-  npx: { runtime: "Node.js", install: "https://nodejs.org — or: winget install OpenJS.NodeJS.LTS" },
-  uvx: { runtime: "uv (Python)", install: "pip install uv — or: winget install astral-sh.uv" },
+  npx: {
+    runtime: "Node.js",
+    install: "https://nodejs.org — or: winget install OpenJS.NodeJS.LTS",
+  },
+  uvx: {
+    runtime: "uv (Python)",
+    install: "pip install uv — or: winget install astral-sh.uv",
+  },
 };
 
 /** A required environment variable for a catalog server. */
@@ -127,8 +133,7 @@ export const MCP_CATALOG: CatalogEntry[] = [
   {
     id: "git",
     name: "Git",
-    description:
-      "Read, search, and inspect history of a local Git repository.",
+    description: "Read, search, and inspect history of a local Git repository.",
     category: "dev",
     command: "uvx",
     argsTemplate: ["mcp-server-git", "--repository", "{{REPO}}"],
@@ -250,11 +255,7 @@ export const MCP_CATALOG: CatalogEntry[] = [
       "Read-only access to a PostgreSQL database — inspect schema and run queries.",
     category: "data",
     command: "npx",
-    argsTemplate: [
-      "-y",
-      "@modelcontextprotocol/server-postgres",
-      "{{CONN}}",
-    ],
+    argsTemplate: ["-y", "@modelcontextprotocol/server-postgres", "{{CONN}}"],
     argPrompts: [
       {
         token: "{{CONN}}",
@@ -317,14 +318,11 @@ export function isEntryAdded(
   entry: CatalogEntry,
   servers: { command: string; args: string[] }[],
 ): boolean {
-  const promptTokens = new Set(
-    (entry.argPrompts ?? []).map((p) => p.token),
-  );
+  const promptTokens = new Set((entry.argPrompts ?? []).map((p) => p.token));
   // The fixed args that must all be present (placeholders excluded).
   const fixed = entry.argsTemplate.filter((a) => !promptTokens.has(a));
   return servers.some(
     (s) =>
-      s.command === entry.command &&
-      fixed.every((a) => s.args.includes(a)),
+      s.command === entry.command && fixed.every((a) => s.args.includes(a)),
   );
 }

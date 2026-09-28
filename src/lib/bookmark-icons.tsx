@@ -38,7 +38,19 @@ interface BookmarkIconProps {
 // Render the icon for a bookmark kind. Defaults match the app-wide icon
 // convention (14px, 1.75 stroke, `currentColor` so it inherits the chip/row
 // text color in every state — see vocab-icons.tsx / activity-icons.tsx).
-export function BookmarkIcon({ kind, size = 14, strokeWidth = 1.75, className }: BookmarkIconProps) {
+export function BookmarkIcon({
+  kind,
+  size = 14,
+  strokeWidth = 1.75,
+  className,
+}: BookmarkIconProps) {
   const Icon = BOOKMARK_ICONS[kind];
-  return <Icon size={size} strokeWidth={strokeWidth} className={className} aria-hidden="true" />;
+  return (
+    <Icon
+      size={size}
+      strokeWidth={strokeWidth}
+      className={className}
+      aria-hidden="true"
+    />
+  );
 }

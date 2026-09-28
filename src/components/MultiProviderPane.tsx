@@ -83,7 +83,9 @@ export function MultiProviderPane() {
   }, [refresh]);
 
   function toggle(p: string) {
-    setSelected(selected.includes(p) ? selected.filter((x) => x !== p) : [...selected, p]);
+    setSelected(
+      selected.includes(p) ? selected.filter((x) => x !== p) : [...selected, p],
+    );
   }
 
   function parseProject(): { owner: string; repo: string } | null {
@@ -219,14 +221,17 @@ export function MultiProviderPane() {
           )}
           {!providersLoading && providers.length === 0 && (
             <span className="lanes-hint">
-              No providers available — connect a Cortex Gateway to run parallel lanes.
+              No providers available — connect a Cortex Gateway to run parallel
+              lanes.
             </span>
           )}
           {providers.map((p) => (
             <button
               key={p}
               onClick={() => toggle(p)}
-              className={selected.includes(p) ? "lanes-chip lanes-chip-on" : "lanes-chip"}
+              className={
+                selected.includes(p) ? "lanes-chip lanes-chip-on" : "lanes-chip"
+              }
             >
               {p}
             </button>
@@ -246,8 +251,16 @@ export function MultiProviderPane() {
       </label>
 
       <div className="lanes-actions">
-        <button onClick={() => void run()} disabled={busy || selected.length < 2} className="btn-primary">
-          {busy ? "Launching lanes…" : selected.length >= 2 ? `Run ${selected.length} lanes` : "Run lanes"}
+        <button
+          onClick={() => void run()}
+          disabled={busy || selected.length < 2}
+          className="btn-primary"
+        >
+          {busy
+            ? "Launching lanes…"
+            : selected.length >= 2
+              ? `Run ${selected.length} lanes`
+              : "Run lanes"}
         </button>
         {error && <span className="lanes-error">{error}</span>}
       </div>
@@ -271,12 +284,22 @@ export function MultiProviderPane() {
               {l.merged_at != null && (
                 <span className="status-pill lanes-status-merged">merged</span>
               )}
-              <span className={`status-pill lanes-status-${l.status}`}>{l.status}</span>
+              <span className={`status-pill lanes-status-${l.status}`}>
+                {l.status}
+              </span>
             </div>
             <div className="lanes-card-task">{l.task}</div>
-            {l.branch && <code className="lanes-card-branch">branch {l.branch}</code>}
+            {l.branch && (
+              <code className="lanes-card-branch">branch {l.branch}</code>
+            )}
             {l.detail && (
-              <div className={l.status === "error" ? "lanes-card-detail lanes-error" : "lanes-card-detail"}>
+              <div
+                className={
+                  l.status === "error"
+                    ? "lanes-card-detail lanes-error"
+                    : "lanes-card-detail"
+                }
+              >
                 {l.detail}
               </div>
             )}
@@ -297,15 +320,25 @@ export function MultiProviderPane() {
                   disabled={reviewingId === l.run_id}
                   title="Open the lane's diff against the project and merge it from here"
                 >
-                  {reviewingId === l.run_id ? "Opening…" : l.merged_at != null ? "View merge" : "Review"}
+                  {reviewingId === l.run_id
+                    ? "Opening…"
+                    : l.merged_at != null
+                      ? "View merge"
+                      : "Review"}
                 </button>
               )}
               {l.status === "running" ? (
-                <button className="btn-ghost lanes-card-btn" onClick={() => void stop(l.run_id)}>
+                <button
+                  className="btn-ghost lanes-card-btn"
+                  onClick={() => void stop(l.run_id)}
+                >
                   Stop
                 </button>
               ) : (
-                <button className="btn-ghost lanes-card-btn" onClick={() => void remove(l.run_id)}>
+                <button
+                  className="btn-ghost lanes-card-btn"
+                  onClick={() => void remove(l.run_id)}
+                >
                   Remove
                 </button>
               )}
@@ -315,16 +348,19 @@ export function MultiProviderPane() {
         {lanes.length > 0 && (
           <p className="lanes-hint">
             Each lane edits the project in its own worktree on the gateway
-            (branch <code>cortex/&lt;run&gt;/&lt;provider&gt;</code>). When a lane
-            settles, hit <em>Review</em> to see its diff and merge the winner
-            without leaving Cortex.
+            (branch <code>cortex/&lt;run&gt;/&lt;provider&gt;</code>). When a
+            lane settles, hit <em>Review</em> to see its diff and merge the
+            winner without leaving Cortex.
           </p>
         )}
       </div>
 
       {review && (
         <div className="modal-backdrop" onClick={closeReview}>
-          <div className="modal lanes-review-modal" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal lanes-review-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h2>{review.title}</h2>
             <div className="lanes-review-meta">
               <code className="lanes-card-branch">
@@ -374,7 +410,11 @@ export function MultiProviderPane() {
                 onClick={() => void mergeWinner()}
                 disabled={merging || review.merged || !review.mergeable}
               >
-                {review.merged ? "Merged ✓" : merging ? "Merging…" : "Merge winner"}
+                {review.merged
+                  ? "Merged ✓"
+                  : merging
+                    ? "Merging…"
+                    : "Merge winner"}
               </button>
             </div>
           </div>

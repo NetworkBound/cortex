@@ -84,8 +84,14 @@ pub async fn generate_project_doc(
     let req = ChatCompletionRequest {
         model: cfg.gateway_model.clone(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: system_prompt.into() },
-            ChatMessage { role: "user".into(), content: user_prompt },
+            ChatMessage {
+                role: "system".into(),
+                content: system_prompt.into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: user_prompt,
+            },
         ],
         stream: true,
         temperature: Some(0.2),
@@ -236,7 +242,9 @@ fn build_context(
         parts.push(format!("--- TOP-LEVEL TREE ---\n{listed}"));
     }
     if let Some(log) = git_log {
-        parts.push(format!("--- RECENT COMMITS (git log --oneline -20) ---\n{log}"));
+        parts.push(format!(
+            "--- RECENT COMMITS (git log --oneline -20) ---\n{log}"
+        ));
     }
     if let Some(e) = existing {
         parts.push(format!("--- EXISTING DOC ---\n{e}"));
@@ -385,7 +393,10 @@ mod tests {
         assert_eq!(canonicalize_doc_type("README.md").unwrap(), "readme");
         assert_eq!(canonicalize_doc_type("claude-md").unwrap(), "claude-md");
         assert_eq!(canonicalize_doc_type("Claude").unwrap(), "claude-md");
-        assert_eq!(canonicalize_doc_type("contributing").unwrap(), "contributing");
+        assert_eq!(
+            canonicalize_doc_type("contributing").unwrap(),
+            "contributing"
+        );
     }
 
     #[test]
@@ -398,7 +409,10 @@ mod tests {
     fn suggested_path_uses_forward_slashes() {
         let root = PathBuf::from("/tmp/proj");
         assert_eq!(suggested_path_for(&root, "readme"), "/tmp/proj/README.md");
-        assert_eq!(suggested_path_for(&root, "claude-md"), "/tmp/proj/CLAUDE.md");
+        assert_eq!(
+            suggested_path_for(&root, "claude-md"),
+            "/tmp/proj/CLAUDE.md"
+        );
         assert_eq!(
             suggested_path_for(&root, "contributing"),
             "/tmp/proj/CONTRIBUTING.md"

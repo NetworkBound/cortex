@@ -101,7 +101,9 @@ pub fn strip_tags(s: &str) -> String {
 pub fn parse_results(html: &str) -> Vec<WebResult> {
     let mut hits = Vec::new();
     for part in html.split("result__a").skip(1) {
-        let Some(hpos) = part.find("href=\"") else { continue };
+        let Some(hpos) = part.find("href=\"") else {
+            continue;
+        };
         let after = &part[hpos + 6..];
         let Some(end) = after.find('"') else { continue };
         let url = decode_ddg_href(&after[..end]);
@@ -116,7 +118,11 @@ pub fn parse_results(html: &str) -> Vec<WebResult> {
             })
             .unwrap_or_default();
         let snippet = extract_snippet(part);
-        hits.push(WebResult { title, url, snippet });
+        hits.push(WebResult {
+            title,
+            url,
+            snippet,
+        });
     }
     hits
 }
@@ -125,9 +131,13 @@ pub fn parse_results(html: &str) -> Vec<WebResult> {
 /// DuckDuckGo renders it as `<a class="result__snippet" …>text</a>` (or
 /// occasionally a `<div>`), so close on whichever of `</a>`/`</div>` comes first.
 fn extract_snippet(part: &str) -> String {
-    let Some(sp) = part.find("result__snippet") else { return String::new() };
+    let Some(sp) = part.find("result__snippet") else {
+        return String::new();
+    };
     let rest = &part[sp..];
-    let Some(gp) = rest.find('>') else { return String::new() };
+    let Some(gp) = rest.find('>') else {
+        return String::new();
+    };
     let body = &rest[gp + 1..];
     let end = match (body.find("</a>"), body.find("</div>")) {
         (Some(a), Some(d)) => a.min(d),
@@ -174,11 +184,19 @@ mod tests {
     #[test]
     fn decodes_redirect_and_relative_hrefs() {
         assert_eq!(
-            decode_ddg_href("//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fa%3Fx%3D1&rut=abc"),
+            decode_ddg_href(
+                "//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fa%3Fx%3D1&rut=abc"
+            ),
             "https://example.com/a?x=1"
         );
-        assert_eq!(decode_ddg_href("https://plain.example.com/p"), "https://plain.example.com/p");
-        assert_eq!(decode_ddg_href("//cdn.example.com/x"), "https://cdn.example.com/x");
+        assert_eq!(
+            decode_ddg_href("https://plain.example.com/p"),
+            "https://plain.example.com/p"
+        );
+        assert_eq!(
+            decode_ddg_href("//cdn.example.com/x"),
+            "https://cdn.example.com/x"
+        );
     }
 
     #[test]
@@ -189,7 +207,10 @@ mod tests {
 
     #[test]
     fn strip_tags_removes_markup_and_entities() {
-        assert_eq!(strip_tags("The <b>Rust</b> &amp; Cargo"), "The Rust & Cargo");
+        assert_eq!(
+            strip_tags("The <b>Rust</b> &amp; Cargo"),
+            "The Rust & Cargo"
+        );
     }
 
     #[test]
@@ -235,7 +256,10 @@ mod tests {
         let parsed = parse_results(html);
         assert_eq!(parsed.len(), 3, "parser keeps every result__a");
         let mut seen = std::collections::HashSet::new();
-        let deduped: Vec<_> = parsed.into_iter().filter(|h| seen.insert(h.url.clone())).collect();
+        let deduped: Vec<_> = parsed
+            .into_iter()
+            .filter(|h| seen.insert(h.url.clone()))
+            .collect();
         assert_eq!(deduped.len(), 2, "url dedup collapses the duplicate");
     }
 
@@ -245,10 +269,18 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn live_ddg_search_returns_results() {
-        let hits = search("rust programming language", 5).await.expect("search ok");
+        let hits = search("rust programming language", 5)
+            .await
+            .expect("search ok");
         assert!(!hits.is_empty(), "expected at least one live result");
         assert!(hits.len() <= 5, "respects the limit");
-        assert!(hits.iter().all(|h| h.url.starts_with("http")), "all urls are http(s)");
-        assert!(hits.iter().any(|h| !h.title.trim().is_empty()), "at least one has a title");
+        assert!(
+            hits.iter().all(|h| h.url.starts_with("http")),
+            "all urls are http(s)"
+        );
+        assert!(
+            hits.iter().any(|h| !h.title.trim().is_empty()),
+            "at least one has a title"
+        );
     }
 }

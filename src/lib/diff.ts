@@ -327,7 +327,12 @@ export function sideBySideFromText(
   const w = b.length + 1;
   // Walk forward emitting raw add/del/context, then collapse adjacent
   // del+add into a single "modified" row in a second pass.
-  type Raw = { kind: "add" | "del" | "context"; oldLine: number | null; newLine: number | null; text: string };
+  type Raw = {
+    kind: "add" | "del" | "context";
+    oldLine: number | null;
+    newLine: number | null;
+    text: string;
+  };
   const raw: Raw[] = [];
   let i = 0;
   let j = 0;

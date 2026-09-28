@@ -48,9 +48,10 @@ export function RecipeGallery({ onClose }: RecipeGalleryProps) {
   const [tab, setTab] = useState<Tab>("local");
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [editing, setEditing] = useState<{ original: string; yaml: string } | null>(
-    null,
-  );
+  const [editing, setEditing] = useState<{
+    original: string;
+    yaml: string;
+  } | null>(null);
   const [installUrl, setInstallUrl] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -102,7 +103,11 @@ export function RecipeGallery({ onClose }: RecipeGalleryProps) {
       });
       onClose();
     } catch (err) {
-      pushToast({ title: "Run failed", body: humanizeError(err), kind: "error" });
+      pushToast({
+        title: "Run failed",
+        body: humanizeError(err),
+        kind: "error",
+      });
     }
   };
 
@@ -115,12 +120,14 @@ export function RecipeGallery({ onClose }: RecipeGalleryProps) {
   };
 
   const handleDelete = async (r: Recipe) => {
-    if (!(await confirmDialog({
-      title: "Delete recipe?",
-      message: `'${r.name}' will be deleted. This cannot be undone.`,
-      confirmLabel: "Delete",
-      danger: true,
-    })))
+    if (
+      !(await confirmDialog({
+        title: "Delete recipe?",
+        message: `'${r.name}' will be deleted. This cannot be undone.`,
+        confirmLabel: "Delete",
+        danger: true,
+      }))
+    )
       return;
     try {
       await deleteRecipe(r.name);
@@ -144,7 +151,11 @@ export function RecipeGallery({ onClose }: RecipeGalleryProps) {
         kind: "success",
       });
     } catch (err) {
-      pushToast({ title: "Copy failed", body: humanizeError(err), kind: "error" });
+      pushToast({
+        title: "Copy failed",
+        body: humanizeError(err),
+        kind: "error",
+      });
     }
   };
 
@@ -158,7 +169,11 @@ export function RecipeGallery({ onClose }: RecipeGalleryProps) {
       setEditing(null);
       await refresh();
     } catch (err) {
-      pushToast({ title: "Save failed", body: humanizeError(err), kind: "error" });
+      pushToast({
+        title: "Save failed",
+        body: humanizeError(err),
+        kind: "error",
+      });
     } finally {
       setBusy(false);
     }
@@ -227,7 +242,9 @@ export function RecipeGallery({ onClose }: RecipeGalleryProps) {
             <div className="recipe-gallery-editor-head">
               <span className="muted">
                 Editing{" "}
-                <code>{editing.original || deriveName(editing.yaml, "new")}</code>
+                <code>
+                  {editing.original || deriveName(editing.yaml, "new")}
+                </code>
               </span>
               <div>
                 <button
@@ -249,9 +266,7 @@ export function RecipeGallery({ onClose }: RecipeGalleryProps) {
             <textarea
               className="recipe-gallery-textarea"
               value={editing.yaml}
-              onChange={(e) =>
-                setEditing({ ...editing, yaml: e.target.value })
-              }
+              onChange={(e) => setEditing({ ...editing, yaml: e.target.value })}
               spellCheck={false}
               aria-label="Recipe YAML"
             />
@@ -299,7 +314,10 @@ export function RecipeGallery({ onClose }: RecipeGalleryProps) {
                       >
                         Run
                       </button>
-                      <button className="link-btn" onClick={() => handleEdit(r)}>
+                      <button
+                        className="link-btn"
+                        onClick={() => handleEdit(r)}
+                      >
                         Edit
                       </button>
                       <button

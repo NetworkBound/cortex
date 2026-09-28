@@ -43,7 +43,11 @@ export function humanizeError(e: unknown): string {
   }
 
   // Network / gateway reachability failures from fetch-based calls.
-  if (/failed to fetch|networkerror|err_connection|econnrefused|fetch failed|timed out|timeout/i.test(raw)) {
+  if (
+    /failed to fetch|networkerror|err_connection|econnrefused|fetch failed|timed out|timeout/i.test(
+      raw,
+    )
+  ) {
     return "Couldn't reach the gateway — check your connection and try again.";
   }
 

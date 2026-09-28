@@ -144,7 +144,8 @@ function buildGraph(snap: BrainSnapshot): { nodes: GNode[]; edges: GEdge[] } {
     const projNameLower = p.name.toLowerCase();
     const projRootLower = p.root.toLowerCase();
     for (const s of sessions) {
-      const blob = `${s.first_message ?? ""} ${s.agents.join(" ")}`.toLowerCase();
+      const blob =
+        `${s.first_message ?? ""} ${s.agents.join(" ")}`.toLowerCase();
       if (blob.includes(projNameLower)) {
         edges.push({ a: `s:${s.session_id}`, b: `p:${p.root}` });
       }
@@ -258,7 +259,10 @@ export function ProjectGraph() {
   const graphRef = useRef<{ nodes: GNode[]; edges: GEdge[] } | null>(null);
   const [tip, setTip] = useState<Tooltip | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
-  const animRef = useRef<{ until: number; raf: number | null }>({ until: 0, raf: null });
+  const animRef = useRef<{ until: number; raf: number | null }>({
+    until: 0,
+    raf: null,
+  });
   const setActive = useCortexStore((s) => s.setActiveProject);
   const resume = useCortexStore((s) => s.resumeSession);
 
@@ -434,23 +438,26 @@ export function ProjectGraph() {
                   const rect = wrapRef.current?.getBoundingClientRect();
                   const x = rect ? ev.clientX - rect.left + 12 : ev.clientX;
                   const y = rect ? ev.clientY - rect.top + 12 : ev.clientY;
-                  setTip({ x, y, label: n.label, meta: `${n.kind} · ${n.meta}` });
+                  setTip({
+                    x,
+                    y,
+                    label: n.label,
+                    meta: `${n.kind} · ${n.meta}`,
+                  });
                 }}
                 onMouseMove={(ev) => {
                   const rect = wrapRef.current?.getBoundingClientRect();
                   const x = rect ? ev.clientX - rect.left + 12 : ev.clientX;
                   const y = rect ? ev.clientY - rect.top + 12 : ev.clientY;
                   setTip((prev) =>
-                    prev ? { ...prev, x, y } : { x, y, label: n.label, meta: `${n.kind} · ${n.meta}` },
+                    prev
+                      ? { ...prev, x, y }
+                      : { x, y, label: n.label, meta: `${n.kind} · ${n.meta}` },
                   );
                 }}
                 onMouseLeave={() => setTip(null)}
               />
-              <text
-                className="pg-label"
-                x={n.x + n.size + 3}
-                y={n.y + 3}
-              >
+              <text className="pg-label" x={n.x + n.size + 3} y={n.y + 3}>
                 {truncate(n.label, 22)}
               </text>
             </g>
@@ -463,7 +470,9 @@ export function ProjectGraph() {
           style={{ left: tip.x, top: tip.y, maxWidth: 320 }}
         >
           <div style={{ fontWeight: 600 }}>{tip.label}</div>
-          <div className="muted" style={{ fontSize: 10.5, marginTop: 2 }}>{tip.meta}</div>
+          <div className="muted" style={{ fontSize: 10.5, marginTop: 2 }}>
+            {tip.meta}
+          </div>
         </div>
       )}
     </div>

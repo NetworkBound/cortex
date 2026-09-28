@@ -68,7 +68,10 @@ export function ChannelsPanel() {
   // Optimistic transcript state for the in-flight send: the user's own post
   // (shown immediately, before the backend persists it) and one streaming
   // bubble per summoned role that grows as `delta` events land.
-  const [liveUser, setLiveUser] = useState<{ content: string; ts: number } | null>(null);
+  const [liveUser, setLiveUser] = useState<{
+    content: string;
+    ts: number;
+  } | null>(null);
   const [liveReplies, setLiveReplies] = useState<LiveReply[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -136,7 +139,12 @@ export function ChannelsPanel() {
 
   const mentioned = useMemo(() => extractMentions(draft), [draft]);
   const memberSet = useMemo(
-    () => new Set(active?.members.filter((m) => m.kind === "agent_role").map((m) => m.id) ?? []),
+    () =>
+      new Set(
+        active?.members
+          .filter((m) => m.kind === "agent_role")
+          .map((m) => m.id) ?? [],
+      ),
     [active],
   );
   const unknownMentions = mentioned.filter((m) => !memberSet.has(m));
@@ -174,7 +182,11 @@ export function ChannelsPanel() {
             // Token chunk — grow that role's streaming bubble in place.
             setLiveReplies((cur) => {
               const i = cur.findIndex((r) => r.role === role);
-              if (i < 0) return [...cur, { role, content: text ?? "", status: "streaming" }];
+              if (i < 0)
+                return [
+                  ...cur,
+                  { role, content: text ?? "", status: "streaming" },
+                ];
               const next = [...cur];
               next[i] = { ...next[i], content: next[i].content + (text ?? "") };
               return next;
@@ -227,11 +239,17 @@ export function ChannelsPanel() {
       // batches this with the live-state clears in `finally`, so the streamed
       // bubbles swap for their persisted twins in a single paint.
       setActive((cur) =>
-        cur && cur.id === channelId ? { ...cur, messages: [...cur.messages, ...appended] } : cur,
+        cur && cur.id === channelId
+          ? { ...cur, messages: [...cur.messages, ...appended] }
+          : cur,
       );
     } catch (e) {
       setError(humanizeError(e));
-      pushToast({ title: "Channel post failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Channel post failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
       // Nothing was persisted — put the text back so the user can retry,
       // unless they've already started a new draft.
       setDraft((d) => (d.trim().length === 0 ? content : d));
@@ -245,10 +263,18 @@ export function ChannelsPanel() {
     }
   }
 
-  async function handleCreate(name: string, description: string, picked: string[]) {
+  async function handleCreate(
+    name: string,
+    description: string,
+    picked: string[],
+  ) {
     const trimmed = name.trim();
     if (!trimmed) {
-      pushToast({ title: "Channel name required", body: "Pick a name to create the room.", kind: "warning" });
+      pushToast({
+        title: "Channel name required",
+        body: "Pick a name to create the room.",
+        kind: "warning",
+      });
       return;
     }
     const members: MemberSpec[] = [
@@ -260,25 +286,40 @@ export function ChannelsPanel() {
       setChannels((cs) => [created, ...cs]);
       setActiveId(created.id);
       setShowCreate(false);
-      pushToast({ title: "Channel created", body: created.name, kind: "success" });
+      pushToast({
+        title: "Channel created",
+        body: created.name,
+        kind: "success",
+      });
     } catch (e) {
-      pushToast({ title: "Create failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Create failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }
 
   async function handleDelete(id: string) {
-    if (!(await confirmDialog({
-      title: "Delete channel?",
-      message: "The channel and its transcript will be permanently deleted.",
-      confirmLabel: "Delete",
-      danger: true,
-    }))) return;
+    if (
+      !(await confirmDialog({
+        title: "Delete channel?",
+        message: "The channel and its transcript will be permanently deleted.",
+        confirmLabel: "Delete",
+        danger: true,
+      }))
+    )
+      return;
     try {
       await deleteChannel(id);
       setChannels((cs) => cs.filter((c) => c.id !== id));
       if (activeId === id) setActiveId(null);
     } catch (e) {
-      pushToast({ title: "Delete failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Delete failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }
 
@@ -287,7 +328,11 @@ export function ChannelsPanel() {
       <aside className="channels-sidebar">
         <div className="channels-sidebar-head">
           <strong>Channels</strong>
-          <button className="channels-new-btn" onClick={() => setShowCreate(true)} title="New channel">
+          <button
+            className="channels-new-btn"
+            onClick={() => setShowCreate(true)}
+            title="New channel"
+          >
             + New
           </button>
         </div>
@@ -318,7 +363,9 @@ export function ChannelsPanel() {
         {!active ? (
           !error && (
             <div className="muted channels-empty-main">
-              {channels.length === 0 ? "Create a channel to start." : "Pick a channel."}
+              {channels.length === 0
+                ? "Create a channel to start."
+                : "Pick a channel."}
             </div>
           )
         ) : (
@@ -326,9 +373,16 @@ export function ChannelsPanel() {
             <header className="channels-header">
               <div>
                 <h3 className="channels-title">#{active.name}</h3>
-                {active.description && <div className="muted channels-desc">{active.description}</div>}
+                {active.description && (
+                  <div className="muted channels-desc">
+                    {active.description}
+                  </div>
+                )}
               </div>
-              <button className="link-btn channels-delete" onClick={() => handleDelete(active.id)}>
+              <button
+                className="link-btn channels-delete"
+                onClick={() => handleDelete(active.id)}
+              >
                 Delete
               </button>
             </header>
@@ -338,7 +392,10 @@ export function ChannelsPanel() {
                   key={`${m.kind}-${m.id}`}
                   className="channels-chip"
                   style={{
-                    borderColor: m.kind === "agent_role" ? colorForAuthor(m.id) : "var(--border)",
+                    borderColor:
+                      m.kind === "agent_role"
+                        ? colorForAuthor(m.id)
+                        : "var(--border)",
                   }}
                   title={m.kind}
                 >
@@ -348,13 +405,22 @@ export function ChannelsPanel() {
               ))}
             </div>
             <div ref={scrollerRef} className="channels-transcript">
-              {active.messages.length === 0 && !(sending?.channelId === active.id) ? (
+              {active.messages.length === 0 &&
+              !(sending?.channelId === active.id) ? (
                 <div className="muted channels-empty-transcript">
-                  No messages yet. Try <code>@{active.members.find((m) => m.kind === "agent_role")?.id ?? "role-name"}</code> to summon an agent.
+                  No messages yet. Try{" "}
+                  <code>
+                    @
+                    {active.members.find((m) => m.kind === "agent_role")?.id ??
+                      "role-name"}
+                  </code>{" "}
+                  to summon an agent.
                 </div>
               ) : (
                 <>
-                  {active.messages.map((m) => <Bubble key={m.id} msg={m} />)}
+                  {active.messages.map((m) => (
+                    <Bubble key={m.id} msg={m} />
+                  ))}
                   {sending?.channelId === active.id && (
                     <>
                       {liveUser && (
@@ -378,9 +444,7 @@ export function ChannelsPanel() {
               )}
             </div>
             <div className="channels-composer">
-              {sending && (
-                <ProgressTray progress={progress} />
-              )}
+              {sending && <ProgressTray progress={progress} />}
               {unknownMentions.length > 0 && (
                 <div className="channels-warn">
                   Unknown mention{unknownMentions.length === 1 ? "" : "s"}:{" "}
@@ -401,7 +465,10 @@ export function ChannelsPanel() {
                 rows={3}
               />
               <div className="channels-composer-foot">
-                <span className="muted">{mentioned.length > 0 && `summoning: ${mentioned.map((m) => `@${m}`).join(" ")}`}</span>
+                <span className="muted">
+                  {mentioned.length > 0 &&
+                    `summoning: ${mentioned.map((m) => `@${m}`).join(" ")}`}
+                </span>
                 <button
                   className="channels-send-btn"
                   onClick={() => void send()}
@@ -420,7 +487,11 @@ export function ChannelsPanel() {
       </section>
 
       {showCreate && (
-        <CreateChannelModal roles={roles} onCancel={() => setShowCreate(false)} onCreate={handleCreate} />
+        <CreateChannelModal
+          roles={roles}
+          onCancel={() => setShowCreate(false)}
+          onCreate={handleCreate}
+        />
       )}
     </div>
   );
@@ -450,9 +521,14 @@ function ProgressTray({ progress }: { progress: AgentProgress[] }) {
         <div key={p.role} className={`channels-progress-row ${p.status}`}>
           <span className="channels-progress-icon" aria-hidden>
             {p.status === "done" ? "✓" : p.status === "error" ? "✕" : null}
-            {p.status === "start" && <span className="channels-progress-spinner" aria-hidden />}
+            {p.status === "start" && (
+              <span className="channels-progress-spinner" aria-hidden />
+            )}
           </span>
-          <span className="channels-progress-role" style={{ color: colorForAuthor(p.role) }}>
+          <span
+            className="channels-progress-role"
+            style={{ color: colorForAuthor(p.role) }}
+          >
             @{p.role}
           </span>
         </div>
@@ -466,7 +542,9 @@ function Bubble({ msg }: { msg: ChannelMessage }) {
   const isSystem = msg.author_kind === "system";
   const color = isUser ? "var(--accent)" : colorForAuthor(msg.author_id);
   return (
-    <div className={`channels-bubble${isUser ? " user" : ""}${isSystem ? " system" : ""}`}>
+    <div
+      className={`channels-bubble${isUser ? " user" : ""}${isSystem ? " system" : ""}`}
+    >
       <div className="channels-bubble-head">
         <span className="channels-bubble-author" style={{ color }}>
           {isUser ? "You" : isSystem ? "system" : `@${msg.author_id}`}
@@ -493,9 +571,14 @@ function Bubble({ msg }: { msg: ChannelMessage }) {
  */
 function LiveBubble({ reply }: { reply: LiveReply }) {
   return (
-    <div className={`channels-bubble live${reply.status === "error" ? " errored" : ""}`}>
+    <div
+      className={`channels-bubble live${reply.status === "error" ? " errored" : ""}`}
+    >
       <div className="channels-bubble-head">
-        <span className="channels-bubble-author" style={{ color: colorForAuthor(reply.role) }}>
+        <span
+          className="channels-bubble-author"
+          style={{ color: colorForAuthor(reply.role) }}
+        >
           @{reply.role}
         </span>
         {reply.status === "streaming" && (
@@ -506,7 +589,11 @@ function LiveBubble({ reply }: { reply: LiveReply }) {
         {reply.content ? (
           <MarkdownView source={reply.content} />
         ) : (
-          <span className="channels-typing" role="status" aria-label={`@${reply.role} is replying`}>
+          <span
+            className="channels-typing"
+            role="status"
+            aria-label={`@${reply.role} is replying`}
+          >
             <span />
             <span />
             <span />
@@ -520,10 +607,18 @@ function LiveBubble({ reply }: { reply: LiveReply }) {
 interface CreateChannelModalProps {
   roles: Role[];
   onCancel: () => void;
-  onCreate: (name: string, description: string, members: string[]) => void | Promise<void>;
+  onCreate: (
+    name: string,
+    description: string,
+    members: string[],
+  ) => void | Promise<void>;
 }
 
-function CreateChannelModal({ roles, onCancel, onCreate }: CreateChannelModalProps) {
+function CreateChannelModal({
+  roles,
+  onCancel,
+  onCreate,
+}: CreateChannelModalProps) {
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -550,7 +645,9 @@ function CreateChannelModal({ roles, onCancel, onCreate }: CreateChannelModalPro
         </label>
         <div className="channels-modal-label">Agent members</div>
         {roles.length === 0 ? (
-          <div className="muted">No roles found at ~/.cortex/roles/. Create one first.</div>
+          <div className="muted">
+            No roles found at ~/.cortex/roles/. Create one first.
+          </div>
         ) : (
           <div className="channels-role-grid">
             {roles.map((r) => {
@@ -560,9 +657,13 @@ function CreateChannelModal({ roles, onCancel, onCreate }: CreateChannelModalPro
                   key={r.name}
                   className={`channels-role-pick${on ? " on" : ""}`}
                   onClick={() =>
-                    setPicked((cur) => (on ? cur.filter((n) => n !== r.name) : [...cur, r.name]))
+                    setPicked((cur) =>
+                      on ? cur.filter((n) => n !== r.name) : [...cur, r.name],
+                    )
                   }
-                  style={{ borderColor: on ? colorForAuthor(r.name) : "var(--border)" }}
+                  style={{
+                    borderColor: on ? colorForAuthor(r.name) : "var(--border)",
+                  }}
                   type="button"
                 >
                   @{r.name}

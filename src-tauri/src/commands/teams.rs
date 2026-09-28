@@ -180,8 +180,7 @@ pub async fn update_team_worker(
     status: String,
     current_task: Option<String>,
 ) -> Result<Team, String> {
-    teams::update_worker(&team_id, &worker_id, &status, current_task)
-        .map_err(|e| e.to_string())
+    teams::update_worker(&team_id, &worker_id, &status, current_task).map_err(|e| e.to_string())
 }
 
 /// Remove a team file. Missing files are a no-op.

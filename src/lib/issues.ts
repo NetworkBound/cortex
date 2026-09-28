@@ -92,7 +92,12 @@ export async function importIssues(
   baseUrl?: string,
 ): Promise<ForgeIssue[]> {
   return invoke<ForgeIssue[]>("issues_import", {
-    args: { forge, owner, repo, base_url: baseUrl?.trim() ? baseUrl.trim() : null },
+    args: {
+      forge,
+      owner,
+      repo,
+      base_url: baseUrl?.trim() ? baseUrl.trim() : null,
+    },
   });
 }
 
@@ -116,7 +121,10 @@ export async function runIssueInLane(
  * Dry-run the PR for a settled issue lane: NO network I/O, no writes. Renders
  * the draft and mints the one-shot approval token `openIssuePr` spends.
  */
-export async function previewIssuePr(runId: string, issue: IssueRef): Promise<IssuePrDraft> {
+export async function previewIssuePr(
+  runId: string,
+  issue: IssueRef,
+): Promise<IssuePrDraft> {
   return invoke<IssuePrDraft>("issue_pr_preview", { runId, issue });
 }
 
@@ -125,6 +133,8 @@ export async function previewIssuePr(runId: string, issue: IssueRef): Promise<Is
  * and posts a progress comment on the source issue. Invalid/expired/replayed
  * tokens perform no writes.
  */
-export async function openIssuePr(approvalToken: string): Promise<IssuePrResult> {
+export async function openIssuePr(
+  approvalToken: string,
+): Promise<IssuePrResult> {
   return invoke<IssuePrResult>("issue_open_pr", { approvalToken });
 }

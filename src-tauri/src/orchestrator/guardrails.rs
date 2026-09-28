@@ -81,11 +81,14 @@ impl Guardrails {
         let mut patterns = Vec::with_capacity(parsed.rule.len());
         for rule in parsed.rule {
             let risk = Risk::parse(&rule.risk).ok_or_else(|| {
-                anyhow::anyhow!("invalid risk '{}' for pattern '{}'", rule.risk, rule.pattern)
+                anyhow::anyhow!(
+                    "invalid risk '{}' for pattern '{}'",
+                    rule.risk,
+                    rule.pattern
+                )
             })?;
-            let re = Regex::new(&rule.pattern).map_err(|e| {
-                anyhow::anyhow!("invalid regex '{}': {e}", rule.pattern)
-            })?;
+            let re = Regex::new(&rule.pattern)
+                .map_err(|e| anyhow::anyhow!("invalid regex '{}': {e}", rule.pattern))?;
             patterns.push((re, rule.reason, risk));
         }
         Ok(Self { patterns })
@@ -218,9 +221,7 @@ mod tests {
         let g = Guardrails::load(tmp.path());
         // Defaults are non-empty.
         assert!(!g.patterns.is_empty());
-        assert!(g
-            .evaluate("shell_exec", r#"{"cmd":"rm -rf /"}"#)
-            .is_some());
+        assert!(g.evaluate("shell_exec", r#"{"cmd":"rm -rf /"}"#).is_some());
     }
 
     #[test]

@@ -84,7 +84,9 @@ export async function getWorkflow(name: string): Promise<Workflow | null> {
   }
 }
 
-export async function saveWorkflow(workflow: Workflow): Promise<Workflow | null> {
+export async function saveWorkflow(
+  workflow: Workflow,
+): Promise<Workflow | null> {
   try {
     return await invoke<Workflow>("save_workflow", { workflow });
   } catch (err) {
@@ -108,7 +110,10 @@ export async function runWorkflow(
   inputs?: Record<string, string>,
 ): Promise<WorkflowRun | null> {
   try {
-    return await invoke<WorkflowRun>("run_workflow", { name, inputs: inputs ?? null });
+    return await invoke<WorkflowRun>("run_workflow", {
+      name,
+      inputs: inputs ?? null,
+    });
   } catch (err) {
     console.warn("runWorkflow failed", err);
     return null;
@@ -174,7 +179,9 @@ export async function collectWorkflowInputs(
  * step will route; v1 steps render exactly as before.
  */
 export function formatStepPrompt(step: WorkflowStep): string {
-  const tag = step.model ? `[role:${step.role} · model:${step.model}]` : `[role:${step.role}]`;
+  const tag = step.model
+    ? `[role:${step.role} · model:${step.model}]`
+    : `[role:${step.role}]`;
   return `${tag} ${step.prompt}`;
 }
 
@@ -184,6 +191,9 @@ export function formatStepPrompt(step: WorkflowStep): string {
  * Pure string composition — used at dispatch time and by the run-queue
  * notes so the user sees the exact shape the next prompt will take.
  */
-export function buildPipedPrompt(previousOutput: string, prompt: string): string {
+export function buildPipedPrompt(
+  previousOutput: string,
+  prompt: string,
+): string {
   return `Previous step output:\n\n${previousOutput}\n\n---\n\n${prompt}`;
 }

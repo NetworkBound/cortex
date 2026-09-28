@@ -5,7 +5,11 @@ import {
   type QuickOpenModalProps,
   type QuickOpenPick,
 } from "@/components/QuickOpenModal";
-import { readConfigFile, writeConfigFile, type ConfigTarget } from "@/lib/config-files";
+import {
+  readConfigFile,
+  writeConfigFile,
+  type ConfigTarget,
+} from "@/lib/config-files";
 import { openInEditor } from "@/lib/editor";
 
 /**

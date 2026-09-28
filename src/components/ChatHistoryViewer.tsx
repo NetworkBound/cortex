@@ -119,8 +119,7 @@ export function ChatHistoryViewer({ chat, onClose }: Props) {
   };
 
   const title =
-    chat.first_message?.slice(0, 80) ||
-    `session ${chat.session_id.slice(-10)}`;
+    chat.first_message?.slice(0, 80) || `session ${chat.session_id.slice(-10)}`;
 
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
@@ -166,15 +165,15 @@ export function ChatHistoryViewer({ chat, onClose }: Props) {
 
         {status && <div className="chat-history-viewer-status">{status}</div>}
         {err && <div className="chat-history-error">{err}</div>}
-        {loading && <div className="chat-history-empty">loading transcript…</div>}
+        {loading && (
+          <div className="chat-history-empty">loading transcript…</div>
+        )}
 
         {!loading && !err && (
           <div className="chat-history-viewer-body">
             {filtered.length === 0 && (
               <div className="chat-history-empty">
-                {query
-                  ? `No turns match "${query}".`
-                  : "Transcript is empty."}
+                {query ? `No turns match "${query}".` : "Transcript is empty."}
               </div>
             )}
             {filtered.map((t, i) => (

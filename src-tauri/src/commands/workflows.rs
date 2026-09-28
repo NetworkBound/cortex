@@ -158,7 +158,9 @@ fn parse_workflow(raw: &str, fallback_name: &str) -> anyhow::Result<Workflow> {
 }
 
 fn read_all() -> Vec<Workflow> {
-    let Some(dir) = workflows_dir() else { return Vec::new() };
+    let Some(dir) = workflows_dir() else {
+        return Vec::new();
+    };
     let read = match fs::read_dir(&dir) {
         Ok(r) => r,
         Err(e) => {
@@ -190,10 +192,7 @@ fn read_all() -> Vec<Workflow> {
         };
         match parse_workflow(&raw, &stem) {
             Ok(w) => out.push(w),
-            Err(e) => tracing::debug!(
-                "workflows: parse failed for {}: {e}",
-                path.display()
-            ),
+            Err(e) => tracing::debug!("workflows: parse failed for {}: {e}", path.display()),
         }
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
@@ -211,10 +210,7 @@ fn read_one(name: &str) -> Option<Workflow> {
             match parse_workflow(&raw, name) {
                 Ok(w) => return Some(w),
                 Err(e) => {
-                    tracing::debug!(
-                        "workflows: parse failed for {}: {e}",
-                        path.display()
-                    );
+                    tracing::debug!("workflows: parse failed for {}: {e}", path.display());
                     return None;
                 }
             }
@@ -261,10 +257,7 @@ pub fn seed_default_workflows() {
         return;
     }
     if let Err(e) = fs::create_dir_all(&dir) {
-        tracing::debug!(
-            "workflows: seed mkdir failed at {}: {e}",
-            dir.display()
-        );
+        tracing::debug!("workflows: seed mkdir failed at {}: {e}", dir.display());
         return;
     }
     for wf in default_workflows().into_iter().chain(recipe_catalog()) {
@@ -279,8 +272,7 @@ fn default_workflows() -> Vec<Workflow> {
         Workflow {
             name: "review-pr".into(),
             description: Some(
-                "Run code-reviewer + security-auditor + test-writer on the active PR"
-                    .into(),
+                "Run code-reviewer + security-auditor + test-writer on the active PR".into(),
             ),
             inputs: vec![],
             steps: vec![
@@ -316,8 +308,7 @@ fn default_workflows() -> Vec<Workflow> {
         Workflow {
             name: "morning-standup".into(),
             description: Some(
-                "Summarize yesterday's work, pull open PRs, list today's priorities"
-                    .into(),
+                "Summarize yesterday's work, pull open PRs, list today's priorities".into(),
             ),
             inputs: vec![],
             steps: vec![
@@ -352,8 +343,7 @@ fn default_workflows() -> Vec<Workflow> {
         Workflow {
             name: "triage-bug".into(),
             description: Some(
-                "Reproduce, isolate, and propose a fix for the bug currently in the chat"
-                    .into(),
+                "Reproduce, isolate, and propose a fix for the bug currently in the chat".into(),
             ),
             inputs: vec![],
             steps: vec![
@@ -388,8 +378,7 @@ fn default_workflows() -> Vec<Workflow> {
         Workflow {
             name: "prep-release".into(),
             description: Some(
-                "Generate changelog, bump version, audit deps before cutting a release"
-                    .into(),
+                "Generate changelog, bump version, audit deps before cutting a release".into(),
             ),
             inputs: vec![],
             steps: vec![
@@ -523,8 +512,7 @@ fn recipe_catalog() -> Vec<Workflow> {
         Workflow {
             name: "fix-failing-tests".into(),
             description: Some(
-                "Reproduce, isolate, and fix a failing test suite from pasted output"
-                    .into(),
+                "Reproduce, isolate, and fix a failing test suite from pasted output".into(),
             ),
             inputs: vec![WorkflowInput {
                 key: "test_output".into(),
@@ -564,8 +552,7 @@ fn recipe_catalog() -> Vec<Workflow> {
         Workflow {
             name: "release-notes".into(),
             description: Some(
-                "Draft release notes since a tag, then tighten them for accuracy"
-                    .into(),
+                "Draft release notes since a tag, then tighten them for accuracy".into(),
             ),
             inputs: vec![
                 WorkflowInput {
@@ -603,8 +590,7 @@ fn recipe_catalog() -> Vec<Workflow> {
         Workflow {
             name: "pr-review".into(),
             description: Some(
-                "Review PR — reviewer + security pass, summarized into a merge verdict"
-                    .into(),
+                "Review PR — reviewer + security pass, summarized into a merge verdict".into(),
             ),
             inputs: vec![WorkflowInput {
                 key: "pr_ref".into(),
@@ -642,8 +628,7 @@ fn recipe_catalog() -> Vec<Workflow> {
         Workflow {
             name: "security-scan-before-merge".into(),
             description: Some(
-                "Security scan before merge — deps + diff, gated on confirmed findings"
-                    .into(),
+                "Security scan before merge — deps + diff, gated on confirmed findings".into(),
             ),
             inputs: vec![WorkflowInput {
                 key: "pr_ref".into(),
@@ -840,7 +825,8 @@ fn workflow_to_yaml(workflow: &Workflow) -> Result<String, String> {
 /// name so an imported file can't smuggle a path-traversal name into
 /// `write_one` with a confusing low-level error.
 fn import_from_text(raw: &str, fallback_name: &str) -> Result<Workflow, String> {
-    let wf = parse_workflow(raw, fallback_name).map_err(|e| format!("invalid workflow YAML: {e}"))?;
+    let wf =
+        parse_workflow(raw, fallback_name).map_err(|e| format!("invalid workflow YAML: {e}"))?;
     if !is_safe_name(&wf.name) {
         return Err(format!("invalid workflow name '{}'", wf.name));
     }
@@ -1089,8 +1075,7 @@ mod tests {
 
     #[test]
     fn expansion_happy_path_uses_provided_and_default() {
-        let provided: HashMap<String, String> =
-            [("tag".to_string(), "v3.2.0".to_string())].into();
+        let provided: HashMap<String, String> = [("tag".to_string(), "v3.2.0".to_string())].into();
         let run = build_run(templated_workflow(), provided).unwrap();
         assert_eq!(
             run.steps[0].prompt,
@@ -1113,8 +1098,7 @@ mod tests {
     fn expansion_unknown_placeholder_errors() {
         let mut wf = templated_workflow();
         wf.steps[1].prompt = "Also mention {{codename}}.".into();
-        let provided: HashMap<String, String> =
-            [("tag".to_string(), "v3.2.0".to_string())].into();
+        let provided: HashMap<String, String> = [("tag".to_string(), "v3.2.0".to_string())].into();
         let err = build_run(wf, provided).unwrap_err();
         assert!(err.contains("unknown input '{{codename}}'"), "got: {err}");
     }
@@ -1134,10 +1118,8 @@ mod tests {
     fn expansion_is_exact_key_only() {
         let mut wf = templated_workflow();
         // Spaces, uppercase, dots, nesting: none of these are placeholders.
-        wf.steps[0].prompt =
-            "{{ tag }} {{TAG}} {{a.b}} {{tag}} {{{tag}}}".into();
-        let provided: HashMap<String, String> =
-            [("tag".to_string(), "v1".to_string())].into();
+        wf.steps[0].prompt = "{{ tag }} {{TAG}} {{a.b}} {{tag}} {{{tag}}}".into();
+        let provided: HashMap<String, String> = [("tag".to_string(), "v1".to_string())].into();
         let run = build_run(wf, provided).unwrap();
         // `{{{tag}}}` = literal `{` + placeholder + literal `}` — exact-key
         // matching still fires on the inner `{{tag}}`.
@@ -1159,8 +1141,7 @@ mod tests {
     fn invalid_declared_key_errors() {
         let mut wf = templated_workflow();
         wf.inputs[0].key = "Bad Key!".into();
-        let provided: HashMap<String, String> =
-            [("Bad Key!".to_string(), "v1".to_string())].into();
+        let provided: HashMap<String, String> = [("Bad Key!".to_string(), "v1".to_string())].into();
         let err = build_run(wf, provided).unwrap_err();
         assert!(err.contains("invalid input key"), "got: {err}");
     }
@@ -1169,8 +1150,7 @@ mod tests {
     /// frontend pipes step N's answer into step N+1 based on this ordering.
     #[test]
     fn pipe_output_ordering_preserved() {
-        let provided: HashMap<String, String> =
-            [("tag".to_string(), "v3.2.0".to_string())].into();
+        let provided: HashMap<String, String> = [("tag".to_string(), "v3.2.0".to_string())].into();
         let run = build_run(templated_workflow(), provided).unwrap();
         assert_eq!(run.steps.len(), 2);
         assert_eq!(run.steps[0].role, "docs-writer");
@@ -1190,8 +1170,12 @@ mod tests {
         with_temp_home(|_| {
             seed_default_workflows();
             let listed = read_all();
-            assert_eq!(listed.len(), 10, "5 v1 defaults + 5 catalog recipes: {:?}",
-                listed.iter().map(|w| &w.name).collect::<Vec<_>>());
+            assert_eq!(
+                listed.len(),
+                10,
+                "5 v1 defaults + 5 catalog recipes: {:?}",
+                listed.iter().map(|w| &w.name).collect::<Vec<_>>()
+            );
             let names: Vec<&str> = listed.iter().map(|w| w.name.as_str()).collect();
             for expected in [
                 "audit-repo",
@@ -1200,7 +1184,10 @@ mod tests {
                 "pr-review",
                 "security-scan-before-merge",
             ] {
-                assert!(names.contains(&expected), "missing catalog recipe '{expected}' in {names:?}");
+                assert!(
+                    names.contains(&expected),
+                    "missing catalog recipe '{expected}' in {names:?}"
+                );
             }
             for expected in [
                 "review-pr",
@@ -1209,7 +1196,10 @@ mod tests {
                 "prep-release",
                 "audit-deps",
             ] {
-                assert!(names.contains(&expected), "missing v1 default '{expected}' in {names:?}");
+                assert!(
+                    names.contains(&expected),
+                    "missing v1 default '{expected}' in {names:?}"
+                );
             }
         });
     }

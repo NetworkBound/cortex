@@ -15,7 +15,14 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Play, Trash2, Plus, Clock, History, MessageSquare } from "lucide-react";
+import {
+  Play,
+  Trash2,
+  Plus,
+  Clock,
+  History,
+  MessageSquare,
+} from "lucide-react";
 import { humanizeError } from "@/lib/errors";
 import { timeAgo } from "@/lib/time";
 import { pushToast } from "@/lib/toast";
@@ -62,7 +69,13 @@ function fmtDuration(ms: number): string {
  * for the expanded routine) and re-fetches when `version` bumps (the parent
  * increments it on every `routines:ran`).
  */
-function RoutineHistory({ routineId, version }: { routineId: string; version: number }) {
+function RoutineHistory({
+  routineId,
+  version,
+}: {
+  routineId: string;
+  version: number;
+}) {
   const [runs, setRuns] = useState<RoutineRun[] | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [openRun, setOpenRun] = useState<string | null>(null);
@@ -72,9 +85,18 @@ function RoutineHistory({ routineId, version }: { routineId: string; version: nu
     let live = true;
     setHistoryError(null);
     listRoutineRuns(routineId)
-      .then((rows) => { if (live) setRuns(rows); })
-      .catch((e) => { if (live) { setRuns([]); setHistoryError(humanizeError(e)); } });
-    return () => { live = false; };
+      .then((rows) => {
+        if (live) setRuns(rows);
+      })
+      .catch((e) => {
+        if (live) {
+          setRuns([]);
+          setHistoryError(humanizeError(e));
+        }
+      });
+    return () => {
+      live = false;
+    };
   }, [routineId, version]);
 
   const openAsChat = useCallback(async (run: RoutineRun) => {
@@ -82,12 +104,18 @@ function RoutineHistory({ routineId, version }: { routineId: string; version: nu
     try {
       const sessionId = await routineRunAsSession(run.run_id);
       window.dispatchEvent(
-        new CustomEvent("cortex:chat-replay", { detail: { session_id: sessionId } }),
+        new CustomEvent("cortex:chat-replay", {
+          detail: { session_id: sessionId },
+        }),
       );
       // Collapse the activity panel so the chat (now showing the run) is
       // front and center — same reveal the notification deep-link uses.
       useCortexStore.getState().setActivityTab(null);
-      pushToast({ title: "Run opened in chat", body: "Reply to continue from this result.", kind: "success" });
+      pushToast({
+        title: "Run opened in chat",
+        body: "Reply to continue from this result.",
+        kind: "success",
+      });
     } catch (e) {
       pushToast({ title: humanizeError(e), kind: "error" });
     } finally {
@@ -95,7 +123,8 @@ function RoutineHistory({ routineId, version }: { routineId: string; version: nu
     }
   }, []);
 
-  if (runs === null) return <p className="routines-history-empty">Loading history…</p>;
+  if (runs === null)
+    return <p className="routines-history-empty">Loading history…</p>;
   if (historyError) {
     return (
       <p className="routines-history-empty routines-history-error" role="alert">
@@ -104,7 +133,11 @@ function RoutineHistory({ routineId, version }: { routineId: string; version: nu
     );
   }
   if (runs.length === 0) {
-    return <p className="routines-history-empty">No runs recorded yet. Run it now or wait for the schedule.</p>;
+    return (
+      <p className="routines-history-empty">
+        No runs recorded yet. Run it now or wait for the schedule.
+      </p>
+    );
   }
   return (
     <ul className="routines-history-list">
@@ -115,13 +148,17 @@ function RoutineHistory({ routineId, version }: { routineId: string; version: nu
               className={`routines-run-dot ${run.status === "ok" ? "ok" : "err"}`}
               aria-label={run.status === "ok" ? "succeeded" : "failed"}
             />
-            <span className="routines-run-when">{ago(run.started_unix_ms)}</span>
+            <span className="routines-run-when">
+              {ago(run.started_unix_ms)}
+            </span>
             <span className="routines-run-meta">
               {run.trigger} · {fmtDuration(run.duration_ms)}
             </span>
             <button
               className="routines-act"
-              onClick={() => setOpenRun((cur) => (cur === run.run_id ? null : run.run_id))}
+              onClick={() =>
+                setOpenRun((cur) => (cur === run.run_id ? null : run.run_id))
+              }
             >
               {openRun === run.run_id ? "Hide output" : "Output"}
             </button>
@@ -136,7 +173,9 @@ function RoutineHistory({ routineId, version }: { routineId: string; version: nu
             </button>
           </div>
           {openRun === run.run_id && (
-            <pre className="routines-run-output">{run.status === "ok" ? run.output : run.error}</pre>
+            <pre className="routines-run-output">
+              {run.status === "ok" ? run.output : run.error}
+            </pre>
           )}
         </li>
       ))}
@@ -201,25 +240,32 @@ export function RoutinesPanel() {
     }
   }, [draft]);
 
-  const onRun = useCallback(async (id: string) => {
-    setBusy(id);
-    try {
-      // The returned spec carries the run outcome — an LLM failure is recorded
-      // as status "error", not thrown, so toast from the status (pre-fix this
-      // said "Routine ran" even when the run failed).
-      const spec = await runRoutineNow(id);
-      await reload();
-      if (spec.last_status === "ok") {
-        pushToast({ title: "Routine ran", kind: "success" });
-      } else {
-        pushToast({ title: "Routine failed", body: spec.last_error.slice(0, 200), kind: "error" });
+  const onRun = useCallback(
+    async (id: string) => {
+      setBusy(id);
+      try {
+        // The returned spec carries the run outcome — an LLM failure is recorded
+        // as status "error", not thrown, so toast from the status (pre-fix this
+        // said "Routine ran" even when the run failed).
+        const spec = await runRoutineNow(id);
+        await reload();
+        if (spec.last_status === "ok") {
+          pushToast({ title: "Routine ran", kind: "success" });
+        } else {
+          pushToast({
+            title: "Routine failed",
+            body: spec.last_error.slice(0, 200),
+            kind: "error",
+          });
+        }
+      } catch (e) {
+        pushToast({ title: humanizeError(e), kind: "error" });
+      } finally {
+        setBusy(null);
       }
-    } catch (e) {
-      pushToast({ title: humanizeError(e), kind: "error" });
-    } finally {
-      setBusy(null);
-    }
-  }, [reload]);
+    },
+    [reload],
+  );
 
   const onToggle = useCallback(async (r: RoutineSpec) => {
     try {
@@ -240,7 +286,10 @@ export function RoutinesPanel() {
   return (
     <div className="routines-panel">
       <div className="routines-head">
-        <button className="routines-new-btn" onClick={() => setShowForm((s) => !s)}>
+        <button
+          className="routines-new-btn"
+          onClick={() => setShowForm((s) => !s)}
+        >
           <Plus size={14} strokeWidth={2} aria-hidden="true" /> New routine
         </button>
       </div>
@@ -265,10 +314,17 @@ export function RoutinesPanel() {
               <Clock size={13} strokeWidth={1.75} aria-hidden="true" />
               <select
                 value={draft.interval_minutes}
-                onChange={(e) => setDraft({ ...draft, interval_minutes: Number(e.target.value) })}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    interval_minutes: Number(e.target.value),
+                  })
+                }
               >
                 {CADENCES.map((c) => (
-                  <option key={c.minutes} value={c.minutes}>{c.label}</option>
+                  <option key={c.minutes} value={c.minutes}>
+                    {c.label}
+                  </option>
                 ))}
               </select>
             </label>
@@ -276,11 +332,15 @@ export function RoutinesPanel() {
               <input
                 type="checkbox"
                 checked={draft.enabled}
-                onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
+                onChange={(e) =>
+                  setDraft({ ...draft, enabled: e.target.checked })
+                }
               />
               enabled
             </label>
-            <button className="routines-save-btn" onClick={() => void onSave()}>Save</button>
+            <button className="routines-save-btn" onClick={() => void onSave()}>
+              Save
+            </button>
           </div>
         </div>
       )}
@@ -295,23 +355,39 @@ export function RoutinesPanel() {
           </button>
         </div>
       ) : routines.length === 0 ? (
-        <p className="routines-hint">No routines yet. Create one to run an agent task on a schedule.</p>
+        <p className="routines-hint">
+          No routines yet. Create one to run an agent task on a schedule.
+        </p>
       ) : (
         <ul className="routines-list">
           {routines.map((r) => (
-            <li key={r.id} className={`routines-row ${r.enabled ? "" : "routines-row-off"}`}>
+            <li
+              key={r.id}
+              className={`routines-row ${r.enabled ? "" : "routines-row-off"}`}
+            >
               <div className="routines-row-head">
                 <span className="routines-name">{r.name}</span>
-                <span className="routines-cadence-tag">{cadenceLabel(r.interval_minutes)}</span>
+                <span className="routines-cadence-tag">
+                  {cadenceLabel(r.interval_minutes)}
+                </span>
                 {r.last_status && (
-                  <span className={`routines-status routines-status-${r.last_status}`}>
+                  <span
+                    className={`routines-status routines-status-${r.last_status}`}
+                  >
                     {r.last_status} · {ago(r.last_run_unix_ms)}
                   </span>
                 )}
               </div>
               <div className="routines-row-actions">
-                <label className="routines-toggle" title={r.enabled ? "Disable" : "Enable"}>
-                  <input type="checkbox" checked={r.enabled} onChange={() => void onToggle(r)} />
+                <label
+                  className="routines-toggle"
+                  title={r.enabled ? "Disable" : "Enable"}
+                >
+                  <input
+                    type="checkbox"
+                    checked={r.enabled}
+                    onChange={() => void onToggle(r)}
+                  />
                   <span />
                 </label>
                 <button
@@ -326,12 +402,18 @@ export function RoutinesPanel() {
                 <button
                   className={`routines-act ${historyFor === r.id ? "routines-act-active" : ""}`}
                   title="Browse this routine's recorded runs"
-                  onClick={() => setHistoryFor((cur) => (cur === r.id ? null : r.id))}
+                  onClick={() =>
+                    setHistoryFor((cur) => (cur === r.id ? null : r.id))
+                  }
                 >
                   <History size={13} strokeWidth={1.75} aria-hidden="true" />
                   History
                 </button>
-                <button className="routines-act routines-act-danger" title="Delete" onClick={() => void onDelete(r.id)}>
+                <button
+                  className="routines-act routines-act-danger"
+                  title="Delete"
+                  onClick={() => void onDelete(r.id)}
+                >
                   <Trash2 size={13} strokeWidth={1.75} aria-hidden="true" />
                 </button>
               </div>

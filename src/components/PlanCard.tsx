@@ -28,7 +28,12 @@ interface PlanCardProps {
  * plan-iteration mode (typically by chat_send'ing the feedback as the next
  * user message).
  */
-export function PlanCard({ sessionId, plan, onModify, disabled }: PlanCardProps) {
+export function PlanCard({
+  sessionId,
+  plan,
+  onModify,
+  disabled,
+}: PlanCardProps) {
   const [busy, setBusy] = useState(false);
   const [approved, setApproved] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -65,9 +70,7 @@ export function PlanCard({ sessionId, plan, onModify, disabled }: PlanCardProps)
         <span className="plan-card-badge">plan</span>
         <strong className="plan-card-title">{plan.title}</strong>
       </div>
-      {plan.summary && (
-        <div className="plan-card-summary">{plan.summary}</div>
-      )}
+      {plan.summary && <div className="plan-card-summary">{plan.summary}</div>}
       <ol className="plan-card-steps">
         {plan.steps.map((step, i) => (
           <li key={i} className="plan-card-step">
@@ -85,12 +88,8 @@ export function PlanCard({ sessionId, plan, onModify, disabled }: PlanCardProps)
       </ol>
       {(plan.estimated_time || plan.estimated_cost) && (
         <div className="plan-card-meta">
-          {plan.estimated_time && (
-            <span>est. time: {plan.estimated_time}</span>
-          )}
-          {plan.estimated_cost && (
-            <span>est. cost: {plan.estimated_cost}</span>
-          )}
+          {plan.estimated_time && <span>est. time: {plan.estimated_time}</span>}
+          {plan.estimated_cost && <span>est. cost: {plan.estimated_cost}</span>}
         </div>
       )}
       {error && <div className="plan-card-error">{error}</div>}

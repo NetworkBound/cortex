@@ -179,8 +179,14 @@ pub async fn generate_arch_diagram(
         ChatCompletionRequest {
             model: cfg.gateway_model.clone(),
             messages: vec![
-                ChatMessage { role: "system".into(), content: PASS1_SYSTEM.into() },
-                ChatMessage { role: "user".into(), content: pass1_user },
+                ChatMessage {
+                    role: "system".into(),
+                    content: PASS1_SYSTEM.into(),
+                },
+                ChatMessage {
+                    role: "user".into(),
+                    content: pass1_user,
+                },
             ],
             stream: true,
             temperature: Some(0.3),
@@ -201,8 +207,14 @@ pub async fn generate_arch_diagram(
         ChatCompletionRequest {
             model: cfg.gateway_model.clone(),
             messages: vec![
-                ChatMessage { role: "system".into(), content: PASS2_SYSTEM.into() },
-                ChatMessage { role: "user".into(), content: pass2_user },
+                ChatMessage {
+                    role: "system".into(),
+                    content: PASS2_SYSTEM.into(),
+                },
+                ChatMessage {
+                    role: "user".into(),
+                    content: pass2_user,
+                },
             ],
             stream: true,
             temperature: Some(0.2),
@@ -368,7 +380,10 @@ mod tests {
     #[test]
     fn strip_prose_removes_fence_and_preamble() {
         assert_eq!(strip_prose_fence("```\nhello world\n```"), "hello world");
-        assert_eq!(strip_prose_fence("Here is the summary:\nbody text"), "body text");
+        assert_eq!(
+            strip_prose_fence("Here is the summary:\nbody text"),
+            "body text"
+        );
         assert_eq!(strip_prose_fence("plain prose"), "plain prose");
     }
 

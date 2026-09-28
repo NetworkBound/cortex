@@ -72,10 +72,13 @@ pub async fn run_tests(
     if !root.is_dir() {
         return Err(format!("not a directory: {project_root}"));
     }
-    let pick = match framework.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+    let pick = match framework
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
         Some(explicit) => pick_explicit(explicit, root)?,
-        None => detect_framework(root)
-            .ok_or_else(|| "no test framework detected".to_string())?,
+        None => detect_framework(root).ok_or_else(|| "no test framework detected".to_string())?,
     };
 
     let started = Instant::now();
@@ -219,7 +222,10 @@ fn detect_framework(root: &Path) -> Option<Pick> {
                     "mocha" => npm_run(root, "mocha", &[]).ok()?,
                     _ => return None,
                 };
-                return Some(Pick { framework: fw, argv });
+                return Some(Pick {
+                    framework: fw,
+                    argv,
+                });
             }
         }
     }
@@ -307,11 +313,7 @@ fn npm_run(root: &Path, framework: &str, extra: &[&str]) -> Result<Vec<String>, 
     }
     // `--no-install` guarantees npx executes the locally installed binary and
     // never reaches out to the registry to fetch+run untrusted code.
-    let mut argv = vec![
-        "npx".into(),
-        "--no-install".into(),
-        framework.into(),
-    ];
+    let mut argv = vec!["npx".into(), "--no-install".into(), framework.into()];
     for e in extra {
         argv.push((*e).into());
     }
@@ -441,7 +443,11 @@ fn parse_failures(framework: &str, output: &str) -> Vec<TestFailure> {
                     .join("\n");
                 let location = extract_cargo_location(&window);
                 let message = extract_cargo_message(&window);
-                out.push(TestFailure { name, location, message });
+                out.push(TestFailure {
+                    name,
+                    location,
+                    message,
+                });
             }
         }
         "vitest" | "jest" => {
@@ -450,7 +456,10 @@ fn parse_failures(framework: &str, output: &str) -> Vec<TestFailure> {
                     break;
                 }
                 let file = cap[1].to_string();
-                let suite_case = cap.get(2).map(|m| m.as_str().to_string()).unwrap_or_default();
+                let suite_case = cap
+                    .get(2)
+                    .map(|m| m.as_str().to_string())
+                    .unwrap_or_default();
                 let name = if suite_case.is_empty() {
                     file.clone()
                 } else {
@@ -470,7 +479,10 @@ fn parse_failures(framework: &str, output: &str) -> Vec<TestFailure> {
                 }
                 let file = cap[1].to_string();
                 let case = cap.get(2).map(|m| m.as_str().to_string());
-                let msg = cap.get(3).map(|m| m.as_str().to_string()).unwrap_or_default();
+                let msg = cap
+                    .get(3)
+                    .map(|m| m.as_str().to_string())
+                    .unwrap_or_default();
                 out.push(TestFailure {
                     name: case.unwrap_or_else(|| file.clone()),
                     location: Some(file),

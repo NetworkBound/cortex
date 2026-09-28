@@ -89,7 +89,9 @@ export function extractMentions(text: string): string[] {
 
 /** Open a channel by name, creating it (user-only) if missing. Returns the
  *  resolved channel id so callers can pre-select it in the panel. */
-export async function openOrCreateChannelByName(name: string): Promise<Channel> {
+export async function openOrCreateChannelByName(
+  name: string,
+): Promise<Channel> {
   const all = await listChannels();
   const existing = all.find(
     (c) => c.name.toLowerCase() === name.trim().toLowerCase(),

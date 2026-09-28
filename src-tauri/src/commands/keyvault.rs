@@ -90,8 +90,8 @@ fn get_or_init_master() -> Result<[u8; MASTER_KEY_LEN], String> {
         .map_err(|e| format!("keyring entry: {e}"))?;
     match entry.get_password() {
         Ok(existing) => {
-            let decoded = base64_decode(&existing)
-                .map_err(|e| format!("decode master key: {e}"))?;
+            let decoded =
+                base64_decode(&existing).map_err(|e| format!("decode master key: {e}"))?;
             if decoded.len() != MASTER_KEY_LEN {
                 return Err(format!(
                     "master key wrong length: expected {MASTER_KEY_LEN}, got {}",
@@ -147,7 +147,8 @@ fn load_entries() -> Result<Vec<KeyEntry>, String> {
     }
     let mut f = fs::File::open(&path).map_err(|e| format!("open vault: {e}"))?;
     let mut buf = Vec::new();
-    f.read_to_end(&mut buf).map_err(|e| format!("read vault: {e}"))?;
+    f.read_to_end(&mut buf)
+        .map_err(|e| format!("read vault: {e}"))?;
     if buf.len() < NONCE_LEN {
         return Err("vault file too short".into());
     }
@@ -158,8 +159,8 @@ fn load_entries() -> Result<Vec<KeyEntry>, String> {
     let pt = cipher
         .decrypt(nonce, ct)
         .map_err(|e| format!("decrypt vault: {e}"))?;
-    let entries: Vec<KeyEntry> = serde_json::from_slice(&pt)
-        .map_err(|e| format!("parse vault json: {e}"))?;
+    let entries: Vec<KeyEntry> =
+        serde_json::from_slice(&pt).map_err(|e| format!("parse vault json: {e}"))?;
     Ok(entries)
 }
 
@@ -217,7 +218,10 @@ pub async fn vault_get(provider: String, label: String) -> Result<String, String
 /// file counts as empty, so fresh installs never touch the keychain here).
 pub fn lookup_provider_key_sync(provider: &str) -> Result<Option<String>, String> {
     let entries = load_entries()?;
-    Ok(entries.into_iter().find(|e| e.provider == provider).map(|e| e.key))
+    Ok(entries
+        .into_iter()
+        .find(|e| e.provider == provider)
+        .map(|e| e.key))
 }
 
 /// Synchronous variant for callers that need to resolve a key inside a
@@ -233,11 +237,7 @@ pub fn lookup_key_sync(provider: &str, label: &str) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn vault_set(
-    provider: String,
-    label: String,
-    key: String,
-) -> Result<(), String> {
+pub async fn vault_set(provider: String, label: String, key: String) -> Result<(), String> {
     if provider.trim().is_empty() {
         return Err("provider must not be empty".into());
     }

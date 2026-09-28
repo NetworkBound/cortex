@@ -242,7 +242,9 @@ mod tests {
         assert_eq!(listed[1].id, "t-old");
         assert_eq!(listed[1].custom_title, None);
 
-        delete_thread(root.clone(), "t-new".to_string()).await.unwrap();
+        delete_thread(root.clone(), "t-new".to_string())
+            .await
+            .unwrap();
         let listed = list_threads(root).await.unwrap();
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].id, "t-old");

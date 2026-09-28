@@ -24,14 +24,24 @@
 }
 
 /* Emphasized fragment inside muted copy (active profile name, versions). */
-.settings-emph { color: var(--text); }
+.settings-emph {
+  color: var(--text);
+}
 
 /* Small inline label text at caption size, default foreground. */
-.settings-label-sm { font-size: var(--text-sm); }
+.settings-label-sm {
+  font-size: var(--text-sm);
+}
 
-.settings-muted { color: var(--text-muted); }
-.settings-success { color: var(--success); }
-.settings-mono { font-family: var(--font-mono); }
+.settings-muted {
+  color: var(--text-muted);
+}
+.settings-success {
+  color: var(--success);
+}
+.settings-mono {
+  font-family: var(--font-mono);
+}
 
 /* Sub-group title inside a section (e.g. "Default model per role"). */
 .settings-subheading {
@@ -39,24 +49,46 @@
   font-weight: var(--weight-medium);
   color: var(--text);
 }
-.settings-subheading + .settings-hint { margin-top: var(--space-0_5); }
+.settings-subheading + .settings-hint {
+  margin-top: var(--space-0_5);
+}
 
 /* ── Layout primitives ───────────────────────────────────────────────── */
 
-.settings-stack { display: flex; flex-direction: column; gap: var(--space-2); }
-.settings-stack.tight { gap: var(--space-1); }
-.settings-row { display: flex; align-items: center; gap: var(--space-2); }
-.settings-row.wrap { flex-wrap: wrap; }
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.settings-stack.tight {
+  gap: var(--space-1);
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.settings-row.wrap {
+  flex-wrap: wrap;
+}
 
 /* Spacing modifiers — the flex gap on .settings-section provides the default
    rhythm; these add the extra breathing room the old inline margins carried.
    Scoped under .settings-section so the short names can't leak app-wide. */
-.settings-section .spaced { margin-bottom: var(--space-2); }
-.settings-section .gap-top { margin-top: var(--space-2); }
-.settings-section .gap-left { margin-left: var(--space-1); }
+.settings-section .spaced {
+  margin-bottom: var(--space-2);
+}
+.settings-section .gap-top {
+  margin-top: var(--space-2);
+}
+.settings-section .gap-left {
+  margin-left: var(--space-1);
+}
 
 /* A late sub-group within a section (model roles block). */
-.settings-group { margin-top: var(--space-4); }
+.settings-group {
+  margin-top: var(--space-4);
+}
 
 /* ── Checkbox rows ───────────────────────────────────────────────────── */
 
@@ -86,7 +118,9 @@ label.settings-check small {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
-.settings-list-row code { font-size: var(--text-sm); }
+.settings-list-row code {
+  font-size: var(--text-sm);
+}
 .settings-list-row.mono {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -165,9 +199,16 @@ label.settings-check small {
   font-size: var(--text-sm);
   color: var(--text);
 }
-.settings-field-label { min-width: 130px; }
-.settings-field-row select { flex: 1; min-width: 0; }
-.settings-field-row input[type="number"] { width: 64px; }
+.settings-field-label {
+  min-width: 130px;
+}
+.settings-field-row select {
+  flex: 1;
+  min-width: 0;
+}
+.settings-field-row input[type="number"] {
+  width: 64px;
+}
 
 /* Indented dependent row under its parent checkbox. */
 .settings-subrow {
@@ -181,8 +222,12 @@ label.settings-check small {
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
 }
-.settings-update-status.ok { color: var(--success); }
-.settings-update-status.available { color: var(--accent); }
+.settings-update-status.ok {
+  color: var(--success);
+}
+.settings-update-status.available {
+  color: var(--accent);
+}
 
 /* Release-notes well. */
 .settings-note {
@@ -198,7 +243,9 @@ label.settings-check small {
 /* ── Footer ──────────────────────────────────────────────────────────── */
 
 /* Pin the cancel/save cluster right; inline errors sit to its left. */
-.settings-footer .modal-actions { margin-left: auto; }
+.settings-footer .modal-actions {
+  margin-left: auto;
+}
 
 /* ── Local-CLI provider "Install" link ───────────────────────────────── */
 .settings-link {
@@ -206,7 +253,9 @@ label.settings-check small {
   text-decoration: none;
   font-size: var(--text-sm);
 }
-.settings-link:hover { text-decoration: underline; }
+.settings-link:hover {
+  text-decoration: underline;
+}
 
 /* ── In-app CLI sign-in terminal modal ───────────────────────────────── */
 .cli-login-backdrop {

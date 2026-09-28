@@ -53,7 +53,8 @@
   color: var(--text-dim);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: color var(--duration-fast) var(--ease-standard),
+  transition:
+    color var(--duration-fast) var(--ease-standard),
     background var(--duration-fast) var(--ease-standard);
 }
 .mcp-form-browse:hover {
@@ -130,7 +131,8 @@
   color: var(--text-dim);
   border-radius: var(--radius-pill);
   cursor: pointer;
-  transition: color var(--duration-fast) var(--ease-standard),
+  transition:
+    color var(--duration-fast) var(--ease-standard),
     background var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard);
 }

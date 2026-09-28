@@ -46,9 +46,7 @@ impl ModelRoles {
     /// Collapse blank / whitespace-only fields to `None` so a UI that submits an
     /// empty string for a role clears it (single canonical "unset" = `None`).
     fn normalized(self) -> Self {
-        let clean = |o: Option<String>| {
-            o.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
-        };
+        let clean = |o: Option<String>| o.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
         Self {
             chat: clean(self.chat),
             planner: clean(self.planner),
@@ -226,8 +224,13 @@ mod tests {
         let d = td();
         let root = d.path().display().to_string();
         // Blank root: get → empty, set → error (never writes outside a project).
-        assert_eq!(get_model_roles(String::new()).await.unwrap(), ModelRoles::default());
-        assert!(set_model_roles("   ".into(), ModelRoles::default()).await.is_err());
+        assert_eq!(
+            get_model_roles(String::new()).await.unwrap(),
+            ModelRoles::default()
+        );
+        assert!(set_model_roles("   ".into(), ModelRoles::default())
+            .await
+            .is_err());
         // Set via the command, then read it back via the command.
         let roles = ModelRoles {
             chat: Some("ollama:llama3.2:1b".into()),
@@ -240,7 +243,9 @@ mod tests {
         assert!(stored.editor.is_none());
         assert_eq!(get_model_roles(root.clone()).await.unwrap(), stored);
         // Clearing via an empty map removes the config.
-        set_model_roles(root.clone(), ModelRoles::default()).await.unwrap();
+        set_model_roles(root.clone(), ModelRoles::default())
+            .await
+            .unwrap();
         assert_eq!(get_model_roles(root).await.unwrap(), ModelRoles::default());
     }
 

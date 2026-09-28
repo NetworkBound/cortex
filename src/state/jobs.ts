@@ -122,8 +122,10 @@ export const useJobs = create<JobsState>((set) => ({
       delete next[id];
       return { jobs: next };
     }),
-  patchResearch: (patch) => set((s) => ({ research: { ...s.research, ...patch } })),
-  patchEvalRun: (patch) => set((s) => ({ evalRun: { ...s.evalRun, ...patch } })),
+  patchResearch: (patch) =>
+    set((s) => ({ research: { ...s.research, ...patch } })),
+  patchEvalRun: (patch) =>
+    set((s) => ({ evalRun: { ...s.evalRun, ...patch } })),
 }));
 
 /** Clear the last research report (the panel's "back to saved reports"). */
@@ -131,7 +133,10 @@ export function clearResearchReport(): void {
   useJobs.getState().patchResearch({ report: null, error: null });
 }
 
-function progressPatch(p: PullProgress): { detail: string; pct: number | null } {
+function progressPatch(p: PullProgress): {
+  detail: string;
+  pct: number | null;
+} {
   return { detail: p.status, pct: p.total > 0 ? p.pct : null };
 }
 
@@ -147,17 +152,34 @@ export async function startCookbookPull(name: string): Promise<void> {
     pushToast({ title: `'${name}' is already being pulled`, kind: "info" });
     return;
   }
-  begin({ id, kind: "pull", label: `Pulling ${name}`, detail: "starting", pct: null, startedAt: Date.now() });
+  begin({
+    id,
+    kind: "pull",
+    label: `Pulling ${name}`,
+    detail: "starting",
+    pct: null,
+    startedAt: Date.now(),
+  });
   let unlisten: (() => void) | null = null;
   try {
     unlisten = await onPullProgress(name, (p) => update(id, progressPatch(p)));
     const res = await pullModel(name);
     pushToast({ title: res.message, kind: "success" });
-    recordJobEvent({ kind: "pull", label: `Pull ${name}`, ok: true, detail: res.message });
+    recordJobEvent({
+      kind: "pull",
+      label: `Pull ${name}`,
+      ok: true,
+      detail: res.message,
+    });
   } catch (e) {
     const msg = humanizeError(e);
     pushToast({ title: msg, kind: "error" });
-    recordJobEvent({ kind: "pull", label: `Pull ${name}`, ok: false, detail: msg });
+    recordJobEvent({
+      kind: "pull",
+      label: `Pull ${name}`,
+      ok: false,
+      detail: msg,
+    });
   } finally {
     unlisten?.();
     end(id);
@@ -167,8 +189,14 @@ export async function startCookbookPull(name: string): Promise<void> {
 /** One research run at a time (the backend enforces the same guard). */
 const RESEARCH_JOB_ID = "research:run";
 
-function researchJobPatch(p: ResearchProgress): { detail: string; pct: number } {
-  return { detail: p.message ? `${p.step} — ${p.message}` : p.step, pct: p.pct };
+function researchJobPatch(p: ResearchProgress): {
+  detail: string;
+  pct: number;
+} {
+  return {
+    detail: p.message ? `${p.step} — ${p.message}` : p.step,
+    pct: p.pct,
+  };
 }
 
 /**
@@ -177,7 +205,10 @@ function researchJobPatch(p: ResearchProgress): { detail: string; pct: number } 
  * tab switch mid-run loses neither the progress nor the finished report
  * (it lands in `research.report` + the vault, with a toast + inbox entry).
  */
-export async function startDeepResearch(question: string, maxSources = 5): Promise<void> {
+export async function startDeepResearch(
+  question: string,
+  maxSources = 5,
+): Promise<void> {
   const q = question.trim();
   if (!q) return;
   const { jobs, begin, update, end, patchResearch } = useJobs.getState();
@@ -186,7 +217,14 @@ export async function startDeepResearch(question: string, maxSources = 5): Promi
     return;
   }
   const label = `Researching: ${q.length > 48 ? `${q.slice(0, 48)}…` : q}`;
-  begin({ id: RESEARCH_JOB_ID, kind: "research", label, detail: "starting", pct: 0, startedAt: Date.now() });
+  begin({
+    id: RESEARCH_JOB_ID,
+    kind: "research",
+    label,
+    detail: "starting",
+    pct: 0,
+    startedAt: Date.now(),
+  });
   patchResearch({
     question: q,
     progress: { step: "starting", status: "start", message: null, pct: 0 },
@@ -201,10 +239,23 @@ export async function startDeepResearch(question: string, maxSources = 5): Promi
     });
     const r = await deepResearch(q, maxSources);
     useJobs.getState().patchResearch({
-      report: { markdown: r.markdown, path: r.saved_path, title: r.question || q },
+      report: {
+        markdown: r.markdown,
+        path: r.saved_path,
+        title: r.question || q,
+      },
     });
-    pushToast({ title: "Research report ready", body: r.question || q, kind: "success" });
-    recordJobEvent({ kind: "research", label, ok: true, detail: r.saved_path ?? "report ready (vault save failed)" });
+    pushToast({
+      title: "Research report ready",
+      body: r.question || q,
+      kind: "success",
+    });
+    recordJobEvent({
+      kind: "research",
+      label,
+      ok: true,
+      detail: r.saved_path ?? "report ready (vault save failed)",
+    });
   } catch (e) {
     const msg = humanizeError(e);
     useJobs.getState().patchResearch({ error: msg });
@@ -221,7 +272,9 @@ export async function startDeepResearch(question: string, maxSources = 5): Promi
 const EVAL_JOB_ID = "eval:run";
 
 function evalJobPatch(p: EvalProgress): { detail: string; pct: number | null } {
-  const step = p.id ? `${p.done}/${p.total} · ${p.id}` : `${p.done}/${p.total} tasks`;
+  const step = p.id
+    ? `${p.done}/${p.total} · ${p.id}`
+    : `${p.done}/${p.total} tasks`;
   return {
     detail: p.model ? `${step} · ${p.model}` : step,
     pct: p.total > 0 ? Math.round((p.done / p.total) * 100) : null,
@@ -235,12 +288,17 @@ function evalJobPatch(p: EvalProgress): { detail: string; pct: number | null } {
  * the E2E probe (a tiny task set, `persist: false`); the EvalPanel passes
  * only `model`.
  */
-export async function startEvalRun(
-  opts?: { tasks?: EvalTask[]; persist?: boolean; model?: string },
-): Promise<void> {
+export async function startEvalRun(opts?: {
+  tasks?: EvalTask[];
+  persist?: boolean;
+  model?: string;
+}): Promise<void> {
   const { jobs, begin, update, end, patchEvalRun } = useJobs.getState();
   if (jobs[EVAL_JOB_ID]) {
-    pushToast({ title: "A benchmark run is already in progress", kind: "info" });
+    pushToast({
+      title: "A benchmark run is already in progress",
+      kind: "info",
+    });
     return;
   }
   begin({
@@ -252,7 +310,13 @@ export async function startEvalRun(
     startedAt: Date.now(),
   });
   patchEvalRun({
-    progress: { done: 0, total: opts?.tasks?.length ?? 0, id: "", passed: false, model: opts?.model },
+    progress: {
+      done: 0,
+      total: opts?.tasks?.length ?? 0,
+      id: "",
+      passed: false,
+      model: opts?.model,
+    },
     error: null,
   });
   let unlisten: (() => void) | null = null;
@@ -261,7 +325,10 @@ export async function startEvalRun(
       update(EVAL_JOB_ID, evalJobPatch(p));
       useJobs.getState().patchEvalRun({ progress: p });
     });
-    const r = await runEval(opts?.tasks, { persist: opts?.persist, model: opts?.model });
+    const r = await runEval(opts?.tasks, {
+      persist: opts?.persist,
+      model: opts?.model,
+    });
     useJobs.getState().patchEvalRun({ report: r });
     pushToast({
       title: `Benchmark done — ${r.passed}/${r.total} passed`,
@@ -278,7 +345,12 @@ export async function startEvalRun(
     const msg = humanizeError(e);
     useJobs.getState().patchEvalRun({ error: msg });
     pushToast({ title: "Benchmark failed", body: msg, kind: "error" });
-    recordJobEvent({ kind: "eval", label: "Benchmark run", ok: false, detail: msg });
+    recordJobEvent({
+      kind: "eval",
+      label: "Benchmark run",
+      ok: false,
+      detail: msg,
+    });
   } finally {
     unlisten?.();
     useJobs.getState().patchEvalRun({ progress: null });
@@ -316,7 +388,9 @@ async function adoptInFlightPulls(): Promise<void> {
     });
     let unlisten: () => void;
     try {
-      unlisten = await onPullProgress(p.name, (prog) => update(id, progressPatch(prog)));
+      unlisten = await onPullProgress(p.name, (prog) =>
+        update(id, progressPatch(prog)),
+      );
     } catch {
       end(id); // can't subscribe — don't leave a phantom job behind
       continue;
@@ -337,11 +411,15 @@ async function adoptInFlightPulls(): Promise<void> {
             detail: `settled after reload (last status: ${last})`,
           });
           pushToast({
-            title: ok ? `Pulled '${p.name}'` : `Pull of '${p.name}' ended (${last})`,
+            title: ok
+              ? `Pulled '${p.name}'`
+              : `Pull of '${p.name}' ended (${last})`,
             kind: ok ? "success" : "warning",
           });
         })
-        .catch(() => {/* backend hiccup — keep watching */});
+        .catch(() => {
+          /* backend hiccup — keep watching */
+        });
     }, ADOPT_POLL_MS);
   }
 }
@@ -367,7 +445,12 @@ async function adoptInFlightResearch(): Promise<void> {
     ...researchJobPatch(active.progress),
     startedAt: Date.now(),
   });
-  patchResearch({ question: q, progress: active.progress, report: null, error: null });
+  patchResearch({
+    question: q,
+    progress: active.progress,
+    report: null,
+    error: null,
+  });
   let unlisten: () => void;
   try {
     unlisten = await onResearchProgress((p) => {
@@ -394,9 +477,15 @@ async function adoptInFlightResearch(): Promise<void> {
           ok: true,
           detail: "settled after reload — open it from Saved reports",
         });
-        pushToast({ title: "Research run finished", body: "Open it from Saved reports", kind: "success" });
+        pushToast({
+          title: "Research run finished",
+          body: "Open it from Saved reports",
+          kind: "success",
+        });
       })
-      .catch(() => {/* backend hiccup — keep watching */});
+      .catch(() => {
+        /* backend hiccup — keep watching */
+      });
   }, ADOPT_POLL_MS);
 }
 
@@ -444,9 +533,15 @@ async function adoptInFlightEval(): Promise<void> {
           ok: true,
           detail: "settled after reload — see Past runs for the report",
         });
-        pushToast({ title: "Benchmark run finished", body: "See Past runs for the report", kind: "success" });
+        pushToast({
+          title: "Benchmark run finished",
+          body: "See Past runs for the report",
+          kind: "success",
+        });
       })
-      .catch(() => {/* backend hiccup — keep watching */});
+      .catch(() => {
+        /* backend hiccup — keep watching */
+      });
   }, ADOPT_POLL_MS);
 }
 
@@ -459,7 +554,13 @@ let initialized = false;
 export function initJobStore(): void {
   if (initialized) return;
   initialized = true;
-  void adoptInFlightPulls().catch(() => {/* backend not ready — jobs start fresh */});
-  void adoptInFlightResearch().catch(() => {/* backend not ready */});
-  void adoptInFlightEval().catch(() => {/* backend not ready */});
+  void adoptInFlightPulls().catch(() => {
+    /* backend not ready — jobs start fresh */
+  });
+  void adoptInFlightResearch().catch(() => {
+    /* backend not ready */
+  });
+  void adoptInFlightEval().catch(() => {
+    /* backend not ready */
+  });
 }

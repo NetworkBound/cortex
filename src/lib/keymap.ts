@@ -24,12 +24,28 @@ export type KeymapBinding = {
 export const DEFAULT_KEYMAP: KeymapBinding[] = [
   { id: "send", combo: "Ctrl+Enter", description: "Send the current message" },
   { id: "palette", combo: "Ctrl+K", description: "Open command palette" },
-  { id: "quickopen", combo: "Ctrl+P", description: "Quick open file/memory/session" },
+  {
+    id: "quickopen",
+    combo: "Ctrl+P",
+    description: "Quick open file/memory/session",
+  },
   { id: "shortcuts", combo: "Ctrl+/", description: "Show keyboard shortcuts" },
   { id: "cycle-theme", combo: "Ctrl+T", description: "Cycle through themes" },
-  { id: "compact", combo: "Ctrl+Shift+C", description: "Compact older messages" },
-  { id: "new-session", combo: "Ctrl+N", description: "Start a new chat session" },
-  { id: "new-window", combo: "Ctrl+Shift+N", description: "Open a new Cortex window" },
+  {
+    id: "compact",
+    combo: "Ctrl+Shift+C",
+    description: "Compact older messages",
+  },
+  {
+    id: "new-session",
+    combo: "Ctrl+N",
+    description: "Start a new chat session",
+  },
+  {
+    id: "new-window",
+    combo: "Ctrl+Shift+N",
+    description: "Open a new Cortex window",
+  },
   { id: "settings", combo: "Ctrl+,", description: "Open settings" },
   { id: "cycle-mode", combo: "Ctrl+M", description: "Toggle Plan / Act mode" },
 ];
@@ -47,7 +63,8 @@ export async function loadKeymap(
 ): Promise<KeymapBinding[]> {
   if (!projectRoot) return DEFAULT_KEYMAP;
 
-  const sep = projectRoot.includes("\\") && !projectRoot.includes("/") ? "\\" : "/";
+  const sep =
+    projectRoot.includes("\\") && !projectRoot.includes("/") ? "\\" : "/";
   const trimmed = projectRoot.replace(/[\\/]+$/, "");
   const path = `${trimmed}${sep}.cortex${sep}keymap.json`;
 
@@ -70,11 +87,16 @@ export async function loadKeymap(
  *   - an array of partial bindings: `[{ "id": "<id>", "combo": "<combo>" }]`
  * Anything else is ignored.
  */
-function mergeKeymap(defaults: KeymapBinding[], userValue: unknown): KeymapBinding[] {
+function mergeKeymap(
+  defaults: KeymapBinding[],
+  userValue: unknown,
+): KeymapBinding[] {
   const overrides = new Map<string, string>();
 
   if (userValue && typeof userValue === "object" && !Array.isArray(userValue)) {
-    for (const [id, combo] of Object.entries(userValue as Record<string, unknown>)) {
+    for (const [id, combo] of Object.entries(
+      userValue as Record<string, unknown>,
+    )) {
       if (typeof combo === "string" && combo.trim().length > 0) {
         overrides.set(id, combo.trim());
       }
@@ -109,7 +131,13 @@ interface ParsedCombo {
 }
 
 function parseCombo(combo: string): ParsedCombo {
-  const out: ParsedCombo = { ctrl: false, shift: false, alt: false, meta: false, key: "" };
+  const out: ParsedCombo = {
+    ctrl: false,
+    shift: false,
+    alt: false,
+    meta: false,
+    key: "",
+  };
   // Split on "+", but a literal "+" key produces an empty part (e.g. "Ctrl++"
   // splits to ["Ctrl", "", ""]). Map those empties back to the "+" key instead
   // of dropping them, so binding to "+" still works.

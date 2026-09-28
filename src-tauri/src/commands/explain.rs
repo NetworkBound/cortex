@@ -63,11 +63,9 @@ pub async fn explain_code(
         return Err(format!("not a file: {path}"));
     }
 
-    let raw = fs::read_to_string(&p)
-        .map_err(|e| format!("read {} failed: {e}", p.display()))?;
+    let raw = fs::read_to_string(&p).map_err(|e| format!("read {} failed: {e}", p.display()))?;
     let body_full = truncate(raw, FILE_LIMIT_BYTES);
-    let (snippet, resolved_start, resolved_end) =
-        slice_lines(&body_full, line_start, line_end);
+    let (snippet, resolved_start, resolved_end) = slice_lines(&body_full, line_start, line_end);
     if snippet.trim().is_empty() {
         return Err("selected range is empty — nothing to explain".into());
     }
@@ -82,19 +80,19 @@ pub async fn explain_code(
     let system_prompt = SYSTEM_PROMPT_TEMPLATE
         .replace("{AUDIENCE}", &resolved_audience)
         .replace("{LANGUAGE}", &language);
-    let user_prompt = build_user_prompt(
-        &path,
-        &language,
-        resolved_start,
-        resolved_end,
-        &snippet,
-    );
+    let user_prompt = build_user_prompt(&path, &language, resolved_start, resolved_end, &snippet);
 
     let req = ChatCompletionRequest {
         model: cfg.gateway_model.clone(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: system_prompt },
-            ChatMessage { role: "user".into(), content: user_prompt },
+            ChatMessage {
+                role: "system".into(),
+                content: system_prompt,
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: user_prompt,
+            },
         ],
         stream: true,
         temperature: Some(0.3),
@@ -308,8 +306,7 @@ pub async fn save_explanation(
 ) -> Result<ExplainSaveResult, String> {
     let brain_root = brain_dir().ok_or_else(|| "could not resolve ~/Documents".to_string())?;
     let target_dir = brain_root.join("explanations");
-    fs::create_dir_all(&target_dir)
-        .map_err(|e| format!("create explanations dir failed: {e}"))?;
+    fs::create_dir_all(&target_dir).map_err(|e| format!("create explanations dir failed: {e}"))?;
 
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
     let stem = Path::new(&path)
@@ -341,7 +338,10 @@ pub async fn save_explanation(
     fs::write(&written_path, &body)
         .map_err(|e| format!("write {} failed: {e}", written_path.display()))?;
 
-    Ok(ExplainSaveResult { written_path, bytes })
+    Ok(ExplainSaveResult {
+        written_path,
+        bytes,
+    })
 }
 
 fn brain_dir() -> Option<PathBuf> {
@@ -385,7 +385,25 @@ fn slugify(input: &str) -> String {
 fn yaml_escape(input: &str) -> String {
     let cleaned = input.replace(['\n', '\r'], " ");
     let needs_quote = cleaned.chars().any(|c| {
-        matches!(c, ':' | '#' | '{' | '}' | '[' | ']' | ',' | '&' | '*' | '!' | '|' | '>' | '\'' | '"' | '%' | '@' | '`')
+        matches!(
+            c,
+            ':' | '#'
+                | '{'
+                | '}'
+                | '['
+                | ']'
+                | ','
+                | '&'
+                | '*'
+                | '!'
+                | '|'
+                | '>'
+                | '\''
+                | '"'
+                | '%'
+                | '@'
+                | '`'
+        )
     });
     if needs_quote {
         let escaped = cleaned.replace('"', "\\\"");

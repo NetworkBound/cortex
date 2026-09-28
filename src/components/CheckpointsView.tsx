@@ -136,7 +136,11 @@ export function CheckpointsView() {
       await refresh();
     } catch (e) {
       setError(humanizeError(e));
-      pushToast({ title: "Delete failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Delete failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setBusyId(null);
     }
@@ -144,7 +148,10 @@ export function CheckpointsView() {
 
   if (!activeProject) {
     return (
-      <div className="muted" style={{ padding: "var(--space-4)", textAlign: "center" }}>
+      <div
+        className="muted"
+        style={{ padding: "var(--space-4)", textAlign: "center" }}
+      >
         Pick a project to see checkpoints.
       </div>
     );
@@ -161,26 +168,50 @@ export function CheckpointsView() {
           alignItems: "center",
         }}
       >
-        <button className="link-btn" onClick={() => void snapshotNow()} disabled={loading}>
+        <button
+          className="link-btn"
+          onClick={() => void snapshotNow()}
+          disabled={loading}
+        >
           {loading ? "working…" : "snapshot now"}
         </button>
-        <button className="link-btn" onClick={() => void refresh()} disabled={loading}>
+        <button
+          className="link-btn"
+          onClick={() => void refresh()}
+          disabled={loading}
+        >
           Refresh
         </button>
-        <span className="muted" style={{ marginLeft: "auto", fontSize: "var(--text-xs)" }}>
+        <span
+          className="muted"
+          style={{ marginLeft: "auto", fontSize: "var(--text-xs)" }}
+        >
           {items.length} stored
         </span>
       </div>
       {error && (
-        <div className="muted" style={{ padding: "var(--space-2)", color: "var(--danger)", fontSize: "var(--text-xs)" }}>
+        <div
+          className="muted"
+          style={{
+            padding: "var(--space-2)",
+            color: "var(--danger)",
+            fontSize: "var(--text-xs)",
+          }}
+        >
           {error}
         </div>
       )}
       <div style={{ flex: 1, overflow: "auto" }}>
-        {items.length === 0 && loading && <PanelLoading label="Loading checkpoints" />}
+        {items.length === 0 && loading && (
+          <PanelLoading label="Loading checkpoints" />
+        )}
         {items.length === 0 && !loading && !error && (
-          <div className="muted" style={{ padding: "var(--space-4)", textAlign: "center" }}>
-            No checkpoints yet. They're created automatically after each tool-edit turn.
+          <div
+            className="muted"
+            style={{ padding: "var(--space-4)", textAlign: "center" }}
+          >
+            No checkpoints yet. They're created automatically after each
+            tool-edit turn.
           </div>
         )}
         <div className="brain-list" style={{ padding: "var(--space-2)" }}>
@@ -193,7 +224,12 @@ export function CheckpointsView() {
               <div className="brain-meta">
                 {ck.file_count} files · {formatBytes(ck.size_bytes)} ·{" "}
                 {/* Mono hash microlabel — floored at --text-xs per DESIGN-SPEC §3. */}
-                <code style={{ fontFamily: "var(--mono, monospace)", fontSize: "var(--text-xs)" }}>
+                <code
+                  style={{
+                    fontFamily: "var(--mono, monospace)",
+                    fontSize: "var(--text-xs)",
+                  }}
+                >
                   {ck.id.slice(0, 12)}
                 </code>
               </div>

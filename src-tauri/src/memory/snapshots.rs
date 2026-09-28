@@ -81,7 +81,10 @@ pub fn capture_roots(active_project: Option<&Path>) -> Vec<PathBuf> {
 
     // ~/.cortex/* well-known JSON stores + skills dir
     push(&mut out, home.join(".cortex").join("snippets.json"));
-    push(&mut out, home.join(".cortex").join("agent-instructions.json"));
+    push(
+        &mut out,
+        home.join(".cortex").join("agent-instructions.json"),
+    );
     push(&mut out, home.join(".cortex").join("skills"));
 
     if let Some(project) = active_project {
@@ -107,7 +110,13 @@ pub fn capture_roots(active_project: Option<&Path>) -> Vec<PathBuf> {
 fn sanitize_label(label: &str) -> String {
     let mut s: String = label
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     if s.len() > 40 {
         s.truncate(40);
@@ -136,7 +145,12 @@ fn append_root<W: std::io::Write>(
 ) -> Result<(), String> {
     let prefix = archive_prefix(idx);
     let walk: Box<dyn Iterator<Item = walkdir::DirEntry>> = if root.is_file() {
-        Box::new(WalkDir::new(root).max_depth(0).into_iter().filter_map(|e| e.ok()))
+        Box::new(
+            WalkDir::new(root)
+                .max_depth(0)
+                .into_iter()
+                .filter_map(|e| e.ok()),
+        )
     } else {
         Box::new(
             WalkDir::new(root)
@@ -153,7 +167,10 @@ fn append_root<W: std::io::Write>(
         let abs = de.path();
         let size = de.metadata().map(|m| m.len()).unwrap_or(0);
         if size > MAX_FILE_BYTES {
-            tracing::warn!("snapshot: skip {} ({size} bytes > per-file cap)", abs.display());
+            tracing::warn!(
+                "snapshot: skip {} ({size} bytes > per-file cap)",
+                abs.display()
+            );
             continue;
         }
         if *total + size > MAX_TOTAL_BYTES {
@@ -221,7 +238,10 @@ pub fn create(label: &str, active_project: Option<&Path>) -> Result<SnapshotMeta
         created_unix_ms: ts_ms,
         size_bytes,
         file_count,
-        roots: roots.iter().map(|p| p.to_string_lossy().to_string()).collect(),
+        roots: roots
+            .iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect(),
     };
     let sidecar = dir.join(format!("{id}.json"));
     if let Ok(s) = serde_json::to_string_pretty(&meta) {
@@ -234,21 +254,36 @@ pub fn create(label: &str, active_project: Option<&Path>) -> Result<SnapshotMeta
 pub fn list() -> Result<Vec<SnapshotMeta>, String> {
     let dir = snapshots_dir()?;
     let mut out: Vec<SnapshotMeta> = Vec::new();
-    for de in fs::read_dir(&dir).map_err(|e| format!("read dir: {e}"))?.flatten() {
+    for de in fs::read_dir(&dir)
+        .map_err(|e| format!("read dir: {e}"))?
+        .flatten()
+    {
         let p = de.path();
-        let Some(name) = p.file_name().and_then(|n| n.to_str()) else { continue };
+        let Some(name) = p.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
         if !name.ends_with(".tar.gz") {
             continue;
         }
         let id = name.trim_end_matches(".tar.gz").to_string();
         let meta_path = dir.join(format!("{id}.json"));
-        let meta = match fs::read_to_string(&meta_path).ok().and_then(|s| serde_json::from_str::<SnapshotMeta>(&s).ok()) {
+        let meta = match fs::read_to_string(&meta_path)
+            .ok()
+            .and_then(|s| serde_json::from_str::<SnapshotMeta>(&s).ok())
+        {
             Some(m) => m,
             None => {
                 // Fall back to filename-derived metadata.
                 let (ts, label) = parse_id(&id);
                 let size_bytes = fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
-                SnapshotMeta { id: id.clone(), label, created_unix_ms: ts, size_bytes, file_count: 0, roots: vec![] }
+                SnapshotMeta {
+                    id: id.clone(),
+                    label,
+                    created_unix_ms: ts,
+                    size_bytes,
+                    file_count: 0,
+                    roots: vec![],
+                }
             }
         };
         out.push(meta);
@@ -318,7 +353,9 @@ pub fn rollback(id: &str) -> Result<RollbackReport, String> {
             }
         };
         if path_owned.is_absolute()
-            || path_owned.components().any(|c| matches!(c, std::path::Component::ParentDir))
+            || path_owned
+                .components()
+                .any(|c| matches!(c, std::path::Component::ParentDir))
         {
             report.files_skipped += 1;
             continue;
@@ -352,7 +389,9 @@ pub fn rollback(id: &str) -> Result<RollbackReport, String> {
         };
 
         // Safety: target must be inside (or equal to) the recorded root.
-        let canon_root = orig_root.canonicalize().unwrap_or_else(|_| orig_root.clone());
+        let canon_root = orig_root
+            .canonicalize()
+            .unwrap_or_else(|_| orig_root.clone());
         let canon_target_parent = target
             .parent()
             .map(|p| p.canonicalize().unwrap_or_else(|_| p.to_path_buf()))

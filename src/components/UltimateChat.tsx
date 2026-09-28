@@ -119,7 +119,9 @@ export function UltimateChat() {
             merged: null,
           };
           return exists
-            ? prev.map((s) => (s.id === ev.id ? { ...s, task: ev.task, models: ev.models } : s))
+            ? prev.map((s) =>
+                s.id === ev.id ? { ...s, task: ev.task, models: ev.models } : s,
+              )
             : [...prev, next];
         });
         break;
@@ -205,9 +207,9 @@ export function UltimateChat() {
       <div className="ult-head">
         <h2 className="ult-title">Ultimate agent</h2>
         <p className="ult-subtitle">
-          Combines all your connected models: a lead model plans the goal, several
-          models race on each subtask, the winners are merged, and a final answer
-          is synthesized.
+          Combines all your connected models: a lead model plans the goal,
+          several models race on each subtask, the winners are merged, and a
+          final answer is synthesized.
         </p>
       </div>
 
@@ -269,7 +271,9 @@ export function UltimateChat() {
             value={fanOut}
             onChange={(e) => {
               const n = Number(e.target.value);
-              setFanOut(Number.isFinite(n) && n >= 1 ? Math.min(8, Math.round(n)) : 1);
+              setFanOut(
+                Number.isFinite(n) && n >= 1 ? Math.min(8, Math.round(n)) : 1,
+              );
             }}
             disabled={running}
           />
@@ -277,7 +281,11 @@ export function UltimateChat() {
       </div>
 
       <div className="ult-actions">
-        <button onClick={() => void run()} disabled={running} className="btn-primary">
+        <button
+          onClick={() => void run()}
+          disabled={running}
+          className="btn-primary"
+        >
           {running ? "Running…" : "Run"}
         </button>
         {costUsd != null && (
@@ -295,9 +303,9 @@ export function UltimateChat() {
       <div className="ult-timeline">
         {subtasks.length === 0 && !synthesis && !running && (
           <p className="ult-hint">
-            No run yet. Describe a goal above and hit <em>Run</em> — the plan, the
-            models racing on each subtask, and the final synthesis will stream in
-            here.
+            No run yet. Describe a goal above and hit <em>Run</em> — the plan,
+            the models racing on each subtask, and the final synthesis will
+            stream in here.
           </p>
         )}
 
@@ -323,7 +331,13 @@ export function UltimateChat() {
   );
 }
 
-function SubtaskCard({ index, subtask }: { index: number; subtask: SubtaskState }) {
+function SubtaskCard({
+  index,
+  subtask,
+}: {
+  index: number;
+  subtask: SubtaskState;
+}) {
   return (
     <div className="ult-subtask-card">
       <div className="ult-subtask-head">
@@ -342,7 +356,10 @@ function SubtaskCard({ index, subtask }: { index: number; subtask: SubtaskState 
           </span>
         )}
         {subtask.fanOut && (
-          <span className="ult-tag ult-tag-fanout" title="This subtask fans out across multiple models">
+          <span
+            className="ult-tag ult-tag-fanout"
+            title="This subtask fans out across multiple models"
+          >
             fan-out
           </span>
         )}
@@ -354,7 +371,11 @@ function SubtaskCard({ index, subtask }: { index: number; subtask: SubtaskState 
             const result = subtask.results.find((r) => r.model === m);
             const status = result ? (result.ok ? "ok" : "fail") : "running";
             return (
-              <span key={m} className={`ult-model-pill ult-model-${status}`} title={m}>
+              <span
+                key={m}
+                className={`ult-model-pill ult-model-${status}`}
+                title={m}
+              >
                 {m}
                 <span className="ult-model-status">
                   {status === "running" ? "…" : status === "ok" ? "✓" : "✗"}
@@ -370,9 +391,14 @@ function SubtaskCard({ index, subtask }: { index: number; subtask: SubtaskState 
           {subtask.results.map((r) => (
             <details key={r.model} className="ult-model-output">
               <summary className="ult-model-output-summary">
-                <span className={`ult-model-dot ult-model-${r.ok ? "ok" : "fail"}`} aria-hidden="true" />
+                <span
+                  className={`ult-model-dot ult-model-${r.ok ? "ok" : "fail"}`}
+                  aria-hidden="true"
+                />
                 <span className="ult-model-output-name">{r.model}</span>
-                <span className="ult-model-output-state">{r.ok ? "ok" : "failed"}</span>
+                <span className="ult-model-output-state">
+                  {r.ok ? "ok" : "failed"}
+                </span>
               </summary>
               <div className="ult-model-output-body">
                 <MarkdownView source={r.output || "_(empty)_"} />

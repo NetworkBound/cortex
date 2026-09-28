@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useCortexStore, type ActivityTab } from "@/state/store";
-import { ActivityIcon, ARCHITECTURE_ICON, SETTINGS_ICON } from "@/lib/activity-icons";
+import {
+  ActivityIcon,
+  ARCHITECTURE_ICON,
+  SETTINGS_ICON,
+} from "@/lib/activity-icons";
 import { ACTIVITY_RAIL, type ActivityTabMeta } from "@/lib/activity-tabs";
 import { Chevron } from "@/lib/chevron";
 import { archTab, useArchTabOpen } from "./ArchitectureView";
@@ -37,9 +41,14 @@ export function ActivityBar() {
 
   // Per-group collapsed state (keyed by group label). Persisted so a tidied
   // rail stays tidy across launches.
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
+  const [collapsedGroups, setCollapsedGroups] = useState<
+    Record<string, boolean>
+  >(() => {
     try {
-      return JSON.parse(localStorage.getItem(GROUPS_KEY) || "{}") as Record<string, boolean>;
+      return JSON.parse(localStorage.getItem(GROUPS_KEY) || "{}") as Record<
+        string,
+        boolean
+      >;
     } catch {
       return {};
     }
@@ -134,7 +143,11 @@ export function ActivityBar() {
           GROUPS.map((g, i) => (
             <div className="activity-group" key={g.label}>
               {i > 0 && (
-                <div className="activity-group-divider" role="separator" aria-label={g.label} />
+                <div
+                  className="activity-group-divider"
+                  role="separator"
+                  aria-label={g.label}
+                />
               )}
               {g.items.map(renderItem)}
             </div>
@@ -152,7 +165,9 @@ export function ActivityBar() {
                   aria-expanded={open}
                   title={open ? `Collapse ${g.label}` : `Expand ${g.label}`}
                 >
-                  <span className="group-chevron" aria-hidden="true"><Chevron open={open} size={12} /></span>
+                  <span className="group-chevron" aria-hidden="true">
+                    <Chevron open={open} size={12} />
+                  </span>
                   {g.label}
                 </button>
                 {open && g.items.map(renderItem)}

@@ -60,9 +60,22 @@ export interface ImageExtractionResult {
 // Map of recognized extensions → markdown fence language tag. Edit this to
 // add new file types; falls back to the raw ext if missing.
 export const TEXT_EXTS: Record<string, string> = {
-  ts: "ts", tsx: "tsx", js: "js", jsx: "jsx", py: "py", rs: "rs",
-  go: "go", md: "md", json: "json", yaml: "yaml", yml: "yaml",
-  toml: "toml", html: "html", css: "css", sh: "sh", sql: "sql",
+  ts: "ts",
+  tsx: "tsx",
+  js: "js",
+  jsx: "jsx",
+  py: "py",
+  rs: "rs",
+  go: "go",
+  md: "md",
+  json: "json",
+  yaml: "yaml",
+  yml: "yaml",
+  toml: "toml",
+  html: "html",
+  css: "css",
+  sh: "sh",
+  sql: "sql",
 };
 
 export function extOf(name: string): string {
@@ -180,7 +193,9 @@ export async function extractImageAttachments(
 }
 
 /** Strip the `data:<mime>;base64,` prefix; returns `null` if shape is unexpected. */
-export function dataUrlToBase64(dataUrl: string): { mediaType: string; base64: string } | null {
+export function dataUrlToBase64(
+  dataUrl: string,
+): { mediaType: string; base64: string } | null {
   const m = dataUrl.match(/^data:([^;,]+);base64,(.+)$/);
   if (!m) return null;
   return { mediaType: m[1], base64: m[2] };

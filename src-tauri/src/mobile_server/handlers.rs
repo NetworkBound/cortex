@@ -69,12 +69,24 @@ pub async fn models(State(state): State<MobileState>) -> impl IntoResponse {
 /// present) → default gateway.
 fn resolve_adapter_id(state: &MobileState, model: Option<&str>) -> String {
     let avail = |id: &str| {
-        state.app.registry.read().get(id).map_or(false, |a| a.descriptor().available)
+        state
+            .app
+            .registry
+            .read()
+            .get(id)
+            .map_or(false, |a| a.descriptor().available)
     };
-    let is_claude = |m: &str| ["claude", "opus", "sonnet", "haiku"].iter().any(|p| m.starts_with(p));
+    let is_claude = |m: &str| {
+        ["claude", "opus", "sonnet", "haiku"]
+            .iter()
+            .any(|p| m.starts_with(p))
+    };
     let is_gpt = |m: &str| {
-        m.starts_with("gpt") || m.starts_with("o1") || m.starts_with("o3")
-            || m.starts_with("o4") || m.contains("codex")
+        m.starts_with("gpt")
+            || m.starts_with("o1")
+            || m.starts_with("o3")
+            || m.starts_with("o4")
+            || m.contains("codex")
     };
     match model {
         Some(m) if state.app.registry.read().get(m).is_some() => m.to_string(),
@@ -96,7 +108,9 @@ fn lookup_agent(
     adapter_id: &str,
 ) -> Option<std::sync::Arc<dyn crate::agents::adapter::AgentAdapter>> {
     let registry = state.app.registry.read();
-    registry.get(adapter_id).or_else(|| registry.get(DEFAULT_AGENT))
+    registry
+        .get(adapter_id)
+        .or_else(|| registry.get(DEFAULT_AGENT))
 }
 
 // GET /v1/models — OpenAI list format.
@@ -116,13 +130,29 @@ pub async fn v1_chat_completions(
 ) -> axum::response::Response {
     use axum::response::sse::{Event, Sse};
 
-    let model = body.get("model").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let msgs = body.get("messages").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+    let model = body
+        .get("model")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let msgs = body
+        .get("messages")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
     let mut history: Vec<ChatTurn> = msgs
         .iter()
         .map(|m| ChatTurn {
-            role: m.get("role").and_then(|v| v.as_str()).unwrap_or("user").to_string(),
-            content: m.get("content").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            role: m
+                .get("role")
+                .and_then(|v| v.as_str())
+                .unwrap_or("user")
+                .to_string(),
+            content: m
+                .get("content")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
             agent: None,
         })
         .collect();
@@ -130,13 +160,20 @@ pub async fn v1_chat_completions(
     let message = if history.last().map(|t| t.role.as_str()) == Some("user") {
         history.pop().map(|t| t.content).unwrap_or_default()
     } else {
-        history.last().map(|t| t.content.clone()).unwrap_or_default()
+        history
+            .last()
+            .map(|t| t.content.clone())
+            .unwrap_or_default()
     };
 
     let adapter_id = resolve_adapter_id(&state, Some(model.as_str()).filter(|m| !m.is_empty()));
     let agent = lookup_agent(&state, &adapter_id);
     let Some(agent) = agent else {
-        return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({ "error": "no agent" }))).into_response();
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({ "error": "no agent" })),
+        )
+            .into_response();
     };
     let project_root = state.app.config.read().default_project_root.clone();
     let chat_req = ChatRequest {
@@ -155,35 +192,41 @@ pub async fn v1_chat_completions(
     });
 
     let id = format!("chatcmpl-{}", uuid::Uuid::new_v4().simple());
-    let stream = futures::stream::unfold((rx, id, model, false), |(mut rx, id, model, done)| async move {
-        if done {
-            return None;
-        }
-        loop {
-            match rx.recv().await {
-                Some(AgentEvent::Token { delta }) => {
-                    let e = Event::default().data(
-                        json!({"id":id,"object":"chat.completion.chunk","model":model,
+    let stream = futures::stream::unfold(
+        (rx, id, model, false),
+        |(mut rx, id, model, done)| async move {
+            if done {
+                return None;
+            }
+            loop {
+                match rx.recv().await {
+                    Some(AgentEvent::Token { delta }) => {
+                        let e = Event::default().data(
+                            json!({"id":id,"object":"chat.completion.chunk","model":model,
                                "choices":[{"index":0,"delta":{"content":delta}}]})
-                        .to_string(),
-                    );
-                    return Some((Ok::<_, std::convert::Infallible>(e), (rx, id, model, false)));
-                }
-                Some(AgentEvent::Error { message }) => {
-                    let e = Event::default().data(
+                            .to_string(),
+                        );
+                        return Some((
+                            Ok::<_, std::convert::Infallible>(e),
+                            (rx, id, model, false),
+                        ));
+                    }
+                    Some(AgentEvent::Error { message }) => {
+                        let e = Event::default().data(
                         json!({"id":id,"object":"chat.completion.chunk","model":model,
                                "choices":[{"index":0,"delta":{"content":format!("[error] {message}")},"finish_reason":"stop"}]})
                         .to_string(),
                     );
-                    return Some((Ok(e), (rx, id, model, false)));
+                        return Some((Ok(e), (rx, id, model, false)));
+                    }
+                    Some(AgentEvent::Done { .. }) | None => {
+                        return Some((Ok(Event::default().data("[DONE]")), (rx, id, model, true)));
+                    }
+                    Some(_) => continue, // skip Started/Reasoning/ToolCall/etc.
                 }
-                Some(AgentEvent::Done { .. }) | None => {
-                    return Some((Ok(Event::default().data("[DONE]")), (rx, id, model, true)));
-                }
-                Some(_) => continue, // skip Started/Reasoning/ToolCall/etc.
             }
-        }
-    });
+        },
+    );
     Sse::new(stream).into_response()
 }
 
@@ -211,7 +254,11 @@ pub async fn chat(
     Json(body): Json<ChatBody>,
 ) -> impl IntoResponse {
     if body.message.trim().is_empty() {
-        return (StatusCode::BAD_REQUEST, Json(json!({ "error": "empty message" }))).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "empty message" })),
+        )
+            .into_response();
     }
 
     let run_id = format!("chat:{}", uuid::Uuid::new_v4());
@@ -234,7 +281,9 @@ pub async fn chat(
     let Some(agent) = agent else {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({ "error": format!("no agent '{adapter_id}' (and no default) registered") })),
+            Json(
+                json!({ "error": format!("no agent '{adapter_id}' (and no default) registered") }),
+            ),
         )
             .into_response();
     };
@@ -317,12 +366,26 @@ fn bridge_agent_event(state: &MobileState, run_id: &str, ev: AgentEvent) {
             state.publish(MobileEvent::ChatReasoning { run_id, text });
         }
         AgentEvent::ToolCall { name, preview, .. } => {
-            state.publish(MobileEvent::ChatToolCall { run_id, name, preview });
+            state.publish(MobileEvent::ChatToolCall {
+                run_id,
+                name,
+                preview,
+            });
         }
-        AgentEvent::ToolResult { name, ok, summary, .. } => {
-            state.publish(MobileEvent::ChatToolResult { run_id, name, ok, summary });
+        AgentEvent::ToolResult {
+            name, ok, summary, ..
+        } => {
+            state.publish(MobileEvent::ChatToolResult {
+                run_id,
+                name,
+                ok,
+                summary,
+            });
         }
-        AgentEvent::FileEdit { path, lines_changed } => {
+        AgentEvent::FileEdit {
+            path,
+            lines_changed,
+        } => {
             state.publish(MobileEvent::ChatFileEdit {
                 run_id,
                 path: path.to_string_lossy().into_owned(),
@@ -348,7 +411,12 @@ fn bridge_agent_event(state: &MobileState, run_id: &str, ev: AgentEvent) {
                 choices: choices.clone(),
                 request,
             });
-            state.publish(MobileEvent::ChatApproval { run_id, tool, preview, choices });
+            state.publish(MobileEvent::ChatApproval {
+                run_id,
+                tool,
+                preview,
+                choices,
+            });
         }
         AgentEvent::ApprovalResolved { run_id: rr, choice } => {
             state.approvals.lock().retain(|a| a.id != rr);
@@ -358,7 +426,10 @@ fn bridge_agent_event(state: &MobileState, run_id: &str, ev: AgentEvent) {
             state.publish(MobileEvent::ChatError { run_id, message });
         }
         AgentEvent::Done { total_tokens, .. } => {
-            state.publish(MobileEvent::ChatDone { run_id, total_tokens });
+            state.publish(MobileEvent::ChatDone {
+                run_id,
+                total_tokens,
+            });
         }
     }
 }
@@ -389,7 +460,11 @@ pub async fn ultimate(
     Json(body): Json<UltimateBody>,
 ) -> impl IntoResponse {
     if body.goal.trim().is_empty() {
-        return (StatusCode::BAD_REQUEST, Json(json!({ "error": "empty goal" }))).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "empty goal" })),
+        )
+            .into_response();
     }
 
     let run_id = format!("ultimate:{}", uuid::Uuid::new_v4());
@@ -424,7 +499,11 @@ pub async fn ultimate(
                 run_id: run_id.clone(),
                 result: result_json,
             });
-            (StatusCode::OK, Json(json!({ "run_id": run_id, "result": res }))).into_response()
+            (
+                StatusCode::OK,
+                Json(json!({ "run_id": run_id, "result": res })),
+            )
+                .into_response()
         }
         Err(e) => {
             state.publish(MobileEvent::UltimateError {
@@ -503,7 +582,11 @@ pub async fn export_session(
     let vault = state.app.config.read().obsidian_vault.clone();
     match crate::commands::sessions::export_session_markdown(&state.store, vault, &id) {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e }))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": e })),
+        )
+            .into_response(),
     }
 }
 
@@ -528,7 +611,11 @@ pub async fn search_reindex(State(state): State<MobileState>) -> impl IntoRespon
     // Refresh both indexes — chat messages AND vault/memory notes.
     match crate::commands::chat_semantic::reindex_all(&state.store, &base, vault, None).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e }))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": e })),
+        )
+            .into_response(),
     }
 }
 
@@ -539,7 +626,11 @@ pub async fn brain(
 ) -> impl IntoResponse {
     let (ollama_base, vault, cfg_model) = {
         let cfg = state.app.config.read();
-        (cfg.ollama_base_url.clone(), cfg.obsidian_vault.clone(), cfg.ollama_model.clone())
+        (
+            cfg.ollama_base_url.clone(),
+            cfg.obsidian_vault.clone(),
+            cfg.ollama_model.clone(),
+        )
     };
     let chat_model = crate::commands::brain_rag::resolve_chat_model(body.model, cfg_model);
     let pr = body.project_root.map(std::path::PathBuf::from);
@@ -555,7 +646,11 @@ pub async fn brain(
     .await
     {
         Ok(ans) => (StatusCode::OK, Json(ans)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e }))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": e })),
+        )
+            .into_response(),
     }
 }
 
@@ -589,7 +684,11 @@ pub async fn search_chat(
     .await
     {
         Ok(hits) => (StatusCode::OK, Json(hits)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": e }))).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": e })),
+        )
+            .into_response(),
     }
 }
 

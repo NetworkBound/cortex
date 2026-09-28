@@ -50,8 +50,9 @@ pub async fn set_sandbox_tier(project_root: String, tier: String) -> Result<(), 
     if project_root.trim().is_empty() {
         return Err("project_root is required".into());
     }
-    let parsed = SandboxTier::parse(&tier)
-        .ok_or_else(|| format!("invalid tier '{tier}' (use read-only|workspace-write|danger-full-access)"))?;
+    let parsed = SandboxTier::parse(&tier).ok_or_else(|| {
+        format!("invalid tier '{tier}' (use read-only|workspace-write|danger-full-access)")
+    })?;
     let root = PathBuf::from(&project_root);
     write_tier(&root, parsed).map_err(|e| e.to_string())
 }

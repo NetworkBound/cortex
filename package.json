@@ -15,7 +15,8 @@
     "tauri:build:linux": "RUSTFLAGS=\"--remap-path-prefix=$HOME=\" NO_STRIP=true tauri build",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "lint": "eslint src",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"mobile/src/**/*.{ts,tsx,css}\" && cargo fmt --manifest-path src-tauri/Cargo.toml",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"mobile/src/**/*.{ts,tsx,css}\" && cargo fmt --manifest-path src-tauri/Cargo.toml -- --check",
     "test": "cargo test --manifest-path src-tauri/Cargo.toml",
     "check": "pnpm typecheck && pnpm lint && cargo check --manifest-path src-tauri/Cargo.toml --all-targets"
   },

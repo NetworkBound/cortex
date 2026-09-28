@@ -11,9 +11,7 @@
 //! `"done":true` (carrying `eval_count`). We buffer raw bytes and split on
 //! `\n` so a chunk that splits a JSON line mid-stream is tolerated.
 
-use super::adapter::{
-    AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest,
-};
+use super::adapter::{AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest};
 use futures::StreamExt;
 use serde_json::{json, Value};
 use std::time::Duration;
@@ -192,7 +190,14 @@ impl OllamaAgent {
         // --- Tier 3: complex / reasoning (long prompt or reasoning keywords) ---
         let is_complex = word_count > 60
             || [
-                "reason", "analyze", "explain", "why", "prove", "derive", "plan", "architect",
+                "reason",
+                "analyze",
+                "explain",
+                "why",
+                "prove",
+                "derive",
+                "plan",
+                "architect",
             ]
             .iter()
             .any(|k| lower.contains(k));
@@ -340,14 +345,13 @@ impl AgentAdapter for OllamaAgent {
                 .unwrap_or(false)
     }
 
-    async fn run(
-        &self,
-        req: ChatRequest,
-        tx: mpsc::Sender<AgentEvent>,
-    ) -> anyhow::Result<()> {
+    async fn run(&self, req: ChatRequest, tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
         // Announce the run immediately so the UI shows activity.
         let _ = tx
-            .send(AgentEvent::Started { agent_id: AGENT_ID.into(), run_id: None })
+            .send(AgentEvent::Started {
+                agent_id: AGENT_ID.into(),
+                run_id: None,
+            })
             .await;
 
         if self.base_url.is_empty() {
@@ -356,7 +360,12 @@ impl AgentAdapter for OllamaAgent {
                     message: "No Ollama base URL configured. Set OLLAMA_BASE_URL or the ollama_base_url config.".into(),
                 })
                 .await;
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             return Ok(());
         }
 
@@ -439,7 +448,12 @@ impl AgentAdapter for OllamaAgent {
                             message: format!("ollama request failed: {e} (check OLLAMA_BASE_URL / that Ollama is running)"),
                         })
                         .await;
-                    let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+                    let _ = tx
+                        .send(AgentEvent::Done {
+                            total_tokens: None,
+                            run_id: None,
+                        })
+                        .await;
                     return Ok(());
                 }
             };
@@ -451,9 +465,7 @@ impl AgentAdapter for OllamaAgent {
                 // A model without tool support rejects the `tools` field with
                 // a 400 — degrade to a plain chat round instead of failing
                 // the whole turn.
-                if send_tools
-                    && status.as_u16() == 400
-                    && detail.contains("does not support tools")
+                if send_tools && status.as_u16() == 400 && detail.contains("does not support tools")
                 {
                     send_tools = false;
                     let _ = tx
@@ -470,7 +482,12 @@ impl AgentAdapter for OllamaAgent {
                         message: format!("ollama returned {status}: {detail}"),
                     })
                     .await;
-                let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+                let _ = tx
+                    .send(AgentEvent::Done {
+                        total_tokens: None,
+                        run_id: None,
+                    })
+                    .await;
                 return Ok(());
             }
 
@@ -487,7 +504,9 @@ impl AgentAdapter for OllamaAgent {
                     Ok(b) => b,
                     Err(e) => {
                         let _ = tx
-                            .send(AgentEvent::Error { message: format!("ollama stream error: {e}") })
+                            .send(AgentEvent::Error {
+                                message: format!("ollama stream error: {e}"),
+                            })
                             .await;
                         stream_failed = true;
                         break;
@@ -592,7 +611,10 @@ impl AgentAdapter for OllamaAgent {
         }
 
         let _ = tx
-            .send(AgentEvent::Done { total_tokens, run_id: None })
+            .send(AgentEvent::Done {
+                total_tokens,
+                run_id: None,
+            })
             .await;
         Ok(())
     }
@@ -635,8 +657,8 @@ mod tests {
         assert!(l.tool_calls.is_empty());
         assert!(!l.done);
         // The final record carries eval_count.
-        let l = parse_chat_line(r#"{"message":{"content":""},"done":true,"eval_count":42}"#)
-            .unwrap();
+        let l =
+            parse_chat_line(r#"{"message":{"content":""},"done":true,"eval_count":42}"#).unwrap();
         assert!(l.done);
         assert_eq!(l.eval_count, Some(42));
         // Blank lines and non-JSON noise are skipped, exactly as before.
@@ -693,7 +715,10 @@ mod live_tests {
     async fn live_routes_local_only_tag_to_local_server() {
         let remote = "http://192.0.2.10:11434";
         let local_tags = fetch_tags_at(LOCAL_OLLAMA).await;
-        assert!(!local_tags.is_empty(), "local ollama must be running with ≥1 model");
+        assert!(
+            !local_tags.is_empty(),
+            "local ollama must be running with ≥1 model"
+        );
         let remote_tags = fetch_tags_at(remote).await;
         let local_only = local_tags
             .iter()
@@ -702,7 +727,10 @@ mod live_tests {
 
         let agent = OllamaAgent::new(remote.to_string(), "qwen2.5:14b".to_string());
         let union = agent.fetch_tags().await;
-        assert!(union.contains(local_only), "union discovery must include the local tag");
+        assert!(
+            union.contains(local_only),
+            "union discovery must include the local tag"
+        );
         assert_eq!(
             agent.resolve_base_for_model(local_only).await,
             LOCAL_OLLAMA,
@@ -753,6 +781,9 @@ mod live_tests {
         }
         runner.await.expect("join").expect("run must not error");
         assert!(errors.is_empty(), "chat errored: {errors:?}");
-        assert!(!text.trim().is_empty(), "expected streamed tokens from the local model");
+        assert!(
+            !text.trim().is_empty(),
+            "expected streamed tokens from the local model"
+        );
     }
 }

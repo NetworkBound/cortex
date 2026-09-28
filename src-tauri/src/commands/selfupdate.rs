@@ -123,7 +123,9 @@ fn release_download_prefix(gitea_host: &str, repo: &str) -> String {
 /// Rejects scheme/host/path mismatches and embedded credentials or `@` tricks.
 /// `None` host/repo (self-update unconfigured) rejects everything — fail closed.
 fn is_trusted_download_url(url: &str, gitea_host: Option<&str>, repo: Option<&str>) -> bool {
-    let (Some(host), Some(repo)) = (gitea_host, repo) else { return false };
+    let (Some(host), Some(repo)) = (gitea_host, repo) else {
+        return false;
+    };
     let prefix = release_download_prefix(host, repo);
     // Must be an exact prefix match on the canonical release-download path.
     // (The host already pins scheme + host + port.) A bare prefix with no
@@ -168,13 +170,19 @@ fn parse_latest(body: &str, gitea_host: &str, repo: &str) -> Option<LatestAsset>
     let url = format!("{gitea_host}/{repo}/releases/download/{tag}/{name}");
 
     let sig_name = format!("{name}.sig");
-    let sig_present = assets.iter().any(|a| {
-        a.get("name").and_then(|v| v.as_str()) == Some(sig_name.as_str())
-    });
-    let sig_url = sig_present
-        .then(|| format!("{gitea_host}/{repo}/releases/download/{tag}/{sig_name}"));
+    let sig_present = assets
+        .iter()
+        .any(|a| a.get("name").and_then(|v| v.as_str()) == Some(sig_name.as_str()));
+    let sig_url =
+        sig_present.then(|| format!("{gitea_host}/{repo}/releases/download/{tag}/{sig_name}"));
 
-    Some(LatestAsset { tag, name, key, url, sig_url })
+    Some(LatestAsset {
+        tag,
+        name,
+        key,
+        url,
+        sig_url,
+    })
 }
 
 #[cfg(target_os = "linux")]
@@ -189,7 +197,10 @@ pub async fn check_release_update() -> Result<ReleaseUpdate, String> {
     // "available", and crucially no network I/O / no error spam.
     let (Some(host), Some(repo)) = (gitea_host(), update_repo()) else {
         tracing::debug!("selfupdate: no update host/repo configured; skipping check");
-        return Ok(ReleaseUpdate { supported: true, ..Default::default() });
+        return Ok(ReleaseUpdate {
+            supported: true,
+            ..Default::default()
+        });
     };
 
     let client = reqwest::Client::builder()
@@ -201,17 +212,28 @@ pub async fn check_release_update() -> Result<ReleaseUpdate, String> {
         Ok(r) if r.status().is_success() => r.text().await.unwrap_or_default(),
         Ok(r) => {
             tracing::info!("selfupdate: releases list returned {}", r.status());
-            return Ok(ReleaseUpdate { supported: true, ..Default::default() });
+            return Ok(ReleaseUpdate {
+                supported: true,
+                ..Default::default()
+            });
         }
         Err(e) => {
             tracing::info!("selfupdate: fetch failed: {e}");
-            return Ok(ReleaseUpdate { supported: true, ..Default::default() });
+            return Ok(ReleaseUpdate {
+                supported: true,
+                ..Default::default()
+            });
         }
     };
 
     let latest = match parse_latest(&body, &host, &repo) {
         Some(v) => v,
-        None => return Ok(ReleaseUpdate { supported: true, ..Default::default() }),
+        None => {
+            return Ok(ReleaseUpdate {
+                supported: true,
+                ..Default::default()
+            })
+        }
     };
 
     let current = std::fs::read_to_string(state_path(&appimage))
@@ -223,7 +245,10 @@ pub async fn check_release_update() -> Result<ReleaseUpdate, String> {
     // as "nothing to apply" rather than a doomed available→reject loop.
     let key_changed = current.as_deref() != Some(latest.key.as_str());
     if key_changed && latest.sig_url.is_none() {
-        tracing::info!("selfupdate: newer release {} has no .sig asset; skipping (signature required)", latest.tag);
+        tracing::info!(
+            "selfupdate: newer release {} has no .sig asset; skipping (signature required)",
+            latest.tag
+        );
     }
     let available = key_changed && latest.sig_url.is_some();
 
@@ -240,7 +265,10 @@ pub async fn check_release_update() -> Result<ReleaseUpdate, String> {
 
 #[cfg(target_os = "linux")]
 #[tauri::command]
-pub async fn apply_release_update(download_url: String, asset_key: String) -> Result<String, String> {
+pub async fn apply_release_update(
+    download_url: String,
+    asset_key: String,
+) -> Result<String, String> {
     use std::os::unix::fs::PermissionsExt;
 
     let appimage = appimage_path().ok_or_else(|| "not running as an AppImage".to_string())?;
@@ -299,7 +327,10 @@ pub async fn apply_release_update(download_url: String, asset_key: String) -> Re
     if !resp.status().is_success() {
         return Err(format!("download returned {}", resp.status()));
     }
-    let bytes = resp.bytes().await.map_err(|e| format!("read failed: {e}"))?;
+    let bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| format!("read failed: {e}"))?;
 
     // SECURITY GATE: verify the ed25519 signature over the downloaded bytes
     // against the baked-in (or configured) public key BEFORE touching disk.
@@ -339,7 +370,10 @@ pub async fn check_release_update() -> Result<ReleaseUpdate, String> {
 
 #[cfg(not(target_os = "linux"))]
 #[tauri::command]
-pub async fn apply_release_update(_download_url: String, _asset_key: String) -> Result<String, String> {
+pub async fn apply_release_update(
+    _download_url: String,
+    _asset_key: String,
+) -> Result<String, String> {
     Err("self-update is only supported on the Linux AppImage build".to_string())
 }
 
@@ -400,7 +434,10 @@ mod tests {
     fn unsigned_release_has_no_sig_url() {
         let l = parse_latest(SAMPLE_UNSIGNED, HOST, REPO).expect("parse");
         assert_eq!(l.name, "Cortex_0.0.1_amd64.AppImage");
-        assert!(l.sig_url.is_none(), "unsigned release must not yield a sig url");
+        assert!(
+            l.sig_url.is_none(),
+            "unsigned release must not yield a sig url"
+        );
     }
 
     #[test]
@@ -451,10 +488,18 @@ mod tests {
         let good = parse_latest(SAMPLE, HOST, REPO).unwrap().url;
         assert!(is_trusted_download_url(&good, Some(HOST), Some(REPO)));
         // The derived `<asset>.sig` URL is also on the trusted release path.
-        assert!(is_trusted_download_url(&format!("{good}.sig"), Some(HOST), Some(REPO)));
+        assert!(is_trusted_download_url(
+            &format!("{good}.sig"),
+            Some(HOST),
+            Some(REPO)
+        ));
 
         // Wrong host / scheme / path, traversal, bare prefix -> all rejected.
-        assert!(!is_trusted_download_url("https://evil.example/x.AppImage", Some(HOST), Some(REPO)));
+        assert!(!is_trusted_download_url(
+            "https://evil.example/x.AppImage",
+            Some(HOST),
+            Some(REPO)
+        ));
         assert!(!is_trusted_download_url(
             "http://git.example.com:3000/exampleowner/cortex/releases/download/",
             Some(HOST),
@@ -482,7 +527,11 @@ mod tests {
         // Fail closed: with no update host configured nothing is trusted.
         let good = parse_latest(SAMPLE, HOST, REPO).unwrap().url;
         assert!(!is_trusted_download_url(&good, None, None));
-        assert!(!is_trusted_download_url("https://anything.example/x.AppImage", None, None));
+        assert!(!is_trusted_download_url(
+            "https://anything.example/x.AppImage",
+            None,
+            None
+        ));
     }
 
     #[test]

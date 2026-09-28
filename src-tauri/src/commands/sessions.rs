@@ -13,7 +13,9 @@ pub async fn load_session_messages(
     session_id: String,
     store: State<'_, TracingStore>,
 ) -> Result<Vec<StoredMessage>, String> {
-    store.load_session_messages(&session_id).map_err(|e| e.to_string())
+    store
+        .load_session_messages(&session_id)
+        .map_err(|e| e.to_string())
 }
 
 #[derive(Debug, Deserialize)]
@@ -66,7 +68,9 @@ pub async fn bootstrap_project_session(
     store: State<'_, TracingStore>,
 ) -> Result<ProjectBootstrap, String> {
     if let Ok(Some(existing)) = store.latest_session_for_project(&project_root) {
-        let msgs = store.load_session_messages(&existing).map_err(|e| e.to_string())?;
+        let msgs = store
+            .load_session_messages(&existing)
+            .map_err(|e| e.to_string())?;
         if !msgs.is_empty() {
             return Ok(ProjectBootstrap {
                 session_id: existing,
@@ -122,7 +126,10 @@ pub async fn bootstrap_project_session(
 fn gather_project_context(project: &Path, obsidian: Option<&Path>) -> (String, usize) {
     let mut sections: Vec<String> = Vec::new();
     let mut n_files = 0;
-    let project_name = project.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+    let project_name = project
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
 
     sections.push(format!(
         "# Cortex project session — {}\n\nWorking directory: `{}`\n",
@@ -203,7 +210,11 @@ fn gather_project_context(project: &Path, obsidian: Option<&Path>) -> (String, u
         }
         if !listing.is_empty() {
             listing.sort();
-            sections.push(format!("## runbooks/ ({} files)\n\n{}", listing.len(), listing.join("\n")));
+            sections.push(format!(
+                "## runbooks/ ({} files)\n\n{}",
+                listing.len(),
+                listing.join("\n")
+            ));
         }
     }
 
@@ -220,13 +231,20 @@ fn gather_project_context(project: &Path, obsidian: Option<&Path>) -> (String, u
                     preview.replace('\n', " "),
                 ));
                 n_files += 1;
-                if memory_lines.len() >= 30 { break; }
+                if memory_lines.len() >= 30 {
+                    break;
+                }
             }
         }
-        if memory_lines.len() >= 30 { break; }
+        if memory_lines.len() >= 30 {
+            break;
+        }
     }
     if !memory_lines.is_empty() {
-        sections.push(format!("## Memory & Obsidian notes\n\n{}", memory_lines.join("\n")));
+        sections.push(format!(
+            "## Memory & Obsidian notes\n\n{}",
+            memory_lines.join("\n")
+        ));
     }
 
     sections.push(
@@ -273,12 +291,15 @@ pub(crate) fn export_session_markdown(
     configured_vault: Option<PathBuf>,
     session_id: &str,
 ) -> Result<ExportToVaultResult, String> {
-    let msgs = store.load_session_messages(session_id).map_err(|e| e.to_string())?;
+    let msgs = store
+        .load_session_messages(session_id)
+        .map_err(|e| e.to_string())?;
     if msgs.is_empty() {
         return Err("that session has no messages to export".to_string());
     }
-    let vault = resolve_vault_dir(configured_vault)
-        .ok_or_else(|| "no Obsidian vault configured (and ~/Documents is unavailable)".to_string())?;
+    let vault = resolve_vault_dir(configured_vault).ok_or_else(|| {
+        "no Obsidian vault configured (and ~/Documents is unavailable)".to_string()
+    })?;
     let dir = vault.join("Cortex Chats");
     std::fs::create_dir_all(&dir).map_err(|e| format!("create {} failed: {e}", dir.display()))?;
     let now_iso = chrono::Utc::now().to_rfc3339();
@@ -336,7 +357,11 @@ fn derive_title_and_source(msgs: &[StoredMessage]) -> (String, String) {
     let raw = first_non_system.map(|m| m.content.as_str()).unwrap_or("");
     let title = parse_import_banner_title(raw).unwrap_or_else(|| first_line(raw));
     let title = title.trim();
-    let title = if title.is_empty() { "Untitled chat" } else { title };
+    let title = if title.is_empty() {
+        "Untitled chat"
+    } else {
+        title
+    };
     (truncate_chars(title, 80), source)
 }
 
@@ -398,20 +423,34 @@ fn truncate_chars(s: &str, n: usize) -> String {
 fn safe_filename(title: &str, session_id: &str) -> String {
     let slug = {
         let s = slugify(title, 60);
-        if s.is_empty() { "chat".to_string() } else { s }
+        if s.is_empty() {
+            "chat".to_string()
+        } else {
+            s
+        }
     };
     let id = slugify(session_id, 64);
     let chars: Vec<char> = id.chars().collect();
     let start = chars.len().saturating_sub(16);
     let tail: String = chars[start..].iter().collect();
-    let tail = if tail.is_empty() { "session".to_string() } else { tail };
+    let tail = if tail.is_empty() {
+        "session".to_string()
+    } else {
+        tail
+    };
     format!("{slug}-{tail}.md")
 }
 
 fn slugify(s: &str, max: usize) -> String {
     let cleaned: String = s
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
         .collect();
     cleaned
         .split('-')
@@ -426,7 +465,9 @@ fn slugify(s: &str, max: usize) -> String {
 fn yaml_escape(s: &str) -> String {
     format!(
         "\"{}\"",
-        s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', " ")
+        s.replace('\\', "\\\\")
+            .replace('"', "\\\"")
+            .replace('\n', " ")
     )
 }
 
@@ -502,7 +543,11 @@ mod export_tests {
     #[test]
     fn derive_title_and_source_imported_vs_native() {
         let imported = vec![
-            msg("user", Some("import:claude.ai"), "[Imported from claude.ai — Speedify on Proxmox]\n\nhow to use speedify"),
+            msg(
+                "user",
+                Some("import:claude.ai"),
+                "[Imported from claude.ai — Speedify on Proxmox]\n\nhow to use speedify",
+            ),
             msg("assistant", Some("import:claude.ai"), "Here's how..."),
         ];
         let (t, s) = derive_title_and_source(&imported);
@@ -527,10 +572,20 @@ mod export_tests {
     #[test]
     fn render_has_frontmatter_and_turns() {
         let msgs = vec![
-            msg("user", Some("import:chatgpt"), "[Imported from chatgpt — Trip plan]\n\nplan a trip"),
+            msg(
+                "user",
+                Some("import:chatgpt"),
+                "[Imported from chatgpt — Trip plan]\n\nplan a trip",
+            ),
             msg("assistant", Some("import:chatgpt"), "Sure, here is a plan."),
         ];
-        let md = render_session_markdown("Trip plan", "ChatGPT", "sid-123", &msgs, "2026-06-27T00:00:00Z");
+        let md = render_session_markdown(
+            "Trip plan",
+            "ChatGPT",
+            "sid-123",
+            &msgs,
+            "2026-06-27T00:00:00Z",
+        );
         assert!(md.starts_with("---\nkind: chat-export\n"));
         assert!(md.contains("source: \"ChatGPT\""));
         assert!(md.contains("title: \"Trip plan\""));
@@ -548,12 +603,20 @@ mod export_tests {
         let dir = std::env::temp_dir().join(format!("cortex-export-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let msgs = vec![
-            msg("user", Some("import:claude.ai"), "[Imported from claude.ai — Hello world]\n\nhi there"),
+            msg(
+                "user",
+                Some("import:claude.ai"),
+                "[Imported from claude.ai — Hello world]\n\nhi there",
+            ),
             msg("assistant", Some("import:claude.ai"), "hello!"),
         ];
-        let (path, bytes) =
-            write_session_export(&dir, "session-import-claudeai-abc123def456ffff", &msgs, "2026-06-27T00:00:00Z")
-                .unwrap();
+        let (path, bytes) = write_session_export(
+            &dir,
+            "session-import-claudeai-abc123def456ffff",
+            &msgs,
+            "2026-06-27T00:00:00Z",
+        )
+        .unwrap();
         assert!(path.starts_with(&dir));
         assert!(path.exists());
         assert!(bytes > 0);

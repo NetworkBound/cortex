@@ -71,7 +71,10 @@ fn load_all() -> Vec<CustomSlash> {
         return Vec::new();
     }
     match serde_yaml::from_str::<Vec<CustomSlash>>(&raw) {
-        Ok(list) => list.into_iter().filter(|s| is_valid_name(&s.name)).collect(),
+        Ok(list) => list
+            .into_iter()
+            .filter(|s| is_valid_name(&s.name))
+            .collect(),
         Err(e) => {
             tracing::debug!("custom-slashes: parse failed at {}: {e}", path.display());
             Vec::new()

@@ -22,9 +22,22 @@ export type AgentEvent =
   | { type: "token"; delta: string }
   | { type: "reasoning"; text: string }
   | { type: "tool_call"; name: string; args: unknown; preview: string | null }
-  | { type: "tool_result"; name: string; ok: boolean; summary: string; duration_ms: number | null }
+  | {
+      type: "tool_result";
+      name: string;
+      ok: boolean;
+      summary: string;
+      duration_ms: number | null;
+    }
   | { type: "file_edit"; path: string; lines_changed: number }
-  | { type: "approval_request"; run_id: string; tool: string | null; preview: string | null; choices: string[]; request: unknown }
+  | {
+      type: "approval_request";
+      run_id: string;
+      tool: string | null;
+      preview: string | null;
+      choices: string[];
+      request: unknown;
+    }
   | { type: "approval_resolved"; run_id: string; choice: string }
   | { type: "error"; message: string }
   | { type: "done"; total_tokens: number | null; run_id: string | null }
@@ -89,7 +102,11 @@ function modeFromStorage(): Mode {
 
 /** Same localStorage-as-store pattern as `modeFromStorage` to keep this
  *  module free of the `@/state/store` import cycle. */
-function architectFromStorage(): { architect: boolean; planner: string | null; editor: string | null } {
+function architectFromStorage(): {
+  architect: boolean;
+  planner: string | null;
+  editor: string | null;
+} {
   try {
     return {
       architect: localStorage.getItem("cortex.architectMode") === "true",
@@ -129,7 +146,8 @@ export async function chatSend(args: ChatSendArgs): Promise<ChatSendResult> {
   const plannerModel = args.plannerModel ?? a.planner;
   const editorModel = args.editorModel ?? a.editor;
   const model = args.model ?? modelFromStorage() ?? null;
-  const reasoningEffort = args.reasoningEffort ?? reasoningEffortFromStorage() ?? null;
+  const reasoningEffort =
+    args.reasoningEffort ?? reasoningEffortFromStorage() ?? null;
   return invoke<ChatSendResult>("chat_send", {
     args: {
       session_id: args.sessionId,
@@ -231,7 +249,10 @@ export async function validateGitUrl(url: string): Promise<GitUrlInfo> {
 
 /** Clone a remote repo into `targetDir`. Persists URL + path and registers
  *  the repo as a project on success. */
-export async function cloneGitRepo(url: string, targetDir: string): Promise<CloneResult> {
+export async function cloneGitRepo(
+  url: string,
+  targetDir: string,
+): Promise<CloneResult> {
   return invoke<CloneResult>("clone_git_repo", { url, targetDir });
 }
 
@@ -288,7 +309,10 @@ export async function getProviderConfig(): Promise<ProviderConfig> {
 
 /** Store a direct-provider API key in the OS-backed key vault.
  *  `provider` is "anthropic" | "openai". */
-export async function setProviderKey(provider: string, key: string): Promise<void> {
+export async function setProviderKey(
+  provider: string,
+  key: string,
+): Promise<void> {
   return invoke("set_provider_key", { args: { provider, key } });
 }
 
@@ -303,13 +327,20 @@ export interface ProviderValidation {
 /** Fire a cheap live round-trip (GET /v1/models) against the saved key.
  *  Failures come back as `ok: false` with a humanized message — the call
  *  only rejects for programmer errors (unknown provider). */
-export async function validateProviderKey(provider: string): Promise<ProviderValidation> {
-  return invoke<ProviderValidation>("validate_provider_key", { args: { provider } });
+export async function validateProviderKey(
+  provider: string,
+): Promise<ProviderValidation> {
+  return invoke<ProviderValidation>("validate_provider_key", {
+    args: { provider },
+  });
 }
 
 /** Persist the per-provider default model the direct adapters resolve on
  *  every run. Pass an empty string to clear back to the adapter default. */
-export async function setProviderDefaultModel(provider: string, model: string): Promise<void> {
+export async function setProviderDefaultModel(
+  provider: string,
+  model: string,
+): Promise<void> {
   return invoke("set_provider_default_model", { args: { provider, model } });
 }
 
@@ -364,7 +395,9 @@ export interface OpenAiCompatProvider {
  *  vault-key presence (Groq, Together, Fireworks, DeepSeek, Mistral, xAI,
  *  Perplexity, OpenRouter, DashScope, Moonshot, Cohere, Gemini-API,
  *  Llama-API). */
-export async function listOpenAiCompatProviders(): Promise<OpenAiCompatProvider[]> {
+export async function listOpenAiCompatProviders(): Promise<
+  OpenAiCompatProvider[]
+> {
   return invoke<OpenAiCompatProvider[]>("list_openai_compat_providers");
 }
 
@@ -388,7 +421,9 @@ export async function subscribeToSession(
   sessionId: string,
   handler: (env: AgentEventEnvelope) => void,
 ): Promise<UnlistenFn> {
-  return listen<AgentEventEnvelope>(`agent-event:${sessionId}`, (evt) => handler(evt.payload));
+  return listen<AgentEventEnvelope>(`agent-event:${sessionId}`, (evt) =>
+    handler(evt.payload),
+  );
 }
 
 // ── Ultimate multi-model agent ──────────────────────────────────────────────
@@ -418,7 +453,13 @@ export interface UltimateResult {
 export type UltimateEvent =
   | { type: "plan"; subtasks: UltimateSubtask[] }
   | { type: "subtask_started"; id: string; task: string; models: string[] }
-  | { type: "model_done"; subtask_id: string; model: string; ok: boolean; output: string }
+  | {
+      type: "model_done";
+      subtask_id: string;
+      model: string;
+      ok: boolean;
+      output: string;
+    }
   | { type: "subtask_merged"; id: string; merged: string }
   | { type: "synthesis"; merged: string }
   | { type: "cost"; usd: number }
@@ -439,7 +480,9 @@ export async function ultimateListModels(): Promise<string[]> {
 
 /** Kick off an Ultimate run. Resolves with the final result once the run
  *  settles; subscribe via {@link subscribeUltimate} for live progress. */
-export async function ultimateRun(args: UltimateRunArgs): Promise<UltimateResult> {
+export async function ultimateRun(
+  args: UltimateRunArgs,
+): Promise<UltimateResult> {
   return invoke<UltimateResult>("ultimate_chat_run", {
     goal: args.goal,
     projectRoot: args.projectRoot ?? null,

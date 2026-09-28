@@ -36,7 +36,12 @@ interface ConflictResolverModalProps {
   onClose: () => void;
 }
 
-type LocalStatus = "pending" | "accepted" | "skipped" | "saving" | "save-failed";
+type LocalStatus =
+  | "pending"
+  | "accepted"
+  | "skipped"
+  | "saving"
+  | "save-failed";
 
 interface FileRow {
   file: ResolvedConflict;
@@ -127,7 +132,9 @@ export function ConflictResolverModal({
       } catch (e) {
         setRows((prev) =>
           prev.map((r, i) =>
-            i === idx ? { ...r, status: "save-failed", error: humanizeError(e) } : r,
+            i === idx
+              ? { ...r, status: "save-failed", error: humanizeError(e) }
+              : r,
           ),
         );
         pushToast({
@@ -222,7 +229,8 @@ export function ConflictResolverModal({
         <div className="conflict-resolver-body">
           {loading && (
             <div className="conflict-resolver-loading">
-              <span className="conflict-resolver-spinner" aria-hidden /> Scanning for conflicts and asking the gateway for resolutions…
+              <span className="conflict-resolver-spinner" aria-hidden />{" "}
+              Scanning for conflicts and asking the gateway for resolutions…
             </div>
           )}
           {error && !loading && (
@@ -244,7 +252,10 @@ export function ConflictResolverModal({
           )}
           {!loading && !error && rows.length > 0 && selected && (
             <div className="conflict-resolver-split">
-              <aside className="conflict-resolver-list" aria-label="Conflicted files">
+              <aside
+                className="conflict-resolver-list"
+                aria-label="Conflicted files"
+              >
                 {rows.map((row, i) => {
                   const tier = confidenceTier(row.file.confidence);
                   return (
@@ -263,7 +274,10 @@ export function ConflictResolverModal({
                       >
                         {row.file.ai_chosen_side}
                       </span>
-                      <span className="conflict-resolver-list-path" title={row.file.path}>
+                      <span
+                        className="conflict-resolver-list-path"
+                        title={row.file.path}
+                      >
                         {row.file.path}
                       </span>
                       <span
@@ -289,7 +303,10 @@ export function ConflictResolverModal({
 
               <section className="conflict-resolver-detail" aria-live="polite">
                 <div className="conflict-resolver-detail-head">
-                  <div className="conflict-resolver-detail-path" title={selected.file.path}>
+                  <div
+                    className="conflict-resolver-detail-path"
+                    title={selected.file.path}
+                  >
                     {selected.file.path}
                   </div>
                   <div className="conflict-resolver-detail-actions">
@@ -344,9 +361,7 @@ export function ConflictResolverModal({
 
         <footer className="conflict-resolver-footer">
           <span className="conflict-resolver-footer-summary">
-            {rows.length > 0
-              ? `${acceptedCount}/${rows.length} accepted`
-              : ""}
+            {rows.length > 0 ? `${acceptedCount}/${rows.length} accepted` : ""}
           </span>
           <button
             type="button"
@@ -409,5 +424,7 @@ export function openConflictResolverModal(projectRoot: string): void {
     root.unmount();
     if (container.parentNode) container.parentNode.removeChild(container);
   };
-  root.render(<ConflictResolverModal projectRoot={projectRoot} onClose={close} />);
+  root.render(
+    <ConflictResolverModal projectRoot={projectRoot} onClose={close} />,
+  );
 }

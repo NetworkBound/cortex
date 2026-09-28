@@ -130,7 +130,10 @@ pub(crate) async fn dispatch_team_lane(
     let (base_url, api_key) = {
         let state = app.state::<AppState>();
         let cfg = state.config.read().clone();
-        (cfg.gateway_base_url, AppState::get_gateway_api_key().unwrap_or_default())
+        (
+            cfg.gateway_base_url,
+            AppState::get_gateway_api_key().unwrap_or_default(),
+        )
     };
     let client = GatewayClient::new(base_url, api_key);
     let store = lane_store(app);
@@ -228,7 +231,10 @@ fn spawn_lane_watcher(app: tauri::AppHandle, client: GatewayClient, run_id: Stri
                 _ => "event stream ended before the run finished".to_string(),
             };
             let store = lane_store(&app);
-            if store.update_status(&run_id, "error", Some(&detail)).unwrap_or(false) {
+            if store
+                .update_status(&run_id, "error", Some(&detail))
+                .unwrap_or(false)
+            {
                 let _ = app.emit(LANES_UPDATED, &run_id);
             }
         }
@@ -248,8 +254,13 @@ async fn apply_lane_stream(
     let store = lane_store(app);
     let mut saw_terminal = false;
     while let Some(item) = rx.recv().await {
-        let Some((status, detail)) = lane_transition(&item) else { continue };
-        if store.update_status(run_id, &status, detail.as_deref()).unwrap_or(false) {
+        let Some((status, detail)) = lane_transition(&item) else {
+            continue;
+        };
+        if store
+            .update_status(run_id, &status, detail.as_deref())
+            .unwrap_or(false)
+        {
             let _ = app.emit(LANES_UPDATED, run_id);
         }
         if status == "done" {
@@ -312,7 +323,10 @@ fn start_fake_lane(
         let (tx, rx) = mpsc::channel::<RunStreamItem>(8);
         let producer = tauri::async_runtime::spawn(async move {
             let _ = tx
-                .send(RunStreamItem::ToolStarted { tool: "e2e".into(), preview: None })
+                .send(RunStreamItem::ToolStarted {
+                    tool: "e2e".into(),
+                    preview: None,
+                })
                 .await;
             tokio::time::sleep(std::time::Duration::from_millis(150)).await;
             let _ = tx.send(RunStreamItem::Status("working".into())).await;
@@ -456,7 +470,10 @@ fn spawn_reattach_watcher(app: tauri::AppHandle, client: GatewayClient, run_id: 
                 Ok(Err(e)) => format!("lost the event stream: {e}"),
                 _ => "event stream ended before the run finished".to_string(),
             };
-            if store.update_status(&run_id, "error", Some(&detail)).unwrap_or(false) {
+            if store
+                .update_status(&run_id, "error", Some(&detail))
+                .unwrap_or(false)
+            {
                 let _ = app.emit(LANES_UPDATED, &run_id);
             }
         }
@@ -482,8 +499,13 @@ async fn apply_reattached_stream(
                 let _ = app.emit(LANES_UPDATED, run_id);
             }
         }
-        let Some((status, detail)) = lane_transition(&item) else { continue };
-        if store.update_status(run_id, &status, detail.as_deref()).unwrap_or(false) {
+        let Some((status, detail)) = lane_transition(&item) else {
+            continue;
+        };
+        if store
+            .update_status(run_id, &status, detail.as_deref())
+            .unwrap_or(false)
+        {
             let _ = app.emit(LANES_UPDATED, run_id);
         }
         if status == "done" {
@@ -502,7 +524,9 @@ fn spawn_fake_reattach(app: tauri::AppHandle, run_id: String) {
         let (tx, rx) = mpsc::channel::<RunStreamItem>(8);
         let producer = tauri::async_runtime::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(120)).await;
-            let _ = tx.send(RunStreamItem::Status("picked the run back up".into())).await;
+            let _ = tx
+                .send(RunStreamItem::Status("picked the run back up".into()))
+                .await;
             tokio::time::sleep(std::time::Duration::from_millis(120)).await;
             let _ = tx.send(RunStreamItem::Done { usage: None }).await;
         });

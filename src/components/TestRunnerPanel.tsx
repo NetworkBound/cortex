@@ -222,7 +222,9 @@ export function TestRunnerPanel({
           <details
             className="test-runner-output"
             open={showOutput}
-            onToggle={(e) => setShowOutput((e.target as HTMLDetailsElement).open)}
+            onToggle={(e) =>
+              setShowOutput((e.target as HTMLDetailsElement).open)
+            }
           >
             <summary>
               {showOutput ? "Hide" : "Show"} full output (stdout +{" "}
@@ -270,7 +272,9 @@ function FailureRow({ failure, expanded, onToggle }: FailureRowProps) {
         onClick={onToggle}
         aria-expanded={expanded}
       >
-        <span className="test-runner-failure-caret"><Chevron open={expanded} size={13} /></span>
+        <span className="test-runner-failure-caret">
+          <Chevron open={expanded} size={13} />
+        </span>
         <span className="test-runner-failure-name">{failure.name}</span>
         {failure.location && (
           <code className="test-runner-failure-loc">{failure.location}</code>
@@ -313,7 +317,5 @@ export function openTestRunnerPanel(framework?: string): void {
     root.unmount();
     if (container.parentNode) container.parentNode.removeChild(container);
   };
-  root.render(
-    <TestRunnerPanel initialFramework={framework} onClose={close} />,
-  );
+  root.render(<TestRunnerPanel initialFramework={framework} onClose={close} />);
 }

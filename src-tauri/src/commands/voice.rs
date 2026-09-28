@@ -46,7 +46,8 @@ fn model_path() -> Result<PathBuf, String> {
 pub async fn voice_transcribe(audio_b64: String) -> Result<String, String> {
     tokio::task::spawn_blocking(move || {
         // 1. Locate the whisper CLI.
-        let cli = which::which("whisper-cli").map_err(|_| "whisper-cli not installed".to_string())?;
+        let cli =
+            which::which("whisper-cli").map_err(|_| "whisper-cli not installed".to_string())?;
 
         // 2. Locate a model (base preferred, tiny fallback).
         let model = model_path()?;

@@ -68,11 +68,22 @@ export function SkillsPanel() {
         <div className="muted skills-empty">
           No skills found. Drop a SKILL.md into{" "}
           <code>~/.cortex/skills/&lt;name&gt;/</code> and hit refresh.
-          <div className="skills-list-head-actions" style={{ marginTop: "var(--space-3)", justifyContent: "center" }}>
-            <button type="button" className="panel-head-action" onClick={() => setBuilderOpen(true)}>
+          <div
+            className="skills-list-head-actions"
+            style={{ marginTop: "var(--space-3)", justifyContent: "center" }}
+          >
+            <button
+              type="button"
+              className="panel-head-action"
+              onClick={() => setBuilderOpen(true)}
+            >
               + New skill
             </button>
-            <button type="button" className="panel-head-action ghost" onClick={() => void reload()}>
+            <button
+              type="button"
+              className="panel-head-action ghost"
+              onClick={() => void reload()}
+            >
               Refresh
             </button>
           </div>
@@ -92,12 +103,22 @@ export function SkillsPanel() {
     <div className="skills-panel">
       <div className="skills-list">
         <div className="skills-list-head">
-          <span className="muted">{skills.length} skill{skills.length === 1 ? "" : "s"}</span>
+          <span className="muted">
+            {skills.length} skill{skills.length === 1 ? "" : "s"}
+          </span>
           <div className="skills-list-head-actions">
-            <button type="button" className="panel-head-action" onClick={() => setBuilderOpen(true)}>
+            <button
+              type="button"
+              className="panel-head-action"
+              onClick={() => setBuilderOpen(true)}
+            >
               + new
             </button>
-            <button type="button" className="panel-head-action ghost" onClick={() => void reload()}>
+            <button
+              type="button"
+              className="panel-head-action ghost"
+              onClick={() => void reload()}
+            >
               Refresh
             </button>
           </div>

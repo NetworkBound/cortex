@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  consumeForceShow,
-  onTourTrigger,
-  TOUR_STEPS,
-} from "@/lib/onboarding";
+import { consumeForceShow, onTourTrigger, TOUR_STEPS } from "@/lib/onboarding";
 import { useCortexStore } from "@/state/store";
 
 /**
@@ -75,7 +71,11 @@ export function OnboardingTour() {
   }
 
   return (
-    <div className="tour-overlay" role="dialog" aria-label="Cortex feature tour">
+    <div
+      className="tour-overlay"
+      role="dialog"
+      aria-label="Cortex feature tour"
+    >
       <div className="tour-card">
         <div className="tour-card-head">
           <span className="tour-card-step">

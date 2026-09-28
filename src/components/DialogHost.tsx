@@ -19,9 +19,12 @@ function DialogCard({ request }: { request: DialogRequest }) {
   const settle = useDialogStore((s) => s.settle);
   const isPrompt = request.kind === "prompt";
   const [value, setValue] = useState(
-    isPrompt ? ((request.args as { initialValue?: string }).initialValue ?? "") : "",
+    isPrompt
+      ? ((request.args as { initialValue?: string }).initialValue ?? "")
+      : "",
   );
-  const danger = !isPrompt && (request.args as { danger?: boolean }).danger === true;
+  const danger =
+    !isPrompt && (request.args as { danger?: boolean }).danger === true;
   const inputRef = useRef<HTMLInputElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -69,7 +72,9 @@ function DialogCard({ request }: { request: DialogRequest }) {
   const confirmLabel =
     request.args.confirmLabel ?? (isPrompt ? "OK" : "Confirm");
   const cancelLabel = request.args.cancelLabel ?? "Cancel";
-  const paragraphs = request.args.message.split("\n").filter((p) => p.trim() !== "");
+  const paragraphs = request.args.message
+    .split("\n")
+    .filter((p) => p.trim() !== "");
 
   return (
     <div className="dialog-backdrop" onMouseDown={cancel}>
@@ -103,7 +108,12 @@ function DialogCard({ request }: { request: DialogRequest }) {
           />
         )}
         <div className="dialog-actions">
-          <Button ref={cancelRef} variant="secondary" className="dialog-btn" onClick={cancel}>
+          <Button
+            ref={cancelRef}
+            variant="secondary"
+            className="dialog-btn"
+            onClick={cancel}
+          >
             {cancelLabel}
           </Button>
           <Button

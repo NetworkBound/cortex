@@ -71,7 +71,9 @@ struct ApprovalRule {
 impl ApprovalRules {
     /// Build an empty ruleset (used when no file exists / on parse error).
     pub fn empty() -> Self {
-        Self { patterns: Vec::new() }
+        Self {
+            patterns: Vec::new(),
+        }
     }
 
     /// Load rules from `<project_root>/.cortex/approvals.toml`. Missing or
@@ -82,10 +84,7 @@ impl ApprovalRules {
         match Self::load_from_file(&path) {
             Ok(r) => r,
             Err(e) => {
-                tracing::debug!(
-                    "approvals: no rules loaded ({}): {e}",
-                    path.display()
-                );
+                tracing::debug!("approvals: no rules loaded ({}): {e}", path.display());
                 Self::empty()
             }
         }
@@ -103,9 +102,8 @@ impl ApprovalRules {
                     rule.pattern
                 )
             })?;
-            let re = Regex::new(&rule.pattern).map_err(|e| {
-                anyhow::anyhow!("invalid regex '{}': {e}", rule.pattern)
-            })?;
+            let re = Regex::new(&rule.pattern)
+                .map_err(|e| anyhow::anyhow!("invalid regex '{}': {e}", rule.pattern))?;
             patterns.push((re, decision));
         }
         Ok(Self { patterns })
@@ -137,10 +135,7 @@ impl ApprovalRules {
             fs::create_dir_all(parent)?;
         }
 
-        let needs_leading_newline = path
-            .metadata()
-            .map(|m| m.len() > 0)
-            .unwrap_or(false);
+        let needs_leading_newline = path.metadata().map(|m| m.len() > 0).unwrap_or(false);
 
         let mut file = fs::OpenOptions::new()
             .create(true)

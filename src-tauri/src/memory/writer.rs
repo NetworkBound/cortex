@@ -42,9 +42,7 @@ fn backup_dir() -> anyhow::Result<PathBuf> {
 }
 
 fn prune_backups(dir: &Path, keep: usize) -> anyhow::Result<()> {
-    let mut entries: Vec<_> = fs::read_dir(dir)?
-        .filter_map(|r| r.ok())
-        .collect();
+    let mut entries: Vec<_> = fs::read_dir(dir)?.filter_map(|r| r.ok()).collect();
     // Sort newest-first by mtime. Treat an unreadable mtime as the oldest
     // possible time so such entries sort last and are pruned first, rather
     // than being kept ahead of valid, newer backups.

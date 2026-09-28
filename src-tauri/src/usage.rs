@@ -63,7 +63,7 @@ pub struct ModelUsage {
 pub struct UpstreamProviderStatus {
     pub provider: String,
     pub label: Option<String>,
-    pub status: String,           // "ready" | "exhausted" | "error" | "unknown"
+    pub status: String, // "ready" | "exhausted" | "error" | "unknown"
     pub last_error_code: Option<i64>,
     pub last_error_message: Option<String>,
     pub request_count: Option<i64>,
@@ -90,7 +90,13 @@ pub async fn fetch_gateway_status(base_url: &str, api_key: &str) -> GatewayStatu
     // Unconfigured gateway → calmly "down" with zero network I/O instead of
     // dialing a malformed URL.
     if base_url.trim().is_empty() {
-        return GatewayStatus { url: String::new(), up: false, model: None, features: None, latency_ms: None };
+        return GatewayStatus {
+            url: String::new(),
+            up: false,
+            model: None,
+            features: None,
+            latency_ms: None,
+        };
     }
     let client = match reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
@@ -258,9 +264,7 @@ fn fetch_upstream_pool_with_host(
 
 /// Pure JSON → status-row mapping, split out so it's unit-testable without
 /// any SSH.
-fn parse_credential_pool(
-    json: &serde_json::Value,
-) -> anyhow::Result<Vec<UpstreamProviderStatus>> {
+fn parse_credential_pool(json: &serde_json::Value) -> anyhow::Result<Vec<UpstreamProviderStatus>> {
     let pool = json
         .get("credential_pool")
         .and_then(|p| p.as_object())
@@ -276,26 +280,18 @@ fn parse_credential_pool(
                 .and_then(|s| s.as_str())
                 .map(String::from)
                 .unwrap_or_else(|| "ready".to_string());
-            let last_error_code = entry
-                .get("last_error_code")
-                .and_then(|c| c.as_i64());
+            let last_error_code = entry.get("last_error_code").and_then(|c| c.as_i64());
             let last_error_message = entry
                 .get("last_error_message")
                 .and_then(|m| m.as_str())
                 .map(|s| s.chars().take(160).collect::<String>());
-            let request_count = entry
-                .get("request_count")
-                .and_then(|c| c.as_i64());
+            let request_count = entry.get("request_count").and_then(|c| c.as_i64());
             let label = entry
                 .get("label")
                 .and_then(|l| l.as_str())
                 .map(String::from);
-            let last_status_at = entry
-                .get("last_status_at")
-                .and_then(|t| t.as_f64());
-            let last_error_reset_at = entry
-                .get("last_error_reset_at")
-                .and_then(|t| t.as_f64());
+            let last_status_at = entry.get("last_status_at").and_then(|t| t.as_f64());
+            let last_error_reset_at = entry.get("last_error_reset_at").and_then(|t| t.as_f64());
             let auth_type = entry
                 .get("auth_type")
                 .and_then(|a| a.as_str())
@@ -326,7 +322,8 @@ mod tests {
         let out = fetch_upstream_pool_with_host(None, Some("154".into())).expect("must not error");
         assert!(out.is_empty());
         // A host without the gateway CT id is equally unconfigured.
-        let out = fetch_upstream_pool_with_host(Some("root@hv".into()), None).expect("must not error");
+        let out =
+            fetch_upstream_pool_with_host(Some("root@hv".into()), None).expect("must not error");
         assert!(out.is_empty());
     }
 
@@ -343,8 +340,9 @@ mod tests {
         let rows = parse_credential_pool(&json).expect("parse");
         assert_eq!(rows.len(), 2);
         assert!(rows.iter().all(|r| r.provider == "anthropic"));
-        assert!(rows.iter().any(|r| r.status == "exhausted"
-            && r.last_error_code == Some(429)));
+        assert!(rows
+            .iter()
+            .any(|r| r.status == "exhausted" && r.last_error_code == Some(429)));
     }
 
     #[test]

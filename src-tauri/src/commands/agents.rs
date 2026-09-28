@@ -11,7 +11,10 @@ pub async fn list_agents(state: State<'_, AppState>) -> Result<Vec<AgentDescript
 }
 
 #[tauri::command]
-pub async fn check_agent_health(agent_id: String, state: State<'_, AppState>) -> Result<bool, String> {
+pub async fn check_agent_health(
+    agent_id: String,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
     let agent = state.registry.read().get(&agent_id);
     match agent {
         Some(a) => {
@@ -185,14 +188,21 @@ mod openai_compat_rows_tests {
     use super::*;
 
     fn entry(provider: &str, label: &str) -> keyvault::KeyMetadata {
-        keyvault::KeyMetadata { provider: provider.into(), label: label.into(), added_unix_ms: 0 }
+        keyvault::KeyMetadata {
+            provider: provider.into(),
+            label: label.into(),
+            added_unix_ms: 0,
+        }
     }
 
     #[test]
     fn covers_all_13_providers_with_no_key_set_when_vault_empty() {
         let rows = build_openai_compat_rows(&[]);
         assert_eq!(rows.len(), 13, "must cover every PROVIDERS entry");
-        assert!(rows.iter().all(|r| !r.key_set), "empty vault → nothing configured");
+        assert!(
+            rows.iter().all(|r| !r.key_set),
+            "empty vault → nothing configured"
+        );
         // Every row carries real, non-empty metadata — no blank pills.
         for r in &rows {
             assert!(!r.id.is_empty());
@@ -228,8 +238,19 @@ mod openai_compat_rows_tests {
         let rows = build_openai_compat_rows(&[]);
         let ids: std::collections::HashSet<&str> = rows.iter().map(|r| r.id).collect();
         for expected in [
-            "groq", "together", "fireworks", "deepseek", "mistral", "xai", "perplexity",
-            "openrouter", "dashscope", "moonshot", "cohere", "gemini-api", "llama-api",
+            "groq",
+            "together",
+            "fireworks",
+            "deepseek",
+            "mistral",
+            "xai",
+            "perplexity",
+            "openrouter",
+            "dashscope",
+            "moonshot",
+            "cohere",
+            "gemini-api",
+            "llama-api",
         ] {
             assert!(ids.contains(expected), "missing provider: {expected}");
         }

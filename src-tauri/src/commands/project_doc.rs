@@ -61,22 +61,38 @@ pub fn build_stack(project_root: &Path, cwd: Option<&Path>) -> Vec<AgentsDocSegm
     if let Some(home) = dirs::home_dir() {
         let cortex_global = home.join(".cortex").join("AGENTS.md");
         if let Some(body) = read_capped(&cortex_global) {
-            out.push(AgentsDocSegment { path: cortex_global, body, scope: "global" });
+            out.push(AgentsDocSegment {
+                path: cortex_global,
+                body,
+                scope: "global",
+            });
         }
         let codex_global = home.join(".codex").join("AGENTS.md");
         if let Some(body) = read_capped(&codex_global) {
-            out.push(AgentsDocSegment { path: codex_global, body, scope: "codex" });
+            out.push(AgentsDocSegment {
+                path: codex_global,
+                body,
+                scope: "codex",
+            });
         }
     }
 
     let project_agents = project_root.join("AGENTS.md");
     if let Some(body) = read_capped(&project_agents) {
-        out.push(AgentsDocSegment { path: project_agents, body, scope: "project" });
+        out.push(AgentsDocSegment {
+            path: project_agents,
+            body,
+            scope: "project",
+        });
     }
 
     let cortex_local = project_root.join(".cortex").join("AGENTS.md");
     if let Some(body) = read_capped(&cortex_local) {
-        out.push(AgentsDocSegment { path: cortex_local, body, scope: "cortex" });
+        out.push(AgentsDocSegment {
+            path: cortex_local,
+            body,
+            scope: "cortex",
+        });
     }
 
     // Sub-directory scope: only fires when `cwd` is *inside* the project root
@@ -85,13 +101,17 @@ pub fn build_stack(project_root: &Path, cwd: Option<&Path>) -> Vec<AgentsDocSegm
     // merged view (and any naive concat reader) sees it as the final word.
     if let Some(c) = cwd {
         let canon_cwd = std::fs::canonicalize(c).unwrap_or_else(|_| c.to_path_buf());
-        let canon_root = std::fs::canonicalize(project_root)
-            .unwrap_or_else(|_| project_root.to_path_buf());
+        let canon_root =
+            std::fs::canonicalize(project_root).unwrap_or_else(|_| project_root.to_path_buf());
         let is_inside = canon_cwd.starts_with(&canon_root) && canon_cwd != canon_root;
         if is_inside {
             let cwd_agents = canon_cwd.join("AGENTS.md");
             if let Some(body) = read_capped(&cwd_agents) {
-                out.push(AgentsDocSegment { path: cwd_agents, body, scope: "cwd" });
+                out.push(AgentsDocSegment {
+                    path: cwd_agents,
+                    body,
+                    scope: "cwd",
+                });
             }
         }
     }
@@ -134,10 +154,7 @@ pub async fn agents_md_stack(
 }
 
 #[tauri::command]
-pub async fn agents_md_merged(
-    project_root: String,
-    cwd: Option<String>,
-) -> Result<String, String> {
+pub async fn agents_md_merged(project_root: String, cwd: Option<String>) -> Result<String, String> {
     if project_root.trim().is_empty() {
         return Err("project_root is required".into());
     }

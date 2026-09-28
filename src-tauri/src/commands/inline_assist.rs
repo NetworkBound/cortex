@@ -112,7 +112,11 @@ pub async fn inline_assist(
     Ok(InlineAssistResult {
         // Report the model that actually answered (may differ from the pick if
         // a fallback kicked in), falling back to the resolved adapter id.
-        model: args.model.clone().or(outcome.model).unwrap_or(outcome.agent_id),
+        model: args
+            .model
+            .clone()
+            .or(outcome.model)
+            .unwrap_or(outcome.agent_id),
         replacement,
         latency_ms: started.elapsed().as_millis() as i64,
     })
@@ -189,7 +193,10 @@ mod tests {
             e2e_fake_result("[[e2e:assist]] upper", "hello"),
             Some(Ok(s)) if s == "HELLO"
         ));
-        assert!(matches!(e2e_fake_result("  [[e2e:assist-err]]", "x"), Some(Err(_))));
+        assert!(matches!(
+            e2e_fake_result("  [[e2e:assist-err]]", "x"),
+            Some(Err(_))
+        ));
         assert!(e2e_fake_result("make this async", "x").is_none());
         assert!(e2e_fake_result("", "x").is_none());
     }
@@ -214,7 +221,10 @@ mod tests {
     #[test]
     fn sanitize_strips_fence_and_matches_selection_newline() {
         // Fenced reply, selection without trailing newline → fence + trailing \n dropped.
-        assert_eq!(sanitize("```rust\nlet y = 2;\n```", "let x = 1;"), "let y = 2;");
+        assert_eq!(
+            sanitize("```rust\nlet y = 2;\n```", "let x = 1;"),
+            "let y = 2;"
+        );
         // Selection ends with \n → replacement keeps exactly one.
         assert_eq!(sanitize("let y = 2;", "let x = 1;\n"), "let y = 2;\n");
         assert_eq!(sanitize("let y = 2;\n\n\n", "let x = 1;"), "let y = 2;");

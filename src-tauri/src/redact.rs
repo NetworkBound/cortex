@@ -168,6 +168,9 @@ mod tests {
         let long_content = "fn main() {\n".repeat(50); // > 256 chars, no secret shape
         let mut v = serde_json::json!({ "content": long_content.clone() });
         redact_json_value(&mut v);
-        assert_eq!(v["content"], long_content, "long non-secret content must not be nuked");
+        assert_eq!(
+            v["content"], long_content,
+            "long non-secret content must not be nuked"
+        );
     }
 }

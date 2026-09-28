@@ -302,8 +302,16 @@ fn percent_encode(value: &str) -> String {
             out.push(b as char);
         } else {
             out.push('%');
-            out.push(char::from_digit((b >> 4) as u32, 16).unwrap().to_ascii_uppercase());
-            out.push(char::from_digit((b & 0xf) as u32, 16).unwrap().to_ascii_uppercase());
+            out.push(
+                char::from_digit((b >> 4) as u32, 16)
+                    .unwrap()
+                    .to_ascii_uppercase(),
+            );
+            out.push(
+                char::from_digit((b & 0xf) as u32, 16)
+                    .unwrap()
+                    .to_ascii_uppercase(),
+            );
         }
     }
     out
@@ -410,7 +418,10 @@ fn host_port_from_url(url: &str) -> Result<(String, u16), String> {
         .unwrap_or(rest.len());
     let authority = &rest[..authority_end];
     // Drop any userinfo (`user:pass@`) — only the part after the last '@' is host.
-    let hostport = authority.rsplit_once('@').map(|(_, h)| h).unwrap_or(authority);
+    let hostport = authority
+        .rsplit_once('@')
+        .map(|(_, h)| h)
+        .unwrap_or(authority);
     if hostport.is_empty() {
         return Err("url missing host".into());
     }
@@ -680,8 +691,7 @@ mod tests {
 
     #[test]
     fn substitutes_simple_placeholders() {
-        let out =
-            substitute_template("https://api/{id}/x", &args(&[("id", "42")])).unwrap();
+        let out = substitute_template("https://api/{id}/x", &args(&[("id", "42")])).unwrap();
         assert_eq!(out, "https://api/42/x");
     }
 
@@ -696,8 +706,7 @@ mod tests {
         let out = substitute_template("https://api/x", &HashMap::new()).unwrap();
         assert_eq!(out, "https://api/x");
         // Secrets in url templates are left intact (they only apply to headers).
-        let out =
-            substitute_template("https://api/{secret:foo}/x", &HashMap::new()).unwrap();
+        let out = substitute_template("https://api/{secret:foo}/x", &HashMap::new()).unwrap();
         assert_eq!(out, "https://api/{secret:foo}/x");
     }
 

@@ -42,22 +42,24 @@ interface CheckpointReviewState {
   settle: (id: string, value: CheckpointReviewOutcome) => void;
 }
 
-export const useCheckpointReviewStore = create<CheckpointReviewState>((set, get) => ({
-  active: null,
-  open: (req) => {
-    // If a review is somehow already open, cancel it before replacing so its
-    // awaiting caller isn't left hanging forever.
-    const prev = get().active;
-    if (prev) prev.resolve({ outcome: "cancelled" });
-    set({ active: req });
-  },
-  settle: (id, value) => {
-    const cur = get().active;
-    if (!cur || cur.id !== id) return;
-    set({ active: null });
-    cur.resolve(value);
-  },
-}));
+export const useCheckpointReviewStore = create<CheckpointReviewState>(
+  (set, get) => ({
+    active: null,
+    open: (req) => {
+      // If a review is somehow already open, cancel it before replacing so its
+      // awaiting caller isn't left hanging forever.
+      const prev = get().active;
+      if (prev) prev.resolve({ outcome: "cancelled" });
+      set({ active: req });
+    },
+    settle: (id, value) => {
+      const cur = get().active;
+      if (!cur || cur.id !== id) return;
+      set({ active: null });
+      cur.resolve(value);
+    },
+  }),
+);
 
 /**
  * Open the read-only restore-preview modal for `checkpoint` and resolve once the
@@ -91,7 +93,10 @@ declare global {
       /** Drive the full helper (computes the diff via the backend). */
       review: typeof reviewCheckpointRestore;
       /** Inject a request directly — render-only, no backend, no restore. */
-      openWith: (checkpoint: CheckpointInfo, diff: CheckpointDiff) => Promise<CheckpointReviewOutcome>;
+      openWith: (
+        checkpoint: CheckpointInfo,
+        diff: CheckpointDiff,
+      ) => Promise<CheckpointReviewOutcome>;
     };
   }
 }

@@ -75,7 +75,8 @@ export function SidebarResizer({ side = "left" }: { side?: Side }) {
   );
 
   const applyWidth = useCallback(
-    (px: number) => document.documentElement.style.setProperty(spec.cssVar, `${px}px`),
+    (px: number) =>
+      document.documentElement.style.setProperty(spec.cssVar, `${px}px`),
     [spec.cssVar],
   );
 

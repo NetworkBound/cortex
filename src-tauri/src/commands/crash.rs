@@ -24,6 +24,5 @@ pub async fn record_js_crash(
     let kind = if allowed { kind.as_str() } else { "js_error" };
     let build = option_env!("CARGO_PKG_VERSION");
     let conn = store.shared_connection();
-    crash::record_crash(&conn, kind, &message, stack.as_deref(), build)
-        .map_err(|e| e.to_string())
+    crash::record_crash(&conn, kind, &message, stack.as_deref(), build).map_err(|e| e.to_string())
 }

@@ -39,7 +39,10 @@ export default function ImportView({
     try {
       finish(await fn());
     } catch (e) {
-      setStatus({ kind: "err", message: e instanceof Error ? e.message : String(e) });
+      setStatus({
+        kind: "err",
+        message: e instanceof Error ? e.message : String(e),
+      });
     }
   };
 
@@ -61,7 +64,9 @@ export default function ImportView({
       setStatus({ kind: "err", message: `Could not read ${file.name}.` });
     reader.onload = () => {
       const content = String(reader.result ?? "");
-      void run(`Importing ${file.name}…`, () => importChatFile(content, "auto"));
+      void run(`Importing ${file.name}…`, () =>
+        importChatFile(content, "auto"),
+      );
     };
     reader.readAsText(file);
   };
@@ -107,8 +112,8 @@ export default function ImportView({
         <section className="import-card">
           <h3>Import from file</h3>
           <p className="faint">
-            Select a chat-export <code>.json</code> from Claude.ai, ChatGPT, or a
-            generic export.
+            Select a chat-export <code>.json</code> from Claude.ai, ChatGPT, or
+            a generic export.
           </p>
           <input
             ref={fileInput}
@@ -160,7 +165,8 @@ export default function ImportView({
           <p className="faint">
             Pull directly from your account using a session token. This uses
             unofficial endpoints that are fragile and may break or fail at any
-            time. Your token is sent once to import and is never stored or logged.
+            time. Your token is sent once to import and is never stored or
+            logged.
           </p>
 
           <div className="field">
@@ -195,7 +201,9 @@ export default function ImportView({
               spellCheck={false}
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              placeholder={provider === "claude" ? "sessionKey value" : "accessToken value"}
+              placeholder={
+                provider === "claude" ? "sessionKey value" : "accessToken value"
+              }
               disabled={busy}
             />
             <div className="faint import-hint">
@@ -206,9 +214,8 @@ export default function ImportView({
                 </>
               ) : (
                 <>
-                  ChatGPT: open{" "}
-                  <code>chatgpt.com/api/auth/session</code> while signed in and
-                  copy the <code>accessToken</code> value.
+                  ChatGPT: open <code>chatgpt.com/api/auth/session</code> while
+                  signed in and copy the <code>accessToken</code> value.
                 </>
               )}
             </div>

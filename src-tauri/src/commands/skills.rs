@@ -30,10 +30,7 @@ pub async fn get_skill(name: String) -> Result<Option<Skill>, String> {
 }
 
 #[tauri::command]
-pub async fn expand_skill(
-    name: String,
-    vars: HashMap<String, String>,
-) -> Result<String, String> {
+pub async fn expand_skill(name: String, vars: HashMap<String, String>) -> Result<String, String> {
     tokio::task::spawn_blocking(move || expand_skill_inner(&name, vars))
         .await
         .map_err(|e| format!("join error: {e}"))?
@@ -57,7 +54,13 @@ pub async fn save_skill(
             .trim()
             .to_ascii_lowercase()
             .chars()
-            .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                    c
+                } else {
+                    '-'
+                }
+            })
             .collect();
         if safe.is_empty() {
             return Err("name is empty after sanitisation".into());

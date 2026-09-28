@@ -89,8 +89,7 @@ fn load_all() -> Result<Vec<WorkspacePreset>, String> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
         Err(e) => return Err(format!("read failed: {e}")),
     };
-    serde_json::from_slice::<Vec<WorkspacePreset>>(&bytes)
-        .map_err(|e| format!("parse failed: {e}"))
+    serde_json::from_slice::<Vec<WorkspacePreset>>(&bytes).map_err(|e| format!("parse failed: {e}"))
 }
 
 fn save_all(items: &[WorkspacePreset]) -> Result<(), String> {

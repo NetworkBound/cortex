@@ -136,7 +136,7 @@ export function DepAuditModal({ projectRoot, onClose }: DepAuditModalProps) {
 
   const filtered =
     !report || filter === "all"
-      ? report?.vulnerabilities ?? []
+      ? (report?.vulnerabilities ?? [])
       : report.vulnerabilities.filter(
           (v) => normalizeSeverity(v.severity) === filter,
         );
@@ -167,7 +167,11 @@ export function DepAuditModal({ projectRoot, onClose }: DepAuditModalProps) {
         </header>
 
         {report && !loading && (
-          <div className="dep-audit-summary" role="group" aria-label="Severity counts">
+          <div
+            className="dep-audit-summary"
+            role="group"
+            aria-label="Severity counts"
+          >
             {(
               [
                 ["critical", report.summary.critical],
@@ -205,7 +209,8 @@ export function DepAuditModal({ projectRoot, onClose }: DepAuditModalProps) {
             </button>
             {report.total_count > report.vulnerabilities.length && (
               <span className="dep-audit-cap-note">
-                Showing first {report.vulnerabilities.length} of {report.total_count} (capped).
+                Showing first {report.vulnerabilities.length} of{" "}
+                {report.total_count} (capped).
               </span>
             )}
           </div>
@@ -223,17 +228,20 @@ export function DepAuditModal({ projectRoot, onClose }: DepAuditModalProps) {
               <pre>{error}</pre>
             </div>
           )}
-          {!loading && !error && report && report.vulnerabilities.length === 0 && (
-            <div className="dep-audit-empty">
-              <p>No vulnerabilities found. 🎉</p>
-              {report.raw_output_tail && (
-                <details>
-                  <summary>Tool output tail</summary>
-                  <pre>{report.raw_output_tail}</pre>
-                </details>
-              )}
-            </div>
-          )}
+          {!loading &&
+            !error &&
+            report &&
+            report.vulnerabilities.length === 0 && (
+              <div className="dep-audit-empty">
+                <p>No vulnerabilities found. 🎉</p>
+                {report.raw_output_tail && (
+                  <details>
+                    <summary>Tool output tail</summary>
+                    <pre>{report.raw_output_tail}</pre>
+                  </details>
+                )}
+              </div>
+            )}
           {!loading && !error && filtered.length > 0 && report && (
             <ul className="dep-audit-list">
               {filtered.map((v, i) => {
@@ -254,7 +262,9 @@ export function DepAuditModal({ projectRoot, onClose }: DepAuditModalProps) {
                       <span className="dep-audit-row-pkg">
                         {v.package}
                         {v.version ? (
-                          <span className="dep-audit-row-version">@{v.version}</span>
+                          <span className="dep-audit-row-version">
+                            @{v.version}
+                          </span>
                         ) : null}
                       </span>
                       {v.cve && (

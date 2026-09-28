@@ -15,11 +15,17 @@ import {
  * `focusSpanId` is set (e.g. deep-linked from the Reliability dashboard), that
  * run opens immediately.
  */
-export function RunReplayView({ focusSpanId }: { focusSpanId?: string | null }) {
+export function RunReplayView({
+  focusSpanId,
+}: {
+  focusSpanId?: string | null;
+}) {
   const [runs, setRuns] = useState<ReplayRunSummary[]>([]);
   const [selected, setSelected] = useState<string | null>(focusSpanId ?? null);
   const [detail, setDetail] = useState<RunReplay | null>(null);
-  const [listState, setListState] = useState<"loading" | "ok" | "error">("loading");
+  const [listState, setListState] = useState<"loading" | "ok" | "error">(
+    "loading",
+  );
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -80,10 +86,16 @@ export function RunReplayView({ focusSpanId }: { focusSpanId?: string | null }) 
   return (
     <div className="replay">
       <div className="replay-list">
-        {listState === "loading" && <div className="replay-empty">Loading runs…</div>}
-        {listState === "error" && <div className="replay-empty error">Couldn’t load runs: {err}</div>}
+        {listState === "loading" && (
+          <div className="replay-empty">Loading runs…</div>
+        )}
+        {listState === "error" && (
+          <div className="replay-empty error">Couldn’t load runs: {err}</div>
+        )}
         {listState === "ok" && runs.length === 0 && (
-          <div className="replay-empty">No runs recorded yet. Send a chat to record one.</div>
+          <div className="replay-empty">
+            No runs recorded yet. Send a chat to record one.
+          </div>
         )}
         {runs.map((r) => (
           <button
@@ -96,11 +108,13 @@ export function RunReplayView({ focusSpanId }: { focusSpanId?: string | null }) 
             <span className={`replay-run-status status-${r.status}`} />
             <span className="replay-run-main">
               <span className="replay-run-title">
-                {r.prompt_preview || `${r.agent_id ?? "run"} ${r.span_id.slice(0, 8)}`}
+                {r.prompt_preview ||
+                  `${r.agent_id ?? "run"} ${r.span_id.slice(0, 8)}`}
               </span>
               <span className="replay-run-meta muted">
                 {r.agent_id ?? "?"}
-                {r.model ? ` · ${r.model}` : ""} · {new Date(r.started_at).toLocaleString()}
+                {r.model ? ` · ${r.model}` : ""} ·{" "}
+                {new Date(r.started_at).toLocaleString()}
               </span>
             </span>
           </button>
@@ -108,15 +122,25 @@ export function RunReplayView({ focusSpanId }: { focusSpanId?: string | null }) 
       </div>
 
       <div className="replay-detail">
-        {!selected && <div className="replay-empty">Select a run to replay.</div>}
-        {selected && !detail && <div className="replay-empty">Loading timeline…</div>}
+        {!selected && (
+          <div className="replay-empty">Select a run to replay.</div>
+        )}
+        {selected && !detail && (
+          <div className="replay-empty">Loading timeline…</div>
+        )}
         {detail && <ReplayTimeline detail={detail} onExport={doExport} />}
       </div>
     </div>
   );
 }
 
-function ReplayTimeline({ detail, onExport }: { detail: RunReplay; onExport: () => void }) {
+function ReplayTimeline({
+  detail,
+  onExport,
+}: {
+  detail: RunReplay;
+  onExport: () => void;
+}) {
   const dur = detail.ended_at ? detail.ended_at - detail.started_at : null;
   return (
     <div className="replay-timeline">
@@ -127,13 +151,19 @@ function ReplayTimeline({ detail, onExport }: { detail: RunReplay; onExport: () 
             {detail.model ? ` · ${detail.model}` : ""}
           </div>
           <div className="replay-head-sub muted">
-            <span className={`replay-badge status-${detail.status}`}>{detail.status}</span>
+            <span className={`replay-badge status-${detail.status}`}>
+              {detail.status}
+            </span>
             {dur !== null && <span>{fmtMs(dur)}</span>}
             {detail.total_tokens > 0 && <span>{detail.total_tokens} tok</span>}
             {detail.est_usd > 0 && <span>${detail.est_usd.toFixed(2)}</span>}
           </div>
         </div>
-        <button type="button" onClick={onExport} title="Export a redacted JSONL of this run">
+        <button
+          type="button"
+          onClick={onExport}
+          title="Export a redacted JSONL of this run"
+        >
           Export JSONL
         </button>
       </div>
@@ -152,7 +182,9 @@ function ReplayTimeline({ detail, onExport }: { detail: RunReplay; onExport: () 
       )}
 
       {detail.steps.length === 0 && (
-        <div className="replay-empty">No events were recorded for this run.</div>
+        <div className="replay-empty">
+          No events were recorded for this run.
+        </div>
       )}
       {detail.steps.map((s, i) => (
         <Step key={i} step={s} start={detail.started_at} />
@@ -190,38 +222,58 @@ const STEP_LABELS: Record<string, string> = {
 };
 
 function renderPayload(name: string, p: Record<string, unknown>): ReactNode {
-  const str = (k: string) => (typeof p[k] === "string" ? (p[k] as string) : undefined);
-  const num = (k: string) => (typeof p[k] === "number" ? (p[k] as number) : undefined);
+  const str = (k: string) =>
+    typeof p[k] === "string" ? (p[k] as string) : undefined;
+  const num = (k: string) =>
+    typeof p[k] === "number" ? (p[k] as number) : undefined;
   switch (name) {
     case "tool_call":
       return (
         <span>
           <code>{str("name")}</code>
-          {str("preview") ? <span className="muted"> — {str("preview")}</span> : null}
+          {str("preview") ? (
+            <span className="muted"> — {str("preview")}</span>
+          ) : null}
         </span>
       );
     case "tool_result":
       return (
         <span>
           <code>{str("name")}</code> {p["ok"] === false ? "✗ failed" : "✓ ok"}
-          {num("duration_ms") !== undefined ? <span className="muted"> · {fmtMs(num("duration_ms")!)}</span> : null}
+          {num("duration_ms") !== undefined ? (
+            <span className="muted"> · {fmtMs(num("duration_ms")!)}</span>
+          ) : null}
         </span>
       );
     case "file_edit":
       return (
         <span>
           <code>{str("path")}</code>
-          {num("lines") !== undefined ? <span className="muted"> · {num("lines")} lines</span> : null}
+          {num("lines") !== undefined ? (
+            <span className="muted"> · {num("lines")} lines</span>
+          ) : null}
         </span>
       );
     case "approval_request":
-      return <span>tool <code>{str("tool")}</code> awaiting approval</span>;
+      return (
+        <span>
+          tool <code>{str("tool")}</code> awaiting approval
+        </span>
+      );
     case "approval_resolved":
-      return <span>choice: <code>{str("choice")}</code></span>;
+      return (
+        <span>
+          choice: <code>{str("choice")}</code>
+        </span>
+      );
     case "error":
       return <span className="replay-err">{str("message") ?? "error"}</span>;
     case "done":
-      return <span className="muted">{num("tokens") !== undefined ? `${num("tokens")} tokens` : "complete"}</span>;
+      return (
+        <span className="muted">
+          {num("tokens") !== undefined ? `${num("tokens")} tokens` : "complete"}
+        </span>
+      );
     case "token":
     case "reasoning":
       return <span className="muted">{num("chars") ?? 0} chars</span>;

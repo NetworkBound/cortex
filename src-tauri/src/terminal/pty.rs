@@ -148,9 +148,7 @@ pub fn open_command(
                 let _ = child.kill();
                 let _ = child.wait();
             }
-            return Err(format!(
-                "too many open terminals (max {MAX_SESSIONS})"
-            ));
+            return Err(format!("too many open terminals (max {MAX_SESSIONS})"));
         }
         sessions.insert(id.clone(), session);
     }
@@ -174,7 +172,9 @@ pub fn write(id: &str, bytes: &[u8]) -> Result<(), String> {
     let writer = session.writer.clone();
     drop(sessions);
 
-    let mut w = writer.lock().map_err(|_| "writer mutex poisoned".to_string())?;
+    let mut w = writer
+        .lock()
+        .map_err(|_| "writer mutex poisoned".to_string())?;
     w.write_all(bytes).map_err(|e| format!("pty write: {e}"))?;
     w.flush().map_err(|e| format!("pty flush: {e}"))?;
     Ok(())
@@ -194,7 +194,9 @@ pub fn resize(id: &str, cols: u16, rows: u16) -> Result<(), String> {
     let master = session.master.clone();
     drop(sessions);
 
-    let m = master.lock().map_err(|_| "master mutex poisoned".to_string())?;
+    let m = master
+        .lock()
+        .map_err(|_| "master mutex poisoned".to_string())?;
     m.resize(PtySize {
         rows,
         cols,
@@ -381,7 +383,8 @@ fn command_for(program: &str, args: &[String]) -> Result<CommandBuilder, String>
 /// Characters `cmd.exe` interprets when re-parsing a `/C` command line.
 #[cfg(windows)]
 fn has_cmd_metachar(arg: &str) -> bool {
-    arg.chars().any(|c| matches!(c, '&' | '|' | '<' | '>' | '^' | '"' | '%' | '!' | '(' | ')'))
+    arg.chars()
+        .any(|c| matches!(c, '&' | '|' | '<' | '>' | '^' | '"' | '%' | '!' | '(' | ')'))
 }
 
 /// Background reader: pulls bytes off the PTY master and emits them as

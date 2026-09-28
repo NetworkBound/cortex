@@ -65,8 +65,7 @@ pub static MISTRAL_VIBE_SPEC: CliSpec = CliSpec {
         AgentCapability::LongContext,
     ],
     install_url: "https://docs.mistral.ai/mistral-vibe/introduction",
-    install_hint:
-        "Install Mistral Vibe (`npm i -g @mistralai/vibe-cli`) and run `vibe --setup`.",
+    install_hint: "Install Mistral Vibe (`npm i -g @mistralai/vibe-cli`) and run `vibe --setup`.",
     tag: "vibe",
     login_cmd: &["vibe", "--setup"],
     default_model: "",

@@ -129,7 +129,19 @@ interface ActivityIconProps {
 // Render the icon for a tab. Defaults match the rail glyph box: 16px, a 1.75
 // stroke (a touch lighter than Lucide's 2 default, calmer at small sizes), and
 // `currentColor` so it inherits the pill's text color in every state.
-export function ActivityIcon({ tab, size = 16, strokeWidth = 1.75, className }: ActivityIconProps) {
+export function ActivityIcon({
+  tab,
+  size = 16,
+  strokeWidth = 1.75,
+  className,
+}: ActivityIconProps) {
   const Icon = iconForTab(tab);
-  return <Icon size={size} strokeWidth={strokeWidth} className={className} aria-hidden="true" />;
+  return (
+    <Icon
+      size={size}
+      strokeWidth={strokeWidth}
+      className={className}
+      aria-hidden="true"
+    />
+  );
 }

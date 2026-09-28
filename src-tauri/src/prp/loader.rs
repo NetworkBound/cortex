@@ -256,8 +256,8 @@ pub fn update_prp_stage(project_root: &Path, name: &str, stage: PrpStage) -> Res
         return Err(format!("PRP '{name}' not found"));
     }
     let text = fs::read_to_string(&path).map_err(|e| format!("read failed: {e}"))?;
-    let doc = YamlFrontMatter::parse::<Frontmatter>(&text)
-        .map_err(|e| format!("parse failed: {e}"))?;
+    let doc =
+        YamlFrontMatter::parse::<Frontmatter>(&text).map_err(|e| format!("parse failed: {e}"))?;
     let mut fm = doc.metadata;
     fm.status = stage;
     write_prp(&path, &fm, &doc.content)
@@ -274,8 +274,8 @@ pub fn update_prp_gates(
         return Err(format!("PRP '{name}' not found"));
     }
     let text = fs::read_to_string(&path).map_err(|e| format!("read failed: {e}"))?;
-    let doc = YamlFrontMatter::parse::<Frontmatter>(&text)
-        .map_err(|e| format!("parse failed: {e}"))?;
+    let doc =
+        YamlFrontMatter::parse::<Frontmatter>(&text).map_err(|e| format!("parse failed: {e}"))?;
     let mut fm = doc.metadata;
     fm.gates = gates;
     write_prp(&path, &fm, &doc.content)

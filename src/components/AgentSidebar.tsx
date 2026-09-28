@@ -30,8 +30,8 @@ export function AgentSidebar() {
   // Collapsible "Roles" section sits ABOVE the existing agent list. Closed
   // by default to keep the sidebar lean for users who don't use personas.
   const [rolesOpen, setRolesOpen] = useState(false);
-  const [loadState, setLoadState] = useState<LoadState>(
-    () => (useCortexStore.getState().agents.length > 0 ? "ready" : "loading"),
+  const [loadState, setLoadState] = useState<LoadState>(() =>
+    useCortexStore.getState().agents.length > 0 ? "ready" : "loading",
   );
   const [loadError, setLoadError] = useState<string | null>(null);
   const [health, setHealth] = useState<Record<string, Health>>({});
@@ -185,7 +185,9 @@ export function AgentSidebar() {
           <div className="muted">{a.description}</div>
           <div className="caps">
             {a.capabilities.map((c) => (
-              <span key={c} className="cap">{c}</span>
+              <span key={c} className="cap">
+                {c}
+              </span>
             ))}
           </div>
         </div>

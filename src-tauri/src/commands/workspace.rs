@@ -125,8 +125,8 @@ pub async fn import_workspace(
     store: State<'_, TracingStore>,
 ) -> Result<ImportSummary, String> {
     let raw = std::fs::read(&bundle_path).map_err(|e| e.to_string())?;
-    let bundle: WorkspaceBundle = serde_json::from_slice(&raw)
-        .map_err(|e| format!("could not parse bundle: {e}"))?;
+    let bundle: WorkspaceBundle =
+        serde_json::from_slice(&raw).map_err(|e| format!("could not parse bundle: {e}"))?;
 
     if bundle.schema != SCHEMA_ID {
         return Err(format!(
@@ -143,7 +143,11 @@ pub async fn import_workspace(
         cfg.gateway_model = bundle.settings.gateway_model;
         cfg.ollama_base_url = bundle.settings.ollama_base_url;
         cfg.ollama_model = bundle.settings.ollama_model;
-        if let Some(v) = bundle.settings.obsidian_vault.filter(|s| !s.trim().is_empty()) {
+        if let Some(v) = bundle
+            .settings
+            .obsidian_vault
+            .filter(|s| !s.trim().is_empty())
+        {
             cfg.obsidian_vault = Some(PathBuf::from(v));
         }
     }
@@ -219,8 +223,7 @@ fn write_project_files(
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
             // Re-verify after creating the parent: canonicalizing it resolves
             // any symlinks so we can assert the write target stays under root.
-            if let (Ok(canon_parent), Ok(canon_root)) =
-                (parent.canonicalize(), root.canonicalize())
+            if let (Ok(canon_parent), Ok(canon_root)) = (parent.canonicalize(), root.canonicalize())
             {
                 if !canon_parent.starts_with(&canon_root) {
                     skipped += 1;
@@ -256,7 +259,9 @@ fn safe_join(root: &Path, rel: &str) -> Option<PathBuf> {
 }
 
 fn collect_recent_sessions(store: &TracingStore, limit: usize) -> Vec<WorkspaceSession> {
-    let Ok(sessions) = store.recent_sessions(limit) else { return Vec::new() };
+    let Ok(sessions) = store.recent_sessions(limit) else {
+        return Vec::new();
+    };
     let mut out = Vec::with_capacity(sessions.len());
     for s in sessions {
         let messages = store

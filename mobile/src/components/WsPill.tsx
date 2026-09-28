@@ -14,7 +14,7 @@ export default function WsPill() {
   // (which may just be mid-reconnect). Otherwise reflect the live stream.
   const offline = serverHealth === "offline";
   const cls = offline ? "closed" : wsStatus;
-  const label = offline ? "offline" : LABEL[wsStatus] ?? wsStatus;
+  const label = offline ? "offline" : (LABEL[wsStatus] ?? wsStatus);
   const title = `Stream: ${wsStatus} · Server: ${serverHealth}`;
 
   return (

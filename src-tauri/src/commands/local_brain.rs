@@ -53,10 +53,10 @@ const PAGERANK_MULTIPLIER_INTENSITY: f32 = 0.5;
 /// (whose weights top out at 1.2 in `source_kind_weight`).
 const RECENT_EDITS_KIND_WEIGHT: f32 = 1.5;
 const STOPWORDS: &[&str] = &[
-    "with", "this", "that", "from", "have", "into", "your", "what", "when",
-    "where", "which", "would", "should", "could", "about", "after", "before",
-    "they", "them", "their", "there", "then", "than", "been", "were", "will",
-    "make", "made", "just", "like", "some", "more", "want", "need", "does",
+    "with", "this", "that", "from", "have", "into", "your", "what", "when", "where", "which",
+    "would", "should", "could", "about", "after", "before", "they", "them", "their", "there",
+    "then", "than", "been", "were", "will", "make", "made", "just", "like", "some", "more", "want",
+    "need", "does",
 ];
 
 #[derive(Serialize, Clone, Default)]
@@ -120,19 +120,34 @@ fn extract_terms(draft: &str) -> Vec<Term> {
             // grep matches files containing the canonical path.
             let mut end = i;
             loop {
-                let sep_len = if end < chars.len() && chars[end] == '.' { 1 }
-                              else if end + 1 < chars.len() && chars[end] == '?' && chars[end+1] == '.' { 2 }
-                              else if end + 1 < chars.len() && chars[end] == ':' && chars[end+1] == ':' { 2 }
-                              else { 0 };
-                if sep_len == 0 { break; }
+                let sep_len = if end < chars.len() && chars[end] == '.' {
+                    1
+                } else if end + 1 < chars.len() && chars[end] == '?' && chars[end + 1] == '.' {
+                    2
+                } else if end + 1 < chars.len() && chars[end] == ':' && chars[end + 1] == ':' {
+                    2
+                } else {
+                    0
+                };
+                if sep_len == 0 {
+                    break;
+                }
                 let seg_start = end + sep_len;
-                if seg_start >= chars.len() { break; }
-                if !(chars[seg_start].is_alphabetic() || chars[seg_start] == '_') { break; }
+                if seg_start >= chars.len() {
+                    break;
+                }
+                if !(chars[seg_start].is_alphabetic() || chars[seg_start] == '_') {
+                    break;
+                }
                 let mut seg_end = seg_start;
-                while seg_end < chars.len() && (chars[seg_end].is_alphanumeric() || chars[seg_end] == '_') {
+                while seg_end < chars.len()
+                    && (chars[seg_end].is_alphanumeric() || chars[seg_end] == '_')
+                {
                     seg_end += 1;
                 }
-                if seg_end - seg_start < 2 { break; }
+                if seg_end - seg_start < 2 {
+                    break;
+                }
                 end = seg_end;
             }
             if end > i {
@@ -143,9 +158,14 @@ fn extract_terms(draft: &str) -> Vec<Term> {
                 let lower = tok.to_lowercase();
                 if lower.len() >= MIN_TERM_LEN && !seen.contains_key(&lower) {
                     seen.insert(lower.clone(), 3.0);
-                    out.push(Term { text: lower, boost: 3.0 });
+                    out.push(Term {
+                        text: lower,
+                        boost: 3.0,
+                    });
                     count += 1;
-                    if count >= 4 { break; }
+                    if count >= 4 {
+                        break;
+                    }
                 }
                 i = end;
             }
@@ -162,31 +182,57 @@ fn extract_terms(draft: &str) -> Vec<Term> {
     // we're scanning the USER'S draft which is usually English prose, so
     // TitleCase tokens like "Then" / "This" would be false positives and
     // pollute the high-boost set. We let Pass 2 catch them as 1× words.
-    for tok in draft.split(|c: char| c.is_whitespace() || c == ',' || c == '.' || c == ';' || c == ':' || c == '!' || c == '?') {
+    for tok in draft.split(|c: char| {
+        c.is_whitespace() || c == ',' || c == '.' || c == ';' || c == ':' || c == '!' || c == '?'
+    }) {
         let lower = tok.to_lowercase();
-        if lower.len() < MIN_TERM_LEN { continue; }
-        let looks_like_ident =
-            tok.contains('_')
+        if lower.len() < MIN_TERM_LEN {
+            continue;
+        }
+        let looks_like_ident = tok.contains('_')
             || tok.contains('/')
             || tok.contains('\\')
             || tok.chars().any(|c| c == '-')
-            || tok.chars().zip(tok.chars().skip(1)).any(|(a, b)| a.is_lowercase() && b.is_uppercase());
-        if !looks_like_ident { continue; }
+            || tok
+                .chars()
+                .zip(tok.chars().skip(1))
+                .any(|(a, b)| a.is_lowercase() && b.is_uppercase());
+        if !looks_like_ident {
+            continue;
+        }
         let existing = seen.get(&lower).copied().unwrap_or(0.0);
-        if existing >= 2.0 { continue; }
+        if existing >= 2.0 {
+            continue;
+        }
         seen.insert(lower.clone(), 2.0);
-        out.push(Term { text: lower, boost: 2.0 });
-        if out.len() >= 6 { break; }
+        out.push(Term {
+            text: lower,
+            boost: 2.0,
+        });
+        if out.len() >= 6 {
+            break;
+        }
     }
     // Pass 2: regular words. Drop stopwords + anything already captured.
     for tok in draft.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '-') {
         let lower = tok.to_lowercase();
-        if lower.len() < MIN_TERM_LEN { continue; }
-        if STOPWORDS.contains(&lower.as_str()) { continue; }
-        if seen.contains_key(&lower) { continue; }
+        if lower.len() < MIN_TERM_LEN {
+            continue;
+        }
+        if STOPWORDS.contains(&lower.as_str()) {
+            continue;
+        }
+        if seen.contains_key(&lower) {
+            continue;
+        }
         seen.insert(lower.clone(), 1.0);
-        out.push(Term { text: lower, boost: 1.0 });
-        if out.len() >= 14 { break; }
+        out.push(Term {
+            text: lower,
+            boost: 1.0,
+        });
+        if out.len() >= 14 {
+            break;
+        }
     }
     out
 }
@@ -226,7 +272,10 @@ pub async fn compute_repo_map_command(
         if !p.is_dir() {
             return Err(format!("not a directory: {project_root}"));
         }
-        Ok(crate::repo_map::compute_repo_map(&p, max_files.unwrap_or(500)))
+        Ok(crate::repo_map::compute_repo_map(
+            &p,
+            max_files.unwrap_or(500),
+        ))
     })
     .await
     .map_err(|e| format!("join error: {e}"))?
@@ -239,7 +288,10 @@ pub async fn compute_repo_map_command(
 pub async fn extract_terms_diagnostic(message: String) -> Result<Vec<ExtractedTerm>, String> {
     Ok(extract_terms(&message)
         .into_iter()
-        .map(|t| ExtractedTerm { text: t.text, boost: t.boost })
+        .map(|t| ExtractedTerm {
+            text: t.text,
+            boost: t.boost,
+        })
         .collect())
 }
 
@@ -271,31 +323,37 @@ pub async fn local_brain_suggest(
                 snippet = %snippet,
                 "extract_terms returned empty — early-out (no walk)"
             );
-            return Ok(LocalBrainResult { suggestions: vec![], scanned_files: 0, matched_files: 0 });
+            return Ok(LocalBrainResult {
+                suggestions: vec![],
+                scanned_files: 0,
+                matched_files: 0,
+            });
         }
         // Wave 218 — pre-compute the project's PageRank lookup so the
         // scoring loop can incorporate it without repeated walks. Uses the
         // wave-208 10s cache so the second / third brain query in a row
         // is free.
-        let pagerank_lookup: HashMap<String, f32> = if let Some(root) = project_root.as_deref().map(PathBuf::from) {
-            let map = crate::repo_map::compute_repo_map(&root, 500);
-            let lookup: HashMap<String, f32> = map.files
-                .into_iter()
-                .filter(|f| f.pagerank > 0.0)
-                .map(|f| (f.path, f.pagerank))
-                .collect();
-            // Wave 243 — log how many files contributed pagerank entries
-            // so users debugging brain results can see "I got 23 pagerank
-            // entries from 500 files; the rest had zero inbound refs".
-            tracing::debug!(
-                target: "cortex::local_brain",
-                "pagerank lookup built: {} files with positive score",
-                lookup.len()
-            );
-            lookup
-        } else {
-            HashMap::new()
-        };
+        let pagerank_lookup: HashMap<String, f32> =
+            if let Some(root) = project_root.as_deref().map(PathBuf::from) {
+                let map = crate::repo_map::compute_repo_map(&root, 500);
+                let lookup: HashMap<String, f32> = map
+                    .files
+                    .into_iter()
+                    .filter(|f| f.pagerank > 0.0)
+                    .map(|f| (f.path, f.pagerank))
+                    .collect();
+                // Wave 243 — log how many files contributed pagerank entries
+                // so users debugging brain results can see "I got 23 pagerank
+                // entries from 500 files; the rest had zero inbound refs".
+                tracing::debug!(
+                    target: "cortex::local_brain",
+                    "pagerank lookup built: {} files with positive score",
+                    lookup.len()
+                );
+                lookup
+            } else {
+                HashMap::new()
+            };
 
         let active = project_root.as_deref().map(PathBuf::from);
         let sources = default_sources(active.as_deref(), vault.as_deref());
@@ -312,7 +370,9 @@ pub async fn local_brain_suggest(
             let recent = recent_project_files(root, 30);
             for file in &recent {
                 scanned += 1;
-                let Ok(content) = read_capped(file) else { continue };
+                let Ok(content) = read_capped(file) else {
+                    continue;
+                };
                 let lower = content.to_lowercase();
                 // Wave 158 — filename-match bonus. If the user types
                 // `processOrder`, a file literally named `process_order.rs`
@@ -330,7 +390,11 @@ pub async fn local_brain_suggest(
                 for term in &terms {
                     let n = lower.matches(term.text.as_str()).count() as f32;
                     // Wave 158 — filename hit counts as 3× the per-term boost.
-                    let fname_hit = if fname_lower.contains(term.text.as_str()) { 3.0 } else { 0.0 };
+                    let fname_hit = if fname_lower.contains(term.text.as_str()) {
+                        3.0
+                    } else {
+                        0.0
+                    };
                     if n > 0.0 || fname_hit > 0.0 {
                         weighted_hits += (n + fname_hit) * term.boost;
                         matched_terms.push(term.text.clone());
@@ -344,7 +408,9 @@ pub async fn local_brain_suggest(
                         }
                     }
                 }
-                if weighted_hits == 0.0 { continue; }
+                if weighted_hits == 0.0 {
+                    continue;
+                }
                 let recency = recency_weight(file);
                 // Wave 218 — PageRank bonus. Look up the file's pagerank
                 // from the cached repo_map (key matches the relative-path
@@ -353,15 +419,23 @@ pub async fn local_brain_suggest(
                 // Wave 242 — we're already inside `if let Some(root) = active`
                 // so the original `unwrap_or(file)` was dead code. `root`
                 // is in scope at this point.
-                let rel = file.strip_prefix(root)
+                let rel = file
+                    .strip_prefix(root)
                     .unwrap_or(file)
                     .to_string_lossy()
                     .replace('\\', "/");
-                let pr_boost = 1.0 + pagerank_lookup.get(&rel).copied().unwrap_or(0.0) * PAGERANK_MULTIPLIER_INTENSITY;
-                let score = score_suggestion(weighted_hits, recency, RECENT_EDITS_KIND_WEIGHT, pr_boost);
+                let pr_boost = 1.0
+                    + pagerank_lookup.get(&rel).copied().unwrap_or(0.0)
+                        * PAGERANK_MULTIPLIER_INTENSITY;
+                let score =
+                    score_suggestion(weighted_hits, recency, RECENT_EDITS_KIND_WEIGHT, pr_boost);
                 scored.push(LocalSuggestion {
                     path: file.display().to_string(),
-                    source: if pr_boost > 1.05 { format!("recent edits · pagerank {:.2}", pr_boost - 1.0) } else { "recent edits".into() },
+                    source: if pr_boost > 1.05 {
+                        format!("recent edits · pagerank {:.2}", pr_boost - 1.0)
+                    } else {
+                        "recent edits".into()
+                    },
                     token: format!("@{}", file.display()),
                     score,
                     preview: preview_line.unwrap_or_default(),
@@ -373,8 +447,12 @@ pub async fn local_brain_suggest(
         'outer: for source in &sources {
             for file in walk_markdown(source) {
                 scanned += 1;
-                if scanned > 4000 { break 'outer; }
-                let Ok(content) = read_capped(&file) else { continue };
+                if scanned > 4000 {
+                    break 'outer;
+                }
+                let Ok(content) = read_capped(&file) else {
+                    continue;
+                };
                 let lower = content.to_lowercase();
                 // Wave 159 — filename-match bonus (same as wave 158 for the
                 // recent-edits pass). Memory files are often named after
@@ -390,7 +468,11 @@ pub async fn local_brain_suggest(
                 let mut matched_terms: Vec<String> = Vec::new();
                 for term in &terms {
                     let n = lower.matches(term.text.as_str()).count() as f32;
-                    let fname_hit = if fname_lower.contains(term.text.as_str()) { 3.0 } else { 0.0 };
+                    let fname_hit = if fname_lower.contains(term.text.as_str()) {
+                        3.0
+                    } else {
+                        0.0
+                    };
                     if n > 0.0 || fname_hit > 0.0 {
                         weighted_hits += (n + fname_hit) * term.boost;
                         matched_terms.push(term.text.clone());
@@ -402,7 +484,9 @@ pub async fn local_brain_suggest(
                         }
                     }
                 }
-                if weighted_hits == 0.0 { continue; }
+                if weighted_hits == 0.0 {
+                    continue;
+                }
                 let recency = recency_weight(&file);
                 let kind_w = source_kind_weight(source);
                 let score = score_suggestion(weighted_hits, recency, kind_w, 1.0);
@@ -417,9 +501,17 @@ pub async fn local_brain_suggest(
             }
         }
         let matched = scored.len();
-        scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        scored.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         scored.truncate(MAX_RESULTS);
-        Ok(LocalBrainResult { suggestions: scored, scanned_files: scanned, matched_files: matched })
+        Ok(LocalBrainResult {
+            suggestions: scored,
+            scanned_files: scanned,
+            matched_files: matched,
+        })
     })
     .await
     .map_err(|e| format!("join error: {e}"))?
@@ -434,22 +526,37 @@ fn read_capped(p: &Path) -> std::io::Result<String> {
 }
 
 fn recency_weight(p: &Path) -> f32 {
-    let Ok(meta) = fs::metadata(p) else { return 0.6 };
-    let Ok(modified) = meta.modified() else { return 0.6 };
-    let age_secs = modified.elapsed().map(|d| d.as_secs() as f32).unwrap_or(0.0);
+    let Ok(meta) = fs::metadata(p) else {
+        return 0.6;
+    };
+    let Ok(modified) = meta.modified() else {
+        return 0.6;
+    };
+    let age_secs = modified
+        .elapsed()
+        .map(|d| d.as_secs() as f32)
+        .unwrap_or(0.0);
     let days = age_secs / 86400.0;
     // Wave 145 — finer-grained recency bucketing in the <1d band. Files
     // touched in the last hour are basically certain to be what the user
     // is working on; the old <7d bucket gave them the same 1.0 as a file
     // they last edited 6 days ago and missed that signal.
     let hours = age_secs / 3600.0;
-    if hours < 1.0 { 1.4 }
-    else if hours < 6.0 { 1.2 }
-    else if days < 1.0 { 1.1 }
-    else if days < 7.0 { 1.0 }
-    else if days < 30.0 { 0.85 }
-    else if days < 90.0 { 0.65 }
-    else { 0.4 }
+    if hours < 1.0 {
+        1.4
+    } else if hours < 6.0 {
+        1.2
+    } else if days < 1.0 {
+        1.1
+    } else if days < 7.0 {
+        1.0
+    } else if days < 30.0 {
+        0.85
+    } else if days < 90.0 {
+        0.65
+    } else {
+        0.4
+    }
 }
 
 /// Find the `n` most-recently-modified text-ish files under `root`, skipping
@@ -473,31 +580,53 @@ fn recent_project_files(root: &Path, n: usize) -> Vec<PathBuf> {
 fn recent_project_files_uncached(root: &Path, n: usize) -> Vec<PathBuf> {
     use walkdir::WalkDir;
     const SKIP: &[&str] = &[
-        ".git", "node_modules", "target", "dist", "build", ".next",
-        ".turbo", ".cache", "out", "coverage", "__pycache__",
+        ".git",
+        "node_modules",
+        "target",
+        "dist",
+        "build",
+        ".next",
+        ".turbo",
+        ".cache",
+        "out",
+        "coverage",
+        "__pycache__",
     ];
     const EXTS: &[&str] = &[
-        "rs", "ts", "tsx", "js", "jsx", "py", "md", "go", "java",
-        "c", "h", "cpp", "hpp", "swift", "kt", "rb", "css", "html",
-        "yaml", "yml", "toml", "json", "sh",
+        "rs", "ts", "tsx", "js", "jsx", "py", "md", "go", "java", "c", "h", "cpp", "hpp", "swift",
+        "kt", "rb", "css", "html", "yaml", "yml", "toml", "json", "sh",
         // Wave 265 — modern ecosystem parity with wave-153 implicit-mention
         // extension list so the recent-files signal sees the same files
         // that the user can typify into the draft.
-        "zig", "dart", "elm", "json5", "lua", "nix", "tf", "mjs", "cjs",
-        "astro", "vue", "svelte", "jl", "ex", "exs", "clj", "hs", "ml",
-        "scss", "sql", "proto", "gradle", "php", "scala",
+        "zig", "dart", "elm", "json5", "lua", "nix", "tf", "mjs", "cjs", "astro", "vue", "svelte",
+        "jl", "ex", "exs", "clj", "hs", "ml", "scss", "sql", "proto", "gradle", "php", "scala",
     ];
     let mut out: Vec<(std::time::SystemTime, PathBuf)> = Vec::new();
-    for entry in WalkDir::new(root).max_depth(5).into_iter().filter_entry(|e| {
-        e.file_name().to_str().map(|s| !SKIP.contains(&s)).unwrap_or(true)
-    }) {
+    for entry in WalkDir::new(root)
+        .max_depth(5)
+        .into_iter()
+        .filter_entry(|e| {
+            e.file_name()
+                .to_str()
+                .map(|s| !SKIP.contains(&s))
+                .unwrap_or(true)
+        })
+    {
         let Ok(entry) = entry else { continue };
         let p = entry.path();
-        if !entry.file_type().is_file() { continue; }
-        let Some(ext) = p.extension().and_then(|e| e.to_str()) else { continue };
-        if !EXTS.contains(&ext) { continue; }
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let Some(ext) = p.extension().and_then(|e| e.to_str()) else {
+            continue;
+        };
+        if !EXTS.contains(&ext) {
+            continue;
+        }
         let Ok(meta) = entry.metadata() else { continue };
-        let Ok(modified) = meta.modified() else { continue };
+        let Ok(modified) = meta.modified() else {
+            continue;
+        };
         out.push((modified, p.to_path_buf()));
         if out.len() > n * 4 {
             out.sort_by(|a, b| b.0.cmp(&a.0));
@@ -557,10 +686,16 @@ mod tests {
     fn score_suggestion_pagerank_boost_is_multiplicative_and_never_punishes() {
         let base = score_suggestion(4.0, 1.0, RECENT_EDITS_KIND_WEIGHT, 1.0);
         // A neutral pr_boost (no inbound edges) leaves the score unchanged.
-        assert_eq!(score_suggestion(4.0, 1.0, RECENT_EDITS_KIND_WEIGHT, 1.0), base);
+        assert_eq!(
+            score_suggestion(4.0, 1.0, RECENT_EDITS_KIND_WEIGHT, 1.0),
+            base
+        );
         // Max boost (1.0 + 1.0*0.5) scales by exactly 1.5×.
         let maxed = score_suggestion(4.0, 1.0, RECENT_EDITS_KIND_WEIGHT, 1.5);
-        assert!((maxed - base * 1.5).abs() < 1e-6, "pr_boost not 1.5×: {maxed} vs {base}");
+        assert!(
+            (maxed - base * 1.5).abs() < 1e-6,
+            "pr_boost not 1.5×: {maxed} vs {base}"
+        );
         assert!(maxed > base, "pagerank must boost, never punish");
     }
 
@@ -570,7 +705,10 @@ mod tests {
         let hi = score_suggestion(16.0, 1.0, 1.0, 1.0);
         assert!(hi > lo, "more hits must score higher");
         // sqrt dampening: 16× the hits is only 4× the score, not 16×.
-        assert!((hi - lo * 4.0).abs() < 1e-6, "expected sqrt dampening: {hi} vs {lo}");
+        assert!(
+            (hi - lo * 4.0).abs() < 1e-6,
+            "expected sqrt dampening: {hi} vs {lo}"
+        );
     }
 
     // Wave 154 — lock in wave-145 recency curve so future tweaks don't
@@ -580,8 +718,16 @@ mod tests {
         let terms = extract_terms("How does processOrder handle the user_session.refresh path?");
         let by_text: std::collections::HashMap<&str, f32> =
             terms.iter().map(|t| (t.text.as_str(), t.boost)).collect();
-        assert_eq!(by_text.get("processorder"), Some(&2.0), "CamelCase missed: {by_text:?}");
-        assert_eq!(by_text.get("user_session"), Some(&2.0), "snake_case missed: {by_text:?}");
+        assert_eq!(
+            by_text.get("processorder"),
+            Some(&2.0),
+            "CamelCase missed: {by_text:?}"
+        );
+        assert_eq!(
+            by_text.get("user_session"),
+            Some(&2.0),
+            "snake_case missed: {by_text:?}"
+        );
     }
 
     #[test]
@@ -617,7 +763,11 @@ mod tests {
         let terms = extract_terms("verify user?.config?.timeout");
         let by_text: std::collections::HashMap<&str, f32> =
             terms.iter().map(|t| (t.text.as_str(), t.boost)).collect();
-        assert_eq!(by_text.get("user.config.timeout"), Some(&3.0), "chained ?. missed: {by_text:?}");
+        assert_eq!(
+            by_text.get("user.config.timeout"),
+            Some(&3.0),
+            "chained ?. missed: {by_text:?}"
+        );
     }
 
     #[test]
@@ -625,7 +775,11 @@ mod tests {
         let terms = extract_terms("inspect user?.save() before commit");
         let by_text: std::collections::HashMap<&str, f32> =
             terms.iter().map(|t| (t.text.as_str(), t.boost)).collect();
-        assert_eq!(by_text.get("user.save"), Some(&3.0), "optional chain missed: {by_text:?}");
+        assert_eq!(
+            by_text.get("user.save"),
+            Some(&3.0),
+            "optional chain missed: {by_text:?}"
+        );
     }
 
     #[test]
@@ -645,7 +799,11 @@ mod tests {
         let terms = extract_terms("the _private_helper does what");
         let by_text: std::collections::HashMap<&str, f32> =
             terms.iter().map(|t| (t.text.as_str(), t.boost)).collect();
-        assert_eq!(by_text.get("_private_helper"), Some(&2.0), "underscore-prefixed missed: {by_text:?}");
+        assert_eq!(
+            by_text.get("_private_helper"),
+            Some(&2.0),
+            "underscore-prefixed missed: {by_text:?}"
+        );
     }
 
     #[test]
@@ -655,7 +813,11 @@ mod tests {
         let terms = extract_terms("does User.save() work?");
         let by_text: std::collections::HashMap<&str, f32> =
             terms.iter().map(|t| (t.text.as_str(), t.boost)).collect();
-        assert_eq!(by_text.get("user.save"), Some(&3.0), "method-call form missed: {by_text:?}");
+        assert_eq!(
+            by_text.get("user.save"),
+            Some(&3.0),
+            "method-call form missed: {by_text:?}"
+        );
     }
 
     #[test]
@@ -663,7 +825,11 @@ mod tests {
         let terms = extract_terms("does User.save handle the case");
         let by_text: std::collections::HashMap<&str, f32> =
             terms.iter().map(|t| (t.text.as_str(), t.boost)).collect();
-        assert_eq!(by_text.get("user.save"), Some(&3.0), "qualified dotted missed: {by_text:?}");
+        assert_eq!(
+            by_text.get("user.save"),
+            Some(&3.0),
+            "qualified dotted missed: {by_text:?}"
+        );
     }
 
     #[test]
@@ -671,7 +837,11 @@ mod tests {
         let terms = extract_terms("see model::User::save in the codebase");
         let by_text: std::collections::HashMap<&str, f32> =
             terms.iter().map(|t| (t.text.as_str(), t.boost)).collect();
-        assert_eq!(by_text.get("model::user::save"), Some(&3.0), "qualified path missed: {by_text:?}");
+        assert_eq!(
+            by_text.get("model::user::save"),
+            Some(&3.0),
+            "qualified path missed: {by_text:?}"
+        );
     }
 
     #[test]

@@ -63,10 +63,7 @@ pub async fn enhance_prompt(
     let mut user_content = format!("Enhance this prompt for a coding agent:\n\n{}", message);
     if let Some(ctx) = context {
         if !ctx.is_empty() {
-            user_content.push_str(&format!(
-                "\n\nProject context: {}",
-                ctx
-            ));
+            user_content.push_str(&format!("\n\nProject context: {}", ctx));
         }
     }
 

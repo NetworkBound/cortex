@@ -438,11 +438,7 @@ pub fn set_worker_tags(
 /// status/task/counters, so the team runner can attach the `lane_runs` id
 /// without widening the per-worker patch. A blank id clears the link; the link
 /// is wiped by [`begin_run`] so a stale lane can't leak across runs.
-pub fn set_worker_lane(
-    team_id: &str,
-    worker_id: &str,
-    lane_run_id: &str,
-) -> anyhow::Result<Team> {
+pub fn set_worker_lane(team_id: &str, worker_id: &str, lane_run_id: &str) -> anyhow::Result<Team> {
     let mut team =
         get_team(team_id).ok_or_else(|| anyhow::anyhow!("team '{team_id}' not found"))?;
     let mut found = false;
@@ -633,9 +629,8 @@ mod tests {
             assert_eq!(updated.workers[0].status, "working");
             assert_eq!(updated.workers[0].message_count, 1);
             // Same status + task again => no bump.
-            let again =
-                update_worker(&t.id, &w_id, "working", Some("port the auth module".into()))
-                    .unwrap();
+            let again = update_worker(&t.id, &w_id, "working", Some("port the auth module".into()))
+                .unwrap();
             assert_eq!(again.workers[0].message_count, 1);
             // Status change => bump.
             let done = update_worker(&t.id, &w_id, "done", None).unwrap();
@@ -699,18 +694,20 @@ mod tests {
         with_temp_home(|_| {
             let t = create_team("x", "m", &["coder".into()]).unwrap();
             let w_id = t.workers[0].agent_id.clone();
-            let updated =
-                patch_worker(
-                    &t.id,
-                    &w_id,
-                    "done",
-                    Some("task".into()),
-                    Some("session-abc".into()),
-                    None,
-                    None,
-                )
-                .unwrap();
-            assert_eq!(updated.workers[0].session_id.as_deref(), Some("session-abc"));
+            let updated = patch_worker(
+                &t.id,
+                &w_id,
+                "done",
+                Some("task".into()),
+                Some("session-abc".into()),
+                None,
+                None,
+            )
+            .unwrap();
+            assert_eq!(
+                updated.workers[0].session_id.as_deref(),
+                Some("session-abc")
+            );
             // None leaves the session untouched.
             let again = patch_worker(&t.id, &w_id, "done", None, None, None, None).unwrap();
             assert_eq!(again.workers[0].session_id.as_deref(), Some("session-abc"));
@@ -756,7 +753,10 @@ mod tests {
             assert!(t.workers[0].lane_run_id.is_none());
 
             let linked = set_worker_lane(&t.id, &w_id, "lane-e2e-123").unwrap();
-            assert_eq!(linked.workers[0].lane_run_id.as_deref(), Some("lane-e2e-123"));
+            assert_eq!(
+                linked.workers[0].lane_run_id.as_deref(),
+                Some("lane-e2e-123")
+            );
             assert_eq!(get_team(&t.id).unwrap(), linked);
 
             // Blank clears.
@@ -803,11 +803,17 @@ mod tests {
                 Some(0.42),
             )
             .unwrap();
-            assert_eq!(patched.workers[0].effective_model.as_deref(), Some("claude-opus-4-8"));
+            assert_eq!(
+                patched.workers[0].effective_model.as_deref(),
+                Some("claude-opus-4-8")
+            );
             assert_eq!(patched.workers[0].projected_usd, Some(0.42));
             // None leaves the cost fields untouched (a later status-only patch).
             let again = patch_worker(&t.id, &w_id, "done", None, None, None, None).unwrap();
-            assert_eq!(again.workers[0].effective_model.as_deref(), Some("claude-opus-4-8"));
+            assert_eq!(
+                again.workers[0].effective_model.as_deref(),
+                Some("claude-opus-4-8")
+            );
             assert_eq!(again.workers[0].projected_usd, Some(0.42));
 
             let totaled = set_spent_usd(&t.id, 0.42).unwrap();
@@ -838,7 +844,10 @@ mod tests {
             assert_eq!(get_team(&t.id).unwrap().budget_usd, Some(2.50));
 
             // A zero budget is legitimate (a "free runs only" ceiling).
-            assert_eq!(set_budget_usd(&t.id, Some(0.0)).unwrap().budget_usd, Some(0.0));
+            assert_eq!(
+                set_budget_usd(&t.id, Some(0.0)).unwrap().budget_usd,
+                Some(0.0)
+            );
             // None clears it.
             assert!(set_budget_usd(&t.id, None).unwrap().budget_usd.is_none());
             // Negative / non-finite is rejected.

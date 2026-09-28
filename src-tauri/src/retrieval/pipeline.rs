@@ -166,14 +166,9 @@ fn contains_word(hay: &str, needle: &str) -> bool {
     let mut start = 0;
     while let Some(pos) = hay[start..].find(needle) {
         let at = start + pos;
-        let before_ok = at == 0
-            || !hay[..at]
-                .chars()
-                .next_back()
-                .is_some_and(is_word);
+        let before_ok = at == 0 || !hay[..at].chars().next_back().is_some_and(is_word);
         let after = at + needle.len();
-        let after_ok = after >= bytes.len()
-            || !hay[after..].chars().next().is_some_and(is_word);
+        let after_ok = after >= bytes.len() || !hay[after..].chars().next().is_some_and(is_word);
         if before_ok && after_ok {
             return true;
         }
@@ -272,12 +267,23 @@ fn collect_memory(query: &str, out: &mut Vec<Candidate>) {
 fn collect_recent(root: &Path, query: &str, out: &mut Vec<Candidate>) {
     use walkdir::WalkDir;
     const SKIP: &[&str] = &[
-        ".git", "node_modules", "target", "dist", "build", ".next", ".turbo",
-        ".cache", "out", "coverage", "__pycache__", ".venv", "venv",
+        ".git",
+        "node_modules",
+        "target",
+        "dist",
+        "build",
+        ".next",
+        ".turbo",
+        ".cache",
+        "out",
+        "coverage",
+        "__pycache__",
+        ".venv",
+        "venv",
     ];
     const EXTS: &[&str] = &[
-        "rs", "ts", "tsx", "js", "jsx", "py", "md", "go", "java", "c", "h",
-        "cpp", "hpp", "swift", "rb", "php", "cs", "toml", "json", "yaml", "yml",
+        "rs", "ts", "tsx", "js", "jsx", "py", "md", "go", "java", "c", "h", "cpp", "hpp", "swift",
+        "rb", "php", "cs", "toml", "json", "yaml", "yml",
     ];
     let tokens = query_tokens(query);
 
@@ -304,7 +310,9 @@ fn collect_recent(root: &Path, query: &str, out: &mut Vec<Candidate>) {
             continue;
         }
         let Ok(meta) = entry.metadata() else { continue };
-        let Ok(modified) = meta.modified() else { continue };
+        let Ok(modified) = meta.modified() else {
+            continue;
+        };
         files.push((modified, p.to_path_buf()));
     }
     files.sort_by(|a, b| b.0.cmp(&a.0));

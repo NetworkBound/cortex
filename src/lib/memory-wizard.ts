@@ -6,6 +6,7 @@
  */
 
 export async function openMemoryWizard(initialTitle?: string): Promise<void> {
-  const { openMemoryEntryWizard } = await import("@/components/MemoryEntryWizard");
+  const { openMemoryEntryWizard } =
+    await import("@/components/MemoryEntryWizard");
   openMemoryEntryWizard(initialTitle);
 }

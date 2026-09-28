@@ -12,9 +12,9 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 const MAX_FILE_BYTES: u64 = 1024 * 1024; // 1 MiB — match sources::walk_markdown
-// Full FNV-1a 64-bit digest (16 hex) plus an 8-hex length suffix. The length
-// guard means two inputs collide only if they share both the same FNV hash and
-// the same byte length, which is far less likely than a bare 64-bit collision.
+                                         // Full FNV-1a 64-bit digest (16 hex) plus an 8-hex length suffix. The length
+                                         // guard means two inputs collide only if they share both the same FNV hash and
+                                         // the same byte length, which is far less likely than a bare 64-bit collision.
 #[cfg(test)]
 const HASH_HEX_LEN: usize = 24;
 
@@ -136,7 +136,11 @@ fn walk_markdown(root: &Path) -> Vec<PathBuf> {
                 .and_then(|s| s.to_str())
                 .is_some_and(|s| s == "md" || s == "markdown")
         })
-        .filter(|e| e.metadata().map(|m| m.len() < MAX_FILE_BYTES).unwrap_or(false))
+        .filter(|e| {
+            e.metadata()
+                .map(|m| m.len() < MAX_FILE_BYTES)
+                .unwrap_or(false)
+        })
         .map(|e| e.path().to_path_buf())
         .collect()
 }
@@ -170,7 +174,12 @@ fn unique_target_name(dest: &Path, proj_label: &str, src: &Path, hash: &str) -> 
         .unwrap_or_else(|| "memory".to_string());
     let safe_proj = sanitize(proj_label);
     let safe_stem = sanitize(&stem);
-    let base = format!("{}__{}.{}.md", safe_proj, safe_stem, &hash[..hash.len().min(7)]);
+    let base = format!(
+        "{}__{}.{}.md",
+        safe_proj,
+        safe_stem,
+        &hash[..hash.len().min(7)]
+    );
     if !dest.join(&base).exists() {
         return base;
     }

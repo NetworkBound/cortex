@@ -179,8 +179,8 @@ pub async fn apply_ci_safe_profile(store: State<'_, TracingStore>) -> Result<Saf
     let policy_toml = ci_safe_policy_toml();
     command_policy::parse_policy_toml(&policy_toml)
         .map_err(|e| format!("internal error: CI-safe preset TOML failed to validate: {e}"))?;
-    let path = command_policy::global_policy_path()
-        .ok_or_else(|| "no home directory".to_string())?;
+    let path =
+        command_policy::global_policy_path().ok_or_else(|| "no home directory".to_string())?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("create {}: {e}", parent.display()))?;
     }
@@ -232,8 +232,7 @@ fn policy_path_for(project_root: Option<&str>) -> Result<PathBuf, String> {
         Some(root) if !root.trim().is_empty() => Ok(command_policy::project_policy_path(
             std::path::Path::new(root),
         )),
-        _ => command_policy::global_policy_path()
-            .ok_or_else(|| "no home directory".to_string()),
+        _ => command_policy::global_policy_path().ok_or_else(|| "no home directory".to_string()),
     }
 }
 
@@ -252,10 +251,7 @@ pub async fn get_command_policy(project_root: Option<String>) -> Result<String, 
 
 /// Validate-then-write a policy file. Bad TOML → `Err`, file untouched.
 #[tauri::command]
-pub async fn set_command_policy(
-    project_root: Option<String>,
-    raw: String,
-) -> Result<(), String> {
+pub async fn set_command_policy(project_root: Option<String>, raw: String) -> Result<(), String> {
     command_policy::parse_policy_toml(&raw)?;
     let path = policy_path_for(project_root.as_deref())?;
     if let Some(parent) = path.parent() {
@@ -337,7 +333,10 @@ mod tests {
         let raw = ci_safe_policy_toml();
         let parsed = command_policy::parse_policy_toml(&raw).expect("must validate");
         assert!(parsed.default_ask, "CI-safe preset must be allowlist mode");
-        assert!(!parsed.rule.is_empty(), "must carry the built-in heuristics");
+        assert!(
+            !parsed.rule.is_empty(),
+            "must carry the built-in heuristics"
+        );
     }
 
     #[test]
@@ -346,8 +345,7 @@ mod tests {
         // produce together: nothing explicitly allowed ⇒ default_ask asks;
         // the built-in heuristics still deny/ask their specific patterns.
         let raw = ci_safe_policy_toml();
-        let p = command_policy::CommandPolicy::from_files(Some(&raw), None)
-            .with_builtin_defaults();
+        let p = command_policy::CommandPolicy::from_files(Some(&raw), None).with_builtin_defaults();
         assert_eq!(
             p.evaluate("rm -rf /").action,
             command_policy::PolicyAction::Deny

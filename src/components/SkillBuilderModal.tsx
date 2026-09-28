@@ -56,7 +56,8 @@ function renderSkillMd(args: {
       const valuePart = opts.length > 0 ? opts.join("|") : "string";
       return `  - ${i.name.trim()}: ${valuePart}`;
     });
-  const inputsBlock = inputLines.length > 0 ? `inputs:\n${inputLines.join("\n")}\n` : "";
+  const inputsBlock =
+    inputLines.length > 0 ? `inputs:\n${inputLines.join("\n")}\n` : "";
   // Trailing newline on body keeps editors that auto-trim happy and
   // matches what `loader.rs` writes back when it rehydrates the file.
   const body = args.body.endsWith("\n") ? args.body : `${args.body}\n`;
@@ -175,9 +176,12 @@ export function SkillBuilderModal({
   }
 
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => {
-      if (e.target === e.currentTarget) onClose();
-    }}>
+    <div
+      className="modal-backdrop"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
         className="modal skill-builder-modal"
         onMouseDown={(e) => e.stopPropagation()}
@@ -200,7 +204,8 @@ export function SkillBuilderModal({
           )}
           {!nameInvalid && nameCollision && (
             <span className="skill-builder-warn">
-              A skill named <code>{trimmedName}</code> already exists — pick another name.
+              A skill named <code>{trimmedName}</code> already exists — pick
+              another name.
             </span>
           )}
         </label>
@@ -222,11 +227,7 @@ export function SkillBuilderModal({
         <div className="skill-builder-inputs">
           <div className="skill-builder-inputs-head">
             <span>inputs</span>
-            <button
-              type="button"
-              className="link-btn"
-              onClick={addInput}
-            >
+            <button type="button" className="link-btn" onClick={addInput}>
               + add input
             </button>
           </div>
@@ -268,7 +269,8 @@ export function SkillBuilderModal({
             onChange={(e) => setBody(e.target.value)}
           />
           <span className="skill-builder-hint muted">
-            Reference declared inputs with <code>{`{{varname}}`}</code>. Unknown vars error on run.
+            Reference declared inputs with <code>{`{{varname}}`}</code>. Unknown
+            vars error on run.
           </span>
         </label>
 

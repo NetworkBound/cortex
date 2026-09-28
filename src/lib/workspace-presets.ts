@@ -71,7 +71,9 @@ function isMode(v: unknown): v is Mode {
 }
 
 function isSandboxTier(v: unknown): v is SandboxTier {
-  return typeof v === "string" && (SANDBOX_TIERS as readonly string[]).includes(v);
+  return (
+    typeof v === "string" && (SANDBOX_TIERS as readonly string[]).includes(v)
+  );
 }
 
 /** Read whatever the right-column sidebar last set in localStorage. Returns

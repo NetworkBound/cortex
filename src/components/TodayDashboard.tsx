@@ -8,12 +8,23 @@
 // the user's last choice (persisted by the existing onboarding flow) wins.
 
 import { useEffect, useMemo, useState } from "react";
-import { Target, BarChart3, ListChecks, ClipboardList, MessagesSquare, Bug } from "lucide-react";
+import {
+  Target,
+  BarChart3,
+  ListChecks,
+  ClipboardList,
+  MessagesSquare,
+  Bug,
+} from "lucide-react";
 
 import { useCortexStore, type FocusChainTask } from "@/state/store";
 import { humanizeError } from "@/lib/errors";
 import { pushToast } from "@/lib/toast";
-import { brainSnapshot, type BrainSnapshot, type RecentSession } from "@/lib/brain";
+import {
+  brainSnapshot,
+  type BrainSnapshot,
+  type RecentSession,
+} from "@/lib/brain";
 import { timeAgo } from "@/lib/time";
 import { listPrps, stageOrdinal, type Prp } from "@/lib/prp";
 import { recentCrashes } from "@/lib/observability";
@@ -132,7 +143,11 @@ export function TodayDashboard() {
       }));
       resume(sessionId, msgs);
     } catch (e) {
-      pushToast({ title: "Couldn't open session", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Couldn't open session",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }
 
@@ -140,7 +155,8 @@ export function TodayDashboard() {
     <div className="today-dash">
       <div className="today-hero">
         <div className="today-hero-title">
-          {greeting()}{activeProject ? `, working on ${activeProject.name}` : ""}.
+          {greeting()}
+          {activeProject ? `, working on ${activeProject.name}` : ""}.
         </div>
         <div className="today-hero-sub muted">
           {todayChats} chats · {todayTokens.toLocaleString()} tokens today
@@ -153,15 +169,24 @@ export function TodayDashboard() {
         <div
           className="today-empty"
           role="alert"
-          style={{ color: "var(--danger)", border: "1px solid var(--danger-border)", borderRadius: "var(--radius-md)", padding: "var(--space-2) var(--space-3)" }}
+          style={{
+            color: "var(--danger)",
+            border: "1px solid var(--danger-border)",
+            borderRadius: "var(--radius-md)",
+            padding: "var(--space-2) var(--space-3)",
+          }}
         >
-          Couldn't reach Cortex's backend — this dashboard may be stale or empty.
-          Retrying every 30s.
+          Couldn't reach Cortex's backend — this dashboard may be stale or
+          empty. Retrying every 30s.
         </div>
       )}
 
       <div className="today-grid">
-        <Card title="Focus chain" icon={<Target size={15} strokeWidth={1.75} />} empty={openFocus.length === 0 ? "No open todos." : null}>
+        <Card
+          title="Focus chain"
+          icon={<Target size={15} strokeWidth={1.75} />}
+          empty={openFocus.length === 0 ? "No open todos." : null}
+        >
           {openFocus.map((t) => (
             <FocusRow key={t.id} task={t} />
           ))}
@@ -183,7 +208,13 @@ export function TodayDashboard() {
         <Card
           title="In-flight PRPs"
           icon={<ClipboardList size={15} strokeWidth={1.75} />}
-          empty={inFlightPrps.length === 0 ? (activeProject ? "No staged PRPs." : "No active project.") : null}
+          empty={
+            inFlightPrps.length === 0
+              ? activeProject
+                ? "No staged PRPs."
+                : "No active project."
+              : null
+          }
         >
           {inFlightPrps.map((p) => (
             <button
@@ -203,7 +234,11 @@ export function TodayDashboard() {
           empty={openSessions.length === 0 ? "No sessions yet." : null}
         >
           {openSessions.map((s) => (
-            <SessionRow key={s.session_id} session={s} onOpen={() => void openSession(s.session_id)} />
+            <SessionRow
+              key={s.session_id}
+              session={s}
+              onOpen={() => void openSession(s.session_id)}
+            />
           ))}
         </Card>
 
@@ -220,14 +255,20 @@ export function TodayDashboard() {
           ))}
         </Card>
 
-        <Card title="Today's stats" icon={<BarChart3 size={15} strokeWidth={1.75} />} empty={null}>
+        <Card
+          title="Today's stats"
+          icon={<BarChart3 size={15} strokeWidth={1.75} />}
+          empty={null}
+        >
           <div className="today-stat-row">
             <div className="today-stat">
               <div className="today-stat-value">{todayChats}</div>
               <div className="today-stat-label muted">chats</div>
             </div>
             <div className="today-stat">
-              <div className="today-stat-value">{todayTokens.toLocaleString()}</div>
+              <div className="today-stat-value">
+                {todayTokens.toLocaleString()}
+              </div>
               <div className="today-stat-label muted">tokens</div>
             </div>
           </div>
@@ -253,7 +294,9 @@ function Card({
   return (
     <div className="today-card">
       <div className="today-card-head">
-        <span className="today-card-icon" aria-hidden="true">{icon}</span>
+        <span className="today-card-icon" aria-hidden="true">
+          {icon}
+        </span>
         <span className="today-card-title">{title}</span>
       </div>
       <div className="today-card-body">
@@ -271,8 +314,15 @@ function FocusRow({ task }: { task: FocusChainTask }) {
   );
 }
 
-function SessionRow({ session, onOpen }: { session: RecentSession; onOpen: () => void }) {
-  const label = session.first_message ?? `session ${session.session_id.slice(-8)}`;
+function SessionRow({
+  session,
+  onOpen,
+}: {
+  session: RecentSession;
+  onOpen: () => void;
+}) {
+  const label =
+    session.first_message ?? `session ${session.session_id.slice(-8)}`;
   return (
     <button className="today-row clickable" onClick={onOpen}>
       <span className="today-row-title">{truncate(label, 60)}</span>
@@ -284,7 +334,10 @@ function SessionRow({ session, onOpen }: { session: RecentSession; onOpen: () =>
 function QuickActionsRow() {
   const actions: { label: string; run: () => void }[] = [
     { label: "New chat", run: () => useCortexStore.getState().resetSession() },
-    { label: "Open project", run: () => useCortexStore.getState().setActivityTab("projects") },
+    {
+      label: "Open project",
+      run: () => useCortexStore.getState().setActivityTab("projects"),
+    },
     { label: "Search", run: () => runSlash("/search") },
     { label: "Memory wizard", run: () => runSlash("/new-memory") },
   ];
@@ -339,4 +392,3 @@ function greeting(): string {
 function truncate(s: string, max = 80): string {
   return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
 }
-

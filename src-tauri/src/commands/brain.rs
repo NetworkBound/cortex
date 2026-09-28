@@ -14,7 +14,10 @@ pub async fn brain_snapshot(
 }
 
 #[tauri::command]
-pub async fn set_obsidian_vault(path: Option<String>, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn set_obsidian_vault(
+    path: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     state.config.write().obsidian_vault = path.map(PathBuf::from);
     Ok(())
 }

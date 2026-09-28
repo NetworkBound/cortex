@@ -91,10 +91,7 @@ fn to_out(name: String, s: StoredSnippet) -> Snippet {
 pub async fn list_snippets() -> Result<Vec<Snippet>, String> {
     tokio::task::spawn_blocking(|| {
         let map = load_map();
-        let mut out: Vec<Snippet> = map
-            .into_iter()
-            .map(|(name, s)| to_out(name, s))
-            .collect();
+        let mut out: Vec<Snippet> = map.into_iter().map(|(name, s)| to_out(name, s)).collect();
         // Most-recently-used first so the picker surfaces hot snippets fast.
         out.sort_by(|a, b| b.last_used_unix_ms.cmp(&a.last_used_unix_ms));
         out

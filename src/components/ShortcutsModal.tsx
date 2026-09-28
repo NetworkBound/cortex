@@ -16,14 +16,28 @@ const SHORTCUTS: { combo: string[]; label: string }[] = [
   { combo: ["Ctrl", "Shift", "F"], label: "Focus memory search (right panel)" },
   { combo: ["Ctrl", "M"], label: "Toggle Plan ↔ Act mode" },
   { combo: ["Ctrl", "Enter"], label: "Send the current message" },
-  { combo: ["@"], label: "Open the @-vocab picker (files/folders/symbols/git/recent/docs/memory/threads/diag/snippets/diff/problems/terminal)" },
-  { combo: ["#", "snippet:name"], label: "Inline a saved snippet (expanded on send)" },
-  { combo: ["paste / drop"], label: "Image into chat input → vision attachment chip" },
+  {
+    combo: ["@"],
+    label:
+      "Open the @-vocab picker (files/folders/symbols/git/recent/docs/memory/threads/diag/snippets/diff/problems/terminal)",
+  },
+  {
+    combo: ["#", "snippet:name"],
+    label: "Inline a saved snippet (expanded on send)",
+  },
+  {
+    combo: ["paste / drop"],
+    label: "Image into chat input → vision attachment chip",
+  },
   { combo: ["Esc"], label: "Close any open modal, picker, or detail pane" },
 ];
 
 /** Render a command + its aliases as one space-separated `/foo  /bar` string. */
-function renderCmdLabel(name: string, aliases: string[] | undefined, usage: string | undefined): string {
+function renderCmdLabel(
+  name: string,
+  aliases: string[] | undefined,
+  usage: string | undefined,
+): string {
   const names = [name, ...(aliases ?? [])].map((n) => `/${n}`).join("  ");
   return usage ? `${names} ${usage}` : names;
 }
@@ -31,7 +45,9 @@ function renderCmdLabel(name: string, aliases: string[] | undefined, usage: stri
 export function ShortcutsModal({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
@@ -39,7 +55,10 @@ export function ShortcutsModal({ open, onClose }: Props) {
   if (!open) return null;
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal shortcuts-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal shortcuts-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2>Keyboard shortcuts</h2>
         <ul className="shortcuts-list">
           {SHORTCUTS.map((s) => (
@@ -65,7 +84,9 @@ export function ShortcutsModal({ open, onClose }: Props) {
           ))}
         </ul>
         <div className="modal-actions">
-          <Button variant="secondary" onClick={onClose}>Close</Button>
+          <Button variant="secondary" onClick={onClose}>
+            Close
+          </Button>
         </div>
       </div>
     </div>

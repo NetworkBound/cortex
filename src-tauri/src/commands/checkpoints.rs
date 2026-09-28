@@ -109,7 +109,11 @@ pub fn make_checkpoint(root: &Path, label: Option<String>) -> Result<CheckpointI
     // First pass: enumerate files, enforcing the 50MB hard cap.
     let mut entries: Vec<(PathBuf, PathBuf, u64)> = Vec::new();
     let mut total: u64 = 0;
-    for de in WalkDir::new(root).follow_links(false).into_iter().filter_map(|e| e.ok()) {
+    for de in WalkDir::new(root)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
         let path = de.path();
         if path == root {
             continue;
@@ -158,7 +162,13 @@ pub fn make_checkpoint(root: &Path, label: Option<String>) -> Result<CheckpointI
     let size_bytes = fs::metadata(&out_path).map(|m| m.len()).unwrap_or(0);
 
     // Persist sidecar metadata so we can recover labels without untarring.
-    let info = CheckpointInfo { id: id.clone(), ts: ts_ms, label, size_bytes, file_count };
+    let info = CheckpointInfo {
+        id: id.clone(),
+        ts: ts_ms,
+        label,
+        size_bytes,
+        file_count,
+    };
     let meta_path = dir.join(format!("{id}.json"));
     if let Ok(s) = serde_json::to_string(&info) {
         let _ = fs::write(&meta_path, s);
@@ -189,21 +199,39 @@ pub fn list_checkpoints_sync(root: &Path) -> Result<Vec<CheckpointInfo>, String>
         return Ok(Vec::new());
     }
     let mut out: Vec<CheckpointInfo> = Vec::new();
-    for de in fs::read_dir(&dir).map_err(|e| format!("read dir: {e}"))?.flatten() {
+    for de in fs::read_dir(&dir)
+        .map_err(|e| format!("read dir: {e}"))?
+        .flatten()
+    {
         let p = de.path();
-        let Some(name) = p.file_name().and_then(|n| n.to_str()) else { continue };
+        let Some(name) = p.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
         if !name.ends_with(".tar.gz") {
             continue;
         }
         let id = name.trim_end_matches(".tar.gz").to_string();
         let meta_path = dir.join(format!("{id}.json"));
-        let info = match fs::read_to_string(&meta_path).ok().and_then(|s| serde_json::from_str(&s).ok()) {
+        let info = match fs::read_to_string(&meta_path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+        {
             Some(info) => info,
             None => {
                 // Fall back to filename-derived metadata.
-                let ts = id.split('-').next().and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
+                let ts = id
+                    .split('-')
+                    .next()
+                    .and_then(|s| s.parse::<i64>().ok())
+                    .unwrap_or(0);
                 let size_bytes = fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
-                CheckpointInfo { id: id.clone(), ts, label: None, size_bytes, file_count: 0 }
+                CheckpointInfo {
+                    id: id.clone(),
+                    ts,
+                    label: None,
+                    size_bytes,
+                    file_count: 0,
+                }
             }
         };
         out.push(info);
@@ -270,8 +298,14 @@ pub fn restore_checkpoint_core(root: &Path, id: &str, force: bool) -> Result<(),
     // already-extracted symlink) to somewhere outside root.
     for entry in arc.entries().map_err(|e| format!("read entries: {e}"))? {
         let mut entry = entry.map_err(|e| format!("entry: {e}"))?;
-        let p = entry.path().map_err(|e| format!("entry path: {e}"))?.into_owned();
-        if p.is_absolute() || p.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+        let p = entry
+            .path()
+            .map_err(|e| format!("entry path: {e}"))?
+            .into_owned();
+        if p.is_absolute()
+            || p.components()
+                .any(|c| matches!(c, std::path::Component::ParentDir))
+        {
             tracing::warn!("checkpoint restore: skip unsafe path {}", p.display());
             continue;
         }
@@ -306,7 +340,9 @@ pub fn restore_checkpoint_core(root: &Path, id: &str, force: bool) -> Result<(),
                 }
             }
         }
-        entry.unpack(&target).map_err(|e| format!("unpack {}: {e}", p.display()))?;
+        entry
+            .unpack(&target)
+            .map_err(|e| format!("unpack {}: {e}", p.display()))?;
     }
     Ok(())
 }
@@ -377,10 +413,7 @@ fn diffable_text(bytes: &[u8]) -> Option<String> {
 /// mutating anything. Reads the tarball into memory, walks the live tree with
 /// the same exclusion rules `create_checkpoint` uses, and classifies each path.
 #[tauri::command]
-pub async fn diff_checkpoint(
-    project_root: String,
-    id: String,
-) -> Result<CheckpointDiff, String> {
+pub async fn diff_checkpoint(project_root: String, id: String) -> Result<CheckpointDiff, String> {
     validate_id(&id)?;
     let root = PathBuf::from(&project_root);
     if !root.is_dir() {
@@ -405,9 +438,13 @@ pub async fn diff_checkpoint(
         if etype.is_symlink() || etype.is_hard_link() || !etype.is_file() {
             continue;
         }
-        let p = entry.path().map_err(|e| format!("entry path: {e}"))?.into_owned();
+        let p = entry
+            .path()
+            .map_err(|e| format!("entry path: {e}"))?
+            .into_owned();
         if p.is_absolute()
-            || p.components().any(|c| matches!(c, std::path::Component::ParentDir))
+            || p.components()
+                .any(|c| matches!(c, std::path::Component::ParentDir))
         {
             continue;
         }
@@ -422,7 +459,11 @@ pub async fn diff_checkpoint(
     // 2. Walk the current worktree with the SAME exclusion rules as create.
     let mut worktree: std::collections::BTreeMap<String, PathBuf> =
         std::collections::BTreeMap::new();
-    for de in WalkDir::new(&root).follow_links(false).into_iter().filter_map(|e| e.ok()) {
+    for de in WalkDir::new(&root)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
         let path = de.path();
         if path == root {
             continue;
@@ -517,7 +558,13 @@ pub async fn diff_checkpoint(
             .then_with(|| a.path.cmp(&b.path))
     });
 
-    Ok(CheckpointDiff { id, added, modified, removed, entries })
+    Ok(CheckpointDiff {
+        id,
+        added,
+        modified,
+        removed,
+        entries,
+    })
 }
 
 #[tauri::command]
@@ -655,8 +702,14 @@ mod tests {
         ))
         .unwrap();
         assert_eq!(report.applied, 1);
-        assert!(report.checkpoint_id.is_some(), "apply should snapshot first");
-        assert_eq!(fs::read_to_string(&f).unwrap(), "def hi():\n    return 'hello'\n");
+        assert!(
+            report.checkpoint_id.is_some(),
+            "apply should snapshot first"
+        );
+        assert_eq!(
+            fs::read_to_string(&f).unwrap(),
+            "def hi():\n    return 'hello'\n"
+        );
 
         // /undo: restore the most-recent checkpoint (the pre-apply snapshot).
         let restored = tauri::async_runtime::block_on(restore_last_checkpoint(

@@ -64,9 +64,14 @@ export function VaultField({
         multiple: false,
         title: "Select Obsidian vault folder",
       });
-      if (typeof selected === "string" && selected.length > 0) onChange(selected);
+      if (typeof selected === "string" && selected.length > 0)
+        onChange(selected);
     } catch (e) {
-      pushToast({ title: "Couldn't open picker", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Couldn't open picker",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }
 
@@ -82,7 +87,11 @@ export function VaultField({
             placeholder={placeholder}
             disabled={disabled}
           />
-          <button className="setup-btn" onClick={() => void browse()} disabled={disabled}>
+          <button
+            className="setup-btn"
+            onClick={() => void browse()}
+            disabled={disabled}
+          >
             Browse…
           </button>
         </div>

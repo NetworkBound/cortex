@@ -129,10 +129,22 @@ fn classify_by_labels(labels: &[String]) -> Option<IssueKind> {
     let has = |set: &[&str]| lower.iter().any(|l| set.contains(&l.as_str()));
     if has(&["bug", "defect", "regression", "crash"]) {
         Some(IssueKind::Bug)
-    } else if has(&["feature", "enhancement", "feature-request", "feature request"]) {
+    } else if has(&[
+        "feature",
+        "enhancement",
+        "feature-request",
+        "feature request",
+    ]) {
         Some(IssueKind::Feature)
     } else if has(&[
-        "chore", "maintenance", "refactor", "docs", "documentation", "dependencies", "build", "ci",
+        "chore",
+        "maintenance",
+        "refactor",
+        "docs",
+        "documentation",
+        "dependencies",
+        "build",
+        "ci",
     ]) {
         Some(IssueKind::Chore)
     } else {
@@ -144,19 +156,49 @@ fn classify_by_labels(labels: &[String]) -> Option<IssueKind> {
 /// coarse — this is a triage hint, not a verdict, and a false guess costs the
 /// user nothing more than re-sorting a card by eye.
 fn classify_by_text(title: &str, body: &str) -> IssueKind {
-    let text = format!("{} {}", title.to_ascii_lowercase(), body.to_ascii_lowercase());
+    let text = format!(
+        "{} {}",
+        title.to_ascii_lowercase(),
+        body.to_ascii_lowercase()
+    );
     let hits = |words: &[&str]| words.iter().any(|w| text.contains(w));
     let is_bug = hits(&[
-        "bug", "crash", "error", "fails", "failing", "broken", "doesn't work", "does not work",
-        "exception", "panic", "regression", "reproduce",
+        "bug",
+        "crash",
+        "error",
+        "fails",
+        "failing",
+        "broken",
+        "doesn't work",
+        "does not work",
+        "exception",
+        "panic",
+        "regression",
+        "reproduce",
     ]);
     let is_feature = hits(&[
-        "feature", "add support", "implement", "would be nice", "feature request", "enhancement",
-        "proposal", "please add", "wish",
+        "feature",
+        "add support",
+        "implement",
+        "would be nice",
+        "feature request",
+        "enhancement",
+        "proposal",
+        "please add",
+        "wish",
     ]);
     let is_chore = hits(&[
-        "chore", "refactor", "cleanup", "clean up", "upgrade", "bump", "docs", "documentation",
-        "typo", "rename", "dependency",
+        "chore",
+        "refactor",
+        "cleanup",
+        "clean up",
+        "upgrade",
+        "bump",
+        "docs",
+        "documentation",
+        "typo",
+        "rename",
+        "dependency",
     ]);
     // Bug reports read the most urgently and are the likeliest false-negative
     // to bury in triage, so they win ties; chore is the narrowest/most benign
@@ -229,9 +271,9 @@ pub fn issues_list_url(
         }
         // GitLab addresses projects by URL-encoded `owner/repo`; owner and
         // repo are slug-validated, so `%2F` is the only escape needed.
-        ForgeKind::GitLab => format!(
-            "{base}/api/v4/projects/{owner}%2F{repo}/issues?state=opened&per_page=50"
-        ),
+        ForgeKind::GitLab => {
+            format!("{base}/api/v4/projects/{owner}%2F{repo}/issues?state=opened&per_page=50")
+        }
     }
 }
 
@@ -492,7 +534,10 @@ fn finish_replay_recording(app: &tauri::AppHandle, run_id: &str) {
     let store = app.state::<TracingStore>();
     let _ = store.record_event(
         run_id,
-        &AgentEvent::Done { total_tokens: None, run_id: Some(run_id.to_string()) },
+        &AgentEvent::Done {
+            total_tokens: None,
+            run_id: Some(run_id.to_string()),
+        },
     );
     let _ = store.finish_agent_run(run_id);
 }
@@ -673,16 +718,11 @@ pub(crate) fn grant_approval(pending: PendingApproval) -> String {
 /// check, so a token can never authorize two writes — and an expired token
 /// is both refused and gone.
 pub(crate) fn take_approval(token: &str, now_ms: i64) -> Result<PendingApproval, String> {
-    let pending = PENDING
-        .lock()
-        .remove(token)
-        .ok_or_else(|| {
-            "that approval isn't valid anymore — preview the PR again to approve it".to_string()
-        })?;
+    let pending = PENDING.lock().remove(token).ok_or_else(|| {
+        "that approval isn't valid anymore — preview the PR again to approve it".to_string()
+    })?;
     if now_ms.saturating_sub(pending.created_ms) > APPROVAL_TTL_MS {
-        return Err(
-            "that approval expired — preview the PR again to approve it".to_string(),
-        );
+        return Err("that approval expired — preview the PR again to approve it".to_string());
     }
     Ok(pending)
 }
@@ -690,8 +730,18 @@ pub(crate) fn take_approval(token: &str, now_ms: i64) -> Result<PendingApproval,
 /// Compose the draft PR (title, body) for a lane resolving an issue. Pure —
 /// this is the "dry-run PR creation" surface: no client, no network.
 pub fn build_pr_draft(lane: &LaneRunRecord, branch: &str, issue: &IssueRef) -> (String, String) {
-    let title_head: String = issue.title.trim().replace('\n', " ").chars().take(72).collect();
-    let ellipsis = if issue.title.trim().chars().count() > 72 { "…" } else { "" };
+    let title_head: String = issue
+        .title
+        .trim()
+        .replace('\n', " ")
+        .chars()
+        .take(72)
+        .collect();
+    let ellipsis = if issue.title.trim().chars().count() > 72 {
+        "…"
+    } else {
+        ""
+    };
     let title = format!(
         "[cortex issue] {}/{}#{}: {title_head}{ellipsis}",
         issue.owner, issue.repo, issue.number
@@ -825,7 +875,14 @@ pub async fn issue_open_pr(
     let client = GiteaPrClient::new(resolve_gitea_access()?);
     let base = client.default_branch(&lane.owner, &lane.repo).await?;
     let pr = client
-        .ensure_pr(&lane.owner, &lane.repo, &branch, &base, &pending.title, &pending.body)
+        .ensure_pr(
+            &lane.owner,
+            &lane.repo,
+            &branch,
+            &base,
+            &pending.title,
+            &pending.body,
+        )
         .await?;
     audit(
         &app,
@@ -839,14 +896,17 @@ pub async fn issue_open_pr(
         }),
     );
     let comment = progress_comment_outbound(&pending.issue, &pr.html_url, &lane);
-    let (comment_posted, comment_error) =
-        match post_issue_comment(&pending.issue, &comment).await {
-            Ok(()) => (true, None),
-            Err(e) => (false, Some(e)),
-        };
+    let (comment_posted, comment_error) = match post_issue_comment(&pending.issue, &comment).await {
+        Ok(()) => (true, None),
+        Err(e) => (false, Some(e)),
+    };
     audit(
         &app,
-        if comment_posted { "issues.comment-posted" } else { "issues.comment-failed" },
+        if comment_posted {
+            "issues.comment-posted"
+        } else {
+            "issues.comment-failed"
+        },
         serde_json::json!({
             "issue": pending.issue.url,
             "pr": pr.html_url,
@@ -1008,7 +1068,11 @@ mod tests {
         assert_eq!(issues[0].owner, "octocat");
         assert_eq!(issues[0].labels, vec!["bug".to_string(), "p1".to_string()]);
         assert_eq!(issues[0].author, "alice");
-        assert_eq!(issues[0].kind, IssueKind::Bug, "the \"bug\" label wins over any text heuristic");
+        assert_eq!(
+            issues[0].kind,
+            IssueKind::Bug,
+            "the \"bug\" label wins over any text heuristic"
+        );
         assert_eq!(issues[1].number, 43);
         assert_eq!(issues[1].body, "", "null body normalizes to empty");
     }
@@ -1021,7 +1085,11 @@ mod tests {
         assert_eq!(issues[0].forge, "gitlab");
         assert_eq!(issues[0].labels, vec!["docs".to_string()]);
         assert_eq!(issues[0].author, "carol");
-        assert_eq!(issues[0].kind, IssueKind::Chore, "the \"docs\" label maps to chore");
+        assert_eq!(
+            issues[0].kind,
+            IssueKind::Chore,
+            "the \"docs\" label maps to chore"
+        );
         assert_eq!(issues[1].author, "", "null author normalizes to empty");
         assert_eq!(issues[1].body, "");
     }
@@ -1035,7 +1103,10 @@ mod tests {
             classify_issue(&["feature".to_string()], "crash on startup", ""),
             IssueKind::Feature
         );
-        assert_eq!(classify_issue(&["bug".to_string()], "add dark mode", ""), IssueKind::Bug);
+        assert_eq!(
+            classify_issue(&["bug".to_string()], "add dark mode", ""),
+            IssueKind::Bug
+        );
         assert_eq!(
             classify_issue(&["documentation".to_string()], "", ""),
             IssueKind::Chore
@@ -1053,7 +1124,11 @@ mod tests {
             IssueKind::Feature
         );
         assert_eq!(
-            classify_issue(&[], "Refactor the auth module", "Just a cleanup, no behavior change"),
+            classify_issue(
+                &[],
+                "Refactor the auth module",
+                "Just a cleanup, no behavior change"
+            ),
             IssueKind::Chore
         );
         assert_eq!(
@@ -1084,7 +1159,12 @@ mod tests {
         // GitLab path-encodes owner/repo; self-hosted bases get their
         // trailing slash trimmed.
         assert_eq!(
-            issues_list_url(ForgeKind::GitLab, Some("https://git.example.com/"), "grp", "proj"),
+            issues_list_url(
+                ForgeKind::GitLab,
+                Some("https://git.example.com/"),
+                "grp",
+                "proj"
+            ),
             "https://git.example.com/api/v4/projects/grp%2Fproj/issues?state=opened&per_page=50"
         );
     }
@@ -1224,7 +1304,10 @@ mod tests {
     fn approval_gate_expires_and_burns_the_token() {
         let token = grant_approval(pending("expiring-run", 1_000));
         let too_late = 1_000 + APPROVAL_TTL_MS + 1;
-        assert!(take_approval(&token, too_late).is_err(), "expired token refused");
+        assert!(
+            take_approval(&token, too_late).is_err(),
+            "expired token refused"
+        );
         // The expired token was consumed on the failed attempt — it can't be
         // retried at an earlier `now` either.
         assert!(take_approval(&token, 1_001).is_err());

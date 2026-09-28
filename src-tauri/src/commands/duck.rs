@@ -71,8 +71,14 @@ pub async fn duck_question(
     let req = ChatCompletionRequest {
         model: cfg.gateway_model.clone(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: SYSTEM_PROMPT.into() },
-            ChatMessage { role: "user".into(), content: user_prompt },
+            ChatMessage {
+                role: "system".into(),
+                content: SYSTEM_PROMPT.into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: user_prompt,
+            },
         ],
         stream: true,
         // Slightly higher than the summarizer — we *want* a bit of variety so
@@ -214,7 +220,10 @@ pub async fn save_duck_transcript(args: SaveDuckArgs) -> Result<SaveDuckResult, 
     fs::write(&written_path, &body)
         .map_err(|e| format!("write {} failed: {e}", written_path.display()))?;
 
-    Ok(SaveDuckResult { written_path, bytes })
+    Ok(SaveDuckResult {
+        written_path,
+        bytes,
+    })
 }
 
 fn render_markdown(topic: &str, transcript: &[DuckTurn]) -> String {
@@ -227,7 +236,11 @@ fn render_markdown(topic: &str, transcript: &[DuckTurn]) -> String {
     );
     let mut body = format!("{frontmatter}# Duck: {topic}\n\n");
     for turn in transcript {
-        let label = if turn.role == "duck" { "**Duck**" } else { "**You**" };
+        let label = if turn.role == "duck" {
+            "**Duck**"
+        } else {
+            "**You**"
+        };
         body.push_str(&format!("{label}\n\n{}\n\n", turn.content.trim()));
     }
     body
@@ -272,7 +285,27 @@ fn yaml_escape(input: &str) -> String {
     if cleaned.is_empty() {
         return "unknown".into();
     }
-    if cleaned.chars().any(|c| matches!(c, ':' | '#' | '"' | '\'' | '{' | '}' | '[' | ']' | ',' | '&' | '*' | '!' | '|' | '>' | '%' | '@' | '`')) {
+    if cleaned.chars().any(|c| {
+        matches!(
+            c,
+            ':' | '#'
+                | '"'
+                | '\''
+                | '{'
+                | '}'
+                | '['
+                | ']'
+                | ','
+                | '&'
+                | '*'
+                | '!'
+                | '|'
+                | '>'
+                | '%'
+                | '@'
+                | '`'
+        )
+    }) {
         format!("\"{}\"", cleaned.replace('"', "\\\""))
     } else {
         cleaned
@@ -287,7 +320,10 @@ mod tests {
     fn sanitize_strips_fence_and_markers() {
         assert_eq!(sanitize_question("- What's the goal?"), "What's the goal?");
         assert_eq!(sanitize_question("```\nWhy now?\n```"), "Why now?");
-        assert_eq!(sanitize_question("   \n\nWhich step failed?\n\nmore"), "Which step failed?");
+        assert_eq!(
+            sanitize_question("   \n\nWhich step failed?\n\nmore"),
+            "Which step failed?"
+        );
     }
 
     #[test]
@@ -307,8 +343,16 @@ mod tests {
     fn build_user_prompt_truncates_old_turns() {
         let big = "x".repeat(MAX_TRANSCRIPT_CHARS);
         let transcript = vec![
-            DuckTurn { role: "user".into(), content: big.clone(), ts_unix_ms: 1 },
-            DuckTurn { role: "duck".into(), content: "fresh?".into(), ts_unix_ms: 2 },
+            DuckTurn {
+                role: "user".into(),
+                content: big.clone(),
+                ts_unix_ms: 1,
+            },
+            DuckTurn {
+                role: "duck".into(),
+                content: "fresh?".into(),
+                ts_unix_ms: 2,
+            },
         ];
         let p = build_user_prompt("topic", &transcript);
         assert!(p.contains("Duck: fresh?"));
@@ -325,8 +369,16 @@ mod tests {
     #[test]
     fn render_markdown_has_frontmatter_and_turns() {
         let t = vec![
-            DuckTurn { role: "user".into(), content: "stuck on regex".into(), ts_unix_ms: 1 },
-            DuckTurn { role: "duck".into(), content: "what does it match?".into(), ts_unix_ms: 2 },
+            DuckTurn {
+                role: "user".into(),
+                content: "stuck on regex".into(),
+                ts_unix_ms: 1,
+            },
+            DuckTurn {
+                role: "duck".into(),
+                content: "what does it match?".into(),
+                ts_unix_ms: 2,
+            },
         ];
         let md = render_markdown("regex woes", &t);
         assert!(md.starts_with("---"));

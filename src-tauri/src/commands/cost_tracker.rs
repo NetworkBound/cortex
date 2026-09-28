@@ -126,4 +126,3 @@ pub async fn cost_estimate(
         generated_unix_ms: chrono::Utc::now().timestamp_millis(),
     })
 }
-

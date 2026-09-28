@@ -160,7 +160,9 @@ export function QuickOpenModal({
     }
     return recents.slice(0, RESULT_LIMIT).map((r) => ({
       path: r.path,
-      hint: r.accessed_unix_ms ? `recent · ${timeAgo(r.accessed_unix_ms)}` : "recent",
+      hint: r.accessed_unix_ms
+        ? `recent · ${timeAgo(r.accessed_unix_ms)}`
+        : "recent",
     }));
   }, [query, results, recents, onPick]);
 
@@ -240,7 +242,10 @@ export function QuickOpenModal({
         />
         {withRange && (
           <div className="quick-open-range">
-            <label className="quick-open-range-label" htmlFor="quick-open-range-input">
+            <label
+              className="quick-open-range-label"
+              htmlFor="quick-open-range-input"
+            >
               Lines
             </label>
             <input
@@ -255,8 +260,12 @@ export function QuickOpenModal({
               placeholder="10:40"
               spellCheck={false}
             />
-            <span className={`quick-open-range-hint ${rangeError ? "error" : "muted"}`}>
-              {rangeError ? "Use start:end, e.g. 10:40" : "start:end — empty = whole file"}
+            <span
+              className={`quick-open-range-hint ${rangeError ? "error" : "muted"}`}
+            >
+              {rangeError
+                ? "Use start:end, e.g. 10:40"
+                : "start:end — empty = whole file"}
             </span>
           </div>
         )}
@@ -277,19 +286,27 @@ export function QuickOpenModal({
               >
                 <div className="quick-open-result-main">
                   <span className="quick-open-result-name">{base}</span>
-                  {dir && <span className="quick-open-result-dir muted">{dir}</span>}
+                  {dir && (
+                    <span className="quick-open-result-dir muted">{dir}</span>
+                  )}
                 </div>
                 {row.hint && (
-                  <span className="quick-open-result-hint muted">{row.hint}</span>
+                  <span className="quick-open-result-hint muted">
+                    {row.hint}
+                  </span>
                 )}
               </li>
             );
           })}
         </ul>
         <footer className="quick-open-footer muted">
-          {showingRecents ? "Recent files" : `${rows.length} match${rows.length === 1 ? "" : "es"}`}
+          {showingRecents
+            ? "Recent files"
+            : `${rows.length} match${rows.length === 1 ? "" : "es"}`}
           <span className="quick-open-hotkeys">
-            {onPick ? "↑↓ navigate · ↵ pick · esc cancel" : "↑↓ navigate · ↵ open · esc close"}
+            {onPick
+              ? "↑↓ navigate · ↵ pick · esc cancel"
+              : "↑↓ navigate · ↵ open · esc close"}
           </span>
         </footer>
       </div>
@@ -314,4 +331,3 @@ function dirname(path: string, projectRoot: string | null): string {
   const i = rel.lastIndexOf(sep);
   return i >= 0 ? rel.slice(0, i) : "";
 }
-

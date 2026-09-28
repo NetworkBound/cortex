@@ -37,7 +37,8 @@ export function recordPrompt(text: string): void {
     const hist = loadPromptHistory();
     if (hist.length > 0 && hist[hist.length - 1] === trimmed) return;
     hist.push(trimmed);
-    const trimmedHist = hist.length > MAX ? hist.slice(hist.length - MAX) : hist;
+    const trimmedHist =
+      hist.length > MAX ? hist.slice(hist.length - MAX) : hist;
     localStorage.setItem(KEY, JSON.stringify(trimmedHist));
   } catch {
     /* storage unavailable — history is best-effort */

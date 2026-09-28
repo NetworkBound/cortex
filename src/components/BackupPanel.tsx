@@ -82,7 +82,10 @@ export function BackupPanel({ onClose, initialFocusedId }: BackupPanelProps) {
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     el.classList.add("backup-row-focus");
-    const t = window.setTimeout(() => el.classList.remove("backup-row-focus"), 1600);
+    const t = window.setTimeout(
+      () => el.classList.remove("backup-row-focus"),
+      1600,
+    );
     return () => window.clearTimeout(t);
   }, [initialFocusedId, backups.length]);
 
@@ -141,12 +144,15 @@ export function BackupPanel({ onClose, initialFocusedId }: BackupPanelProps) {
 
   const onDelete = useCallback(
     async (meta: BackupMeta) => {
-      if (!(await confirmDialog({
-        title: "Delete backup?",
-        message: `"${meta.label}" (${meta.id}) will be deleted.`,
-        confirmLabel: "Delete",
-        danger: true,
-      }))) return;
+      if (
+        !(await confirmDialog({
+          title: "Delete backup?",
+          message: `"${meta.label}" (${meta.id}) will be deleted.`,
+          confirmLabel: "Delete",
+          danger: true,
+        }))
+      )
+        return;
       setBusy(true);
       setError(null);
       try {
@@ -194,11 +200,7 @@ export function BackupPanel({ onClose, initialFocusedId }: BackupPanelProps) {
               if (e.key === "Enter") void onCreate();
             }}
           />
-          <button
-            className="backup-primary"
-            onClick={onCreate}
-            disabled={busy}
-          >
+          <button className="backup-primary" onClick={onCreate} disabled={busy}>
             {busy && !pending ? "Working…" : "Create backup now"}
           </button>
         </div>
@@ -209,16 +211,13 @@ export function BackupPanel({ onClose, initialFocusedId }: BackupPanelProps) {
           <SkeletonText lines={5} className="backup-loading" />
         ) : backups.length === 0 && !error ? (
           <div className="backup-empty">
-            No backups yet. Hit <strong>Create backup now</strong> to capture one.
+            No backups yet. Hit <strong>Create backup now</strong> to capture
+            one.
           </div>
         ) : (
           <ul className="backup-list">
             {backups.map((b) => (
-              <li
-                className="backup-row"
-                key={b.id}
-                data-backup-id={b.id}
-              >
+              <li className="backup-row" key={b.id} data-backup-id={b.id}>
                 <div className="backup-row-main">
                   <div className="backup-row-label">{b.label}</div>
                   <div className="backup-row-meta">

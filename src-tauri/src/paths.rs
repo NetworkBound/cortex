@@ -108,8 +108,18 @@ mod tests {
 
     #[test]
     fn leaves_other_paths_alone() {
-        for p in [r"C:\plain\path", "/home/user/proj", r"\\server\share", r"\\?\Volume{abc}\x", "relative/dir"] {
-            assert_eq!(strip_verbatim_prefix(PathBuf::from(p)), PathBuf::from(p), "{p}");
+        for p in [
+            r"C:\plain\path",
+            "/home/user/proj",
+            r"\\server\share",
+            r"\\?\Volume{abc}\x",
+            "relative/dir",
+        ] {
+            assert_eq!(
+                strip_verbatim_prefix(PathBuf::from(p)),
+                PathBuf::from(p),
+                "{p}"
+            );
         }
     }
 

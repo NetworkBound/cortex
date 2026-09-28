@@ -76,7 +76,12 @@ interface Draft {
 }
 
 function systemNote(content: string): Message {
-  return { id: `wf-${crypto.randomUUID()}`, role: "system", content, tools: [] };
+  return {
+    id: `wf-${crypto.randomUUID()}`,
+    role: "system",
+    content,
+    tools: [],
+  };
 }
 
 function emptyDraft(): Draft {
@@ -157,9 +162,10 @@ export function WorkflowsPanel() {
       name: wf.name,
       description: wf.description ?? "",
       inputs: (wf.inputs ?? []).map((x) => ({ ...x })),
-      steps: wf.steps.length > 0
-        ? wf.steps.map((s) => ({ ...s }))
-        : [{ role: "code-reviewer", prompt: "" }],
+      steps:
+        wf.steps.length > 0
+          ? wf.steps.map((s) => ({ ...s }))
+          : [{ role: "code-reviewer", prompt: "" }],
     });
   }, [activeName, workflows]);
 
@@ -219,7 +225,11 @@ export function WorkflowsPanel() {
       }))
       .filter((s) => s.role && s.prompt);
     if (cleanedSteps.length === 0) {
-      pushToast({ title: "Save skipped", body: "Add at least one step.", kind: "warning" });
+      pushToast({
+        title: "Save skipped",
+        body: "Add at least one step.",
+        kind: "warning",
+      });
       return;
     }
     setSaving(true);
@@ -233,7 +243,11 @@ export function WorkflowsPanel() {
         steps: cleanedSteps,
       });
       if (!saved) {
-        pushToast({ title: "Save failed", body: "Backend rejected workflow.", kind: "error" });
+        pushToast({
+          title: "Save failed",
+          body: "Backend rejected workflow.",
+          kind: "error",
+        });
         return;
       }
       if (draft.origName && draft.origName !== saved.name) {
@@ -248,12 +262,15 @@ export function WorkflowsPanel() {
   }
 
   async function handleDelete(name: string) {
-    if (!(await confirmDialog({
-      title: "Delete workflow?",
-      message: `Delete workflow "${name}"? This cannot be undone.`,
-      confirmLabel: "Delete",
-      danger: true,
-    }))) return;
+    if (
+      !(await confirmDialog({
+        title: "Delete workflow?",
+        message: `Delete workflow "${name}"? This cannot be undone.`,
+        confirmLabel: "Delete",
+        danger: true,
+      }))
+    )
+      return;
     const ok = await deleteWorkflow(name);
     if (!ok) {
       pushToast({ title: "Delete failed", body: name, kind: "error" });
@@ -303,9 +320,13 @@ export function WorkflowsPanel() {
         // A step after a pipe_output step shows the exact shape its prompt
         // takes at dispatch time, with a placeholder for the answer that
         // doesn't exist yet.
-        const display = idx > 0 && run.steps[idx - 1].pipe_output
-          ? { ...step, prompt: buildPipedPrompt(`(step ${idx} output)`, step.prompt) }
-          : step;
+        const display =
+          idx > 0 && run.steps[idx - 1].pipe_output
+            ? {
+                ...step,
+                prompt: buildPipedPrompt(`(step ${idx} output)`, step.prompt),
+              }
+            : step;
         append(
           systemNote(
             `**Step ${idx + 1}/${run.steps.length}** · ${formatStepPrompt(display)}`,
@@ -341,7 +362,11 @@ export function WorkflowsPanel() {
       await saveFileText(path, yaml);
       pushToast({ title: "Exported", body: path, kind: "success" });
     } catch (e) {
-      pushToast({ title: "Export failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Export failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setBusyExport(null);
     }
@@ -367,7 +392,11 @@ export function WorkflowsPanel() {
       await reload();
       setActiveName(imported.name);
     } catch (e) {
-      pushToast({ title: "Import failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Import failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setBusyImport(false);
     }
@@ -415,7 +444,11 @@ export function WorkflowsPanel() {
             {workflows.length} workflow{workflows.length === 1 ? "" : "s"}
           </span>
           <div className="workflows-list-head-actions">
-            <button type="button" className="panel-head-action" onClick={startNew}>
+            <button
+              type="button"
+              className="panel-head-action"
+              onClick={startNew}
+            >
               + new
             </button>
             <button
@@ -427,7 +460,11 @@ export function WorkflowsPanel() {
             >
               {busyImport ? "Importing…" : "Import"}
             </button>
-            <button type="button" className="panel-head-action ghost" onClick={() => void reload()}>
+            <button
+              type="button"
+              className="panel-head-action ghost"
+              onClick={() => void reload()}
+            >
               Refresh
             </button>
           </div>
@@ -505,8 +542,15 @@ export function WorkflowsPanel() {
         {!hasAny && (
           <div className="muted workflows-empty">
             No workflows yet. Build one to automate a multi-step task.
-            <div className="skills-list-head-actions" style={{ marginTop: "var(--space-3)", justifyContent: "center" }}>
-              <button type="button" className="panel-head-action" onClick={startNew}>
+            <div
+              className="skills-list-head-actions"
+              style={{ marginTop: "var(--space-3)", justifyContent: "center" }}
+            >
+              <button
+                type="button"
+                className="panel-head-action"
+                onClick={startNew}
+              >
                 + new workflow
               </button>
             </div>
@@ -542,7 +586,9 @@ export function WorkflowsPanel() {
                 value={draft.description}
                 placeholder="What this workflow does, one line."
                 onChange={(e) =>
-                  setDraft((d) => (d ? { ...d, description: e.target.value } : d))
+                  setDraft((d) =>
+                    d ? { ...d, description: e.target.value } : d,
+                  )
                 }
               />
             </label>
@@ -572,7 +618,9 @@ export function WorkflowsPanel() {
                       value={step.prompt}
                       rows={3}
                       placeholder="Prompt body for this step…"
-                      onChange={(e) => updateStep(i, { prompt: e.target.value })}
+                      onChange={(e) =>
+                        updateStep(i, { prompt: e.target.value })
+                      }
                     />
                     <div className="workflows-step-opts">
                       <select
@@ -584,22 +632,30 @@ export function WorkflowsPanel() {
                         }
                       >
                         <option value="">Auto (default routing)</option>
-                        {step.model && !models.some((m) => m.id === step.model) && (
-                          <option value={step.model}>{step.model} (current)</option>
+                        {step.model &&
+                          !models.some((m) => m.id === step.model) && (
+                            <option value={step.model}>
+                              {step.model} (current)
+                            </option>
+                          )}
+                        {groupModelsBySource(models).map(
+                          ({ source, models: group }) => (
+                            <optgroup
+                              key={source}
+                              label={sourceMeta(source).label}
+                            >
+                              {group.map((m) => (
+                                <option
+                                  key={`${m.source}:${m.id}`}
+                                  value={m.id}
+                                  disabled={!m.available}
+                                >
+                                  {m.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ),
                         )}
-                        {groupModelsBySource(models).map(({ source, models: group }) => (
-                          <optgroup key={source} label={sourceMeta(source).label}>
-                            {group.map((m) => (
-                              <option
-                                key={`${m.source}:${m.id}`}
-                                value={m.id}
-                                disabled={!m.available}
-                              >
-                                {m.label}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ))}
                       </select>
                       <label
                         className="workflows-step-pipe"
@@ -617,11 +673,7 @@ export function WorkflowsPanel() {
                     </div>
                   </div>
                 ))}
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={addStep}
-                >
+                <button type="button" className="link-btn" onClick={addStep}>
                   + add step
                 </button>
               </div>

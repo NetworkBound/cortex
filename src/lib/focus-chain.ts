@@ -45,14 +45,19 @@ function toPersisted(items: FocusChainTask[]): PersistedTask[] {
 
 /** Fire-and-forget save — never throws. */
 function persist(sessionId: string, items: FocusChainTask[]): void {
-  void invoke("save_focus_chain", { sessionId, items: toPersisted(items) }).catch(
-    (err) => console.warn("save_focus_chain failed", err),
-  );
+  void invoke("save_focus_chain", {
+    sessionId,
+    items: toPersisted(items),
+  }).catch((err) => console.warn("save_focus_chain failed", err));
 }
 
-export async function loadFocusChain(sessionId: string): Promise<FocusChainTask[]> {
+export async function loadFocusChain(
+  sessionId: string,
+): Promise<FocusChainTask[]> {
   try {
-    const raw = await invoke<PersistedTask[]>("load_focus_chain", { sessionId });
+    const raw = await invoke<PersistedTask[]>("load_focus_chain", {
+      sessionId,
+    });
     return fromPersisted(raw ?? []);
   } catch (err) {
     console.warn("load_focus_chain failed", err);

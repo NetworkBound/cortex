@@ -22,9 +22,7 @@
 //! resolution: explicit `req.model` (verbatim, stripped of a leading `<id>:` /
 //! `<id>/` prefix) → KeyVault `<id>/default-model` → spec `default_model`.
 
-use super::adapter::{
-    AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest,
-};
+use super::adapter::{AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest};
 use crate::commands::keyvault;
 use eventsource_stream::Eventsource;
 use futures::StreamExt;
@@ -164,7 +162,10 @@ impl OpenAiCompatAgent {
 
     /// `<base_url>/chat/completions`, tolerating a trailing slash on base_url.
     fn endpoint(&self) -> String {
-        format!("{}/chat/completions", self.spec.base_url.trim_end_matches('/'))
+        format!(
+            "{}/chat/completions",
+            self.spec.base_url.trim_end_matches('/')
+        )
     }
 
     /// Bearer key for this provider: KeyVault `<id>/api-key` first (Settings →
@@ -241,13 +242,12 @@ impl AgentAdapter for OpenAiCompatAgent {
         self.api_key().is_some()
     }
 
-    async fn run(
-        &self,
-        req: ChatRequest,
-        tx: mpsc::Sender<AgentEvent>,
-    ) -> anyhow::Result<()> {
+    async fn run(&self, req: ChatRequest, tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
         let _ = tx
-            .send(AgentEvent::Started { agent_id: self.spec.id.into(), run_id: None })
+            .send(AgentEvent::Started {
+                agent_id: self.spec.id.into(),
+                run_id: None,
+            })
             .await;
 
         let Some(api_key) = self.api_key() else {
@@ -259,7 +259,12 @@ impl AgentAdapter for OpenAiCompatAgent {
                     ),
                 })
                 .await;
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             return Ok(());
         };
 
@@ -301,7 +306,12 @@ impl AgentAdapter for OpenAiCompatAgent {
                         ),
                     })
                     .await;
-                let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+                let _ = tx
+                    .send(AgentEvent::Done {
+                        total_tokens: None,
+                        run_id: None,
+                    })
+                    .await;
                 return Ok(());
             }
         };
@@ -322,7 +332,12 @@ impl AgentAdapter for OpenAiCompatAgent {
                     message: format!("{} returned {status}: {detail}{hint}", self.spec.id),
                 })
                 .await;
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             return Ok(());
         }
 
@@ -356,7 +371,12 @@ impl AgentAdapter for OpenAiCompatAgent {
             }
         }
 
-        let _ = tx.send(AgentEvent::Done { total_tokens, run_id: None }).await;
+        let _ = tx
+            .send(AgentEvent::Done {
+                total_tokens,
+                run_id: None,
+            })
+            .await;
         Ok(())
     }
 }
@@ -397,12 +417,25 @@ mod tests {
     fn provider_table_is_the_thirteen_from_the_spec() {
         assert_eq!(PROVIDERS.len(), 13, "Group A spec table has 13 providers");
         let expected = [
-            "groq", "together", "fireworks", "deepseek", "mistral", "xai",
-            "perplexity", "openrouter", "dashscope", "moonshot", "cohere",
-            "gemini-api", "llama-api",
+            "groq",
+            "together",
+            "fireworks",
+            "deepseek",
+            "mistral",
+            "xai",
+            "perplexity",
+            "openrouter",
+            "dashscope",
+            "moonshot",
+            "cohere",
+            "gemini-api",
+            "llama-api",
         ];
         for id in expected {
-            assert!(PROVIDERS.iter().any(|p| p.id == id), "missing provider {id}");
+            assert!(
+                PROVIDERS.iter().any(|p| p.id == id),
+                "missing provider {id}"
+            );
         }
     }
 
@@ -412,27 +445,54 @@ mod tests {
         ids.sort_unstable();
         let len = ids.len();
         ids.dedup();
-        assert_eq!(ids.len(), len, "provider ids must be unique (registry keys)");
+        assert_eq!(
+            ids.len(),
+            len,
+            "provider ids must be unique (registry keys)"
+        );
     }
 
     #[test]
     fn every_spec_is_well_formed() {
         for p in PROVIDERS {
-            assert!(p.base_url.starts_with("https://"), "{} base_url must be https", p.id);
+            assert!(
+                p.base_url.starts_with("https://"),
+                "{} base_url must be https",
+                p.id
+            );
             assert!(!p.label.is_empty(), "{} needs a label", p.id);
             assert!(!p.api_key_env.is_empty(), "{} needs an env var", p.id);
-            assert!(!p.default_model.is_empty(), "{} needs a default model", p.id);
+            assert!(
+                !p.default_model.is_empty(),
+                "{} needs a default model",
+                p.id
+            );
             // No localhost / homelab leakage in a hosted-API table.
-            assert!(!p.base_url.contains("localhost"), "{} must not be localhost", p.id);
-            assert!(!p.base_url.contains("127.0.0.1"), "{} must not be loopback", p.id);
-            assert!(!p.base_url.contains("192.168."), "{} must not embed a LAN IP", p.id);
+            assert!(
+                !p.base_url.contains("localhost"),
+                "{} must not be localhost",
+                p.id
+            );
+            assert!(
+                !p.base_url.contains("127.0.0.1"),
+                "{} must not be loopback",
+                p.id
+            );
+            assert!(
+                !p.base_url.contains("192.168."),
+                "{} must not embed a LAN IP",
+                p.id
+            );
         }
     }
 
     #[test]
     fn endpoint_appends_chat_completions_once() {
         let groq = OpenAiCompatAgent::new(spec("groq"));
-        assert_eq!(groq.endpoint(), "https://api.groq.com/openai/v1/chat/completions");
+        assert_eq!(
+            groq.endpoint(),
+            "https://api.groq.com/openai/v1/chat/completions"
+        );
         // base_url with no trailing slash already; deepseek has no /v1 segment.
         let ds = OpenAiCompatAgent::new(spec("deepseek"));
         assert_eq!(ds.endpoint(), "https://api.deepseek.com/chat/completions");
@@ -455,7 +515,9 @@ mod tests {
         // Truthful-flags tripwire: these are plain Chat Completions endpoints.
         // They must advertise ONLY Chat + LongContext — never tool/code/shell/
         // vision capabilities the HTTP path does not implement.
-        let caps = OpenAiCompatAgent::new(spec("groq")).descriptor().capabilities;
+        let caps = OpenAiCompatAgent::new(spec("groq"))
+            .descriptor()
+            .capabilities;
         assert!(caps.contains(&AgentCapability::Chat));
         assert!(caps.contains(&AgentCapability::LongContext));
         assert!(!caps.contains(&AgentCapability::CodeEdit));

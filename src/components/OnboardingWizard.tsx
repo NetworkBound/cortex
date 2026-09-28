@@ -36,7 +36,9 @@ function stepTitle(step: StepIndex, mode: ConnectMode): string {
     case 1:
       return "Choose your Obsidian vault";
     case 2:
-      return mode === "gateway" ? "Connect to your Cortex Gateway" : "Add provider API keys";
+      return mode === "gateway"
+        ? "Connect to your Cortex Gateway"
+        : "Add provider API keys";
     default:
       return "Pick a theme";
   }
@@ -92,7 +94,8 @@ export function OnboardingWizard() {
     getProviderConfig()
       .then((cfg) => {
         setProviderCfg(cfg);
-        if (cfg.standalone_build && cfg.runtime_mode === "cloud") setMode("standalone");
+        if (cfg.standalone_build && cfg.runtime_mode === "cloud")
+          setMode("standalone");
       })
       .catch(() => {
         // Non-fatal — mode stays "gateway" and the build note is omitted.
@@ -223,16 +226,27 @@ export function OnboardingWizard() {
   // A typed-but-nonexistent path blocks Next on the vault step — same gate as
   // Setup's "Connect vault". Blank stays allowed (the step is optional).
   const vaultBlocks =
-    step === 1 && vaultPath.trim().length > 0 && vaultInfo !== null && !vaultInfo.is_valid;
+    step === 1 &&
+    vaultPath.trim().length > 0 &&
+    vaultInfo !== null &&
+    !vaultInfo.is_valid;
 
   const summaryTitle =
-    nextSteps && (nextSteps.models === 0 || !nextSteps.vault || nextSteps.projects === 0)
+    nextSteps &&
+    (nextSteps.models === 0 || !nextSteps.vault || nextSteps.projects === 0)
       ? "Saved — a few things to finish"
       : "You're all set";
 
   return (
-    <div className="modal-backdrop onboarding-wizard" role="dialog" aria-modal="true">
-      <div className="modal onboarding-modal" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-backdrop onboarding-wizard"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="modal onboarding-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="onboarding-step-label">
           {isSummary ? "Setup complete" : `Step ${step + 1} of 4`}
         </div>
@@ -247,8 +261,14 @@ export function OnboardingWizard() {
               your notes, and orchestrates coding agents.
             </p>
             <p>How should Cortex reach its models?</p>
-            <div className="onboarding-mode-choice" role="radiogroup" aria-label="Connection mode">
-              <label className={`onboarding-mode-row ${mode === "gateway" ? "selected" : ""}`}>
+            <div
+              className="onboarding-mode-choice"
+              role="radiogroup"
+              aria-label="Connection mode"
+            >
+              <label
+                className={`onboarding-mode-row ${mode === "gateway" ? "selected" : ""}`}
+              >
                 <input
                   type="radio"
                   name="cortex-connect-mode"
@@ -259,12 +279,14 @@ export function OnboardingWizard() {
                 <div className="onboarding-mode-meta">
                   <strong>Connect to a Cortex Gateway</strong>
                   <small>
-                    Route everything through a Cortex Gateway server you run — agents,
-                    models, and usage live on the gateway.
+                    Route everything through a Cortex Gateway server you run —
+                    agents, models, and usage live on the gateway.
                   </small>
                 </div>
               </label>
-              <label className={`onboarding-mode-row ${mode === "standalone" ? "selected" : ""}`}>
+              <label
+                className={`onboarding-mode-row ${mode === "standalone" ? "selected" : ""}`}
+              >
                 <input
                   type="radio"
                   name="cortex-connect-mode"
@@ -291,8 +313,8 @@ export function OnboardingWizard() {
         {step === 1 && (
           <div className="onboarding-step">
             <p>
-              Point Cortex at your Obsidian vault so the Brain panel can
-              surface notes during chat.
+              Point Cortex at your Obsidian vault so the Brain panel can surface
+              notes during chat.
             </p>
             <VaultField
               value={vaultPath}
@@ -309,9 +331,9 @@ export function OnboardingWizard() {
         {step === 2 && mode === "gateway" && (
           <div className="onboarding-step">
             <p>
-              The gateway runs your agents. Optional — leave
-              blank if you don&apos;t use a Cortex Gateway (you can connect
-              one later in Settings).
+              The gateway runs your agents. Optional — leave blank if you
+              don&apos;t use a Cortex Gateway (you can connect one later in
+              Settings).
             </p>
             <label>
               Gateway base URL
@@ -358,7 +380,9 @@ export function OnboardingWizard() {
                 value={anthropicKey}
                 onChange={(e) => setAnthropicKey(e.target.value)}
                 placeholder={
-                  providerCfg?.anthropic_key_set ? "leave blank to keep current" : "sk-ant-…"
+                  providerCfg?.anthropic_key_set
+                    ? "leave blank to keep current"
+                    : "sk-ant-…"
                 }
               />
             </label>
@@ -368,7 +392,11 @@ export function OnboardingWizard() {
                 type="password"
                 value={openaiKey}
                 onChange={(e) => setOpenaiKey(e.target.value)}
-                placeholder={providerCfg?.openai_key_set ? "leave blank to keep current" : "sk-…"}
+                placeholder={
+                  providerCfg?.openai_key_set
+                    ? "leave blank to keep current"
+                    : "sk-…"
+                }
               />
             </label>
             {providerCfg && !providerCfg.standalone_build && (
@@ -454,7 +482,9 @@ export function OnboardingWizard() {
                   ? "Pick one from the Projects sidebar to load its context into chat."
                   : "Clone or connect a repository from the Setup tab."
               }
-              actionLabel={nextSteps.projects > 0 ? "Browse projects" : "Open Setup"}
+              actionLabel={
+                nextSteps.projects > 0 ? "Browse projects" : "Open Setup"
+              }
               onAction={() =>
                 finishInto(nextSteps.projects > 0 ? "projects" : "setup")
               }
@@ -484,15 +514,19 @@ export function OnboardingWizard() {
               className="onboarding-next"
               onClick={isSummary ? finish : next}
               disabled={saving || vaultBlocks}
-              title={vaultBlocks ? "That folder doesn't exist — fix the path or leave it blank" : undefined}
+              title={
+                vaultBlocks
+                  ? "That folder doesn't exist — fix the path or leave it blank"
+                  : undefined
+              }
             >
               {saving
                 ? "Saving…"
                 : isSummary
-                ? "Start chatting"
-                : isLast
-                ? "Save & launch"
-                : "Next"}
+                  ? "Start chatting"
+                  : isLast
+                    ? "Save & launch"
+                    : "Next"}
             </button>
           </div>
         </div>
@@ -518,16 +552,29 @@ function NextStepRow({
   return (
     <div className={`onboarding-next-step ${ok ? "ok" : "todo"}`}>
       {ok ? (
-        <CheckCircle2 size={16} strokeWidth={1.75} className="onboarding-next-step-icon ok" aria-hidden="true" />
+        <CheckCircle2
+          size={16}
+          strokeWidth={1.75}
+          className="onboarding-next-step-icon ok"
+          aria-hidden="true"
+        />
       ) : (
-        <CircleDashed size={16} strokeWidth={1.75} className="onboarding-next-step-icon todo" aria-hidden="true" />
+        <CircleDashed
+          size={16}
+          strokeWidth={1.75}
+          className="onboarding-next-step-icon todo"
+          aria-hidden="true"
+        />
       )}
       <div className="onboarding-next-step-body">
         <span className="onboarding-next-step-title">{title}</span>
         {hint && <span className="onboarding-next-step-hint">{hint}</span>}
       </div>
       {actionLabel && (
-        <button className="setup-btn onboarding-next-step-action" onClick={onAction}>
+        <button
+          className="setup-btn onboarding-next-step-action"
+          onClick={onAction}
+        >
           {actionLabel}
         </button>
       )}

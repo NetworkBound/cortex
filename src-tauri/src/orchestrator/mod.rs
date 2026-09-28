@@ -13,9 +13,9 @@
 //! file + one registry line.
 
 pub mod aliases;
-pub mod architect;
 pub mod approval_policy;
 pub mod approvals;
+pub mod architect;
 pub mod auto_approve;
 pub mod command_policy;
 pub mod cost_router;
@@ -38,7 +38,9 @@ pub use profiles::{
     set_agent_instructions, Profile,
 };
 pub use safe_commands::{extract_command, is_read_only_command};
-pub use sandbox::{effective_tier, load_tier, tier_allows, tier_allows_mcp, write_tier, SandboxTier};
+pub use sandbox::{
+    effective_tier, load_tier, tier_allows, tier_allows_mcp, write_tier, SandboxTier,
+};
 pub use trust::{is_trusted, trust_path, untrust_path};
 
 use crate::agents::{AgentAdapter, ChatRequest, ChatTurn, Registry};
@@ -74,7 +76,11 @@ fn adapter_available(registry: &Registry, id: &str) -> bool {
     descriptor_available && registry.known_reachable(id).unwrap_or(true)
 }
 
-pub fn route(req: &ChatRequest, registry: &Registry, preferred_agent: Option<String>) -> RoutingDecision {
+pub fn route(
+    req: &ChatRequest,
+    registry: &Registry,
+    preferred_agent: Option<String>,
+) -> RoutingDecision {
     route_with_outcome(req, registry, preferred_agent, None)
 }
 
@@ -261,7 +267,15 @@ fn message_has_code(msg: &str) -> bool {
     }
     let lower = msg.to_lowercase();
     const SIGNALS: &[&str] = &[
-        "fn ", "def ", "class ", "import ", "=>", "();", "panic", "traceback", "exception",
+        "fn ",
+        "def ",
+        "class ",
+        "import ",
+        "=>",
+        "();",
+        "panic",
+        "traceback",
+        "exception",
     ];
     if SIGNALS.iter().any(|s| lower.contains(s)) {
         return true;
@@ -296,7 +310,10 @@ pub fn auto_select_model(
     let mut words = message.split_whitespace().count();
     let mut has_code = message_has_code(message);
     let lower = message.to_lowercase();
-    let mut complex_kw = COMPLEX_KEYWORDS.iter().filter(|k| lower.contains(**k)).count();
+    let mut complex_kw = COMPLEX_KEYWORDS
+        .iter()
+        .filter(|k| lower.contains(**k))
+        .count();
 
     // If the message itself is very short, fold in the last user turn of
     // history so a terse follow-up to a meaty question isn't under-served.
@@ -305,8 +322,8 @@ pub fn auto_select_model(
             let l = last_user.content.to_lowercase();
             words = words.max(last_user.content.split_whitespace().count());
             has_code = has_code || message_has_code(&last_user.content);
-            complex_kw = complex_kw
-                .max(COMPLEX_KEYWORDS.iter().filter(|k| l.contains(**k)).count());
+            complex_kw =
+                complex_kw.max(COMPLEX_KEYWORDS.iter().filter(|k| l.contains(**k)).count());
         }
     }
 
@@ -366,7 +383,11 @@ mod route_tests {
         async fn health_check(&self) -> bool {
             self.available
         }
-        async fn run(&self, _req: ChatRequest, _tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
+        async fn run(
+            &self,
+            _req: ChatRequest,
+            _tx: mpsc::Sender<AgentEvent>,
+        ) -> anyhow::Result<()> {
             Ok(())
         }
     }
@@ -398,11 +419,20 @@ mod route_tests {
         // Descriptor says available, but a real health probe observed it
         // down — the override must narrow true → false.
         let reg = reg_with(&[("lmstudio", true)]);
-        assert!(adapter_available(&reg, "lmstudio"), "no poll yet → trust descriptor");
+        assert!(
+            adapter_available(&reg, "lmstudio"),
+            "no poll yet → trust descriptor"
+        );
         reg.record_health("lmstudio", false);
-        assert!(!adapter_available(&reg, "lmstudio"), "known-unreachable must override available:true");
+        assert!(
+            !adapter_available(&reg, "lmstudio"),
+            "known-unreachable must override available:true"
+        );
         reg.record_health("lmstudio", true);
-        assert!(adapter_available(&reg, "lmstudio"), "a later healthy poll clears the override");
+        assert!(
+            adapter_available(&reg, "lmstudio"),
+            "a later healthy poll clears the override"
+        );
     }
 
     #[test]
@@ -441,7 +471,11 @@ mod route_tests {
         let reg = reg_with(&[("claude-cli", true), ("gateway-remote", true)]);
         for slug in ["sonnet", "haiku", "Opus", "claude"] {
             let d = route(&req_for(Some(slug)), &reg, None);
-            assert_eq!(d.agents, vec!["claude-cli".to_string()], "{slug} → claude-cli");
+            assert_eq!(
+                d.agents,
+                vec!["claude-cli".to_string()],
+                "{slug} → claude-cli"
+            );
         }
     }
 
@@ -450,7 +484,11 @@ mod route_tests {
         let reg = reg_with(&[("claude-cli", true), ("gateway-remote", true)]);
         for slug in ["gpt-5.5", "gpt5", "gemini", "gemini-3.1-pro-preview"] {
             let d = route(&req_for(Some(slug)), &reg, None);
-            assert_eq!(d.agents, vec!["gateway-remote".to_string()], "{slug} → gateway");
+            assert_eq!(
+                d.agents,
+                vec!["gateway-remote".to_string()],
+                "{slug} → gateway"
+            );
         }
     }
 
@@ -460,7 +498,11 @@ mod route_tests {
         let reg = reg_with(&[("codex-cli", true), ("gateway-remote", true)]);
         for slug in ["gpt-5.5", "gpt", "gpt4o", "gpt-4o"] {
             let d = route(&req_for(Some(slug)), &reg, None);
-            assert_eq!(d.agents, vec!["codex-cli".to_string()], "{slug} → codex-cli");
+            assert_eq!(
+                d.agents,
+                vec!["codex-cli".to_string()],
+                "{slug} → codex-cli"
+            );
         }
     }
 
@@ -469,7 +511,11 @@ mod route_tests {
         let reg = reg_with(&[("gemini-cli", true), ("gateway-remote", true)]);
         for slug in ["gemini", "gemini-3.1-pro-preview", "flash"] {
             let d = route(&req_for(Some(slug)), &reg, None);
-            assert_eq!(d.agents, vec!["gemini-cli".to_string()], "{slug} → gemini-cli");
+            assert_eq!(
+                d.agents,
+                vec!["gemini-cli".to_string()],
+                "{slug} → gemini-cli"
+            );
         }
     }
 
@@ -503,7 +549,11 @@ mod route_tests {
     #[test]
     fn explicit_pick_wins_over_model_route() {
         let reg = reg_with(&[("claude-cli", true), ("gateway-remote", true)]);
-        let d = route(&req_for(Some("opus")), &reg, Some("gateway-remote".to_string()));
+        let d = route(
+            &req_for(Some("opus")),
+            &reg,
+            Some("gateway-remote".to_string()),
+        );
         assert_eq!(d.agents, vec!["gateway-remote".to_string()]);
     }
 
@@ -511,7 +561,11 @@ mod route_tests {
     fn exact_adapter_id_model_routes_to_that_adapter() {
         // A model that literally names a registered, available adapter routes
         // straight to it — the hook the team manager uses to target `e2e-fake`.
-        let reg = reg_with(&[("e2e-fake", true), ("claude-cli", true), ("gateway-remote", true)]);
+        let reg = reg_with(&[
+            ("e2e-fake", true),
+            ("claude-cli", true),
+            ("gateway-remote", true),
+        ]);
         let d = route(&req_for(Some("e2e-fake")), &reg, None);
         assert_eq!(d.agents, vec!["e2e-fake".to_string()]);
         // An unavailable exact-id match is NOT used (falls through to the slug
@@ -535,7 +589,9 @@ mod route_tests {
         cost_router::OutcomePick {
             agent_id: id.to_string(),
             score: 9.5,
-            reason: format!("outcome-route → {id}: 95% success over 20 runs at ~$0.1000/run (7d window)"),
+            reason: format!(
+                "outcome-route → {id}: 95% success over 20 runs at ~$0.1000/run (7d window)"
+            ),
         }
     }
 
@@ -543,7 +599,11 @@ mod route_tests {
     fn no_hint_is_byte_identical_to_route() {
         // Thin data ⇒ no hint ⇒ `route_with_outcome(…, None)` must equal
         // `route` for every request shape, including the default branch.
-        let reg = reg_with(&[("claude-cli", true), ("gateway-remote", true), ("ollama", true)]);
+        let reg = reg_with(&[
+            ("claude-cli", true),
+            ("gateway-remote", true),
+            ("ollama", true),
+        ]);
         for (model, preferred) in [
             (None, None),
             (None, Some("ollama".to_string())),
@@ -595,7 +655,13 @@ mod route_tests {
             ("e2e-fake", true),
         ]);
         let h = hint("ollama");
-        for model in ["opus", "claude-opus-4-8", "gpt-5.5", "ollama:llama3.2", "e2e-fake"] {
+        for model in [
+            "opus",
+            "claude-opus-4-8",
+            "gpt-5.5",
+            "ollama:llama3.2",
+            "e2e-fake",
+        ] {
             let req = req_for(Some(model));
             let with = route_with_outcome(&req, &reg, None, Some(&h));
             let without = route(&req, &reg, None);

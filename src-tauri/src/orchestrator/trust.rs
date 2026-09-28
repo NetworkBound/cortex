@@ -61,7 +61,9 @@ fn same_path(a: &str, b: &str) -> bool {
 /// Read the on-disk trust list. Missing file / parse errors yield an empty
 /// list (deny-bias: untrusted-by-default).
 fn load_list() -> Vec<String> {
-    let Some(path) = trust_file() else { return Vec::new() };
+    let Some(path) = trust_file() else {
+        return Vec::new();
+    };
     let raw = match fs::read_to_string(&path) {
         Ok(s) => s,
         Err(e) => {
@@ -106,7 +108,9 @@ pub fn is_trusted(project_root: &Path) -> bool {
     if target.is_empty() {
         return false;
     }
-    load_list().iter().any(|p| same_path(&normalize(Path::new(p)), &target))
+    load_list()
+        .iter()
+        .any(|p| same_path(&normalize(Path::new(p)), &target))
 }
 
 /// Add `project_root` to the trust list. Idempotent — re-trusting an
@@ -117,7 +121,10 @@ pub fn trust_path(project_root: &Path) -> anyhow::Result<()> {
         anyhow::bail!("trust: empty project root");
     }
     let mut list = load_list();
-    if list.iter().any(|p| same_path(&normalize(Path::new(p)), &target)) {
+    if list
+        .iter()
+        .any(|p| same_path(&normalize(Path::new(p)), &target))
+    {
         return Ok(());
     }
     list.push(target);

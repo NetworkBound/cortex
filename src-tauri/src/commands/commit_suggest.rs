@@ -54,8 +54,14 @@ pub async fn suggest_commit_message(
     let req = ChatCompletionRequest {
         model: cfg.gateway_model.clone(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: SYSTEM_PROMPT.into() },
-            ChatMessage { role: "user".into(), content: user_prompt },
+            ChatMessage {
+                role: "system".into(),
+                content: SYSTEM_PROMPT.into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: user_prompt,
+            },
         ],
         stream: true,
         temperature: Some(0.3),

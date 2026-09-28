@@ -57,7 +57,10 @@ pub fn resolve_gitea_access() -> Result<GiteaAccess, String> {
         .filter(|s| !s.trim().is_empty())
         .or_else(|| Some(settings.token.clone()).filter(|s| !s.trim().is_empty()))
         .ok_or_else(not_configured)?;
-    Ok(GiteaAccess { base_url: base_url.trim_end_matches('/').to_string(), token })
+    Ok(GiteaAccess {
+        base_url: base_url.trim_end_matches('/').to_string(),
+        token,
+    })
 }
 
 /// The slice of a Gitea pull request the review surface needs.
@@ -174,8 +177,11 @@ impl GiteaPrClient {
             return Err(format!("Gitea PR list failed ({})", resp.status()));
         }
         let prs: Vec<RawPr> = resp.json().await.map_err(|e| e.to_string())?;
-        let mut found: Vec<PrInfo> =
-            prs.into_iter().map(PrInfo::from).filter(|p| p.head == head_branch).collect();
+        let mut found: Vec<PrInfo> = prs
+            .into_iter()
+            .map(PrInfo::from)
+            .filter(|p| p.head == head_branch)
+            .collect();
         // Prefer the open PR; otherwise the most recently updated (first).
         found.sort_by_key(|p| p.state != "open");
         Ok(found.into_iter().next())
@@ -194,7 +200,10 @@ impl GiteaPrClient {
         body: &str,
     ) -> Result<PrInfo, String> {
         let resp = self
-            .auth(self.http.post(self.url(&format!("repos/{owner}/{repo}/pulls"))))
+            .auth(
+                self.http
+                    .post(self.url(&format!("repos/{owner}/{repo}/pulls"))),
+            )
             .json(&serde_json::json!({
                 "base": base_branch,
                 "head": head_branch,
@@ -231,7 +240,10 @@ impl GiteaPrClient {
 
     pub async fn pr(&self, owner: &str, repo: &str, index: i64) -> Result<PrInfo, String> {
         let resp = self
-            .auth(self.http.get(self.url(&format!("repos/{owner}/{repo}/pulls/{index}"))))
+            .auth(
+                self.http
+                    .get(self.url(&format!("repos/{owner}/{repo}/pulls/{index}"))),
+            )
             .send()
             .await
             .map_err(|e| format!("couldn't reach Gitea: {e}"))?;
@@ -246,7 +258,10 @@ impl GiteaPrClient {
     /// diff of the whole PR (exactly what merging applies).
     pub async fn pr_diff(&self, owner: &str, repo: &str, index: i64) -> Result<String, String> {
         let resp = self
-            .auth(self.http.get(self.url(&format!("repos/{owner}/{repo}/pulls/{index}.diff"))))
+            .auth(
+                self.http
+                    .get(self.url(&format!("repos/{owner}/{repo}/pulls/{index}.diff"))),
+            )
             .send()
             .await
             .map_err(|e| format!("couldn't reach Gitea: {e}"))?;
@@ -260,7 +275,10 @@ impl GiteaPrClient {
     /// commit. Gitea answers 405 when the PR has conflicts or is closed.
     pub async fn merge_pr(&self, owner: &str, repo: &str, index: i64) -> Result<(), String> {
         let resp = self
-            .auth(self.http.post(self.url(&format!("repos/{owner}/{repo}/pulls/{index}/merge"))))
+            .auth(
+                self.http
+                    .post(self.url(&format!("repos/{owner}/{repo}/pulls/{index}/merge"))),
+            )
             .json(&serde_json::json!({ "Do": "merge" }))
             .send()
             .await
@@ -315,10 +333,9 @@ pub(crate) fn reviewable_lane(
     if lane.status == "running" {
         return Err("This lane is still running — wait for it to settle before reviewing.".into());
     }
-    let branch = lane
-        .branch
-        .clone()
-        .ok_or_else(|| "This lane never produced a branch — there's nothing to review.".to_string())?;
+    let branch = lane.branch.clone().ok_or_else(|| {
+        "This lane never produced a branch — there's nothing to review.".to_string()
+    })?;
     Ok((lane, branch))
 }
 
@@ -404,7 +421,10 @@ pub async fn merge_lane_run(
         client.merge_pr(&lane.owner, &lane.repo, pr_number).await?;
     }
     store
-        .mark_merged(&run_id, &format!("Merged into {} (PR #{})", pr.base, pr.number))
+        .mark_merged(
+            &run_id,
+            &format!("Merged into {} (PR #{})", pr.base, pr.number),
+        )
         .map_err(|e| e.to_string())?;
     let _ = app.emit(LANES_UPDATED, &run_id);
     store
@@ -458,11 +478,14 @@ mod tests {
 
         let base = std::env::var("CORTEX_GITEA_URL").expect("set CORTEX_GITEA_URL");
         let token = std::env::var("CORTEX_GITEA_TOKEN").expect("set CORTEX_GITEA_TOKEN");
-        let access =
-            GiteaAccess { base_url: base.trim_end_matches('/').to_string(), token: token.clone() };
+        let access = GiteaAccess {
+            base_url: base.trim_end_matches('/').to_string(),
+            token: token.clone(),
+        };
         let client = GiteaPrClient::new(access.clone());
         let http = reqwest::Client::new();
-        let auth = |rb: reqwest::RequestBuilder| rb.header("Authorization", format!("token {token}"));
+        let auth =
+            |rb: reqwest::RequestBuilder| rb.header("Authorization", format!("token {token}"));
 
         let me: serde_json::Value = auth(http.get(format!("{}/api/v1/user", access.base_url)))
             .send()
@@ -479,7 +502,11 @@ mod tests {
             .send()
             .await
             .expect("create repo");
-        assert!(resp.status().is_success(), "create scratch repo: {}", resp.status());
+        assert!(
+            resp.status().is_success(),
+            "create scratch repo: {}",
+            resp.status()
+        );
 
         // Everything after repo creation runs inside a closure so the scratch
         // repo is deleted on every exit path before any assert can bail out.
@@ -505,17 +532,34 @@ mod tests {
             }
 
             let pr = client
-                .ensure_pr(&owner, &repo, &lane_branch, &base_branch, "[cortex lane] live test", "body")
+                .ensure_pr(
+                    &owner,
+                    &repo,
+                    &lane_branch,
+                    &base_branch,
+                    "[cortex lane] live test",
+                    "body",
+                )
                 .await?;
             if pr.head != lane_branch || pr.state != "open" {
                 return Err(format!("created PR has wrong shape: {pr:?}"));
             }
             // Idempotent: a second ensure adopts the same PR via the 409 path.
             let again = client
-                .ensure_pr(&owner, &repo, &lane_branch, &base_branch, "[cortex lane] live test", "body")
+                .ensure_pr(
+                    &owner,
+                    &repo,
+                    &lane_branch,
+                    &base_branch,
+                    "[cortex lane] live test",
+                    "body",
+                )
                 .await?;
             if again.number != pr.number {
-                return Err(format!("ensure_pr not idempotent: {} vs {}", again.number, pr.number));
+                return Err(format!(
+                    "ensure_pr not idempotent: {} vs {}",
+                    again.number, pr.number
+                ));
             }
 
             let diff = client.pr_diff(&owner, &repo, pr.number).await?;
@@ -538,7 +582,10 @@ mod tests {
         let deleted = del.map(|r| r.status().is_success()).unwrap_or(false);
 
         let pr_number = outcome.expect("live review/merge chain");
-        assert!(deleted, "scratch repo {owner}/{repo} was NOT deleted — remove it by hand");
+        assert!(
+            deleted,
+            "scratch repo {owner}/{repo} was NOT deleted — remove it by hand"
+        );
         println!("live gitea review/merge OK — PR #{pr_number} on {owner}/{repo} (repo deleted)");
     }
 

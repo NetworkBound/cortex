@@ -57,7 +57,10 @@ export async function listPrps(projectRoot: string): Promise<Prp[]> {
   }
 }
 
-export async function getPrp(projectRoot: string, name: string): Promise<Prp | null> {
+export async function getPrp(
+  projectRoot: string,
+  name: string,
+): Promise<Prp | null> {
   try {
     return (await invoke<Prp | null>("get_prp", { projectRoot, name })) ?? null;
   } catch (err) {
@@ -71,7 +74,11 @@ export async function createPrp(
   name: string,
   bodyHint?: string,
 ): Promise<Prp> {
-  return await invoke<Prp>("create_prp", { projectRoot, name, bodyHint: bodyHint ?? "" });
+  return await invoke<Prp>("create_prp", {
+    projectRoot,
+    name,
+    bodyHint: bodyHint ?? "",
+  });
 }
 
 export async function advancePrpStage(
@@ -79,7 +86,11 @@ export async function advancePrpStage(
   name: string,
   stage?: PrpStage,
 ): Promise<Prp> {
-  return await invoke<Prp>("advance_prp_stage", { projectRoot, name, stage: stage ?? null });
+  return await invoke<Prp>("advance_prp_stage", {
+    projectRoot,
+    name,
+    stage: stage ?? null,
+  });
 }
 
 export async function runPrpGates(

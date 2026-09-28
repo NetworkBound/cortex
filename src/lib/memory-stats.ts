@@ -78,7 +78,9 @@ export function formatDate(ms: number | null): string {
  * Aggregate file counts per `MemorySourceKind`. Used by the panel's top-line
  * mini bar chart so we don't recompute on every render.
  */
-export function groupByKind(sources: SourceStats[]): Array<{ kind: MemorySourceKind; count: number; bytes: number }> {
+export function groupByKind(
+  sources: SourceStats[],
+): Array<{ kind: MemorySourceKind; count: number; bytes: number }> {
   const byKind = new Map<MemorySourceKind, { count: number; bytes: number }>();
   for (const s of sources) {
     const cur = byKind.get(s.kind) ?? { count: 0, bytes: 0 };

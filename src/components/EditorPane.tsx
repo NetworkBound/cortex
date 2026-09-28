@@ -14,9 +14,18 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, highlightActiveLine } from "@codemirror/view";
+import {
+  EditorView,
+  keymap,
+  lineNumbers,
+  highlightActiveLine,
+} from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { searchKeymap, highlightSelectionMatches, openSearchPanel } from "@codemirror/search";
+import {
+  searchKeymap,
+  highlightSelectionMatches,
+  openSearchPanel,
+} from "@codemirror/search";
 import { bracketMatching } from "@codemirror/language";
 import { invoke } from "@tauri-apps/api/core";
 import { readTextFile } from "@tauri-apps/plugin-fs";
@@ -30,7 +39,11 @@ import { cortexEditorTheme } from "@/lib/editor-theme";
 import { getMemoryEntry } from "@/lib/memory";
 import { pushToast } from "@/lib/toast";
 import { EDITOR_OPEN_EVENT, type EditorOpenDetail } from "@/lib/editor";
-import { addSelectionToChat, selectionInfo, type SelectionInfo } from "@/lib/editor-assist";
+import {
+  addSelectionToChat,
+  selectionInfo,
+  type SelectionInfo,
+} from "@/lib/editor-assist";
 import { InlineAssist } from "./InlineAssist";
 import { extOf, languageForPath, languageLabel } from "@/lib/editor-langs";
 import { inlineAutocomplete } from "@/lib/editor-autocomplete";
@@ -134,7 +147,10 @@ function baseExtensions(opts: {
     opts.theme,
     EditorView.theme({
       "&": { height: "100%", fontSize: "12.5px" },
-      ".cm-scroller": { fontFamily: "var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace)" },
+      ".cm-scroller": {
+        fontFamily:
+          "var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
+      },
     }),
   ];
 }
@@ -158,7 +174,9 @@ export function EditorPane() {
   // handler grab the current text without reaching into the view ref.
   const liveBodyRef = useRef<string>("");
 
-  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
+    "idle",
+  );
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -250,7 +268,8 @@ export function EditorPane() {
       });
     }
     window.addEventListener(THEME_CHANGED_EVENT, onThemeChanged);
-    return () => window.removeEventListener(THEME_CHANGED_EVENT, onThemeChanged);
+    return () =>
+      window.removeEventListener(THEME_CHANGED_EVENT, onThemeChanged);
   }, []);
 
   // Listen for cortex:editor-open events from non-React callers.
@@ -260,7 +279,8 @@ export function EditorPane() {
       if (detail?.path) openPath(detail.path);
     }
     window.addEventListener(EDITOR_OPEN_EVENT, onOpen as EventListener);
-    return () => window.removeEventListener(EDITOR_OPEN_EVENT, onOpen as EventListener);
+    return () =>
+      window.removeEventListener(EDITOR_OPEN_EVENT, onOpen as EventListener);
   }, [openPath]);
 
   // Listen for `/preview` (and friends) — flips the preview pane when
@@ -366,7 +386,9 @@ export function EditorPane() {
         }),
       ];
       if (langExt) extensions.push(langExt);
-      extensions.push(inlineAutocomplete({ language: () => languageLabel(editorPath) }));
+      extensions.push(
+        inlineAutocomplete({ language: () => languageLabel(editorPath) }),
+      );
       extensions.push(editPredictor());
       extensions.push(lintExtension({}));
 
@@ -416,7 +438,9 @@ export function EditorPane() {
             <line x1="9" y1="17" x2="13" y2="17" />
           </svg>
           <div className="editor-pane-empty-title">No file open</div>
-          <div className="editor-pane-empty-hint">Click a file in the explorer to open it here</div>
+          <div className="editor-pane-empty-hint">
+            Click a file in the explorer to open it here
+          </div>
         </div>
       </div>
     );
@@ -430,7 +454,9 @@ export function EditorPane() {
         <span className="editor-pane-filename" title={editorPath}>
           {filename}
         </span>
-        <span className="editor-pane-lang muted">{languageLabel(editorPath)}</span>
+        <span className="editor-pane-lang muted">
+          {languageLabel(editorPath)}
+        </span>
         <span className="editor-pane-spacer" />
         {saveError ? (
           <span
@@ -440,11 +466,17 @@ export function EditorPane() {
             save failed
           </span>
         ) : dirty ? (
-          <span className="editor-save-indicator editor-save-dirty" title="Unsaved changes (Ctrl+S to save)">
+          <span
+            className="editor-save-indicator editor-save-dirty"
+            title="Unsaved changes (Ctrl+S to save)"
+          >
             ● unsaved
           </span>
         ) : status === "ready" ? (
-          <span className="editor-save-indicator editor-save-clean" title="All changes saved">
+          <span
+            className="editor-save-indicator editor-save-clean"
+            title="All changes saved"
+          >
             ✓ saved
           </span>
         ) : null}
@@ -482,7 +514,9 @@ export function EditorPane() {
             onClick={() => setShowPreview((v) => !v)}
             aria-pressed={showPreview}
             aria-label={showPreview ? "Hide preview" : "Show preview"}
-            title={showPreview ? "Hide markdown preview" : "Show markdown preview"}
+            title={
+              showPreview ? "Hide markdown preview" : "Show markdown preview"
+            }
           >
             <Eye size={14} strokeWidth={1.75} aria-hidden /> Preview
           </button>

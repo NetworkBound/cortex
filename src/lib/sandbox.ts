@@ -9,7 +9,10 @@ import { invoke } from "@tauri-apps/api/core";
  *                           inside the project root.
  *  - `danger-full-access` — anything goes; no gate.
  */
-export type SandboxTier = "read-only" | "workspace-write" | "danger-full-access";
+export type SandboxTier =
+  | "read-only"
+  | "workspace-write"
+  | "danger-full-access";
 
 export const SANDBOX_TIERS: readonly SandboxTier[] = [
   "read-only",
@@ -26,7 +29,9 @@ function isTier(s: string): s is SandboxTier {
 
 /** Read the configured sandbox tier for `projectRoot`. Returns the default
  *  when no `.cortex/sandbox.toml` exists or it fails to parse. */
-export async function getSandboxTier(projectRoot: string): Promise<SandboxTier> {
+export async function getSandboxTier(
+  projectRoot: string,
+): Promise<SandboxTier> {
   const raw = await invoke<string>("get_sandbox_tier", { projectRoot });
   return isTier(raw) ? raw : DEFAULT_SANDBOX_TIER;
 }

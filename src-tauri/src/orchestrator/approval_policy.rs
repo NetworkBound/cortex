@@ -189,9 +189,18 @@ mod tests {
             assert_eq!(ApprovalPolicy::parse(p.as_str()), Some(p));
         }
         // Aliases + case-insensitivity.
-        assert_eq!(ApprovalPolicy::parse("ON_REQUEST"), Some(ApprovalPolicy::OnRequest));
-        assert_eq!(ApprovalPolicy::parse("onrequest"), Some(ApprovalPolicy::OnRequest));
-        assert_eq!(ApprovalPolicy::parse("  Never "), Some(ApprovalPolicy::Never));
+        assert_eq!(
+            ApprovalPolicy::parse("ON_REQUEST"),
+            Some(ApprovalPolicy::OnRequest)
+        );
+        assert_eq!(
+            ApprovalPolicy::parse("onrequest"),
+            Some(ApprovalPolicy::OnRequest)
+        );
+        assert_eq!(
+            ApprovalPolicy::parse("  Never "),
+            Some(ApprovalPolicy::Never)
+        );
         // Unknown → None (caller falls back to default).
         assert_eq!(ApprovalPolicy::parse("yolo"), None);
         assert_eq!(ApprovalPolicy::parse(""), None);
@@ -256,7 +265,11 @@ mod tests {
         fs::write(cortex.join("approval-policy.toml"), "policy = [not valid").unwrap();
         assert_eq!(load_policy(root), ApprovalPolicy::OnRequest);
         // Valid but unknown value → default.
-        fs::write(cortex.join("approval-policy.toml"), "policy = \"bananas\"\n").unwrap();
+        fs::write(
+            cortex.join("approval-policy.toml"),
+            "policy = \"bananas\"\n",
+        )
+        .unwrap();
         assert_eq!(load_policy(root), ApprovalPolicy::OnRequest);
     }
 

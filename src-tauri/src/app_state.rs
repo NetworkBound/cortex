@@ -247,15 +247,16 @@ impl AppState {
         };
         // Back-compat: a key saved under the pre-rebrand `hermes_backend_api_key`
         // entry keeps working until the user re-saves under the new entry.
-        if let Some(k) = read_entry(KEYRING_USER_GATEWAY_KEY).or_else(|| read_entry(KEYRING_USER_HERMES_KEY_LEGACY)) {
+        if let Some(k) = read_entry(KEYRING_USER_GATEWAY_KEY)
+            .or_else(|| read_entry(KEYRING_USER_HERMES_KEY_LEGACY))
+        {
             return Some(k);
         }
         baked_gateway_api_key()
     }
 
     pub fn set_gateway_api_key(key: &str) -> anyhow::Result<()> {
-        keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER_GATEWAY_KEY)?
-            .set_password(key)?;
+        keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER_GATEWAY_KEY)?.set_password(key)?;
         Ok(())
     }
 
@@ -272,7 +273,10 @@ impl AppState {
         // never compare equal to the trust list / project scanner's spelling.
         let canonical = crate::paths::canonicalize_lossy(root);
         let json = serde_json::json!({ "root": canonical.to_string_lossy() });
-        std::fs::write(cfg_dir.join("last-project.json"), serde_json::to_vec_pretty(&json)?)?;
+        std::fs::write(
+            cfg_dir.join("last-project.json"),
+            serde_json::to_vec_pretty(&json)?,
+        )?;
         Ok(())
     }
 
@@ -284,7 +288,11 @@ impl AppState {
         let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
         let root = v.get("root")?.as_str()?;
         let p = PathBuf::from(root);
-        if p.is_dir() { Some(p) } else { None }
+        if p.is_dir() {
+            Some(p)
+        } else {
+            None
+        }
     }
 
     /// Persist the setup-wizard git-server config to

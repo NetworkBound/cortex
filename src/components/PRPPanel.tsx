@@ -27,7 +27,13 @@ import { PanelLoading } from "./Skeleton";
 
 type Status = { kind: "idle" | "info" | "success" | "error"; text: string };
 
-const GATE_ORDER = ["syntax", "tests", "coverage", "build", "security"] as const;
+const GATE_ORDER = [
+  "syntax",
+  "tests",
+  "coverage",
+  "build",
+  "security",
+] as const;
 
 export function PRPPanel() {
   const project = useCortexStore((s) => s.activeProject);
@@ -38,7 +44,9 @@ export function PRPPanel() {
   const [newName, setNewName] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "idle", text: "" });
   const [busyName, setBusyName] = useState<string | null>(null);
-  const [lastReport, setLastReport] = useState<Record<string, GateResult[]>>({});
+  const [lastReport, setLastReport] = useState<Record<string, GateResult[]>>(
+    {},
+  );
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
@@ -50,7 +58,11 @@ export function PRPPanel() {
       const list = await listPrps(projectRoot);
       setLoadError(null);
       setPrps(list);
-      setExpanded((prev) => (prev && list.some((p) => p.name === prev) ? prev : list[0]?.name ?? null));
+      setExpanded((prev) =>
+        prev && list.some((p) => p.name === prev)
+          ? prev
+          : (list[0]?.name ?? null),
+      );
     } catch (err) {
       // Don't leave the panel stuck on the loading skeleton forever — surface
       // the failure with a retry path instead.
@@ -107,7 +119,10 @@ export function PRPPanel() {
       setStatus(
         failed === 0
           ? { kind: "success", text: `All gates resolved for '${prp.name}'` }
-          : { kind: "error", text: `${failed} gate${failed === 1 ? "" : "s"} failed` },
+          : {
+              kind: "error",
+              text: `${failed} gate${failed === 1 ? "" : "s"} failed`,
+            },
       );
       await reload();
     } catch (err) {
@@ -171,12 +186,15 @@ export function PRPPanel() {
       </div>
 
       {status.text && (
-        <div className={`prp-status prp-status-${status.kind}`}>{status.text}</div>
+        <div className={`prp-status prp-status-${status.kind}`}>
+          {status.text}
+        </div>
       )}
 
       {prps.length === 0 ? (
         <div className="muted prp-empty">
-          No PRPs yet. Create one above or run <code>/prp create &lt;name&gt;</code>.
+          No PRPs yet. Create one above or run{" "}
+          <code>/prp create &lt;name&gt;</code>.
         </div>
       ) : (
         <ul className="prp-list">
@@ -192,7 +210,10 @@ export function PRPPanel() {
                   aria-expanded={isOpen}
                 >
                   <span className="prp-row-name">{p.name}</span>
-                  <span className="prp-stage-badge" title={stageLabel(p.status)}>
+                  <span
+                    className="prp-stage-badge"
+                    title={stageLabel(p.status)}
+                  >
                     {stageOrdinal(p.status)} · {stageLabel(p.status)}
                   </span>
                   <span className="prp-gates-strip">
@@ -218,15 +239,22 @@ export function PRPPanel() {
                     <div className="prp-gates-table">
                       {GATE_ORDER.map((name) => {
                         const live = liveGates?.find((r) => r.name === name);
-                        const verdict = live?.verdict ?? (p.gates[name] as string | undefined) ?? "pending";
+                        const verdict =
+                          live?.verdict ??
+                          (p.gates[name] as string | undefined) ??
+                          "pending";
                         return (
                           <div className="prp-gate-row" key={name}>
-                            <span className={`prp-gate-pill prp-gate-${verdict}`}>
+                            <span
+                              className={`prp-gate-pill prp-gate-${verdict}`}
+                            >
                               {verdict}
                             </span>
                             <span className="prp-gate-name">{name}</span>
                             {live?.message && (
-                              <span className="prp-gate-msg muted">{live.message}</span>
+                              <span className="prp-gate-msg muted">
+                                {live.message}
+                              </span>
                             )}
                           </div>
                         );
@@ -247,7 +275,11 @@ export function PRPPanel() {
                         className="prp-btn prp-btn-primary"
                         onClick={() => void handleAdvance(p)}
                         disabled={busyName === p.name || p.status === "stage-4"}
-                        title={p.status === "stage-4" ? "Already at final stage" : "Advance to next stage"}
+                        title={
+                          p.status === "stage-4"
+                            ? "Already at final stage"
+                            : "Advance to next stage"
+                        }
                       >
                         Advance stage
                       </button>

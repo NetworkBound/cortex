@@ -57,14 +57,32 @@ export interface CoreTokens {
 // heavy blur. Dark themes keep shadows subtle (surface + hairline border carry
 // most of the depth); light themes lean on the shadow for elevation.
 export const DARK_SHADOWS: Array<[string, string]> = [
-  ["--shadow-sm", "0 1px 2px rgba(0, 0, 0, 0.30), 0 1px 1px rgba(0, 0, 0, 0.18)"],
-  ["--shadow-md", "0 2px 4px rgba(0, 0, 0, 0.28), 0 6px 16px rgba(0, 0, 0, 0.36)"],
-  ["--shadow-lg", "0 4px 8px rgba(0, 0, 0, 0.30), 0 16px 40px rgba(0, 0, 0, 0.46)"],
+  [
+    "--shadow-sm",
+    "0 1px 2px rgba(0, 0, 0, 0.30), 0 1px 1px rgba(0, 0, 0, 0.18)",
+  ],
+  [
+    "--shadow-md",
+    "0 2px 4px rgba(0, 0, 0, 0.28), 0 6px 16px rgba(0, 0, 0, 0.36)",
+  ],
+  [
+    "--shadow-lg",
+    "0 4px 8px rgba(0, 0, 0, 0.30), 0 16px 40px rgba(0, 0, 0, 0.46)",
+  ],
 ];
 export const LIGHT_SHADOWS: Array<[string, string]> = [
-  ["--shadow-sm", "0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 1px rgba(16, 24, 40, 0.04)"],
-  ["--shadow-md", "0 2px 4px rgba(16, 24, 40, 0.06), 0 8px 24px rgba(16, 24, 40, 0.08)"],
-  ["--shadow-lg", "0 4px 8px rgba(16, 24, 40, 0.06), 0 24px 48px rgba(16, 24, 40, 0.12)"],
+  [
+    "--shadow-sm",
+    "0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 1px rgba(16, 24, 40, 0.04)",
+  ],
+  [
+    "--shadow-md",
+    "0 2px 4px rgba(16, 24, 40, 0.06), 0 8px 24px rgba(16, 24, 40, 0.08)",
+  ],
+  [
+    "--shadow-lg",
+    "0 4px 8px rgba(16, 24, 40, 0.06), 0 24px 48px rgba(16, 24, 40, 0.12)",
+  ],
 ];
 
 // ── Color math ──────────────────────────────────────────────────────────────
@@ -73,7 +91,11 @@ export const LIGHT_SHADOWS: Array<[string, string]> = [
 export function parseHex(hex: string): [number, number, number] | null {
   if (typeof hex !== "string") return null;
   let h = hex.trim().replace(/^#/, "");
-  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  if (h.length === 3)
+    h = h
+      .split("")
+      .map((c) => c + c)
+      .join("");
   if (h.length !== 6 || /[^0-9a-fA-F]/.test(h)) return null;
   return [
     parseInt(h.slice(0, 2), 16),
@@ -86,7 +108,11 @@ function toHex(rgb: [number, number, number]): string {
   return (
     "#" +
     rgb
-      .map((c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, "0"))
+      .map((c) =>
+        Math.max(0, Math.min(255, Math.round(c)))
+          .toString(16)
+          .padStart(2, "0"),
+      )
       .join("")
   );
 }
@@ -196,17 +222,17 @@ export function applyCoreTokens(
   const bgHover = present(t.bgHover)
     ? t.bgHover
     : present(t.bg) && present(t.text)
-      ? mix(t.bg, t.text, 0.06) ?? undefined
+      ? (mix(t.bg, t.text, 0.06) ?? undefined)
       : undefined;
   const border = present(t.border)
     ? t.border
     : present(t.bg) && present(t.text)
-      ? mix(t.bg, t.text, 0.13) ?? undefined
+      ? (mix(t.bg, t.text, 0.13) ?? undefined)
       : undefined;
   const borderStrong = present(t.borderStrong)
     ? t.borderStrong
     : present(t.bg) && present(t.text)
-      ? mix(t.bg, t.text, 0.26) ?? undefined
+      ? (mix(t.bg, t.text, 0.26) ?? undefined)
       : undefined;
   set("--bg-hover", bgHover);
   set("--border", border);
@@ -249,8 +275,14 @@ export function applyCoreTokens(
   set("--warning", t.warning);
   set("--danger", t.danger);
   set("--info", t.info);
-  set("--success-fg", present(t.success) ? deriveAccentFg(t.success) : undefined);
-  set("--warning-fg", present(t.warning) ? deriveAccentFg(t.warning) : undefined);
+  set(
+    "--success-fg",
+    present(t.success) ? deriveAccentFg(t.success) : undefined,
+  );
+  set(
+    "--warning-fg",
+    present(t.warning) ? deriveAccentFg(t.warning) : undefined,
+  );
   set("--danger-fg", present(t.danger) ? deriveAccentFg(t.danger) : undefined);
   set("--info-fg", present(t.info) ? deriveAccentFg(t.info) : undefined);
 

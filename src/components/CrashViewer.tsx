@@ -104,9 +104,17 @@ export function CrashViewer({ onClose }: CrashViewerProps) {
     try {
       const json = JSON.stringify(toDetails(row), null, 2);
       await navigator.clipboard.writeText(json);
-      pushToast({ title: "Copied", body: "Crash details on clipboard.", kind: "success" });
+      pushToast({
+        title: "Copied",
+        body: "Crash details on clipboard.",
+        kind: "success",
+      });
     } catch (e) {
-      pushToast({ title: "Copy failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Copy failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, []);
 
@@ -138,30 +146,34 @@ export function CrashViewer({ onClose }: CrashViewerProps) {
         </header>
 
         <p className="crash-summary">
-          Local-only crash log — Rust panics and JS errors captured on this device. Showing the most
-          recent {rows.length} of {PAGE_LIMIT} max.
+          Local-only crash log — Rust panics and JS errors captured on this
+          device. Showing the most recent {rows.length} of {PAGE_LIMIT} max.
         </p>
 
         {(!error || rows.length > 0) && (
-        <section className="crash-filters" role="tablist" aria-label="Crash kind filter">
-          {KIND_FILTERS.map((f) => {
-            const n = counts[f.id] ?? 0;
-            const active = kindFilter === f.id;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                className={`crash-filter${active ? " crash-filter-active" : ""}`}
-                onClick={() => setKindFilter(f.id)}
-                disabled={f.id !== "all" && n === 0}
-              >
-                {f.label} <span className="crash-filter-count">{n}</span>
-              </button>
-            );
-          })}
-        </section>
+          <section
+            className="crash-filters"
+            role="tablist"
+            aria-label="Crash kind filter"
+          >
+            {KIND_FILTERS.map((f) => {
+              const n = counts[f.id] ?? 0;
+              const active = kindFilter === f.id;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  className={`crash-filter${active ? " crash-filter-active" : ""}`}
+                  onClick={() => setKindFilter(f.id)}
+                  disabled={f.id !== "all" && n === 0}
+                >
+                  {f.label} <span className="crash-filter-count">{n}</span>
+                </button>
+              );
+            })}
+          </section>
         )}
 
         <section className="crash-controls">
@@ -199,7 +211,10 @@ export function CrashViewer({ onClose }: CrashViewerProps) {
             const isStackOpen = stackOpen.has(row.id);
             const sev = severityOf(row.kind);
             return (
-              <article key={row.id} className={`crash-row${isOpen ? " crash-row-open" : ""}`}>
+              <article
+                key={row.id}
+                className={`crash-row${isOpen ? " crash-row-open" : ""}`}
+              >
                 <button
                   type="button"
                   className="crash-row-head"
@@ -247,7 +262,9 @@ export function CrashViewer({ onClose }: CrashViewerProps) {
                         >
                           <Chevron open={isStackOpen} size={13} /> Stack trace
                         </button>
-                        {isStackOpen && <pre className="crash-stack">{row.stack}</pre>}
+                        {isStackOpen && (
+                          <pre className="crash-stack">{row.stack}</pre>
+                        )}
                       </div>
                     )}
 
@@ -278,7 +295,9 @@ export function CrashViewer({ onClose }: CrashViewerProps) {
 
         <footer className="crash-footer">
           <span className="crash-status">
-            {loading ? "Loading…" : `${visible.length} shown · ${rows.length} loaded`}
+            {loading
+              ? "Loading…"
+              : `${visible.length} shown · ${rows.length} loaded`}
           </span>
         </footer>
       </div>

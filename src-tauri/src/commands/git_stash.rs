@@ -109,19 +109,13 @@ pub async fn git_stash_apply(
 
 /// `git stash pop <ref>`.
 #[tauri::command]
-pub async fn git_stash_pop(
-    project_root: String,
-    ref_id: String,
-) -> Result<StashOpResult, String> {
+pub async fn git_stash_pop(project_root: String, ref_id: String) -> Result<StashOpResult, String> {
     run_stash_verb(&project_root, "pop", Some(&ref_id), &[])
 }
 
 /// `git stash drop <ref>`.
 #[tauri::command]
-pub async fn git_stash_drop(
-    project_root: String,
-    ref_id: String,
-) -> Result<StashOpResult, String> {
+pub async fn git_stash_drop(project_root: String, ref_id: String) -> Result<StashOpResult, String> {
     run_stash_verb(&project_root, "drop", Some(&ref_id), &[])
 }
 
@@ -168,10 +162,7 @@ pub async fn git_stash_save(
 /// is signalled by a trailing comment, so the frontend can render the
 /// result inside a code block without further processing.
 #[tauri::command]
-pub async fn git_stash_show(
-    project_root: String,
-    ref_id: String,
-) -> Result<String, String> {
+pub async fn git_stash_show(project_root: String, ref_id: String) -> Result<String, String> {
     let root = PathBuf::from(&project_root);
     if !root.is_dir() {
         return Err(format!("not a directory: {project_root}"));

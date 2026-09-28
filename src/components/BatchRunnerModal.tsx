@@ -134,7 +134,11 @@ export function BatchRunnerModal({
       const next = [...parsedItems, ...paths].slice(0, BATCH_MAX_ITEMS);
       setItemsText(next.join("\n"));
     } catch (e) {
-      pushToast({ title: "Pick files failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Pick files failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [activeProject, parsedItems]);
 
@@ -167,11 +171,17 @@ export function BatchRunnerModal({
       pushToast({
         title: "Batch complete",
         body: `${rep.items.filter((i) => i.status === "done").length}/${rep.items.length} succeeded`,
-        kind: rep.items.some((i) => i.status === "error") ? "warning" : "success",
+        kind: rep.items.some((i) => i.status === "error")
+          ? "warning"
+          : "success",
       });
     } catch (e) {
       setError(humanizeError(e));
-      pushToast({ title: "Batch failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Batch failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setRunning(false);
       if (unlistenRef.current) {
@@ -229,9 +239,17 @@ export function BatchRunnerModal({
     const md = formatBatchAsMarkdown(report);
     try {
       await navigator.clipboard.writeText(md);
-      pushToast({ title: "Copied", body: "Outputs on clipboard as markdown.", kind: "success" });
+      pushToast({
+        title: "Copied",
+        body: "Outputs on clipboard as markdown.",
+        kind: "success",
+      });
     } catch (e) {
-      pushToast({ title: "Copy failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Copy failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [report]);
 
@@ -260,7 +278,10 @@ export function BatchRunnerModal({
   }, [rows]);
 
   return (
-    <div className="batch-runner-backdrop" onMouseDown={running ? undefined : onClose}>
+    <div
+      className="batch-runner-backdrop"
+      onMouseDown={running ? undefined : onClose}
+    >
       <div
         className="batch-runner-modal"
         role="dialog"
@@ -372,14 +393,18 @@ export function BatchRunnerModal({
                     onClick={() => toggle(r.index)}
                     type="button"
                   >
-                    <span className={`batch-runner-pill batch-runner-pill-${r.status}`}>
+                    <span
+                      className={`batch-runner-pill batch-runner-pill-${r.status}`}
+                    >
                       {statusLabel(r.status)}
                     </span>
                     <span className="batch-runner-item-name" title={r.item}>
                       {r.item}
                     </span>
                     {r.tokens !== undefined && r.tokens > 0 && (
-                      <span className="batch-runner-tokens">{r.tokens} tok</span>
+                      <span className="batch-runner-tokens">
+                        {r.tokens} tok
+                      </span>
                     )}
                     {r.latencyMs !== undefined && r.latencyMs > 0 && (
                       <span className="batch-runner-latency">
@@ -395,7 +420,8 @@ export function BatchRunnerModal({
                         </pre>
                       ) : (
                         <pre className="batch-runner-output">
-                          {r.output || (r.status === "running" ? "…" : "(empty)")}
+                          {r.output ||
+                            (r.status === "running" ? "…" : "(empty)")}
                         </pre>
                       )}
                     </div>
@@ -438,9 +464,10 @@ function rowFromItem(it: BatchItem): RowState {
 
 let activeRoot: Root | null = null;
 
-export function openBatchRunnerModal(
-  initial?: { items?: string[]; prompt?: string },
-): void {
+export function openBatchRunnerModal(initial?: {
+  items?: string[];
+  prompt?: string;
+}): void {
   if (activeRoot) return;
   const container = document.createElement("div");
   container.dataset.cortexMount = "batch-runner";

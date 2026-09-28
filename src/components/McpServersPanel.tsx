@@ -182,12 +182,15 @@ function McpServersPanel({ onClose }: Props) {
   };
 
   const onDelete = async (s: McpServerConfig) => {
-    if (!(await confirmDialog({
-      title: "Delete MCP server?",
-      message: `"${s.name}" will be removed from your configured servers.`,
-      confirmLabel: "Delete",
-      danger: true,
-    }))) return;
+    if (
+      !(await confirmDialog({
+        title: "Delete MCP server?",
+        message: `"${s.name}" will be removed from your configured servers.`,
+        confirmLabel: "Delete",
+        danger: true,
+      }))
+    )
+      return;
     setBusyId(s.id);
     try {
       setServers(await deleteMcpServer(s.id));
@@ -317,10 +320,7 @@ function McpServersPanel({ onClose }: Props) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div
-        className="modal mcp-modal"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="modal mcp-modal" onClick={(e) => e.stopPropagation()}>
         <header className="mcp-head">
           <h2>MCP servers</h2>
           <span className="muted">Model Context Protocol connections</span>
@@ -414,142 +414,145 @@ function McpServersPanel({ onClose }: Props) {
             </form>
 
             <div className="mcp-list">
-          {loading && servers.length === 0 ? (
-            <PanelLoading label="Loading MCP servers" />
-          ) : servers.length === 0 ? (
-            <div className="mcp-empty">
-              No MCP servers yet.
-              <br />
-              <button
-                className="mcp-cat-link"
-                onClick={() => setView("catalog")}
-              >
-                Browse the catalog
-              </button>{" "}
-              to add a well-known server in one click, or fill in the form above
-              for a custom one.
-            </div>
-          ) : (
-            servers.map((s) => {
-              const connected = tools[s.id] !== undefined;
-              const busy = busyId === s.id;
-              return (
-                <div key={s.id} className="mcp-row">
-                  <div className="mcp-row-head">
-                    <div className="mcp-row-main">
-                      <strong className="mcp-row-name">{s.name}</strong>
-                      <code className="mcp-row-cmd">
-                        {[s.command, ...s.args].join(" ")}
-                      </code>
-                    </div>
-                    <div className="mcp-row-actions">
-                      <label
-                        className="mcp-chat-toggle"
-                        title="Advertise this server's enabled tools to the model in chat. Every call the model makes still passes the trust, sandbox, and guardrail gates."
-                      >
-                        <input
-                          type="checkbox"
-                          checked={s.exposeInChat ?? false}
-                          onChange={() => void onToggleExpose(s)}
-                          disabled={busy}
-                        />
-                        Chat
-                      </label>
-                      <select
-                        className="mcp-trust-select"
-                        value={trustOf(s)}
-                        onChange={(e) =>
-                          void onSetTrust(s, e.target.value as McpTrustLevel)
-                        }
-                        disabled={busy}
-                        title={TRUST_LABELS[trustOf(s)]}
-                        aria-label={`Trust level for ${s.name}`}
-                      >
-                        <option value="trusted">Trusted</option>
-                        <option value="ask">Ask</option>
-                        <option value="untrusted">Untrusted</option>
-                      </select>
-                      {connected ? (
-                        <button
-                          onClick={() => void onDisconnect(s)}
-                          disabled={busy}
-                        >
-                          Disconnect
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => void onConnect(s)}
-                          disabled={busy}
-                        >
-                          {busy ? "…" : "Connect"}
-                        </button>
-                      )}
-                      <button
-                        className="mcp-danger"
-                        onClick={() => void onDelete(s)}
-                        disabled={busy}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                  {connected && (
-                    <div className="mcp-tools">
-                      {tools[s.id].length === 0 ? (
-                        <div className="muted mcp-tools-empty">
-                          No tools advertised by this server.
-                        </div>
-                      ) : (
-                        tools[s.id].map((tool) => {
-                          const off = (s.disabledTools ?? []).includes(
-                            tool.name,
-                          );
-                          return (
-                            <div
-                              key={tool.name}
-                              className={`mcp-tool-wrap${off ? " is-off" : ""}`}
-                            >
-                              <button
-                                className="mcp-tool"
-                                title={
-                                  off
-                                    ? `${tool.name} is disabled`
-                                    : tool.description ?? tool.name
-                                }
-                                onClick={() => void onCallTool(s, tool)}
-                                disabled={busy || off}
-                              >
-                                <span className="mcp-tool-name">
-                                  {tool.name}
-                                </span>
-                                {tool.description && (
-                                  <span className="mcp-tool-desc">
-                                    {tool.description}
-                                  </span>
-                                )}
-                              </button>
-                              <button
-                                className="mcp-tool-toggle"
-                                onClick={() => void onToggleTool(s, tool)}
-                                disabled={busy}
-                                title={
-                                  off
-                                    ? `Enable ${tool.name}`
-                                    : `Disable ${tool.name}`
-                                }
-                              >
-                                {off ? "Enable" : "Disable"}
-                              </button>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
+              {loading && servers.length === 0 ? (
+                <PanelLoading label="Loading MCP servers" />
+              ) : servers.length === 0 ? (
+                <div className="mcp-empty">
+                  No MCP servers yet.
+                  <br />
+                  <button
+                    className="mcp-cat-link"
+                    onClick={() => setView("catalog")}
+                  >
+                    Browse the catalog
+                  </button>{" "}
+                  to add a well-known server in one click, or fill in the form
+                  above for a custom one.
                 </div>
-              );
-            })
-          )}
+              ) : (
+                servers.map((s) => {
+                  const connected = tools[s.id] !== undefined;
+                  const busy = busyId === s.id;
+                  return (
+                    <div key={s.id} className="mcp-row">
+                      <div className="mcp-row-head">
+                        <div className="mcp-row-main">
+                          <strong className="mcp-row-name">{s.name}</strong>
+                          <code className="mcp-row-cmd">
+                            {[s.command, ...s.args].join(" ")}
+                          </code>
+                        </div>
+                        <div className="mcp-row-actions">
+                          <label
+                            className="mcp-chat-toggle"
+                            title="Advertise this server's enabled tools to the model in chat. Every call the model makes still passes the trust, sandbox, and guardrail gates."
+                          >
+                            <input
+                              type="checkbox"
+                              checked={s.exposeInChat ?? false}
+                              onChange={() => void onToggleExpose(s)}
+                              disabled={busy}
+                            />
+                            Chat
+                          </label>
+                          <select
+                            className="mcp-trust-select"
+                            value={trustOf(s)}
+                            onChange={(e) =>
+                              void onSetTrust(
+                                s,
+                                e.target.value as McpTrustLevel,
+                              )
+                            }
+                            disabled={busy}
+                            title={TRUST_LABELS[trustOf(s)]}
+                            aria-label={`Trust level for ${s.name}`}
+                          >
+                            <option value="trusted">Trusted</option>
+                            <option value="ask">Ask</option>
+                            <option value="untrusted">Untrusted</option>
+                          </select>
+                          {connected ? (
+                            <button
+                              onClick={() => void onDisconnect(s)}
+                              disabled={busy}
+                            >
+                              Disconnect
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => void onConnect(s)}
+                              disabled={busy}
+                            >
+                              {busy ? "…" : "Connect"}
+                            </button>
+                          )}
+                          <button
+                            className="mcp-danger"
+                            onClick={() => void onDelete(s)}
+                            disabled={busy}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                      {connected && (
+                        <div className="mcp-tools">
+                          {tools[s.id].length === 0 ? (
+                            <div className="muted mcp-tools-empty">
+                              No tools advertised by this server.
+                            </div>
+                          ) : (
+                            tools[s.id].map((tool) => {
+                              const off = (s.disabledTools ?? []).includes(
+                                tool.name,
+                              );
+                              return (
+                                <div
+                                  key={tool.name}
+                                  className={`mcp-tool-wrap${off ? " is-off" : ""}`}
+                                >
+                                  <button
+                                    className="mcp-tool"
+                                    title={
+                                      off
+                                        ? `${tool.name} is disabled`
+                                        : (tool.description ?? tool.name)
+                                    }
+                                    onClick={() => void onCallTool(s, tool)}
+                                    disabled={busy || off}
+                                  >
+                                    <span className="mcp-tool-name">
+                                      {tool.name}
+                                    </span>
+                                    {tool.description && (
+                                      <span className="mcp-tool-desc">
+                                        {tool.description}
+                                      </span>
+                                    )}
+                                  </button>
+                                  <button
+                                    className="mcp-tool-toggle"
+                                    onClick={() => void onToggleTool(s, tool)}
+                                    disabled={busy}
+                                    title={
+                                      off
+                                        ? `Enable ${tool.name}`
+                                        : `Disable ${tool.name}`
+                                    }
+                                  >
+                                    {off ? "Enable" : "Disable"}
+                                  </button>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           </>
         )}

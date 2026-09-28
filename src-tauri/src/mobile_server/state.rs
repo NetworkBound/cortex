@@ -32,11 +32,24 @@ pub enum MobileEvent {
     /// A streamed reasoning/thinking delta.
     ChatReasoning { run_id: String, text: String },
     /// The agent invoked a tool.
-    ChatToolCall { run_id: String, name: String, preview: Option<String> },
+    ChatToolCall {
+        run_id: String,
+        name: String,
+        preview: Option<String>,
+    },
     /// A tool finished.
-    ChatToolResult { run_id: String, name: String, ok: bool, summary: String },
+    ChatToolResult {
+        run_id: String,
+        name: String,
+        ok: bool,
+        summary: String,
+    },
     /// The agent edited a file.
-    ChatFileEdit { run_id: String, path: String, lines_changed: i64 },
+    ChatFileEdit {
+        run_id: String,
+        path: String,
+        lines_changed: i64,
+    },
     /// The agent is requesting approval for an action; mirrors a pending
     /// approval the client can resolve via `POST /api/approvals/{id}`.
     ChatApproval {
@@ -48,7 +61,10 @@ pub enum MobileEvent {
     /// An approval was resolved (by this client or another).
     ChatApprovalResolved { run_id: String, choice: String },
     /// The chat run finished.
-    ChatDone { run_id: String, total_tokens: Option<u64> },
+    ChatDone {
+        run_id: String,
+        total_tokens: Option<u64>,
+    },
     /// A chat run errored.
     ChatError { run_id: String, message: String },
 
@@ -57,9 +73,15 @@ pub enum MobileEvent {
     /// serialized [`crate::orchestrator::ultimate::UltEvent`] (itself a
     /// `{ "type": ... }` tagged enum), so the SPA can switch on
     /// `event.type` for fine-grained ultimate progress.
-    Ultimate { run_id: String, event: serde_json::Value },
+    Ultimate {
+        run_id: String,
+        event: serde_json::Value,
+    },
     /// The ultimate run finished; carries the final result payload.
-    UltimateDone { run_id: String, result: serde_json::Value },
+    UltimateDone {
+        run_id: String,
+        result: serde_json::Value,
+    },
     /// An ultimate run errored.
     UltimateError { run_id: String, message: String },
 }

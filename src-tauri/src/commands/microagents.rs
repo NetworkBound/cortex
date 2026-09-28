@@ -57,7 +57,10 @@ pub struct MicroAgent {
 /// no leading frontmatter fence, returns `("", whole)`.
 fn split_frontmatter(content: &str) -> (&str, &str) {
     let trimmed = content.trim_start_matches('\u{feff}');
-    let rest = match trimmed.strip_prefix("---\n").or_else(|| trimmed.strip_prefix("---\r\n")) {
+    let rest = match trimmed
+        .strip_prefix("---\n")
+        .or_else(|| trimmed.strip_prefix("---\r\n"))
+    {
         Some(r) => r,
         None => return ("", trimmed),
     };
@@ -381,7 +384,7 @@ mod tests {
         assert!(contains_word("a cat.", "cat")); // punctuation boundary
         assert!(!contains_word("the category", "cat")); // not a substring match
         assert!(contains_word("deploy to k8s rollout now", "k8s rollout")); // multi-word
-        // caller lowercases the haystack; needle is pre-lowercased on parse
+                                                                            // caller lowercases the haystack; needle is pre-lowercased on parse
         assert!(contains_word("use stripe here", "stripe"));
         assert!(!contains_word("", "cat"));
     }
@@ -412,7 +415,10 @@ mod tests {
         assert!(block.contains("<knowledge>"));
         assert!(block.contains("## Payments (triggered by \"payment\")"));
         assert!(block.contains("idempotency key"));
-        assert!(!block.contains("canary"), "deploy agent should not be triggered: {block}");
+        assert!(
+            !block.contains("canary"),
+            "deploy agent should not be triggered: {block}"
+        );
 
         // A message with no trigger word → no block.
         assert!(build_microagents_block(root, "what is the weather?").is_none());

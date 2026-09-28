@@ -24,9 +24,7 @@
 //! `Chat + LongContext` (these are chat-completions endpoints — no tool/code/
 //! shell/vision), matching the honest stance of the other HTTP adapters.
 
-use super::adapter::{
-    AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest,
-};
+use super::adapter::{AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest};
 use crate::commands::keyvault;
 use eventsource_stream::Eventsource;
 use futures::StreamExt;
@@ -110,7 +108,10 @@ impl LocalRuntimeAgent {
     }
 
     fn chat_url(&self) -> String {
-        format!("{}/chat/completions", self.spec.base_url.trim_end_matches('/'))
+        format!(
+            "{}/chat/completions",
+            self.spec.base_url.trim_end_matches('/')
+        )
     }
 
     /// Optional bearer: KeyVault `<id>/api-key` → env `<ID>_API_KEY` → dummy.
@@ -130,9 +131,7 @@ impl LocalRuntimeAgent {
         let Ok(client) = reqwest::Client::builder().timeout(PROBE_TIMEOUT).build() else {
             return Vec::new();
         };
-        let req = client
-            .get(self.models_url())
-            .bearer_auth(self.api_key());
+        let req = client.get(self.models_url()).bearer_auth(self.api_key());
         let Ok(resp) = req.send().await else {
             return Vec::new();
         };
@@ -216,13 +215,12 @@ impl AgentAdapter for LocalRuntimeAgent {
             .unwrap_or(false)
     }
 
-    async fn run(
-        &self,
-        req: ChatRequest,
-        tx: mpsc::Sender<AgentEvent>,
-    ) -> anyhow::Result<()> {
+    async fn run(&self, req: ChatRequest, tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
         let _ = tx
-            .send(AgentEvent::Started { agent_id: self.spec.id.into(), run_id: None })
+            .send(AgentEvent::Started {
+                agent_id: self.spec.id.into(),
+                run_id: None,
+            })
             .await;
 
         // Resolve a concrete model: explicit request (prefix-stripped) → first
@@ -241,7 +239,12 @@ impl AgentAdapter for LocalRuntimeAgent {
                             ),
                         })
                         .await;
-                    let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+                    let _ = tx
+                        .send(AgentEvent::Done {
+                            total_tokens: None,
+                            run_id: None,
+                        })
+                        .await;
                     return Ok(());
                 };
                 if req.model.as_deref().map(str::trim) == Some("auto") {
@@ -289,7 +292,12 @@ impl AgentAdapter for LocalRuntimeAgent {
                         ),
                     })
                     .await;
-                let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+                let _ = tx
+                    .send(AgentEvent::Done {
+                        total_tokens: None,
+                        run_id: None,
+                    })
+                    .await;
                 return Ok(());
             }
         };
@@ -303,7 +311,12 @@ impl AgentAdapter for LocalRuntimeAgent {
                     message: format!("{} returned {status}: {detail}", self.spec.id),
                 })
                 .await;
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             return Ok(());
         }
 
@@ -337,7 +350,12 @@ impl AgentAdapter for LocalRuntimeAgent {
             }
         }
 
-        let _ = tx.send(AgentEvent::Done { total_tokens, run_id: None }).await;
+        let _ = tx
+            .send(AgentEvent::Done {
+                total_tokens,
+                run_id: None,
+            })
+            .await;
         Ok(())
     }
 }
@@ -418,7 +436,11 @@ mod tests {
                 r.id,
                 r.base_url
             );
-            assert!(r.base_url.ends_with("/v1"), "{} base_url must end /v1", r.id);
+            assert!(
+                r.base_url.ends_with("/v1"),
+                "{} base_url must end /v1",
+                r.id
+            );
             // The declared port must appear in the URL — guards against drift.
             assert!(
                 r.base_url.contains(&format!(":{}/", r.port)),
@@ -452,7 +474,9 @@ mod tests {
     fn descriptor_is_chat_only() {
         // Local chat-completions endpoints: Chat + LongContext only, never
         // tool/code/shell/vision.
-        let caps = LocalRuntimeAgent::new(spec("vllm")).descriptor().capabilities;
+        let caps = LocalRuntimeAgent::new(spec("vllm"))
+            .descriptor()
+            .capabilities;
         assert!(caps.contains(&AgentCapability::Chat));
         assert!(caps.contains(&AgentCapability::LongContext));
         assert!(!caps.contains(&AgentCapability::CodeEdit));

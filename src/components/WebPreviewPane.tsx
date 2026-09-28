@@ -142,7 +142,9 @@ export function WebPreviewPane() {
             title={selected?.title ?? `Preview of ${previewUrl}`}
           />
         ) : (
-          <div className="web-preview-empty">Pick a server above to preview.</div>
+          <div className="web-preview-empty">
+            Pick a server above to preview.
+          </div>
         )}
       </div>
     </div>

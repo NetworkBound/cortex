@@ -109,7 +109,12 @@ export function SpacesPanel({ initialBrowse, onClose }: SpacesPanelProps) {
     void (async () => {
       try {
         const files = await spaceFiles(activeProject.root, initialBrowse, 5000);
-        setMode({ kind: "browse", spaceName: initialBrowse, files, loading: false });
+        setMode({
+          kind: "browse",
+          spaceName: initialBrowse,
+          files,
+          loading: false,
+        });
       } catch (e) {
         setError(humanizeError(e));
       }
@@ -143,12 +148,15 @@ export function SpacesPanel({ initialBrowse, onClose }: SpacesPanelProps) {
   const onDelete = useCallback(
     async (name: string) => {
       if (!activeProject) return;
-      if (!(await confirmDialog({
-        title: "Delete space?",
-        message: `Delete space "${name}"?`,
-        confirmLabel: "Delete",
-        danger: true,
-      }))) return;
+      if (
+        !(await confirmDialog({
+          title: "Delete space?",
+          message: `Delete space "${name}"?`,
+          confirmLabel: "Delete",
+          danger: true,
+        }))
+      )
+        return;
       setBusy(true);
       try {
         await deleteSpace(activeProject.root, name);
@@ -236,7 +244,9 @@ export function SpacesPanel({ initialBrowse, onClose }: SpacesPanelProps) {
             draft={mode.draft}
             isNew={mode.isNew}
             busy={busy}
-            onChange={(next) => setMode({ kind: "edit", draft: next, isNew: mode.isNew })}
+            onChange={(next) =>
+              setMode({ kind: "edit", draft: next, isNew: mode.isNew })
+            }
             onCancel={() => setMode({ kind: "list" })}
             onSave={() => void onSave(mode.draft)}
           />
@@ -290,8 +300,8 @@ function SpacesList({
   return (
     <>
       <p className="spaces-summary">
-        Scoped subsets of <strong>{project}</strong>, defined by glob patterns at{" "}
-        <code>.cortex/spaces.yaml</code>.
+        Scoped subsets of <strong>{project}</strong>, defined by glob patterns
+        at <code>.cortex/spaces.yaml</code>.
       </p>
       <div className="spaces-toolbar">
         <button className="spaces-primary" onClick={onNew} disabled={busy}>
@@ -318,8 +328,9 @@ function SpacesList({
                 )}
                 <div className="spaces-row-meta">
                   {countByName[sp.name] ?? 0} file
-                  {(countByName[sp.name] ?? 0) === 1 ? "" : "s"} · {sp.includes.length}{" "}
-                  include{sp.includes.length === 1 ? "" : "s"}
+                  {(countByName[sp.name] ?? 0) === 1 ? "" : "s"} ·{" "}
+                  {sp.includes.length} include
+                  {sp.includes.length === 1 ? "" : "s"}
                   {sp.excludes.length > 0
                     ? ` · ${sp.excludes.length} exclude${sp.excludes.length === 1 ? "" : "s"}`
                     : ""}
@@ -357,12 +368,25 @@ interface SpaceFormProps {
   onSave: () => void;
 }
 
-function SpaceForm({ draft, isNew, busy, onChange, onCancel, onSave }: SpaceFormProps) {
+function SpaceForm({
+  draft,
+  isNew,
+  busy,
+  onChange,
+  onCancel,
+  onSave,
+}: SpaceFormProps) {
   // Memoize the textarea bodies so re-renders don't blow away the user's
   // in-progress edits (the form is a controlled component anyway, but the
   // join/split round-trip on every keystroke risks cursor jumps without this).
-  const includesText = useMemo(() => formatGlobLines(draft.includes), [draft.includes]);
-  const excludesText = useMemo(() => formatGlobLines(draft.excludes), [draft.excludes]);
+  const includesText = useMemo(
+    () => formatGlobLines(draft.includes),
+    [draft.includes],
+  );
+  const excludesText = useMemo(
+    () => formatGlobLines(draft.excludes),
+    [draft.excludes],
+  );
 
   return (
     <div className="spaces-form">
@@ -398,7 +422,9 @@ function SpaceForm({ draft, isNew, busy, onChange, onCancel, onSave }: SpaceForm
           value={includesText}
           placeholder={"src/**/*.tsx\nsrc/**/*.css"}
           disabled={busy}
-          onChange={(e) => onChange({ ...draft, includes: parseGlobLines(e.target.value) })}
+          onChange={(e) =>
+            onChange({ ...draft, includes: parseGlobLines(e.target.value) })
+          }
         />
       </label>
 
@@ -409,7 +435,9 @@ function SpaceForm({ draft, isNew, busy, onChange, onCancel, onSave }: SpaceForm
           value={excludesText}
           placeholder="src-tauri/**"
           disabled={busy}
-          onChange={(e) => onChange({ ...draft, excludes: parseGlobLines(e.target.value) })}
+          onChange={(e) =>
+            onChange({ ...draft, excludes: parseGlobLines(e.target.value) })
+          }
         />
       </label>
 

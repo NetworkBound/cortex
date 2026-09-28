@@ -66,7 +66,9 @@ pub async fn git_push(
         .unwrap_or("HEAD")
         .to_string();
     if target.starts_with('-') {
-        return Err(format!("refusing branch arg that looks like a flag: {target}"));
+        return Err(format!(
+            "refusing branch arg that looks like a flag: {target}"
+        ));
     }
 
     let mut args: Vec<&str> = vec!["push", "origin", &target];

@@ -51,7 +51,10 @@ impl Rule {
 /// Splits a file's contents into `(frontmatter_yaml, body)`. Returns
 /// `(None, full_content)` if no leading `---` fence is present.
 fn split_frontmatter(content: &str) -> (Option<&str>, &str) {
-    let rest = match content.strip_prefix("---\n").or_else(|| content.strip_prefix("---\r\n")) {
+    let rest = match content
+        .strip_prefix("---\n")
+        .or_else(|| content.strip_prefix("---\r\n"))
+    {
         Some(r) => r,
         None => return (None, content),
     };
@@ -100,15 +103,30 @@ fn parse_frontmatter(fm: &str) -> (Option<String>, Vec<String>, Option<String>) 
             continue;
         }
         // `key: value` or `key:` (list header).
-        let Some((key, value)) = line.split_once(':') else { continue };
+        let Some((key, value)) = line.split_once(':') else {
+            continue;
+        };
         let key = key.trim();
         let value = value.trim();
         match key {
-            "activation" if !value.is_empty() => { activation = Some(unquote(value).to_string()); current_list = None; }
-            "description" if !value.is_empty() => { description = Some(unquote(value).to_string()); current_list = None; }
-            "globs" if value.is_empty() => { current_list = Some("globs"); }
-            "globs" => { globs.push(unquote(value).to_string()); current_list = None; }
-            _ => { current_list = None; }
+            "activation" if !value.is_empty() => {
+                activation = Some(unquote(value).to_string());
+                current_list = None;
+            }
+            "description" if !value.is_empty() => {
+                description = Some(unquote(value).to_string());
+                current_list = None;
+            }
+            "globs" if value.is_empty() => {
+                current_list = Some("globs");
+            }
+            "globs" => {
+                globs.push(unquote(value).to_string());
+                current_list = None;
+            }
+            _ => {
+                current_list = None;
+            }
         }
     }
     (activation, globs, description)
@@ -134,7 +152,10 @@ pub fn parse_rule(path: &Path, content: &str) -> Rule {
         .unwrap_or("rule")
         .to_string();
     let (fm_opt, body) = split_frontmatter(content);
-    let (act_str, globs, description) = fm_opt.map(parse_frontmatter).unwrap_or((None, Vec::new(), None));
+    let (act_str, globs, description) =
+        fm_opt
+            .map(parse_frontmatter)
+            .unwrap_or((None, Vec::new(), None));
     // Unknown values fall back to alwaysApply so a typo doesn't silently
     // drop a rule from the context.
     let activation = match act_str.as_deref() {
@@ -168,7 +189,9 @@ pub fn load_rules(project: &Path) -> Vec<Rule> {
             if !path.is_file() {
                 continue;
             }
-            let Some(fname) = path.file_name().and_then(|s| s.to_str()) else { continue };
+            let Some(fname) = path.file_name().and_then(|s| s.to_str()) else {
+                continue;
+            };
             if !fname.ends_with(".md") && !fname.ends_with(".mdc") {
                 continue;
             }
@@ -204,7 +227,9 @@ pub fn select_active<'a>(rules: &'a [Rule], user_message: &str) -> Vec<&'a Rule>
         .iter()
         .filter(|r| match r.activation {
             Activation::AlwaysApply => true,
-            Activation::Globs => referenced_files.iter().any(|f| any_glob_matches(&r.globs, f)),
+            Activation::Globs => referenced_files
+                .iter()
+                .any(|f| any_glob_matches(&r.globs, f)),
             Activation::Description => r
                 .description
                 .as_deref()
@@ -271,10 +296,9 @@ fn normalize_ref(s: &str) -> String {
 /// description-gated rule should not fire merely because a message contains
 /// `the` or `when`, so these are excluded from the keyword match.
 const DESCRIPTION_STOPWORDS: &[&str] = &[
-    "the", "and", "for", "with", "when", "you", "your", "this", "that", "are",
-    "was", "from", "have", "has", "into", "onto", "but", "not", "all", "any",
-    "use", "using", "via", "per", "out", "off", "its", "our", "their", "them",
-    "then", "than", "some", "such", "only", "also", "etc",
+    "the", "and", "for", "with", "when", "you", "your", "this", "that", "are", "was", "from",
+    "have", "has", "into", "onto", "but", "not", "all", "any", "use", "using", "via", "per", "out",
+    "off", "its", "our", "their", "them", "then", "than", "some", "such", "only", "also", "etc",
 ];
 
 fn description_hits(description: &str, lower_msg: &str) -> bool {
@@ -307,11 +331,20 @@ mod tests {
 
     #[test]
     fn parses_all_activation_variants() {
-        let globs = rf("g", "---\nactivation: globs\nglobs:\n  - \"**/*.ts\"\n  - 'src/**/*.tsx'\n---\nbody");
+        let globs = rf(
+            "g",
+            "---\nactivation: globs\nglobs:\n  - \"**/*.ts\"\n  - 'src/**/*.tsx'\n---\nbody",
+        );
         assert_eq!(globs.activation, Activation::Globs);
-        assert_eq!(globs.globs, vec!["**/*.ts".to_string(), "src/**/*.tsx".to_string()]);
+        assert_eq!(
+            globs.globs,
+            vec!["**/*.ts".to_string(), "src/**/*.tsx".to_string()]
+        );
 
-        let desc = rf("d", "---\nactivation: description\ndescription: when working on auth\n---\nbody");
+        let desc = rf(
+            "d",
+            "---\nactivation: description\ndescription: when working on auth\n---\nbody",
+        );
         assert_eq!(desc.activation, Activation::Description);
         assert_eq!(desc.description.as_deref(), Some("when working on auth"));
 
@@ -326,15 +359,31 @@ mod tests {
     fn select_active_respects_all_modes() {
         let rules = vec![
             rf("always", "body"),
-            rf("ts", "---\nactivation: globs\nglobs:\n  - \"src/**/*.ts\"\n---\nbody"),
-            rf("auth", "---\nactivation: description\ndescription: when working on auth flows\n---\nbody"),
+            rf(
+                "ts",
+                "---\nactivation: globs\nglobs:\n  - \"src/**/*.ts\"\n---\nbody",
+            ),
+            rf(
+                "auth",
+                "---\nactivation: description\ndescription: when working on auth flows\n---\nbody",
+            ),
             rf("danger", "---\nactivation: manual\n---\nbody"),
         ];
-        let names = |active: Vec<&Rule>| -> Vec<String> { active.iter().map(|r| r.name.clone()).collect() };
+        let names =
+            |active: Vec<&Rule>| -> Vec<String> { active.iter().map(|r| r.name.clone()).collect() };
 
         assert_eq!(names(select_active(&rules, "")), vec!["always"]);
-        assert_eq!(names(select_active(&rules, "see @file:src/app/main.ts")), vec!["always", "ts"]);
-        assert_eq!(names(select_active(&rules, "fix the AUTH bug")), vec!["always", "auth"]);
-        assert_eq!(names(select_active(&rules, "use @rule:danger here")), vec!["always", "danger"]);
+        assert_eq!(
+            names(select_active(&rules, "see @file:src/app/main.ts")),
+            vec!["always", "ts"]
+        );
+        assert_eq!(
+            names(select_active(&rules, "fix the AUTH bug")),
+            vec!["always", "auth"]
+        );
+        assert_eq!(
+            names(select_active(&rules, "use @rule:danger here")),
+            vec!["always", "danger"]
+        );
     }
 }

@@ -111,7 +111,7 @@ export function GiteaBackupPanel({ onClose }: GiteaBackupPanelProps) {
         title: ok ? "Backup complete" : "Backup finished with errors",
         body: ok
           ? `${r.commits_made > 0 ? "Pushed " : "No changes — "}${r.files_added}+ ${r.files_changed}~ ${r.files_deleted}-`
-          : r.errors[0] ?? "see panel for details",
+          : (r.errors[0] ?? "see panel for details"),
         kind: ok ? "success" : "error",
       });
     } catch (e) {
@@ -129,7 +129,11 @@ export function GiteaBackupPanel({ onClose }: GiteaBackupPanelProps) {
     try {
       await shellOpen(url);
     } catch (e) {
-      pushToast({ title: "Couldn't open", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Couldn't open",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [report, settings]);
 
@@ -144,7 +148,11 @@ export function GiteaBackupPanel({ onClose }: GiteaBackupPanelProps) {
       <div className="gitea-backup-modal" onClick={(e) => e.stopPropagation()}>
         <header className="gitea-backup-header">
           <h2>Gitea backup</h2>
-          <button className="gitea-backup-close" onClick={onClose} aria-label="Close">
+          <button
+            className="gitea-backup-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
             ×
           </button>
         </header>

@@ -70,7 +70,11 @@ pub async fn import_from_pull(
     let convs = match provider.to_ascii_lowercase().as_str() {
         "claude" => pull_claude(token).await?,
         "chatgpt" => pull_chatgpt(token).await?,
-        other => return Err(format!("unknown provider: {other} (expected claude|chatgpt)")),
+        other => {
+            return Err(format!(
+                "unknown provider: {other} (expected claude|chatgpt)"
+            ))
+        }
     };
     if convs.is_empty() {
         return Err("pull succeeded but returned no conversations".to_string());

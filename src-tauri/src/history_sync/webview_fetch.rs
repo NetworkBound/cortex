@@ -211,7 +211,10 @@ async fn fetch_and_import_inner(
     // until this function returns), so a manual Sync and a scheduled headless
     // tick can't consume each other's drained chunks.
     let _guard = try_begin_fetch(provider.key()).ok_or_else(|| {
-        format!("a history sync is already in progress for {}", provider.key())
+        format!(
+            "a history sync is already in progress for {}",
+            provider.key()
+        )
     })?;
     let raw_json = collect_conversations_json(provider, app, headless).await?;
     // A genuinely signed-in account with no conversations assembles to an empty
@@ -221,7 +224,14 @@ async fn fetch_and_import_inner(
         emit(app, provider, "done", 0, 0, "no conversations found");
         return Ok(ImportResult::default());
     }
-    emit(app, provider, "importing", 0, 0, "parsing fetched conversations");
+    emit(
+        app,
+        provider,
+        "importing",
+        0,
+        0,
+        "parsing fetched conversations",
+    );
 
     // Feed the collected JSON straight through the EXISTING importer. The JS
     // assembles an array shaped exactly like the provider's export
@@ -239,7 +249,10 @@ async fn fetch_and_import_inner(
         "done",
         result.imported as u64,
         result.imported as u64,
-        &format!("{} new, {} already present", result.imported, result.skipped),
+        &format!(
+            "{} new, {} already present",
+            result.imported, result.skipped
+        ),
     );
     Ok(result)
 }
@@ -262,7 +275,9 @@ async fn collect_conversations_json(
         WebProvider::Claude => "https://claude.ai/",
         WebProvider::ChatGpt => "https://chatgpt.com/",
     };
-    let parsed: tauri::Url = app_url.parse().map_err(|_| "bad provider URL".to_string())?;
+    let parsed: tauri::Url = app_url
+        .parse()
+        .map_err(|_| "bad provider URL".to_string())?;
 
     // The init script installs the collector before page scripts run, so it's
     // available the moment the SPA boots and survives in-page navigations.
@@ -321,8 +336,16 @@ async fn collect_conversations_json(
     // fast (expired session); interactive sign-in waits generously. The overall
     // cap is likewise much shorter headless so a stalled background fetch can't
     // pin "Sync now" or a scheduler tick for the full interactive timeout.
-    let login_budget = if headless { HEADLESS_LOGIN_PROBE } else { LOGIN_TIMEOUT };
-    let overall_budget = if headless { HEADLESS_OVERALL_TIMEOUT } else { OVERALL_TIMEOUT };
+    let login_budget = if headless {
+        HEADLESS_LOGIN_PROBE
+    } else {
+        LOGIN_TIMEOUT
+    };
+    let overall_budget = if headless {
+        HEADLESS_OVERALL_TIMEOUT
+    } else {
+        OVERALL_TIMEOUT
+    };
     let mut login_seen = false;
     let mut assembled = String::new();
     let mut last_emitted_fetched = u64::MAX;
@@ -396,7 +419,7 @@ async fn collect_conversations_json(
                     let _ = window.close();
                     if assembled.trim().is_empty() {
                         return Err(
-                            "authenticated but no conversation data was returned".to_string(),
+                            "authenticated but no conversation data was returned".to_string()
                         );
                     }
                     return Ok(assembled);
@@ -425,8 +448,8 @@ fn push_chunk(buf: &mut String, b64: &str) -> Result<(), String> {
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(b64.as_bytes())
         .map_err(|_| "history sync: corrupt chunk (base64)".to_string())?;
-    let s = String::from_utf8(bytes)
-        .map_err(|_| "history sync: corrupt chunk (utf8)".to_string())?;
+    let s =
+        String::from_utf8(bytes).map_err(|_| "history sync: corrupt chunk (utf8)".to_string())?;
     buf.push_str(&s);
     Ok(())
 }
@@ -467,7 +490,14 @@ async fn drain_once(window: &tauri::WebviewWindow) -> Option<DrainState> {
 }
 
 /// Emit a secret-free progress event to the frontend.
-fn emit(app: &AppHandle, provider: WebProvider, phase: &str, fetched: u64, total: u64, message: &str) {
+fn emit(
+    app: &AppHandle,
+    provider: WebProvider,
+    phase: &str,
+    fetched: u64,
+    total: u64,
+    message: &str,
+) {
     let _ = app.emit(
         PROGRESS_EVENT,
         Progress {

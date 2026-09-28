@@ -61,7 +61,11 @@ export function GatewayCapabilitiesPanel() {
       }
       pushToast({ title: "Active model set", body: id, kind: "success" });
     } catch (e) {
-      pushToast({ title: "Failed to set model", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Failed to set model",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }
 
@@ -83,7 +87,10 @@ export function GatewayCapabilitiesPanel() {
       <div className="gateway-caps-summary">
         <div className="gateway-caps-summary-row">
           <strong>Cortex Gateway</strong>
-          <span className="muted" style={{ fontFamily: "var(--font-mono)", marginLeft: "auto" }}>
+          <span
+            className="muted"
+            style={{ fontFamily: "var(--font-mono)", marginLeft: "auto" }}
+          >
             {caps.gateway_version ?? "version unknown"}
           </span>
         </div>
@@ -118,7 +125,8 @@ export function GatewayCapabilitiesPanel() {
       <div className="gateway-caps-section-title">providers</div>
       {caps.providers.length === 0 ? (
         <div className="muted" style={{ padding: 8, fontSize: 11.5 }}>
-          Gateway didn't report provider health — fallback mode (using <code>/v1/models</code>).
+          Gateway didn't report provider health — fallback mode (using{" "}
+          <code>/v1/models</code>).
         </div>
       ) : (
         <div className="gateway-caps-providers">
@@ -144,15 +152,29 @@ function ModelCard({
     <div className={`gateway-caps-model${active ? " active" : ""}`}>
       <div className="gateway-caps-model-head">
         <code className="gateway-caps-model-id">{model.id}</code>
-        {model.owner && <span className="gateway-caps-model-owner">{model.owner}</span>}
+        {model.owner && (
+          <span className="gateway-caps-model-owner">{model.owner}</span>
+        )}
       </div>
       <div className="gateway-caps-model-meta">
-        <span className="gateway-caps-ctx">ctx {formatContextWindow(model.context_window)}</span>
-        {model.supports_tools && <span className="gateway-caps-badge tools">tools</span>}
-        {model.supports_vision && <span className="gateway-caps-badge vision">vision</span>}
-        {model.supports_reasoning && <span className="gateway-caps-badge reasoning">reasoning</span>}
+        <span className="gateway-caps-ctx">
+          ctx {formatContextWindow(model.context_window)}
+        </span>
+        {model.supports_tools && (
+          <span className="gateway-caps-badge tools">tools</span>
+        )}
+        {model.supports_vision && (
+          <span className="gateway-caps-badge vision">vision</span>
+        )}
+        {model.supports_reasoning && (
+          <span className="gateway-caps-badge reasoning">reasoning</span>
+        )}
       </div>
-      <button className="gateway-caps-pick" onClick={onPick} title="Set as active gateway model">
+      <button
+        className="gateway-caps-pick"
+        onClick={onPick}
+        title="Set as active gateway model"
+      >
         {active ? "Active" : "Use this model"}
       </button>
     </div>
@@ -167,7 +189,10 @@ function ProviderRow({ provider }: { provider: ProviderInfo }) {
     <div className={`gateway-caps-provider state-${state}`}>
       <span className={`gateway-caps-pill state-${state}`}>{label}</span>
       <span className="gateway-caps-provider-name">{provider.name}</span>
-      <span className="muted" style={{ fontFamily: "var(--font-mono)", marginLeft: "auto" }}>
+      <span
+        className="muted"
+        style={{ fontFamily: "var(--font-mono)", marginLeft: "auto" }}
+      >
         {age}
       </span>
     </div>

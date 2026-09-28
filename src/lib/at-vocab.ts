@@ -86,31 +86,91 @@ const MAX_PER_KIND = 20;
 
 export const VOCAB_KINDS: { kind: VocabKind; label: string; hint: string }[] = [
   { kind: "files", label: "Files", hint: "project files" },
-  { kind: "folders", label: "Folders", hint: "inline a folder's files (@folder:path)" },
+  {
+    kind: "folders",
+    label: "Folders",
+    hint: "inline a folder's files (@folder:path)",
+  },
   { kind: "symbols", label: "Symbols", hint: "functions, classes, structs" },
-  { kind: "git", label: "Git", hint: "git context — diff, status, log, blame, env" },
+  {
+    kind: "git",
+    label: "Git",
+    hint: "git context — diff, status, log, blame, env",
+  },
   { kind: "recent", label: "Recent", hint: "recent traces" },
-  { kind: "docs", label: "Docs", hint: "@docs retrieves project docs · notes below" },
+  {
+    kind: "docs",
+    label: "Docs",
+    hint: "@docs retrieves project docs · notes below",
+  },
   { kind: "memory", label: "Memory", hint: "memory entries" },
   { kind: "threads", label: "Threads", hint: "recent chat sessions" },
-  { kind: "diagnostics", label: "Diagnostics", hint: "recent issues & crashes" },
+  {
+    kind: "diagnostics",
+    label: "Diagnostics",
+    hint: "recent issues & crashes",
+  },
   { kind: "snippets", label: "Snippets", hint: "saved prompt snippets" },
   { kind: "diff", label: "Diff", hint: "git working diff" },
   { kind: "problems", label: "Problems", hint: "compile errors & warnings" },
   { kind: "terminal", label: "Terminal", hint: "recent terminal output" },
-  { kind: "brain", label: "Brain", hint: "auto-attach top brain hits for the draft" },
-  { kind: "status", label: "Git status", hint: "git status --short of active project" },
-  { kind: "recent-edits", label: "Recent edits", hint: "last 8 modified files in active project" },
-  { kind: "frag", label: "Fragment", hint: "reusable prompt snippet from ~/.cortex/fragments/" },
+  {
+    kind: "brain",
+    label: "Brain",
+    hint: "auto-attach top brain hits for the draft",
+  },
+  {
+    kind: "status",
+    label: "Git status",
+    hint: "git status --short of active project",
+  },
+  {
+    kind: "recent-edits",
+    label: "Recent edits",
+    hint: "last 8 modified files in active project",
+  },
+  {
+    kind: "frag",
+    label: "Fragment",
+    hint: "reusable prompt snippet from ~/.cortex/fragments/",
+  },
   { kind: "web", label: "Web", hint: "fetch URL and inline as text" },
-  { kind: "websearch", label: "Web search", hint: "live web search results (@websearch:query)" },
-  { kind: "grep", label: "Grep", hint: "recursive case-insensitive search of project" },
-  { kind: "codebase", label: "Codebase", hint: "semantic retrieval ranked by your message" },
+  {
+    kind: "websearch",
+    label: "Web search",
+    hint: "live web search results (@websearch:query)",
+  },
+  {
+    kind: "grep",
+    label: "Grep",
+    hint: "recursive case-insensitive search of project",
+  },
+  {
+    kind: "codebase",
+    label: "Codebase",
+    hint: "semantic retrieval ranked by your message",
+  },
   { kind: "cwd", label: "cwd", hint: "top-level file tree of active project" },
-  { kind: "tree", label: "Tree", hint: "directory tree of active project (depth 2; @tree:N to tune)" },
-  { kind: "outline", label: "Outline", hint: "symbol outline of a file (@outline:path/to/file)" },
-  { kind: "def", label: "Definition", hint: "jump to a symbol's definition + body (@def:name)" },
-  { kind: "refs", label: "References", hint: "find all uses of a symbol across the project (@refs:name)" },
+  {
+    kind: "tree",
+    label: "Tree",
+    hint: "directory tree of active project (depth 2; @tree:N to tune)",
+  },
+  {
+    kind: "outline",
+    label: "Outline",
+    hint: "symbol outline of a file (@outline:path/to/file)",
+  },
+  {
+    kind: "def",
+    label: "Definition",
+    hint: "jump to a symbol's definition + body (@def:name)",
+  },
+  {
+    kind: "refs",
+    label: "References",
+    hint: "find all uses of a symbol across the project (@refs:name)",
+  },
   { kind: "env", label: "env", hint: "project root + git HEAD + branch" },
 ];
 
@@ -223,7 +283,8 @@ export const AT_PROVIDERS: AtProvider[] = [
   // ── Search & web ──────────────────────────────────────────────────────────
   {
     syntax: "@grep:<pattern>",
-    summary: "Recursive case-insensitive search across source files (50 hits max).",
+    summary:
+      "Recursive case-insensitive search across source files (50 hits max).",
     category: "Search & web",
   },
   {
@@ -263,7 +324,8 @@ export const AT_PROVIDERS: AtProvider[] = [
   },
   {
     syntax: "@recent",
-    summary: "Last 8 modified files in the active project (@recent:N for 1–50).",
+    summary:
+      "Last 8 modified files in the active project (@recent:N for 1–50).",
     category: "Git",
   },
 
@@ -303,7 +365,8 @@ export const AT_PROVIDERS: AtProvider[] = [
   },
   {
     syntax: "@frag:<name>",
-    summary: "Inline a reusable prompt fragment from ~/.cortex/fragments/<name>.md.",
+    summary:
+      "Inline a reusable prompt fragment from ~/.cortex/fragments/<name>.md.",
     category: "Memory & docs",
   },
 ];
@@ -544,7 +607,8 @@ async function fetchDocs(query: string): Promise<VocabEntry[]> {
         kind: "docs" as const,
         label: "@docs",
         value: "docs",
-        preview: "Retrieve relevant project documentation, ranked by your message",
+        preview:
+          "Retrieve relevant project documentation, ranked by your message",
       },
       ...notes,
     ];
@@ -600,7 +664,12 @@ async function fetchSymbols(
  * exact dead-end this replaces). `keys` widens the fuzzy match so e.g.
  * "history" finds @log and "author" finds @blame.
  */
-const GIT_PROVIDERS: { label: string; value: string; preview: string; keys: string }[] = [
+const GIT_PROVIDERS: {
+  label: string;
+  value: string;
+  preview: string;
+  keys: string;
+}[] = [
   {
     label: "@status",
     value: "status",
@@ -642,14 +711,14 @@ async function fetchGit(
   // fetchFiles/fetchFolders and return nothing so the menu shows its empty
   // state instead of a dead-end placeholder.
   if (!root) return [];
-  return GIT_PROVIDERS.filter((p) => fuzzyMatch(`${p.label} ${p.keys}`, query)).map(
-    (p) => ({
-      kind: "git" as const,
-      label: p.label,
-      value: p.value,
-      preview: p.preview,
-    }),
-  );
+  return GIT_PROVIDERS.filter((p) =>
+    fuzzyMatch(`${p.label} ${p.keys}`, query),
+  ).map((p) => ({
+    kind: "git" as const,
+    label: p.label,
+    value: p.value,
+    preview: p.preview,
+  }));
 }
 
 async function fetchThreads(query: string): Promise<VocabEntry[]> {
@@ -668,8 +737,7 @@ async function fetchThreads(query: string): Promise<VocabEntry[]> {
     .slice(0, MAX_PER_KIND)
     .map((s) => {
       const label =
-        (s.first_message && s.first_message.trim()) ||
-        s.session_id.slice(-12);
+        (s.first_message && s.first_message.trim()) || s.session_id.slice(-12);
       const preview = `${timeAgo(s.last_active_ms)} · ${s.message_count} msgs`;
       return {
         kind: "threads" as const,
@@ -788,9 +856,7 @@ function stripDiffPrefix(p: string): string {
  * `diff --git` header itself. This handles renamed, quoted, and
  * space-containing paths that the simple `a/<old> b/<new>` shape misses.
  */
-function parseDiffPerFile(
-  diff: string,
-): { path: string; preview: string }[] {
+function parseDiffPerFile(diff: string): { path: string; preview: string }[] {
   if (!diff) return [];
   const lines = diff.split("\n");
   const out: { path: string; preview: string }[] = [];
@@ -798,7 +864,10 @@ function parseDiffPerFile(
   let currentPreview: string | null = null;
   const flush = () => {
     if (currentPath) {
-      out.push({ path: currentPath, preview: currentPreview ?? "(no preview)" });
+      out.push({
+        path: currentPath,
+        preview: currentPreview ?? "(no preview)",
+      });
     }
   };
   // Best-effort path extraction from a `diff --git` header. Tries the quoted
@@ -898,7 +967,14 @@ async function fetchProblems(
       : count === 0
         ? "No problems right now — cargo check / tsc are clean"
         : `${count} compile error(s)/warning(s) — inject all as context`;
-  return [{ kind: "problems" as const, label: "@problems", value: "problems", preview }];
+  return [
+    {
+      kind: "problems" as const,
+      label: "@problems",
+      value: "problems",
+      preview,
+    },
+  ];
 }
 
 async function fetchFragments(query: string): Promise<VocabEntry[]> {
@@ -908,7 +984,12 @@ async function fetchFragments(query: string): Promise<VocabEntry[]> {
     return names
       .filter((n) => !q || n.toLowerCase().includes(q))
       .slice(0, MAX_PER_KIND)
-      .map((n) => ({ kind: "frag" as const, label: `@frag:${n}`, value: `frag:${n}`, preview: `~/.cortex/fragments/${n}.md` }));
+      .map((n) => ({
+        kind: "frag" as const,
+        label: `@frag:${n}`,
+        value: `frag:${n}`,
+        preview: `~/.cortex/fragments/${n}.md`,
+      }));
   } catch {
     return [];
   }
@@ -982,33 +1063,130 @@ export async function fetchVocab(
     case "terminal":
       return fetchTerminal(query);
     case "brain":
-      return [{ kind: "brain", label: "@brain", value: "brain", preview: "Auto-attach top 3 brain hits for this message" }];
+      return [
+        {
+          kind: "brain",
+          label: "@brain",
+          value: "brain",
+          preview: "Auto-attach top 3 brain hits for this message",
+        },
+      ];
     case "status":
-      return [{ kind: "status", label: "@status", value: "status", preview: "git status --short of active project" }];
+      return [
+        {
+          kind: "status",
+          label: "@status",
+          value: "status",
+          preview: "git status --short of active project",
+        },
+      ];
     case "recent-edits":
-      return [{ kind: "recent-edits", label: "@recent", value: "recent", preview: "Last 8 modified files in active project" }];
+      return [
+        {
+          kind: "recent-edits",
+          label: "@recent",
+          value: "recent",
+          preview: "Last 8 modified files in active project",
+        },
+      ];
     case "frag":
       return await fetchFragments(query);
     case "web":
-      return [{ kind: "web", label: "@web:https://…", value: "web:https://", preview: "Type a URL to fetch and inline" }];
+      return [
+        {
+          kind: "web",
+          label: "@web:https://…",
+          value: "web:https://",
+          preview: "Type a URL to fetch and inline",
+        },
+      ];
     case "websearch":
-      return [{ kind: "websearch", label: "@websearch:<query>", value: "websearch:", preview: "Live web search — inline the top results (title · url · snippet)" }];
+      return [
+        {
+          kind: "websearch",
+          label: "@websearch:<query>",
+          value: "websearch:",
+          preview:
+            "Live web search — inline the top results (title · url · snippet)",
+        },
+      ];
     case "grep":
-      return [{ kind: "grep", label: "@grep:<pattern>", value: "grep:", preview: "Type a search pattern (case-insensitive)" }];
+      return [
+        {
+          kind: "grep",
+          label: "@grep:<pattern>",
+          value: "grep:",
+          preview: "Type a search pattern (case-insensitive)",
+        },
+      ];
     case "codebase":
-      return [{ kind: "codebase", label: "@codebase", value: "codebase", preview: "Semantic retrieval over the project, ranked by your message" }];
+      return [
+        {
+          kind: "codebase",
+          label: "@codebase",
+          value: "codebase",
+          preview:
+            "Semantic retrieval over the project, ranked by your message",
+        },
+      ];
     case "cwd":
-      return [{ kind: "cwd", label: "@cwd", value: "cwd", preview: "Top-level file tree of active project" }];
+      return [
+        {
+          kind: "cwd",
+          label: "@cwd",
+          value: "cwd",
+          preview: "Top-level file tree of active project",
+        },
+      ];
     case "tree":
-      return [{ kind: "tree", label: "@tree", value: "tree", preview: "Directory tree of active project (depth 2; @tree:N tunes 1–6)" }];
+      return [
+        {
+          kind: "tree",
+          label: "@tree",
+          value: "tree",
+          preview:
+            "Directory tree of active project (depth 2; @tree:N tunes 1–6)",
+        },
+      ];
     case "outline":
-      return [{ kind: "outline", label: "@outline:<file>", value: "outline:", preview: "Symbol outline of a file — functions, classes, headings + line numbers" }];
+      return [
+        {
+          kind: "outline",
+          label: "@outline:<file>",
+          value: "outline:",
+          preview:
+            "Symbol outline of a file — functions, classes, headings + line numbers",
+        },
+      ];
     case "def":
-      return [{ kind: "def", label: "@def:<symbol>", value: "def:", preview: "Go to a symbol's definition — its declaration site(s) + body across the project" }];
+      return [
+        {
+          kind: "def",
+          label: "@def:<symbol>",
+          value: "def:",
+          preview:
+            "Go to a symbol's definition — its declaration site(s) + body across the project",
+        },
+      ];
     case "refs":
-      return [{ kind: "refs", label: "@refs:<symbol>", value: "refs:", preview: "Find all references — every use of a symbol across the project (whole-word), with the declaration marked" }];
+      return [
+        {
+          kind: "refs",
+          label: "@refs:<symbol>",
+          value: "refs:",
+          preview:
+            "Find all references — every use of a symbol across the project (whole-word), with the declaration marked",
+        },
+      ];
     case "env":
-      return [{ kind: "env", label: "@env", value: "env", preview: "Project root + git HEAD + branch" }];
+      return [
+        {
+          kind: "env",
+          label: "@env",
+          value: "env",
+          preview: "Project root + git HEAD + branch",
+        },
+      ];
     default:
       return [];
   }

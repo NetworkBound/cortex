@@ -124,7 +124,9 @@ export function ChatHistorySidebar() {
       const meta = getMeta(c.file_path);
       const title = (meta.custom_title ?? "").toLowerCase();
       const tagHit = meta.tags.some((t) => t.toLowerCase().includes(q));
-      return proj.includes(q) || first.includes(q) || title.includes(q) || tagHit;
+      return (
+        proj.includes(q) || first.includes(q) || title.includes(q) || tagHit
+      );
     });
   }, [chats, query, getMeta]);
 
@@ -184,7 +186,8 @@ export function ChatHistorySidebar() {
 
   const loadPreview = useCallback(
     async (path: string) => {
-      if (previewCache[path] !== undefined && previewCache[path] !== "error") return;
+      if (previewCache[path] !== undefined && previewCache[path] !== "error")
+        return;
       setPreviewCache((p) => ({ ...p, [path]: "loading" }));
       try {
         const t = await getClaudeChat(path, PREVIEW_TURNS);
@@ -230,10 +233,11 @@ export function ChatHistorySidebar() {
       });
       if (!selected || typeof selected !== "string") return;
       pushToast({ title: "Importing ChatGPT export…", kind: "info" });
-      const result = await invoke<{ imported: number; skipped: number; out_dir: string }>(
-        "import_chatgpt_export",
-        { path: selected },
-      );
+      const result = await invoke<{
+        imported: number;
+        skipped: number;
+        out_dir: string;
+      }>("import_chatgpt_export", { path: selected });
       pushToast({
         title: `ChatGPT import complete`,
         body: `${result.imported} new, ${result.skipped} skipped`,
@@ -243,7 +247,11 @@ export function ChatHistorySidebar() {
       const chats = await listClaudeChats();
       setChats(chats);
     } catch (e) {
-      pushToast({ title: "ChatGPT import failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "ChatGPT import failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   };
 
@@ -297,7 +305,11 @@ export function ChatHistorySidebar() {
     const seed = current.tags.join(", ");
     // A richer chip editor can land alongside the BookmarksPanel refactor
     // later; for now a plain prompt keeps the sidebar lean.
-    const raw = await promptDialog({ title: "Edit tags", message: "Tags (comma-separated)", initialValue: seed });
+    const raw = await promptDialog({
+      title: "Edit tags",
+      message: "Tags (comma-separated)",
+      initialValue: seed,
+    });
     if (raw === null) return;
     void persistMeta(chat.file_path, {
       ...current,
@@ -312,13 +324,17 @@ export function ChatHistorySidebar() {
       return <div className="chat-history-preview-loading">loading…</div>;
     }
     if (entry === "error") {
-      return <div className="chat-history-preview-loading">preview unavailable</div>;
+      return (
+        <div className="chat-history-preview-loading">preview unavailable</div>
+      );
     }
     const turns = entry.turns
       .filter((t) => t.role === "user" || t.role === "assistant")
       .slice(0, PREVIEW_RENDER_LIMIT);
     if (turns.length === 0) {
-      return <div className="chat-history-preview-loading">empty transcript</div>;
+      return (
+        <div className="chat-history-preview-loading">empty transcript</div>
+      );
     }
     return (
       <div className="chat-history-preview-turns">
@@ -377,7 +393,9 @@ export function ChatHistorySidebar() {
                 onClick={() => toggle(g.project)}
                 title={open ? "collapse" : "expand"}
               >
-                <span className="chat-history-caret"><Chevron open={open} size={13} /></span>
+                <span className="chat-history-caret">
+                  <Chevron open={open} size={13} />
+                </span>
                 <strong>{g.project}</strong>
                 <span className="muted">{g.chats.length} chats</span>
               </button>
@@ -400,7 +418,9 @@ export function ChatHistorySidebar() {
                         tabIndex={0}
                         onMouseEnter={() => onRowEnter(c.file_path)}
                         onMouseLeave={onRowLeave}
-                        onClick={() => { if (!isEditing) void resumeChat(c); }}
+                        onClick={() => {
+                          if (!isEditing) void resumeChat(c);
+                        }}
                         onKeyDown={(e) => {
                           if (isEditing) return;
                           if (e.key === "Enter" || e.key === " ") {
@@ -442,8 +462,13 @@ export function ChatHistorySidebar() {
                               value={editingDraft}
                               onChange={(e) => setEditingDraft(e.target.value)}
                               onKeyDown={(e) => {
-                                if (e.key === "Enter") { e.preventDefault(); commitRename(c); }
-                                else if (e.key === "Escape") { e.preventDefault(); cancelRename(); }
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  commitRename(c);
+                                } else if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  cancelRename();
+                                }
                               }}
                               onBlur={() => commitRename(c)}
                               onClick={(e) => e.stopPropagation()}
@@ -451,14 +476,23 @@ export function ChatHistorySidebar() {
                             />
                           ) : (
                             <>
-                              <span className="chat-history-title">{displayTitle}</span>
+                              <span className="chat-history-title">
+                                {displayTitle}
+                              </span>
                               <button
                                 className="chat-history-rename-btn"
-                                onClick={(e) => { e.stopPropagation(); beginRename(c); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  beginRename(c);
+                                }}
                                 title="rename"
                                 aria-label="rename chat"
                               >
-                                <SquarePen size={14} strokeWidth={1.75} aria-hidden="true" />
+                                <SquarePen
+                                  size={14}
+                                  strokeWidth={1.75}
+                                  aria-hidden="true"
+                                />
                               </button>
                             </>
                           )}

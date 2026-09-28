@@ -14,7 +14,9 @@ import { invoke } from "@tauri-apps/api/core";
  * cheaper reliable providers over the raw cost-per-success winner. Explicit
  * agent picks and model routes never consult a budget cap.
  */
-export async function getSessionBudget(sessionId: string): Promise<number | null> {
+export async function getSessionBudget(
+  sessionId: string,
+): Promise<number | null> {
   return invoke<number | null>("get_session_budget", { sessionId });
 }
 

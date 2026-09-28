@@ -52,17 +52,29 @@ const LANG_PATTERNS: LangPattern[] = [
   { lang: "typescript", test: /^\s*(?:export\s+)?interface\s+\w+/ },
   { lang: "typescript", test: /^\s*(?:export\s+)?type\s+\w+\s*=/ },
   { lang: "typescript", test: /^\s*import\s+type\s+/ },
-  { lang: "typescript", test: /:\s*(?:string|number|boolean|void|unknown|any)\b/ },
+  {
+    lang: "typescript",
+    test: /:\s*(?:string|number|boolean|void|unknown|any)\b/,
+  },
   // JavaScript
-  { lang: "javascript", test: /^\s*import\s+(?:\{[^}]*\}|\w+|\*\s+as\s+\w+)\s+from\s+['"]/ },
-  { lang: "javascript", test: /^\s*(?:export\s+)?(?:async\s+)?function\s+\w+\s*\(/ },
+  {
+    lang: "javascript",
+    test: /^\s*import\s+(?:\{[^}]*\}|\w+|\*\s+as\s+\w+)\s+from\s+['"]/,
+  },
+  {
+    lang: "javascript",
+    test: /^\s*(?:export\s+)?(?:async\s+)?function\s+\w+\s*\(/,
+  },
   { lang: "javascript", test: /^\s*const\s+\w+\s*=\s*(?:async\s*)?\(/ },
   { lang: "javascript", test: /^\s*require\s*\(\s*['"]/ },
   // Shell
   { lang: "bash", test: /^#!\s*\/(?:usr\/)?bin\/(?:env\s+)?(?:bash|sh|zsh)/ },
   { lang: "bash", test: /^\s*\$\s+\w/ },
   // SQL
-  { lang: "sql", test: /^\s*(?:SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\s+/i },
+  {
+    lang: "sql",
+    test: /^\s*(?:SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\s+/i,
+  },
   // JSON (object/array start, no trailing semicolons on the first lines)
   { lang: "json", test: /^\s*[{[]\s*$/ },
   // YAML

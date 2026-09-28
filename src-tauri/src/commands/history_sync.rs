@@ -170,7 +170,11 @@ pub async fn history_sync_connect(
 
 /// Mark a provider enabled and (re)spawn its background sync loop. Shared by the
 /// connect paths so a successful Connect also keeps history fresh on a schedule.
-fn enable_and_schedule(app: &AppHandle, web: WebProvider, store: TracingStore) -> Result<(), String> {
+fn enable_and_schedule(
+    app: &AppHandle,
+    web: WebProvider,
+    store: TracingStore,
+) -> Result<(), String> {
     let mut cfg = history_sync::config::load();
     cfg.entry(web.key()).enabled = true;
     history_sync::config::save(&cfg)?;

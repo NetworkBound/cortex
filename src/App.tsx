@@ -75,7 +75,10 @@ export function App() {
       if (saved.currentWorktreeId) {
         useCortexStore
           .getState()
-          .setCurrentWorktree(saved.currentWorktreeId, saved.currentWorktreePath);
+          .setCurrentWorktree(
+            saved.currentWorktreeId,
+            saved.currentWorktreePath,
+          );
       }
       if (saved.activeProjectRoot) {
         void openProjectByPath(saved.activeProjectRoot);
@@ -93,11 +96,14 @@ export function App() {
   // The hook isn't gated on dev mode because tauri-driver runs against the
   // production exe; production users will never call it from devtools.
   useEffect(() => {
-    (window as unknown as { __cortexTabSwitch?: (t: ActivityTab) => void }).__cortexTabSwitch = (t) => {
+    (
+      window as unknown as { __cortexTabSwitch?: (t: ActivityTab) => void }
+    ).__cortexTabSwitch = (t) => {
       useCortexStore.getState().setActivityTab(t);
     };
     return () => {
-      delete (window as unknown as { __cortexTabSwitch?: unknown }).__cortexTabSwitch;
+      delete (window as unknown as { __cortexTabSwitch?: unknown })
+        .__cortexTabSwitch;
     };
   }, []);
 
@@ -152,7 +158,8 @@ export function App() {
   }, [appendMessage]);
 
   useEffect(() => {
-    const cycleCombo = DEFAULT_KEYMAP.find((b) => b.id === "cycle-mode")?.combo ?? "Ctrl+M";
+    const cycleCombo =
+      DEFAULT_KEYMAP.find((b) => b.id === "cycle-mode")?.combo ?? "Ctrl+M";
     const onKey = (e: KeyboardEvent) => {
       // Ctrl+Shift+F → open the Memory surface (activity panel) and focus its
       // search. Memory now has a single home in the activity bar (it used to be
@@ -162,7 +169,9 @@ export function App() {
         setActivityTab("memory");
         // Defer until the panel is mounted, then focus the search input.
         setTimeout(() => {
-          const el = document.querySelector<HTMLInputElement>(".memex-search input");
+          const el = document.querySelector<HTMLInputElement>(
+            ".memex-search input",
+          );
           el?.focus();
           el?.select();
         }, 30);
@@ -182,7 +191,8 @@ export function App() {
       if (matchCombo(e, "Ctrl+R")) {
         const target = e.target as HTMLElement | null;
         const tag = target?.tagName?.toLowerCase();
-        if (tag === "input" || tag === "textarea" || target?.isContentEditable) return;
+        if (tag === "input" || tag === "textarea" || target?.isContentEditable)
+          return;
         e.preventDefault();
         setShowSessionPicker(true);
         return;
@@ -191,7 +201,8 @@ export function App() {
       // Avoid stealing keystrokes while the user is typing in an input.
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName?.toLowerCase();
-      if (tag === "input" || tag === "textarea" || target?.isContentEditable) return;
+      if (tag === "input" || tag === "textarea" || target?.isContentEditable)
+        return;
       e.preventDefault();
       setCurrentMode(currentMode === "plan" ? "act" : "plan");
     };
@@ -209,7 +220,8 @@ export function App() {
       if (e.key !== "Tab" || !e.ctrlKey || e.altKey || e.metaKey) return;
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName?.toLowerCase();
-      if (tag === "input" || tag === "textarea" || target?.isContentEditable) return;
+      if (tag === "input" || tag === "textarea" || target?.isContentEditable)
+        return;
       e.preventDefault();
       const order = ACTIVITY_TAB_ORDER;
       if (order.length === 0) return;
@@ -223,7 +235,7 @@ export function App() {
       const len = order.length;
       const delta = e.shiftKey ? -1 : 1;
       const startIdx = idx < 0 ? (delta === 1 ? -1 : 0) : idx;
-      const nextIdx = ((startIdx + delta) % len + len) % len;
+      const nextIdx = (((startIdx + delta) % len) + len) % len;
       setActivityTab(order[nextIdx]);
     };
     window.addEventListener("keydown", onKey);
@@ -235,7 +247,9 @@ export function App() {
     if (!activeProject) return;
     const root = activeProject.root;
     void startRepoWatcher(root).catch(() => {});
-    return () => { void stopRepoWatcher(root).catch(() => {}); };
+    return () => {
+      void stopRepoWatcher(root).catch(() => {});
+    };
   }, [activeProject]);
   useEffect(() => activateNotificationCenter(), []);
   useEffect(() => initJobStore(), []);
@@ -244,44 +258,49 @@ export function App() {
   return (
     <div className="cortex-shell">
       <SurfaceLayer>
-      <div className={`cortex-grid ${archOpen || (activityTab && activityTab !== "projects") ? "with-activity-panel" : ""}`}>
-        <ActivityBar />
-        <div className="cortex-col-left">
-          <ProjectSidebar />
-          <SidebarResizer />
-        </div>
-        <ActivityPanel />
-        <div className="cortex-col-center">
-          <TrustBanner />
-          <ChatPane />
-        </div>
-        <div className="cortex-col-right">
-          <SidebarResizer side="right" />
-          <div className="right-tabs">
-            <button
-              className={`right-tab ${rightTab === "chats" ? "active" : ""}`}
-              onClick={() => setRightTab("chats")}
-              title="All Claude/Cortex Gateway chat sessions, grouped by project"
-            >
-              Chats
-            </button>
-            <button
-              className={`right-tab ${rightTab === "agent" ? "active" : ""}`}
-              onClick={() => setRightTab("agent")}
-              title="Active agents and capabilities"
-            >
-              Agent
-            </button>
+        <div
+          className={`cortex-grid ${archOpen || (activityTab && activityTab !== "projects") ? "with-activity-panel" : ""}`}
+        >
+          <ActivityBar />
+          <div className="cortex-col-left">
+            <ProjectSidebar />
+            <SidebarResizer />
           </div>
-          <div className="right-tab-body">
-            {rightTab === "chats" && <ChatHistorySidebar />}
-            {rightTab === "agent" && <AgentSidebar />}
+          <ActivityPanel />
+          <div className="cortex-col-center">
+            <TrustBanner />
+            <ChatPane />
+          </div>
+          <div className="cortex-col-right">
+            <SidebarResizer side="right" />
+            <div className="right-tabs">
+              <button
+                className={`right-tab ${rightTab === "chats" ? "active" : ""}`}
+                onClick={() => setRightTab("chats")}
+                title="All Claude/Cortex Gateway chat sessions, grouped by project"
+              >
+                Chats
+              </button>
+              <button
+                className={`right-tab ${rightTab === "agent" ? "active" : ""}`}
+                onClick={() => setRightTab("agent")}
+                title="Active agents and capabilities"
+              >
+                Agent
+              </button>
+            </div>
+            <div className="right-tab-body">
+              {rightTab === "chats" && <ChatHistorySidebar />}
+              {rightTab === "agent" && <AgentSidebar />}
+            </div>
           </div>
         </div>
-      </div>
       </SurfaceLayer>
       <SettingsModal />
-      <ShortcutsModal open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+      <ShortcutsModal
+        open={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
+      />
       <SessionPicker />
       <CommandPalette />
       <ToastRack />

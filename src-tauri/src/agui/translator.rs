@@ -203,7 +203,10 @@ pub fn translate(state: &mut TranslatorState, event: &AgentEvent) -> Vec<AgUiEve
             }
         }
 
-        AgentEvent::FileEdit { path, lines_changed } => {
+        AgentEvent::FileEdit {
+            path,
+            lines_changed,
+        } => {
             // Surface file edits as a synthetic `file_edit` tool call so they
             // show up in AG-UI clients that visualize tool activity.
             let id = Ulid::new().to_string();
@@ -241,10 +244,7 @@ pub fn translate(state: &mut TranslatorState, event: &AgentEvent) -> Vec<AgUiEve
             state.push_open_tool_call(&synth_name, id.clone());
             vec![AgUiEvent::ToolCallStart(ToolCallStart {
                 tool_call_id: id,
-                tool_call_name: format!(
-                    "approval:{}",
-                    tool.as_deref().unwrap_or("unknown")
-                ),
+                tool_call_name: format!("approval:{}", tool.as_deref().unwrap_or("unknown")),
                 parent_message_id: state.current_message_id.clone(),
                 timestamp: Some(now_ms()),
             })]
@@ -332,8 +332,18 @@ mod tests {
     #[test]
     fn first_token_emits_start_plus_content_then_only_content() {
         let mut s = TranslatorState::default();
-        let out1 = translate(&mut s, &AgentEvent::Token { delta: "Hel".into() });
-        let out2 = translate(&mut s, &AgentEvent::Token { delta: "lo!".into() });
+        let out1 = translate(
+            &mut s,
+            &AgentEvent::Token {
+                delta: "Hel".into(),
+            },
+        );
+        let out2 = translate(
+            &mut s,
+            &AgentEvent::Token {
+                delta: "lo!".into(),
+            },
+        );
         assert_eq!(out1.len(), 2, "first token should emit START + CONTENT");
         assert!(matches!(out1[0], AgUiEvent::TextMessageStart(_)));
         assert!(matches!(out1[1], AgUiEvent::TextMessageContent(_)));
@@ -403,7 +413,10 @@ mod tests {
         let _ = translate(&mut s, &AgentEvent::Token { delta: "hi".into() });
         let out = translate(
             &mut s,
-            &AgentEvent::Done { total_tokens: None, run_id: None },
+            &AgentEvent::Done {
+                total_tokens: None,
+                run_id: None,
+            },
         );
         assert_eq!(out.len(), 2);
         assert!(matches!(out[0], AgUiEvent::TextMessageEnd(_)));
@@ -414,7 +427,12 @@ mod tests {
     #[test]
     fn error_event_is_translated() {
         let mut s = TranslatorState::default();
-        let out = translate(&mut s, &AgentEvent::Error { message: "boom".into() });
+        let out = translate(
+            &mut s,
+            &AgentEvent::Error {
+                message: "boom".into(),
+            },
+        );
         assert_eq!(out.len(), 1);
         match &out[0] {
             AgUiEvent::Error(e) => assert_eq!(e.message, "boom"),
@@ -432,8 +450,12 @@ mod tests {
                 agent_id: "gateway-remote".into(),
                 run_id: Some("run-A".into()),
             },
-            AgentEvent::Token { delta: "Hello".into() },
-            AgentEvent::Token { delta: ", world".into() },
+            AgentEvent::Token {
+                delta: "Hello".into(),
+            },
+            AgentEvent::Token {
+                delta: ", world".into(),
+            },
             AgentEvent::ToolCall {
                 name: "shell".into(),
                 args: serde_json::json!({"cmd": "ls /"}),
@@ -446,7 +468,10 @@ mod tests {
                 duration_ms: Some(8),
             },
             AgentEvent::Token { delta: "!".into() },
-            AgentEvent::Done { total_tokens: Some(7), run_id: Some("run-A".into()) },
+            AgentEvent::Done {
+                total_tokens: Some(7),
+                run_id: Some("run-A".into()),
+            },
         ];
 
         let mut frames: Vec<String> = Vec::new();

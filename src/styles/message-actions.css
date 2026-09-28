@@ -32,7 +32,9 @@
   opacity: 0;
   transform: translateY(-2px);
   pointer-events: none;
-  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
   z-index: 5;
 }
 
@@ -55,7 +57,9 @@
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius);
   cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out),
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out);
 }
 

@@ -34,9 +34,7 @@ export interface VaultAnalysis {
   broken_links: [string, string][];
 }
 
-export async function analyzeVault(
-  vaultPath?: string,
-): Promise<VaultAnalysis> {
+export async function analyzeVault(vaultPath?: string): Promise<VaultAnalysis> {
   return invoke<VaultAnalysis>("analyze_vault", {
     vaultPath: vaultPath ?? null,
   });

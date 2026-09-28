@@ -12,7 +12,9 @@
 
 use std::path::PathBuf;
 
-use crate::repo_map::{compute_repo_map, format_as_text, repo_symbols as repo_symbols_impl, RepoMap, SymbolHit};
+use crate::repo_map::{
+    compute_repo_map, format_as_text, repo_symbols as repo_symbols_impl, RepoMap, SymbolHit,
+};
 
 /// Default cap on number of files included in a repo map.
 const DEFAULT_MAX_FILES: usize = 200;
@@ -54,7 +56,9 @@ pub async fn repo_symbols(
     let project_root = validate_root(&root)?;
     // Clamp so a caller can't request an unbounded symbol dump across the IPC
     // bridge (the docstring promises a hard cap; the default alone didn't).
-    let cap = limit.unwrap_or(DEFAULT_SYMBOL_LIMIT).min(DEFAULT_SYMBOL_LIMIT);
+    let cap = limit
+        .unwrap_or(DEFAULT_SYMBOL_LIMIT)
+        .min(DEFAULT_SYMBOL_LIMIT);
     let hits = tokio::task::spawn_blocking(move || repo_symbols_impl(&project_root, &query, cap))
         .await
         .map_err(|e| format!("repo_symbols task failed: {e}"))?;

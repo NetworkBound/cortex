@@ -33,8 +33,7 @@ pub async fn import_to_brain(
 ) -> Result<ImportResult, String> {
     let brain_root = brain_dir().ok_or_else(|| "could not resolve ~/Documents".to_string())?;
     let imports_dir = brain_root.join("imports");
-    fs::create_dir_all(&imports_dir)
-        .map_err(|e| format!("create imports dir failed: {e}"))?;
+    fs::create_dir_all(&imports_dir).map_err(|e| format!("create imports dir failed: {e}"))?;
 
     let now_local = Local::now();
     // Include a high-resolution time component so repeated imports on the same
@@ -106,7 +105,27 @@ fn yaml_escape(input: &str) -> String {
     if cleaned.is_empty() {
         return "unknown".into();
     }
-    if cleaned.chars().any(|c| matches!(c, ':' | '#' | '"' | '\'' | '{' | '}' | '[' | ']' | ',' | '&' | '*' | '!' | '|' | '>' | '%' | '@' | '`')) {
+    if cleaned.chars().any(|c| {
+        matches!(
+            c,
+            ':' | '#'
+                | '"'
+                | '\''
+                | '{'
+                | '}'
+                | '['
+                | ']'
+                | ','
+                | '&'
+                | '*'
+                | '!'
+                | '|'
+                | '>'
+                | '%'
+                | '@'
+                | '`'
+        )
+    }) {
         format!("\"{}\"", cleaned.replace('"', "\\\""))
     } else {
         cleaned

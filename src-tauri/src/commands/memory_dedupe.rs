@@ -59,11 +59,15 @@ pub async fn find_duplicate_memory(
             if !seen_paths.insert(path.clone()) {
                 continue;
             }
-            let Ok(meta) = std::fs::metadata(&path) else { continue };
+            let Ok(meta) = std::fs::metadata(&path) else {
+                continue;
+            };
             if meta.len() > MAX_FILE_BYTES {
                 continue;
             }
-            let Ok(body) = std::fs::read_to_string(&path) else { continue };
+            let Ok(body) = std::fs::read_to_string(&path) else {
+                continue;
+            };
             let tokens = tokenize(&body);
             if tokens.len() < 5 {
                 // Tiny files generate noisy false positives — skip them.
@@ -193,11 +197,7 @@ fn is_stopword(word: &str) -> bool {
     )
 }
 
-fn jaccard_with_shared(
-    a: &HashSet<String>,
-    b: &HashSet<String>,
-    top: usize,
-) -> (f32, Vec<String>) {
+fn jaccard_with_shared(a: &HashSet<String>, b: &HashSet<String>, top: usize) -> (f32, Vec<String>) {
     if a.is_empty() || b.is_empty() {
         return (0.0, Vec::new());
     }

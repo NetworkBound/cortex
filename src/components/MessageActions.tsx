@@ -33,7 +33,11 @@ export function MessageActions({ message, onRegenerate }: MessageActionsProps) {
       pushToast({ title: "copied", kind: "success", ttlMs: 1800 });
       playSound("tick");
     } catch (e) {
-      pushToast({ title: "copy failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "copy failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   };
 
@@ -44,10 +48,17 @@ export function MessageActions({ message, onRegenerate }: MessageActionsProps) {
     // Walk back to the nearest user message preceding this assistant turn.
     let userIdx = -1;
     for (let i = idx - 1; i >= 0; i--) {
-      if (messages[i].role === "user") { userIdx = i; break; }
+      if (messages[i].role === "user") {
+        userIdx = i;
+        break;
+      }
     }
     if (userIdx < 0) {
-      pushToast({ title: "nothing to regenerate", body: "no prior user message", kind: "warning" });
+      pushToast({
+        title: "nothing to regenerate",
+        body: "no prior user message",
+        kind: "warning",
+      });
       return;
     }
     const userMsg = messages[userIdx];
@@ -58,7 +69,9 @@ export function MessageActions({ message, onRegenerate }: MessageActionsProps) {
   const handleBranch = async () => {
     const idx = messages.findIndex((m) => m.id === message.id);
     if (idx < 0) return;
-    const slice = messages.slice(0, idx + 1).map((m) => ({ ...m, pending: false, approval: null }));
+    const slice = messages
+      .slice(0, idx + 1)
+      .map((m) => ({ ...m, pending: false, approval: null }));
     const newId = `session-${crypto.randomUUID()}`;
     try {
       for (const m of slice) {
@@ -76,17 +89,33 @@ export function MessageActions({ message, onRegenerate }: MessageActionsProps) {
         });
       }
       resumeSession(newId, slice);
-      pushToast({ title: "branched", body: `${slice.length} messages copied`, kind: "success" });
+      pushToast({
+        title: "branched",
+        body: `${slice.length} messages copied`,
+        kind: "success",
+      });
     } catch (e) {
-      pushToast({ title: "branch failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "branch failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   };
 
   const handlePin = async () => {
-    const name = await promptDialog({ title: "Pin as memory", message: "Memory name", placeholder: "e.g. deploy-checklist" });
+    const name = await promptDialog({
+      title: "Pin as memory",
+      message: "Memory name",
+      placeholder: "e.g. deploy-checklist",
+    });
     if (!name || !name.trim()) return;
     try {
-      const path = await createMemoryEntry(name.trim(), message.content, activeProject?.root ?? undefined);
+      const path = await createMemoryEntry(
+        name.trim(),
+        message.content,
+        activeProject?.root ?? undefined,
+      );
       pushToast({ title: "pinned", body: path, kind: "success", ttlMs: 4000 });
       playSound("tick");
     } catch (e) {
@@ -101,7 +130,12 @@ export function MessageActions({ message, onRegenerate }: MessageActionsProps) {
   if (message.pending) return null;
 
   return (
-    <div className="message-actions" role="toolbar" aria-label="message actions" data-session={sessionId}>
+    <div
+      className="message-actions"
+      role="toolbar"
+      aria-label="message actions"
+      data-session={sessionId}
+    >
       <button
         type="button"
         className="action-btn"

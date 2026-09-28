@@ -50,7 +50,8 @@ pub async fn list_worktrees(
     store: State<'_, TracingStore>,
 ) -> Result<Vec<Worktree>, String> {
     let ws = store_from(&store);
-    ws.list_active(project_root.as_deref()).map_err(|e| e.to_string())
+    ws.list_active(project_root.as_deref())
+        .map_err(|e| e.to_string())
 }
 
 #[derive(Debug, Deserialize)]
@@ -97,5 +98,6 @@ pub async fn assign_worktree_session(
     store: State<'_, TracingStore>,
 ) -> Result<(), String> {
     let ws = store_from(&store);
-    ws.assign_session(&args.id, &args.session_id).map_err(|e| e.to_string())
+    ws.assign_session(&args.id, &args.session_id)
+        .map_err(|e| e.to_string())
 }

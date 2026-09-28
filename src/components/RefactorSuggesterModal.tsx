@@ -35,7 +35,9 @@ export function RefactorSuggesterModal({
   onClose,
 }: RefactorSuggesterModalProps) {
   const [intent, setIntent] = useState<string>(initialIntent ?? "");
-  const [pendingIntent, setPendingIntent] = useState<string>(initialIntent ?? "");
+  const [pendingIntent, setPendingIntent] = useState<string>(
+    initialIntent ?? "",
+  );
   const [report, setReport] = useState<RefactorReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,9 +131,17 @@ export function RefactorSuggesterModal({
   const onCopy = useCallback(async (r: Refactor) => {
     try {
       await navigator.clipboard.writeText(JSON.stringify(r, null, 2));
-      pushToast({ title: "Copied", body: "Refactor JSON on clipboard.", kind: "success" });
+      pushToast({
+        title: "Copied",
+        body: "Refactor JSON on clipboard.",
+        kind: "success",
+      });
     } catch (e) {
-      pushToast({ title: "Copy failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Copy failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, []);
 
@@ -176,7 +186,8 @@ export function RefactorSuggesterModal({
         <div className="refactor-suggester-body">
           {loading && (
             <div className="refactor-suggester-loading">
-              <span className="refactor-suggester-spinner" aria-hidden /> Generating refactors…
+              <span className="refactor-suggester-spinner" aria-hidden />{" "}
+              Generating refactors…
             </div>
           )}
 
@@ -199,14 +210,20 @@ export function RefactorSuggesterModal({
                 const open = expanded.has(i);
                 const tier = confidenceTier(r.confidence);
                 return (
-                  <li key={i} className="refactor-suggester-card" data-open={open}>
+                  <li
+                    key={i}
+                    className="refactor-suggester-card"
+                    data-open={open}
+                  >
                     <button
                       type="button"
                       className="refactor-suggester-card-head"
                       onClick={() => toggleExpanded(i)}
                       aria-expanded={open}
                     >
-                      <span className="refactor-suggester-card-title">{r.name}</span>
+                      <span className="refactor-suggester-card-title">
+                        {r.name}
+                      </span>
                       <span
                         className="refactor-suggester-pill"
                         data-tier={tier}
@@ -214,20 +231,29 @@ export function RefactorSuggesterModal({
                       >
                         {tier}
                       </span>
-                      <span className="refactor-suggester-card-caret" aria-hidden>
+                      <span
+                        className="refactor-suggester-card-caret"
+                        aria-hidden
+                      >
                         <Chevron open={open} size={14} />
                       </span>
                     </button>
                     {open && (
                       <div className="refactor-suggester-card-body">
-                        <p className="refactor-suggester-rationale">{r.rationale}</p>
+                        <p className="refactor-suggester-rationale">
+                          {r.rationale}
+                        </p>
                         <div className="refactor-suggester-diff">
                           <div className="refactor-suggester-diff-col">
-                            <div className="refactor-suggester-diff-label">Before</div>
+                            <div className="refactor-suggester-diff-label">
+                              Before
+                            </div>
                             <pre>{r.before_snippet}</pre>
                           </div>
                           <div className="refactor-suggester-diff-col">
-                            <div className="refactor-suggester-diff-label">After</div>
+                            <div className="refactor-suggester-diff-label">
+                              After
+                            </div>
                             <pre>{r.after_snippet}</pre>
                           </div>
                         </div>
@@ -272,7 +298,10 @@ export function RefactorSuggesterModal({
  */
 let activeRoot: Root | null = null;
 
-export function openRefactorSuggesterModal(path: string, initialIntent?: string): void {
+export function openRefactorSuggesterModal(
+  path: string,
+  initialIntent?: string,
+): void {
   if (activeRoot) return; // already open
   if (!path) {
     pushToast({
@@ -296,6 +325,10 @@ export function openRefactorSuggesterModal(path: string, initialIntent?: string)
     if (container.parentNode) container.parentNode.removeChild(container);
   };
   root.render(
-    <RefactorSuggesterModal path={path} initialIntent={initialIntent} onClose={close} />,
+    <RefactorSuggesterModal
+      path={path}
+      initialIntent={initialIntent}
+      onClose={close}
+    />,
   );
 }

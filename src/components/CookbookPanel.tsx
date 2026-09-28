@@ -18,7 +18,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { Cpu, HardDrive, MonitorCog, Download, Check, MessageSquare } from "lucide-react";
+import {
+  Cpu,
+  HardDrive,
+  MonitorCog,
+  Download,
+  Check,
+  MessageSquare,
+} from "lucide-react";
 import { PanelLoading } from "./Skeleton";
 import { humanizeError } from "@/lib/errors";
 import { pushToast } from "@/lib/toast";
@@ -102,7 +109,9 @@ export function CookbookPanel() {
       <div className="cookbook-panel">
         <div className="cookbook-error">
           {error}
-          <button className="link-btn" onClick={() => void reload()}>Retry</button>
+          <button className="link-btn" onClick={() => void reload()}>
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -120,7 +129,9 @@ export function CookbookPanel() {
           <div className="cookbook-spec">
             <HardDrive size={15} strokeWidth={1.75} aria-hidden="true" />
             <span className="cookbook-spec-val">{gb(specs.ram_avail_mb)}</span>
-            <span className="cookbook-spec-label">free / {gb(specs.ram_total_mb)}</span>
+            <span className="cookbook-spec-label">
+              free / {gb(specs.ram_total_mb)}
+            </span>
           </div>
           <div className="cookbook-spec">
             <MonitorCog size={15} strokeWidth={1.75} aria-hidden="true" />
@@ -128,7 +139,11 @@ export function CookbookPanel() {
               {specs.gpu_name ?? "no GPU"}
             </span>
             <span className="cookbook-spec-label">
-              {specs.vram_total_mb ? gb(specs.vram_total_mb) : specs.has_cuda ? "CUDA" : "CPU only"}
+              {specs.vram_total_mb
+                ? gb(specs.vram_total_mb)
+                : specs.has_cuda
+                  ? "CUDA"
+                  : "CPU only"}
             </span>
           </div>
         </div>
@@ -152,16 +167,21 @@ export function CookbookPanel() {
             >
               <div className="cookbook-row-main">
                 <span className="cookbook-name">{rec.label}</span>
-                <span className={`cookbook-tier tier-${rec.tier}`}>{rec.tier}</span>
+                <span className={`cookbook-tier tier-${rec.tier}`}>
+                  {rec.tier}
+                </span>
                 {rec.installed && (
                   <span className="cookbook-installed">
-                    <Check size={12} strokeWidth={2.25} aria-hidden="true" /> installed
+                    <Check size={12} strokeWidth={2.25} aria-hidden="true" />{" "}
+                    installed
                   </span>
                 )}
               </div>
               <div className="cookbook-row-meta">
                 <span className="cookbook-tag">{rec.name}</span>
-                <span className="cookbook-size">{rec.download_gb.toFixed(1)} GB download</span>
+                <span className="cookbook-size">
+                  {rec.download_gb.toFixed(1)} GB download
+                </span>
                 <span className={rec.fits ? "cookbook-fit" : "cookbook-unfit"}>
                   {rec.fit_reason}
                 </span>
@@ -171,28 +191,41 @@ export function CookbookPanel() {
                   <div className="cookbook-progress-bar">
                     <div
                       className="cookbook-progress-fill"
-                      style={{ width: `${Math.max(2, job.pct ?? 0).toFixed(0)}%` }}
+                      style={{
+                        width: `${Math.max(2, job.pct ?? 0).toFixed(0)}%`,
+                      }}
                     />
                   </div>
                   <span className="cookbook-progress-label">
-                    {job.detail}{job.pct != null ? ` ${job.pct.toFixed(0)}%` : ""}
+                    {job.detail}
+                    {job.pct != null ? ` ${job.pct.toFixed(0)}%` : ""}
                   </span>
                 </div>
               ) : rec.installed ? (
                 <button
                   className="cookbook-use-btn"
                   disabled={!canPull}
-                  title={canPull ? `Chat with ${rec.name}` : "Ollama isn't running"}
+                  title={
+                    canPull ? `Chat with ${rec.name}` : "Ollama isn't running"
+                  }
                   onClick={() => onUse(rec)}
                 >
-                  <MessageSquare size={13} strokeWidth={1.9} aria-hidden="true" />
+                  <MessageSquare
+                    size={13}
+                    strokeWidth={1.9}
+                    aria-hidden="true"
+                  />
                   Use in chat
                 </button>
               ) : (
                 <button
                   className="cookbook-pull-btn"
                   disabled={!canPull}
-                  title={canPull ? `Pull ${rec.name} into Ollama` : "Ollama isn't running"}
+                  title={
+                    canPull
+                      ? `Pull ${rec.name} into Ollama`
+                      : "Ollama isn't running"
+                  }
                   onClick={() => onPull(rec)}
                 >
                   <Download size={13} strokeWidth={1.9} aria-hidden="true" />

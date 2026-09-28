@@ -45,7 +45,10 @@ pub async fn list_gateway_models(state: State<'_, AppState>) -> Result<Vec<Strin
     let cfg = state.config.read().clone();
     let api_key = AppState::get_gateway_api_key().unwrap_or_default();
     let client = GatewayClient::new(cfg.gateway_base_url, api_key);
-    let list = client.list_models().await.map_err(|e| format!("list models: {e}"))?;
+    let list = client
+        .list_models()
+        .await
+        .map_err(|e| format!("list models: {e}"))?;
     Ok(list.data.into_iter().map(|m| m.id).collect())
 }
 
@@ -100,7 +103,11 @@ fn parse_capabilities(v: &serde_json::Value) -> ParsedCaps {
         .map(|arr| arr.iter().map(parse_provider).collect())
         .unwrap_or_default();
 
-    ParsedCaps { models, providers, gateway_version }
+    ParsedCaps {
+        models,
+        providers,
+        gateway_version,
+    }
 }
 
 fn parse_model(v: &serde_json::Value) -> ModelInfo {
@@ -127,9 +134,17 @@ fn parse_model(v: &serde_json::Value) -> ModelInfo {
     // Flags live in several shapes — flat booleans, or a `capabilities`
     // sub-object, or an array of strings.
     let caps_obj = v.get("capabilities");
-    let supports_tools = bool_flag(v, caps_obj, &["supports_tools", "tools", "tool_use", "function_calling"]);
+    let supports_tools = bool_flag(
+        v,
+        caps_obj,
+        &["supports_tools", "tools", "tool_use", "function_calling"],
+    );
     let supports_vision = bool_flag(v, caps_obj, &["supports_vision", "vision", "multimodal"]);
-    let supports_reasoning = bool_flag(v, caps_obj, &["supports_reasoning", "reasoning", "thinking"]);
+    let supports_reasoning = bool_flag(
+        v,
+        caps_obj,
+        &["supports_reasoning", "reasoning", "thinking"],
+    );
 
     ModelInfo {
         id,
@@ -144,11 +159,15 @@ fn parse_model(v: &serde_json::Value) -> ModelInfo {
 fn bool_flag(model: &serde_json::Value, caps: Option<&serde_json::Value>, keys: &[&str]) -> bool {
     for k in keys {
         if let Some(b) = model.get(*k).and_then(|x| x.as_bool()) {
-            if b { return true; }
+            if b {
+                return true;
+            }
         }
         if let Some(c) = caps {
             if let Some(b) = c.get(*k).and_then(|x| x.as_bool()) {
-                if b { return true; }
+                if b {
+                    return true;
+                }
             }
             if let Some(arr) = c.as_array() {
                 if arr.iter().any(|x| x.as_str() == Some(*k)) {
@@ -186,7 +205,11 @@ fn parse_provider(v: &serde_json::Value) -> ProviderInfo {
         .or_else(|| v.get("last_seen_ms").and_then(|n| n.as_u64()))
         .or_else(|| v.get("checked_at").and_then(|n| n.as_u64()));
 
-    ProviderInfo { name, healthy, last_check_ms }
+    ProviderInfo {
+        name,
+        healthy,
+        last_check_ms,
+    }
 }
 
 /// Fallback path: `/v1/capabilities` unavailable, build a minimal view from

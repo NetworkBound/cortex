@@ -96,7 +96,10 @@ export function ThreadsList() {
   // when the message array changes on every streamed token. The interval is
   // re-armed when the active thread switches so we don't accidentally save
   // the wrong thread under the new id.
-  const lastSavedRef = useRef<{ id: string | null; ts: number }>({ id: null, ts: 0 });
+  const lastSavedRef = useRef<{ id: string | null; ts: number }>({
+    id: null,
+    ts: 0,
+  });
   useEffect(() => {
     const tick = () => {
       const state = useCortexStore.getState();
@@ -320,4 +323,3 @@ function ThreadRow({
     </div>
   );
 }
-

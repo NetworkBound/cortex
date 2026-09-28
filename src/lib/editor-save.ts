@@ -15,6 +15,9 @@ import { invoke } from "@tauri-apps/api/core";
  * Throws if the backend rejects the save (empty path, oversized body,
  * I/O error). Callers should surface the error message to the user.
  */
-export async function saveFileText(path: string, body: string): Promise<string> {
+export async function saveFileText(
+  path: string,
+  body: string,
+): Promise<string> {
   return await invoke<string>("save_file_text", { path, body });
 }

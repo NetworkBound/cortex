@@ -210,7 +210,10 @@ mod tests {
     #[test]
     fn gateway_catalog_is_unavailable_when_live_probe_fails() {
         let entries = gateway_entries(None);
-        assert!(!entries.is_empty(), "curated catalog should still be listed");
+        assert!(
+            !entries.is_empty(),
+            "curated catalog should still be listed"
+        );
         for e in &entries {
             assert!(
                 !e.available,
@@ -226,12 +229,21 @@ mod tests {
     #[test]
     fn gateway_catalog_is_available_and_merges_live_entries_when_probe_succeeds() {
         let live_only_id = "gateway-live-only-model-xyz".to_string();
-        let live = vec![crate::gateway::client::ModelInfo { id: live_only_id.clone() }];
+        let live = vec![crate::gateway::client::ModelInfo {
+            id: live_only_id.clone(),
+        }];
         let entries = gateway_entries(Some(live));
 
         let curated_count = aliases::models_for_source("gateway").len();
-        assert_eq!(entries.len(), curated_count + 1, "curated + 1 merged live-only entry");
-        assert!(entries.iter().all(|e| e.available), "all entries available on a successful probe");
+        assert_eq!(
+            entries.len(),
+            curated_count + 1,
+            "curated + 1 merged live-only entry"
+        );
+        assert!(
+            entries.iter().all(|e| e.available),
+            "all entries available on a successful probe"
+        );
         assert!(
             entries.iter().any(|e| e.id == live_only_id),
             "live-only model must be merged in"
@@ -247,9 +259,15 @@ mod tests {
         else {
             return; // empty catalog — nothing to dedup against
         };
-        let live = vec![crate::gateway::client::ModelInfo { id: dup_id.to_string() }];
+        let live = vec![crate::gateway::client::ModelInfo {
+            id: dup_id.to_string(),
+        }];
         let entries = gateway_entries(Some(live));
         let curated_count = aliases::models_for_source("gateway").len();
-        assert_eq!(entries.len(), curated_count, "duplicate live id must not add a new row");
+        assert_eq!(
+            entries.len(),
+            curated_count,
+            "duplicate live id must not add a new row"
+        );
     }
 }

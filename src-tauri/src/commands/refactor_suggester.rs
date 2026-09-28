@@ -84,8 +84,8 @@ pub async fn suggest_refactors(
         return Err(format!("not a file: {}", args.path));
     }
 
-    let raw = fs::read_to_string(&path)
-        .map_err(|e| format!("read {} failed: {e}", path.display()))?;
+    let raw =
+        fs::read_to_string(&path).map_err(|e| format!("read {} failed: {e}", path.display()))?;
     let body = truncate(raw, FILE_LIMIT_BYTES);
     if body.trim().is_empty() {
         return Err("file is empty — nothing to refactor".into());
@@ -100,8 +100,14 @@ pub async fn suggest_refactors(
     let req = ChatCompletionRequest {
         model: cfg.gateway_model.clone(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: SYSTEM_PROMPT.into() },
-            ChatMessage { role: "user".into(), content: user_prompt },
+            ChatMessage {
+                role: "system".into(),
+                content: SYSTEM_PROMPT.into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: user_prompt,
+            },
         ],
         stream: true,
         temperature: Some(0.2),
@@ -153,9 +159,8 @@ async fn run_with_timeout(
 }
 
 fn build_user_prompt(path: &str, language: &str, body: &str, intent: Option<&str>) -> String {
-    let mut prompt = format!(
-        "Path: {path}\nLanguage: {language}\n\n--- FILE ---\n{body}\n--- END FILE ---\n",
-    );
+    let mut prompt =
+        format!("Path: {path}\nLanguage: {language}\n\n--- FILE ---\n{body}\n--- END FILE ---\n",);
     if let Some(focus) = intent.map(|s| s.trim()).filter(|s| !s.is_empty()) {
         prompt.push_str(&format!("\nUser focus: {focus}\n"));
     }

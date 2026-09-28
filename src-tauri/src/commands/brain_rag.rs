@@ -83,7 +83,10 @@ pub fn resolve_chat_model(requested: Option<String>, cfg_model: String) -> Strin
         .filter(|m| !m.trim().is_empty())
         .or_else(|| (!cfg_model.trim().is_empty()).then_some(cfg_model))
         .unwrap_or_else(|| DEFAULT_CHAT_MODEL.to_string());
-    let bare = chosen.trim().trim_start_matches("ollama:").trim_start_matches("ollama/");
+    let bare = chosen
+        .trim()
+        .trim_start_matches("ollama:")
+        .trim_start_matches("ollama/");
     if bare.is_empty() || bare == "auto" {
         DEFAULT_CHAT_MODEL.to_string()
     } else {
@@ -233,11 +236,19 @@ fn build_citations(
     // components) is only a display aid and can coincide for two genuinely
     // different files outside the vault/home roots — deduping on it would
     // silently drop a real, distinct citation instead of just tidying the UI.
-    cites.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    cites.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     cites.retain(|c| c.score >= SCORE_FLOOR);
     let mut seen = std::collections::HashSet::new();
     cites.retain(|c| {
-        let key = if c.source == "note" { c.chunk_id.clone() } else { c.reference.clone() };
+        let key = if c.source == "note" {
+            c.chunk_id.clone()
+        } else {
+            c.reference.clone()
+        };
         seen.insert((c.source.clone(), key))
     });
     cites.truncate(k);
@@ -291,9 +302,16 @@ pub async fn retrieve_unified(
 }
 
 /// Non-streaming Ollama `/api/chat` call for the grounded answer.
-async fn ollama_chat_once(base: &str, model: &str, system: &str, user: &str) -> Result<String, String> {
+async fn ollama_chat_once(
+    base: &str,
+    model: &str,
+    system: &str,
+    user: &str,
+) -> Result<String, String> {
     if base.trim().is_empty() {
-        return Err("no Ollama base URL configured (set ollama_base_url in ~/.cortex/infra.json)".into());
+        return Err(
+            "no Ollama base URL configured (set ollama_base_url in ~/.cortex/infra.json)".into(),
+        );
     }
     let resp = RAG_CLIENT
         .post(format!("{}/api/chat", base.trim_end_matches('/')))
@@ -425,7 +443,9 @@ pub fn find_duplicate_notes(
     vault: Option<&std::path::Path>,
     threshold: f32,
 ) -> Result<Vec<DuplicateGroup>, String> {
-    let rows = store.all_chat_embeddings(model).map_err(|e| e.to_string())?;
+    let rows = store
+        .all_chat_embeddings(model)
+        .map_err(|e| e.to_string())?;
     let vault_prefix = vault.map(|p| p.display().to_string());
     let notes: Vec<(String, Option<String>, Vec<f32>)> = rows
         .into_iter()
@@ -490,7 +510,11 @@ pub async fn brain_rag(
 ) -> Result<BrainAnswer, String> {
     let (ollama_base, vault, cfg_model) = {
         let cfg = state.config.read();
-        (cfg.ollama_base_url.clone(), cfg.obsidian_vault.clone(), cfg.ollama_model.clone())
+        (
+            cfg.ollama_base_url.clone(),
+            cfg.obsidian_vault.clone(),
+            cfg.ollama_model.clone(),
+        )
     };
     let chat_model = resolve_chat_model(model, cfg_model);
     brain_answer(
@@ -515,7 +539,16 @@ mod tests {
 
     fn index_note(store: &TracingStore, path: &std::path::Path, ts: i64, body: &str) {
         store
-            .upsert_chat_embedding(&path.display().to_string(), "vault", ts, "note", body, MODEL, &[1.0, 0.0], None)
+            .upsert_chat_embedding(
+                &path.display().to_string(),
+                "vault",
+                ts,
+                "note",
+                body,
+                MODEL,
+                &[1.0, 0.0],
+                None,
+            )
             .expect("upsert note embedding");
     }
 
@@ -556,7 +589,9 @@ mod tests {
         let changed_str = changed.display().to_string();
         let gone_str = gone.display().to_string();
         assert!(stale.iter().any(|s| s.path == changed_str && !s.missing));
-        assert!(stale.iter().any(|s| s.path == gone_str && s.missing && s.current_mtime == 0));
+        assert!(stale
+            .iter()
+            .any(|s| s.path == gone_str && s.missing && s.current_mtime == 0));
     }
 
     #[test]
@@ -565,12 +600,30 @@ mod tests {
         // A chat message row (role != "note") pointing at a nonexistent "path"
         // must never be flagged — chats are immutable, not file-backed.
         store
-            .upsert_chat_embedding("msg-1", "sess-1", 123, "user", "hi", MODEL, &[1.0, 0.0], None)
+            .upsert_chat_embedding(
+                "msg-1",
+                "sess-1",
+                123,
+                "user",
+                "hi",
+                MODEL,
+                &[1.0, 0.0],
+                None,
+            )
             .unwrap();
         // A note row under a DIFFERENT embed model must not bleed into this
         // model's scan.
         store
-            .upsert_chat_embedding("C:/definitely/missing.md", "vault", 456, "note", "x", "other-model", &[1.0, 0.0], None)
+            .upsert_chat_embedding(
+                "C:/definitely/missing.md",
+                "vault",
+                456,
+                "note",
+                "x",
+                "other-model",
+                &[1.0, 0.0],
+                None,
+            )
             .unwrap();
         assert!(stale_notes_for_model(&store, MODEL).is_empty());
     }
@@ -613,8 +666,20 @@ mod tests {
     #[test]
     fn build_citations_excludes_other_projects_keeps_global_and_own() {
         let hits = vec![
-            hit("C:/proj-a/runbooks/notes.md", "vault", "note", 0.9, Some("C:/proj-a")),
-            hit("C:/proj-b/runbooks/secret.md", "vault", "note", 0.9, Some("C:/proj-b")),
+            hit(
+                "C:/proj-a/runbooks/notes.md",
+                "vault",
+                "note",
+                0.9,
+                Some("C:/proj-a"),
+            ),
+            hit(
+                "C:/proj-b/runbooks/secret.md",
+                "vault",
+                "note",
+                0.9,
+                Some("C:/proj-b"),
+            ),
             hit("C:/vault/global.md", "vault", "note", 0.9, None),
             hit("msg-a", "sess-a", "user", 0.9, Some("C:/proj-a")),
             hit("msg-b", "sess-b", "user", 0.9, Some("C:/proj-b")),
@@ -622,15 +687,30 @@ mod tests {
         ];
         let cites = build_citations(hits, None, Some("C:/proj-a"), 12);
         let ids: Vec<&str> = cites.iter().map(|c| c.chunk_id.as_str()).collect();
-        assert!(ids.contains(&"C:/proj-a/runbooks/notes.md"), "own project's note must appear: {ids:?}");
-        assert!(ids.contains(&"C:/vault/global.md"), "global note must appear: {ids:?}");
-        assert!(ids.contains(&"msg-a"), "own project's chat must appear: {ids:?}");
-        assert!(ids.contains(&"msg-global"), "global chat must appear: {ids:?}");
+        assert!(
+            ids.contains(&"C:/proj-a/runbooks/notes.md"),
+            "own project's note must appear: {ids:?}"
+        );
+        assert!(
+            ids.contains(&"C:/vault/global.md"),
+            "global note must appear: {ids:?}"
+        );
+        assert!(
+            ids.contains(&"msg-a"),
+            "own project's chat must appear: {ids:?}"
+        );
+        assert!(
+            ids.contains(&"msg-global"),
+            "global chat must appear: {ids:?}"
+        );
         assert!(
             !ids.contains(&"C:/proj-b/runbooks/secret.md"),
             "project B's note leaked into project A's answer: {ids:?}"
         );
-        assert!(!ids.contains(&"msg-b"), "project B's chat leaked into project A's answer: {ids:?}");
+        assert!(
+            !ids.contains(&"msg-b"),
+            "project B's chat leaked into project A's answer: {ids:?}"
+        );
     }
 
     #[test]
@@ -639,8 +719,20 @@ mod tests {
         // project-tagged chunk still surfaces — matches pre-isolation
         // behavior exactly, so this is a non-regression guard.
         let hits = vec![
-            hit("C:/proj-a/runbooks/notes.md", "vault", "note", 0.9, Some("C:/proj-a")),
-            hit("C:/proj-b/runbooks/secret.md", "vault", "note", 0.9, Some("C:/proj-b")),
+            hit(
+                "C:/proj-a/runbooks/notes.md",
+                "vault",
+                "note",
+                0.9,
+                Some("C:/proj-a"),
+            ),
+            hit(
+                "C:/proj-b/runbooks/secret.md",
+                "vault",
+                "note",
+                0.9,
+                Some("C:/proj-b"),
+            ),
         ];
         let cites = build_citations(hits, None, None, 12);
         assert_eq!(cites.len(), 2);
@@ -657,7 +749,11 @@ mod tests {
             hit("E:/other/drive/proj/notes/x.md", "vault", "note", 0.8, None),
         ];
         let cites = build_citations(hits, None, None, 12);
-        assert_eq!(cites.len(), 2, "distinct chunk ids must both survive dedup: {cites:?}");
+        assert_eq!(
+            cites.len(),
+            2,
+            "distinct chunk ids must both survive dedup: {cites:?}"
+        );
     }
 
     // ── Memory dedup (issue 010 full scope) ─────────────────────────────────
@@ -666,24 +762,69 @@ mod tests {
     fn find_duplicate_notes_groups_near_identical_and_ignores_distinct() {
         let store = TracingStore::in_memory();
         store
-            .upsert_chat_embedding("C:/vault/a.md", "vault", 1, "note", "x", MODEL, &[1.0, 0.0, 0.0], None)
+            .upsert_chat_embedding(
+                "C:/vault/a.md",
+                "vault",
+                1,
+                "note",
+                "x",
+                MODEL,
+                &[1.0, 0.0, 0.0],
+                None,
+            )
             .unwrap();
         // Near-identical to a.md (cosine ~1.0) — same content saved twice.
         store
-            .upsert_chat_embedding("C:/vault/a-copy.md", "vault", 2, "note", "x", MODEL, &[0.999, 0.001, 0.0], None)
+            .upsert_chat_embedding(
+                "C:/vault/a-copy.md",
+                "vault",
+                2,
+                "note",
+                "x",
+                MODEL,
+                &[0.999, 0.001, 0.0],
+                None,
+            )
             .unwrap();
         // Genuinely different note — must not be grouped in.
         store
-            .upsert_chat_embedding("C:/vault/unrelated.md", "vault", 3, "note", "y", MODEL, &[0.0, 1.0, 0.0], None)
+            .upsert_chat_embedding(
+                "C:/vault/unrelated.md",
+                "vault",
+                3,
+                "note",
+                "y",
+                MODEL,
+                &[0.0, 1.0, 0.0],
+                None,
+            )
             .unwrap();
         // A chat row must never be treated as a note candidate.
         store
-            .upsert_chat_embedding("msg-1", "sess-1", 4, "user", "hi", MODEL, &[1.0, 0.0, 0.0], None)
+            .upsert_chat_embedding(
+                "msg-1",
+                "sess-1",
+                4,
+                "user",
+                "hi",
+                MODEL,
+                &[1.0, 0.0, 0.0],
+                None,
+            )
             .unwrap();
 
-        let groups = find_duplicate_notes(&store, MODEL, None, DEDUP_THRESHOLD).expect("dedup scan");
-        assert_eq!(groups.len(), 1, "exactly one duplicate group expected: {groups:?}");
-        let paths: Vec<&str> = groups[0].members.iter().map(|m| m.open_path.as_str()).collect();
+        let groups =
+            find_duplicate_notes(&store, MODEL, None, DEDUP_THRESHOLD).expect("dedup scan");
+        assert_eq!(
+            groups.len(),
+            1,
+            "exactly one duplicate group expected: {groups:?}"
+        );
+        let paths: Vec<&str> = groups[0]
+            .members
+            .iter()
+            .map(|m| m.open_path.as_str())
+            .collect();
         assert!(paths.contains(&"C:/vault/a.md"));
         assert!(paths.contains(&"C:/vault/a-copy.md"));
         assert!(!paths.contains(&"C:/vault/unrelated.md"));
@@ -693,7 +834,8 @@ mod tests {
     #[test]
     fn find_duplicate_notes_empty_index_yields_no_groups() {
         let store = TracingStore::in_memory();
-        let groups = find_duplicate_notes(&store, MODEL, None, DEDUP_THRESHOLD).expect("dedup scan");
+        let groups =
+            find_duplicate_notes(&store, MODEL, None, DEDUP_THRESHOLD).expect("dedup scan");
         assert!(groups.is_empty());
     }
 }

@@ -8,13 +8,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
  * one cohesive line-icon — the Linear/Raycast/Zed standard. Inherits the parent's
  * `currentColor` and centers via the caret span's own `inline-flex` layout.
  */
-export function Chevron({
-  open,
-  size = 14,
-}: {
-  open: boolean;
-  size?: number;
-}) {
+export function Chevron({ open, size = 14 }: { open: boolean; size?: number }) {
   const Icon = open ? ChevronDown : ChevronRight;
   return <Icon size={size} strokeWidth={1.75} aria-hidden="true" />;
 }

@@ -71,7 +71,9 @@ export interface BudgetStatus {
  * The `localStorage` cap read is sync, so the (local) `cost_estimate` invoke
  * only happens when a cap is actually set.
  */
-export async function evaluateBudget(sessionId?: string): Promise<BudgetStatus | null> {
+export async function evaluateBudget(
+  sessionId?: string,
+): Promise<BudgetStatus | null> {
   const cap = getBudgetCap();
   if (cap === null) return null;
   try {

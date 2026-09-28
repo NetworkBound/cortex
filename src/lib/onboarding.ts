@@ -28,7 +28,11 @@ export function triggerTour(): void {
     /* private-mode — listeners still wake up below. */
   }
   for (const fn of listeners) {
-    try { fn(); } catch { /* ignore listener errors */ }
+    try {
+      fn();
+    } catch {
+      /* ignore listener errors */
+    }
   }
   // Live trigger already woke the listeners above — consume the flag so it
   // doesn't persist and re-show the tour on a later mount.

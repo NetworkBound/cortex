@@ -97,12 +97,18 @@ export function InlineAssist({
     // to splice if the buffer moved underneath them.
     const current = view.state.sliceDoc(selection.from, selection.to);
     if (current !== selection.text) {
-      setError("The buffer changed since you selected — reselect and try again.");
+      setError(
+        "The buffer changed since you selected — reselect and try again.",
+      );
       setPhase("error");
       return;
     }
     view.dispatch({
-      changes: { from: selection.from, to: selection.to, insert: result.replacement },
+      changes: {
+        from: selection.from,
+        to: selection.to,
+        insert: result.replacement,
+      },
       selection: {
         anchor: selection.from,
         head: selection.from + result.replacement.length,
@@ -180,7 +186,12 @@ export function InlineAssist({
           >
             {running ? (
               <>
-                <Loader2 size={13} strokeWidth={2} className="inline-assist-spinner" aria-hidden />
+                <Loader2
+                  size={13}
+                  strokeWidth={2}
+                  className="inline-assist-spinner"
+                  aria-hidden
+                />
                 Rewriting…
               </>
             ) : (
@@ -209,7 +220,10 @@ export function InlineAssist({
             ))}
           </pre>
           <div className="inline-assist-actions">
-            <span className="inline-assist-meta" title={`served by ${result.model}`}>
+            <span
+              className="inline-assist-meta"
+              title={`served by ${result.model}`}
+            >
               {result.model} · {result.latency_ms}ms
             </span>
             <span className="inline-assist-spacer" />
@@ -223,7 +237,11 @@ export function InlineAssist({
             >
               Discard
             </button>
-            <button ref={applyRef} className="inline-assist-apply" onClick={apply}>
+            <button
+              ref={applyRef}
+              className="inline-assist-apply"
+              onClick={apply}
+            >
               Apply
             </button>
           </div>

@@ -65,7 +65,9 @@ export async function findFiles(
  * Preserves the order of first occurrence so the most-recently-touched
  * file (per the backend walker) stays at the top.
  */
-export function groupHitsByFile(hits: SearchHit[]): { path: string; hits: SearchHit[] }[] {
+export function groupHitsByFile(
+  hits: SearchHit[],
+): { path: string; hits: SearchHit[] }[] {
   const order: string[] = [];
   const map = new Map<string, SearchHit[]>();
   for (const h of hits) {

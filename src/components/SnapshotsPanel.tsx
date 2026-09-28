@@ -180,22 +180,44 @@ export function SnapshotsPanel({ onClose }: SnapshotsPanelProps) {
             placeholder="label (e.g. before-refactor)"
             spellCheck={false}
           />
-          <button className="link-btn" onClick={() => void snapshotNow()} disabled={loading}>
-            {loading ? "Working…" : <><Camera size={14} strokeWidth={1.75} aria-hidden="true" /> New snapshot</>}
+          <button
+            className="link-btn"
+            onClick={() => void snapshotNow()}
+            disabled={loading}
+          >
+            {loading ? (
+              "Working…"
+            ) : (
+              <>
+                <Camera size={14} strokeWidth={1.75} aria-hidden="true" /> New
+                snapshot
+              </>
+            )}
           </button>
-          <button className="link-btn" onClick={() => void refresh()} disabled={loading}>
+          <button
+            className="link-btn"
+            onClick={() => void refresh()}
+            disabled={loading}
+          >
             Refresh
           </button>
-          <button className="link-btn" onClick={() => void onPrune()} disabled={loading}>
+          <button
+            className="link-btn"
+            onClick={() => void onPrune()}
+            disabled={loading}
+          >
             Prune older than N
           </button>
         </div>
         {error && <div className="snapshots-error">{error}</div>}
         {lastReport && (
           <div className="snapshots-report">
-            Restored {lastReport.files_restored} file{lastReport.files_restored === 1 ? "" : "s"};{" "}
-            skipped {lastReport.files_skipped}
-            {lastReport.errors.length > 0 && `; ${lastReport.errors.length} error(s)`}.
+            Restored {lastReport.files_restored} file
+            {lastReport.files_restored === 1 ? "" : "s"}; skipped{" "}
+            {lastReport.files_skipped}
+            {lastReport.errors.length > 0 &&
+              `; ${lastReport.errors.length} error(s)`}
+            .
             {lastReport.errors.length > 0 && (
               <details>
                 <summary>errors</summary>
@@ -205,10 +227,13 @@ export function SnapshotsPanel({ onClose }: SnapshotsPanelProps) {
           </div>
         )}
         <div className="snapshots-list">
-          {items.length === 0 && loading && <PanelLoading label="Loading snapshots" />}
+          {items.length === 0 && loading && (
+            <PanelLoading label="Loading snapshots" />
+          )}
           {items.length === 0 && !loading && !error && (
             <div className="muted" style={{ padding: 16, textAlign: "center" }}>
-              No snapshots yet. Click <em>New snapshot</em> to capture every memory source.
+              No snapshots yet. Click <em>New snapshot</em> to capture every
+              memory source.
             </div>
           )}
           {items.map((snap) => (
@@ -218,8 +243,14 @@ export function SnapshotsPanel({ onClose }: SnapshotsPanelProps) {
                 <span className="muted">{timeAgo(snap.created_unix_ms)}</span>
               </div>
               <div className="brain-meta">
-                {snap.file_count} files · {formatBytes(snap.size_bytes)} · {snap.roots.length} sources ·{" "}
-                <code style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 10.5 }}>
+                {snap.file_count} files · {formatBytes(snap.size_bytes)} ·{" "}
+                {snap.roots.length} sources ·{" "}
+                <code
+                  style={{
+                    fontFamily: "var(--font-mono, monospace)",
+                    fontSize: 10.5,
+                  }}
+                >
                   {snap.id.slice(0, 18)}
                 </code>
               </div>

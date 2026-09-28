@@ -69,7 +69,11 @@ export default function RecentView({
   return (
     <div className="scroll">
       <div className="pad recent-top">
-        <button className="btn import-cta" style={{ width: "100%" }} onClick={onImport}>
+        <button
+          className="btn import-cta"
+          style={{ width: "100%" }}
+          onClick={onImport}
+        >
           ＋ Import chat history
         </button>
       </div>
@@ -84,11 +88,7 @@ export default function RecentView({
 
       <div className="list">
         {sessions.map((s) => (
-          <button
-            key={s.id}
-            className="row-item"
-            onClick={() => open(s.id)}
-          >
+          <button key={s.id} className="row-item" onClick={() => open(s.id)}>
             <div className="meta">
               <div className="name">{s.title || "New chat"}</div>
               {s.preview && <div className="sub">{s.preview}</div>}

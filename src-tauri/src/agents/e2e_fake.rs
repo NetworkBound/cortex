@@ -99,11 +99,18 @@ impl AgentAdapter for E2eFakeAgent {
 
     async fn run(&self, req: ChatRequest, tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
         let _ = tx
-            .send(AgentEvent::Started { agent_id: "e2e-fake".to_string(), run_id: None })
+            .send(AgentEvent::Started {
+                agent_id: "e2e-fake".to_string(),
+                run_id: None,
+            })
             .await;
         if req.message.contains("[[e2e:focus-chain]]") {
             for chunk in FOCUS_CHAIN_CHUNKS {
-                let _ = tx.send(AgentEvent::Token { delta: (*chunk).to_string() }).await;
+                let _ = tx
+                    .send(AgentEvent::Token {
+                        delta: (*chunk).to_string(),
+                    })
+                    .await;
                 // Small gap so chunks arrive as distinct deltas like a real stream.
                 tokio::time::sleep(std::time::Duration::from_millis(25)).await;
             }
@@ -117,7 +124,11 @@ impl AgentAdapter for E2eFakeAgent {
                 ```json\n{\"pass\": true, \"score\": 88, \"checks\": [\
                 {\"name\": \"outputs merged\", \"pass\": true}, \
                 {\"name\": \"goal met\", \"pass\": true}]}\n```";
-            let _ = tx.send(AgentEvent::Token { delta: merged.to_string() }).await;
+            let _ = tx
+                .send(AgentEvent::Token {
+                    delta: merged.to_string(),
+                })
+                .await;
         } else if let Some(plan) = synthesize_team_plan(&req.message) {
             // Team manager planning prompt → emit a valid JSON plan so the
             // slice-4 team-run flow is deterministic without a live LLM.
@@ -160,14 +171,23 @@ impl AgentAdapter for E2eFakeAgent {
                 .await;
         } else if req.message.contains("[[e2e:err]]") {
             let _ = tx
-                .send(AgentEvent::Error { message: "e2e: deterministic failure".to_string() })
+                .send(AgentEvent::Error {
+                    message: "e2e: deterministic failure".to_string(),
+                })
                 .await;
         } else {
             let _ = tx
-                .send(AgentEvent::Token { delta: format!("e2e-echo: {}", req.message) })
+                .send(AgentEvent::Token {
+                    delta: format!("e2e-echo: {}", req.message),
+                })
                 .await;
         }
-        let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+        let _ = tx
+            .send(AgentEvent::Done {
+                total_tokens: None,
+                run_id: None,
+            })
+            .await;
         Ok(())
     }
 }

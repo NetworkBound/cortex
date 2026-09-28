@@ -17,7 +17,10 @@ pub struct ChromaHit {
 
 pub fn chroma_db_path() -> Option<PathBuf> {
     let home = dirs::home_dir()?;
-    let p = home.join(".claude-mem").join("chroma").join("chroma.sqlite3");
+    let p = home
+        .join(".claude-mem")
+        .join("chroma")
+        .join("chroma.sqlite3");
     p.exists().then_some(p)
 }
 
@@ -50,7 +53,9 @@ pub fn substring_search(needle: &str, limit: usize) -> anyhow::Result<Vec<Chroma
             })
         });
         if let Ok(rows) = rows {
-            for row in rows.flatten() { hits.push(row); }
+            for row in rows.flatten() {
+                hits.push(row);
+            }
             return Ok(hits);
         }
     }

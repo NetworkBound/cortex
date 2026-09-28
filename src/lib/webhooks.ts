@@ -67,6 +67,9 @@ export async function testWebhook(id: string): Promise<TestResult> {
   return invoke<TestResult>("test_webhook", { id });
 }
 
-export async function fireEvent(event: string, payload: unknown): Promise<number> {
+export async function fireEvent(
+  event: string,
+  payload: unknown,
+): Promise<number> {
   return invoke<number>("fire_event", { event, payload });
 }

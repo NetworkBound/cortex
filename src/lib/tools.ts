@@ -38,7 +38,13 @@ export interface ToolInvocationResult {
   truncated: boolean;
 }
 
-export const TOOL_METHODS: ToolMethod[] = ["GET", "POST", "PUT", "DELETE", "PATCH"];
+export const TOOL_METHODS: ToolMethod[] = [
+  "GET",
+  "POST",
+  "PUT",
+  "DELETE",
+  "PATCH",
+];
 export const INPUT_KINDS: InputKind[] = ["string", "int", "bool"];
 
 /** A blank tool ready for the "new tool" form. Keeps the panel state pure. */

@@ -21,7 +21,9 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
     } catch {
       /* ignore */
     }
-    throw new Error(`${res.status} ${res.statusText}${detail ? ` — ${detail}` : ""}`);
+    throw new Error(
+      `${res.status} ${res.statusText}${detail ? ` — ${detail}` : ""}`,
+    );
   }
   return res.json() as Promise<T>;
 }
@@ -79,7 +81,9 @@ export interface UltimateResponse {
   result: UltimateResult;
 }
 
-export async function postUltimate(body: UltimateBody): Promise<UltimateResponse> {
+export async function postUltimate(
+  body: UltimateBody,
+): Promise<UltimateResponse> {
   return jsonOrThrow<UltimateResponse>(
     await fetch("/api/ultimate", {
       method: "POST",

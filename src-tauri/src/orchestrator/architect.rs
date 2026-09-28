@@ -109,9 +109,15 @@ mod tests {
     #[test]
     fn planner_model_override_wins_and_canonicalizes() {
         // A short alias override resolves to its canonical id.
-        assert_eq!(planner_model(Some("opus"), Some("gpt-5.5"), None), "claude-opus-4-8");
+        assert_eq!(
+            planner_model(Some("opus"), Some("gpt-5.5"), None),
+            "claude-opus-4-8"
+        );
         // Whitespace/case tolerated.
-        assert_eq!(planner_model(Some("  Sonnet "), None, None), "claude-sonnet-4-6");
+        assert_eq!(
+            planner_model(Some("  Sonnet "), None, None),
+            "claude-sonnet-4-6"
+        );
         // Override beats a configured role default too.
         assert_eq!(
             planner_model(Some("opus"), None, Some("claude-haiku-4-5")),
@@ -132,10 +138,7 @@ mod tests {
     fn configured_role_default_sits_below_pick_above_builtin() {
         // No override, no pick → the configured planner role wins over the
         // built-in default (Continue.dev model-roles), canonicalized.
-        assert_eq!(
-            planner_model(None, None, Some("opus")),
-            "claude-opus-4-8"
-        );
+        assert_eq!(planner_model(None, None, Some("opus")), "claude-opus-4-8");
         // An explicit pick still beats the configured role default.
         assert_eq!(
             planner_model(None, Some("gpt-5.5"), Some("claude-opus-4-8")),
@@ -161,8 +164,14 @@ mod tests {
     #[test]
     fn unknown_slugs_pass_through_unchanged() {
         // Ollama / unknown slugs are not in the catalog → verbatim.
-        assert_eq!(planner_model(Some("ollama:llama3.2:1b"), None, None), "ollama:llama3.2:1b");
-        assert_eq!(editor_model(None, Some("some-gateway-model"), None), "some-gateway-model");
+        assert_eq!(
+            planner_model(Some("ollama:llama3.2:1b"), None, None),
+            "ollama:llama3.2:1b"
+        );
+        assert_eq!(
+            editor_model(None, Some("some-gateway-model"), None),
+            "some-gateway-model"
+        );
         // A configured (unknown) slug also passes through verbatim.
         assert_eq!(
             editor_model(None, None, Some("ollama:codellama")),

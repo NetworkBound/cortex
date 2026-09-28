@@ -19,9 +19,7 @@
 //! `chat.completion.chunk` objects terminated by a `[DONE]` sentinel; we
 //! translate `choices[].delta.content` into `Token`s.
 
-use super::adapter::{
-    AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest,
-};
+use super::adapter::{AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest};
 use crate::commands::keyvault;
 use eventsource_stream::Eventsource;
 use futures::StreamExt;
@@ -118,13 +116,12 @@ impl AgentAdapter for OpenAIDirectAgent {
         Self::api_key().is_some()
     }
 
-    async fn run(
-        &self,
-        req: ChatRequest,
-        tx: mpsc::Sender<AgentEvent>,
-    ) -> anyhow::Result<()> {
+    async fn run(&self, req: ChatRequest, tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
         let _ = tx
-            .send(AgentEvent::Started { agent_id: AGENT_ID.into(), run_id: None })
+            .send(AgentEvent::Started {
+                agent_id: AGENT_ID.into(),
+                run_id: None,
+            })
             .await;
 
         let Some(api_key) = Self::api_key() else {
@@ -135,7 +132,12 @@ impl AgentAdapter for OpenAIDirectAgent {
                             .into(),
                 })
                 .await;
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             return Ok(());
         };
 
@@ -177,7 +179,12 @@ impl AgentAdapter for OpenAIDirectAgent {
                         message: format!("openai request failed: {e} (check your network)"),
                     })
                     .await;
-                let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+                let _ = tx
+                    .send(AgentEvent::Done {
+                        total_tokens: None,
+                        run_id: None,
+                    })
+                    .await;
                 return Ok(());
             }
         };
@@ -198,7 +205,12 @@ impl AgentAdapter for OpenAIDirectAgent {
                     message: format!("openai returned {status}: {detail}{hint}"),
                 })
                 .await;
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             return Ok(());
         }
 
@@ -210,7 +222,9 @@ impl AgentAdapter for OpenAIDirectAgent {
                 Ok(e) => e,
                 Err(e) => {
                     let _ = tx
-                        .send(AgentEvent::Error { message: format!("openai stream error: {e}") })
+                        .send(AgentEvent::Error {
+                            message: format!("openai stream error: {e}"),
+                        })
                         .await;
                     break;
                 }
@@ -230,7 +244,12 @@ impl AgentAdapter for OpenAIDirectAgent {
             }
         }
 
-        let _ = tx.send(AgentEvent::Done { total_tokens, run_id: None }).await;
+        let _ = tx
+            .send(AgentEvent::Done {
+                total_tokens,
+                run_id: None,
+            })
+            .await;
         Ok(())
     }
 }
@@ -270,7 +289,10 @@ mod tests {
     #[test]
     fn parses_content_delta() {
         let data = r#"{"id":"x","choices":[{"index":0,"delta":{"content":"Hi"}}]}"#;
-        assert_eq!(parse_openai_event(data), Some((Some("Hi".to_string()), None)));
+        assert_eq!(
+            parse_openai_event(data),
+            Some((Some("Hi".to_string()), None))
+        );
     }
 
     #[test]

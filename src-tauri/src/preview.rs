@@ -57,9 +57,7 @@ struct WatcherHandle {
 static WATCHER: OnceCell<Arc<Mutex<Option<WatcherHandle>>>> = OnceCell::new();
 
 fn slot() -> Arc<Mutex<Option<WatcherHandle>>> {
-    WATCHER
-        .get_or_init(|| Arc::new(Mutex::new(None)))
-        .clone()
+    WATCHER.get_or_init(|| Arc::new(Mutex::new(None))).clone()
 }
 
 /// One-shot sweep of every probe port. Public so the
@@ -78,7 +76,9 @@ pub async fn sweep_once() -> Vec<DetectedServer> {
     let mut handles = Vec::with_capacity(PROBE_PORTS.len());
     for &port in PROBE_PORTS {
         let client = client.clone();
-        handles.push(tauri::async_runtime::spawn(async move { probe_port(&client, port).await }));
+        handles.push(tauri::async_runtime::spawn(async move {
+            probe_port(&client, port).await
+        }));
     }
 
     let mut found = Vec::new();
@@ -198,7 +198,11 @@ async fn probe_port(client: &reqwest::Client, port: u16) -> Option<DetectedServe
         let Ok(Ok(resp)) = timeout(PROBE_TIMEOUT, client.get(&url).send()).await else {
             // If GET also failed, we still consider the port alive (TCP
             // connected) but with no metadata. The user can still preview.
-            return Some(DetectedServer { port, url, title: None });
+            return Some(DetectedServer {
+                port,
+                url,
+                title: None,
+            });
         };
         if !(resp.status().is_success() || resp.status().is_redirection()) {
             // Something is listening but actively rejecting — skip.

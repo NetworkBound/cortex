@@ -124,8 +124,14 @@ pub async fn suggest_context(
     let req = ChatCompletionRequest {
         model: cfg.gateway_model.clone(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: SYSTEM_PROMPT.into() },
-            ChatMessage { role: "user".into(), content: user_prompt },
+            ChatMessage {
+                role: "system".into(),
+                content: SYSTEM_PROMPT.into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: user_prompt,
+            },
         ],
         stream: true,
         temperature: Some(0.2),
@@ -165,7 +171,11 @@ fn build_candidate_block(project_root: Option<&std::path::Path>, store: &Tracing
 
     let memory_titles = collect_memory_titles(project_root);
     if !memory_titles.is_empty() {
-        push_section(&mut buf, "Memory entries (path — first line):", &memory_titles);
+        push_section(
+            &mut buf,
+            "Memory entries (path — first line):",
+            &memory_titles,
+        );
     }
 
     let traces = store.recent_traces(TRACE_PROMPT_CAP).unwrap_or_default();
@@ -181,7 +191,11 @@ fn build_candidate_block(project_root: Option<&std::path::Path>, store: &Tracing
                 format!("{} — session {} — {}", t.trace_id, t.session_id, span_label)
             })
             .collect();
-        push_section(&mut buf, "Recent traces (id — session — first span):", &lines);
+        push_section(
+            &mut buf,
+            "Recent traces (id — session — first span):",
+            &lines,
+        );
     }
 
     if buf.is_empty() {
@@ -277,9 +291,8 @@ async fn run_with_timeout(
 /// approach as `ask_router::parse_router_json`.
 fn parse_suggestions(raw: &str) -> Result<Vec<ContextSuggestion>, String> {
     let stripped = strip_fences(raw);
-    let blob = extract_json_array(&stripped).ok_or_else(|| {
-        format!("suggest_context: no JSON array in model output (raw={raw})")
-    })?;
+    let blob = extract_json_array(&stripped)
+        .ok_or_else(|| format!("suggest_context: no JSON array in model output (raw={raw})"))?;
     let parsed: Vec<RawSuggestion> = serde_json::from_str(blob)
         .map_err(|e| format!("suggest_context: invalid JSON: {e} (raw={raw})"))?;
 
@@ -303,7 +316,12 @@ fn parse_suggestions(raw: &str) -> Result<Vec<ContextSuggestion>, String> {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| "(no reason provided)".into());
-        out.push(ContextSuggestion { kind, value, reason, confidence });
+        out.push(ContextSuggestion {
+            kind,
+            value,
+            reason,
+            confidence,
+        });
         if out.len() >= 8 {
             break;
         }
@@ -409,7 +427,7 @@ mod tests {
         assert!(out.len() <= 5);
         assert!(s.is_char_boundary(out.len()));
         assert_eq!(out, "éé"); // backed up to 4 bytes
-        // Emoji (4-byte) at a tight limit.
+                               // Emoji (4-byte) at a tight limit.
         let emoji = "😀abc";
         assert_eq!(truncate_on_char_boundary(emoji, 2), "");
         // No truncation when under the cap.

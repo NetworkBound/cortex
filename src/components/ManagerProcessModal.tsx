@@ -63,7 +63,11 @@ export function ManagerProcessModal({
   const handleDecompose = useCallback(async () => {
     const trimmed = goal.trim();
     if (!trimmed) {
-      pushToast({ title: "Manager process", body: "Enter a goal first.", kind: "warning" });
+      pushToast({
+        title: "Manager process",
+        body: "Enter a goal first.",
+        kind: "warning",
+      });
       return;
     }
     setDecomposing(true);
@@ -208,7 +212,8 @@ export function ManagerProcessModal({
           <div>
             <div className="manager-title">Manager process</div>
             <div className="manager-subtitle">
-              CrewAI-style auto-decomposition. The manager LLM picks specialists, you press Run.
+              CrewAI-style auto-decomposition. The manager LLM picks
+              specialists, you press Run.
             </div>
           </div>
           <button
@@ -251,7 +256,11 @@ export function ManagerProcessModal({
                 runAllActive
               }
             >
-              {decomposing ? "Decomposing…" : plan ? "Re-decompose" : "Decompose"}
+              {decomposing
+                ? "Decomposing…"
+                : plan
+                  ? "Re-decompose"
+                  : "Decompose"}
             </button>
             {plan && (
               <button
@@ -323,9 +332,7 @@ function StepCard({
   const status = subtask.status;
   const depsLabel = useMemo(() => {
     if (!subtask.depends_on.length) return null;
-    return subtask.depends_on
-      .map((d) => `#${d + 1}`)
-      .join(", ");
+    return subtask.depends_on.map((d) => `#${d + 1}`).join(", ");
   }, [subtask.depends_on]);
 
   return (
@@ -337,7 +344,10 @@ function StepCard({
           <div className="manager-step-tags">
             <span className="manager-role-badge">{subtask.role}</span>
             {depsLabel && (
-              <span className="manager-dep-badge" title="Depends on prior steps">
+              <span
+                className="manager-dep-badge"
+                title="Depends on prior steps"
+              >
                 ↳ {depsLabel}
               </span>
             )}
@@ -359,7 +369,11 @@ function StepCard({
             className="manager-step-btn"
             onClick={onValidate}
             disabled={disabledExternal || !subtask.output}
-            title={subtask.output ? "Re-validate the current output" : "No output yet"}
+            title={
+              subtask.output
+                ? "Re-validate the current output"
+                : "No output yet"
+            }
           >
             {isBusy && status === "validating" ? "Validating…" : "Validate"}
           </button>
@@ -419,5 +433,7 @@ export function openManagerProcessModal(initialGoal?: string): void {
     root.unmount();
     if (container.parentNode) container.parentNode.removeChild(container);
   };
-  root.render(<ManagerProcessModal initialGoal={initialGoal} onClose={close} />);
+  root.render(
+    <ManagerProcessModal initialGoal={initialGoal} onClose={close} />,
+  );
 }

@@ -112,7 +112,9 @@ export function AgentInstructionsEditor({
               />
               <div
                 className="agent-instructions-meta"
-                style={{ ["--cortex-counter" as never]: `"${charCount} chars"` }}
+                style={{
+                  ["--cortex-counter" as never]: `"${charCount} chars"`,
+                }}
               >
                 <span className="agent-instructions-counter">
                   {charCount} chars

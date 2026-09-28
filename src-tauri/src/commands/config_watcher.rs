@@ -96,9 +96,7 @@ struct WatcherHandle {
 static WATCHER: OnceCell<Arc<Mutex<Option<WatcherHandle>>>> = OnceCell::new();
 
 fn slot() -> Arc<Mutex<Option<WatcherHandle>>> {
-    WATCHER
-        .get_or_init(|| Arc::new(Mutex::new(None)))
-        .clone()
+    WATCHER.get_or_init(|| Arc::new(Mutex::new(None))).clone()
 }
 
 /// Compute `~/.cortex/`. Errors when no home dir is available.
@@ -174,9 +172,8 @@ pub fn start(app: AppHandle) -> Result<()> {
 
     let root = cortex_dir()?;
     if !root.exists() {
-        std::fs::create_dir_all(&root).with_context(|| {
-            format!("config_watcher: failed to create {}", root.display())
-        })?;
+        std::fs::create_dir_all(&root)
+            .with_context(|| format!("config_watcher: failed to create {}", root.display()))?;
     }
     if !root.is_dir() {
         anyhow::bail!(
@@ -218,10 +215,7 @@ pub fn start(app: AppHandle) -> Result<()> {
         let p = root.join(sub);
         if p.is_dir() {
             if let Err(e) = watcher.watch(&p, RecursiveMode::Recursive) {
-                tracing::warn!(
-                    "config_watcher: failed to watch {}: {e}",
-                    p.display()
-                );
+                tracing::warn!("config_watcher: failed to watch {}: {e}", p.display());
             } else {
                 watched_paths.push(p);
             }
@@ -360,14 +354,8 @@ mod tests {
     #[test]
     fn watches_top_level_known_files() {
         let root = PathBuf::from("/home/x/.cortex");
-        assert!(is_watched_path(
-            &root.join("snippets.json"),
-            &root
-        ));
-        assert!(is_watched_path(
-            &root.join("trust-matrix.json"),
-            &root
-        ));
+        assert!(is_watched_path(&root.join("snippets.json"), &root));
+        assert!(is_watched_path(&root.join("trust-matrix.json"), &root));
         assert!(is_watched_path(
             &root.join("agent-instructions.json"),
             &root
@@ -391,10 +379,7 @@ mod tests {
             &root.join("skills/my-skill/SKILL.md"),
             &root
         ));
-        assert!(is_watched_path(
-            &root.join("focus-chains/main.json"),
-            &root
-        ));
+        assert!(is_watched_path(&root.join("focus-chains/main.json"), &root));
         assert!(is_watched_path(&root.join("teams/core.json"), &root));
     }
 

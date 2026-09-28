@@ -70,37 +70,36 @@ function asPlan(obj: Record<string, unknown>): Plan | null {
     }
     if (s && typeof s === "object") {
       const o = s as Record<string, unknown>;
-      const title = typeof o.title === "string"
-        ? o.title
-        : typeof o.name === "string"
-          ? o.name
-          : null;
+      const title =
+        typeof o.title === "string"
+          ? o.title
+          : typeof o.name === "string"
+            ? o.name
+            : null;
       if (!title) continue;
       normalizedSteps.push({
         title,
         detail: typeof o.detail === "string" ? o.detail : undefined,
-        estimated_time: typeof o.estimated_time === "string"
-          ? o.estimated_time
-          : undefined,
+        estimated_time:
+          typeof o.estimated_time === "string" ? o.estimated_time : undefined,
       });
     }
   }
   if (normalizedSteps.length === 0) return null;
-  const id = typeof obj.id === "string" && obj.id.trim().length > 0
-    ? obj.id
-    : `plan-${Date.now().toString(36)}`;
+  const id =
+    typeof obj.id === "string" && obj.id.trim().length > 0
+      ? obj.id
+      : `plan-${Date.now().toString(36)}`;
   const title = typeof obj.title === "string" ? obj.title : "Proposed plan";
   return {
     id,
     title,
     summary: typeof obj.summary === "string" ? obj.summary : undefined,
     steps: normalizedSteps,
-    estimated_time: typeof obj.estimated_time === "string"
-      ? obj.estimated_time
-      : undefined,
-    estimated_cost: typeof obj.estimated_cost === "string"
-      ? obj.estimated_cost
-      : undefined,
+    estimated_time:
+      typeof obj.estimated_time === "string" ? obj.estimated_time : undefined,
+    estimated_cost:
+      typeof obj.estimated_cost === "string" ? obj.estimated_cost : undefined,
   };
 }
 

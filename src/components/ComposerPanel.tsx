@@ -72,13 +72,19 @@ function MicCaptureButton() {
         setState("idle");
         const text = transcript.trim();
         if (!text) {
-          pushToast({ title: "Voice", body: "No speech captured.", kind: "info" });
+          pushToast({
+            title: "Voice",
+            body: "No speech captured.",
+            kind: "info",
+          });
           return;
         }
         // Splice into the chat composer draft via the shared insert channel.
         try {
           window.dispatchEvent(
-            new CustomEvent("cortex:composer-insert", { detail: { value: text } }),
+            new CustomEvent("cortex:composer-insert", {
+              detail: { value: text },
+            }),
           );
         } catch {
           /* dispatch failures are non-fatal */
@@ -114,7 +120,8 @@ function MicCaptureButton() {
     // "busy" → button is disabled, no-op.
   };
 
-  const Icon = state === "recording" ? Square : state === "busy" ? Loader2 : Mic;
+  const Icon =
+    state === "recording" ? Square : state === "busy" ? Loader2 : Mic;
   const title =
     state === "recording"
       ? "Recording — click to stop (auto-stops after a few seconds)"
@@ -149,7 +156,11 @@ function MicCaptureButton() {
         size={14}
         strokeWidth={1.75}
         aria-hidden="true"
-        style={state === "busy" ? { animation: "spin 0.8s linear infinite" } : undefined}
+        style={
+          state === "busy"
+            ? { animation: "spin 0.8s linear infinite" }
+            : undefined
+        }
       />{" "}
       mic
     </button>
@@ -287,8 +298,13 @@ function GatherAgentToggle() {
 }
 
 function StatusIcon({ status }: { status: ComposerEdit["status"] }) {
-  const symbol = status === "accepted" ? "✓" : status === "rejected" ? "✕" : "•";
-  return <span className={`composer-status composer-status-${status}`}>{symbol}</span>;
+  const symbol =
+    status === "accepted" ? "✓" : status === "rejected" ? "✕" : "•";
+  return (
+    <span className={`composer-status composer-status-${status}`}>
+      {symbol}
+    </span>
+  );
 }
 
 /**
@@ -311,14 +327,23 @@ function UnifiedDiffView({
     rows.push(
       <div className="composer-diff-hunk-header" key={`h-${rows.length}`}>
         @@ -{hunk.oldStart},{hunk.oldCount} +{hunk.newStart},{hunk.newCount} @@
-        {hunk.header && hunk.header !== `@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@`
+        {hunk.header &&
+        hunk.header !==
+          `@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@`
           ? ` ${hunk.header}`
           : ""}
       </div>,
     );
     for (const r of hunk.rows) {
       if (used >= limit) break;
-      const marker = r.kind === "add" ? "+" : r.kind === "del" ? "-" : r.kind === "header" ? " " : " ";
+      const marker =
+        r.kind === "add"
+          ? "+"
+          : r.kind === "del"
+            ? "-"
+            : r.kind === "header"
+              ? " "
+              : " ";
       const cls =
         r.kind === "add"
           ? "add"
@@ -329,12 +354,8 @@ function UnifiedDiffView({
               : "ctx";
       rows.push(
         <div className={`composer-diff-row ${cls}`} key={`r-${rows.length}`}>
-          <span className="composer-diff-gutter">
-            {r.oldLine ?? ""}
-          </span>
-          <span className="composer-diff-gutter">
-            {r.newLine ?? ""}
-          </span>
+          <span className="composer-diff-gutter">{r.oldLine ?? ""}</span>
+          <span className="composer-diff-gutter">{r.newLine ?? ""}</span>
           <span className="composer-diff-marker">{marker}</span>
           <span className="composer-diff-text">{r.text || " "}</span>
         </div>,
@@ -362,17 +383,9 @@ function SideBySideView({
     <div className="composer-diff composer-diff-split">
       {clipped.map((r, i) => {
         const leftCls =
-          r.kind === "context"
-            ? "ctx"
-            : r.kind === "add"
-              ? "empty"
-              : "del";
+          r.kind === "context" ? "ctx" : r.kind === "add" ? "empty" : "del";
         const rightCls =
-          r.kind === "context"
-            ? "ctx"
-            : r.kind === "del"
-              ? "empty"
-              : "add";
+          r.kind === "context" ? "ctx" : r.kind === "del" ? "empty" : "add";
         return (
           <div className="composer-diff-row split" key={`s-${i}`}>
             <span className="composer-diff-gutter">{r.oldLine ?? ""}</span>
@@ -426,7 +439,9 @@ function EditDiffBody({ edit }: { edit: ComposerEdit }) {
 
   const totalRows =
     view.kind === "unified" ? view.parsed.totalRows : view.rows.length;
-  const visibleLimit = showAll ? totalRows : Math.min(totalRows, VISIBLE_ROW_LIMIT);
+  const visibleLimit = showAll
+    ? totalRows
+    : Math.min(totalRows, VISIBLE_ROW_LIMIT);
   const remaining = Math.max(0, totalRows - visibleLimit);
 
   return (
@@ -505,7 +520,10 @@ export function ComposerPanel() {
   };
 
   return (
-    <div className="modal-backdrop composer-backdrop" onClick={() => setShow(false)}>
+    <div
+      className="modal-backdrop composer-backdrop"
+      onClick={() => setShow(false)}
+    >
       <div
         className="modal composer-modal"
         onClick={(e) => e.stopPropagation()}
@@ -569,7 +587,8 @@ export function ComposerPanel() {
               <div className="composer-empty-icon">∅</div>
               <div className="composer-empty-title">No pending file edits</div>
               <div className="composer-empty-hint">
-                When an assistant edits files across this session, they appear here for review.
+                When an assistant edits files across this session, they appear
+                here for review.
               </div>
             </div>
           ) : (
@@ -591,7 +610,9 @@ export function ComposerPanel() {
                           {name}
                         </div>
                         <div className="composer-row-meta">
-                          {dir && <span className="composer-row-dir">{dir}</span>}
+                          {dir && (
+                            <span className="composer-row-dir">{dir}</span>
+                          )}
                           <span className="composer-row-stats">
                             +{g.totalLines} lines
                             {editCount > 1 ? ` · ${editCount} edits` : ""}

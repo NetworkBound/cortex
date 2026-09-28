@@ -95,8 +95,9 @@ export function SessionPicker() {
         body: humanizeError(err),
         kind: "error",
       });
+    } finally {
+      setLoading(false);
     }
-    finally { setLoading(false); }
   }
 
   /** Save a session (incl. imported Claude.ai/ChatGPT history) to the Obsidian
@@ -110,17 +111,27 @@ export function SessionPicker() {
         kind: "success",
       });
     } catch (err) {
-      pushToast({ title: "Couldn't save to Brain", body: humanizeError(err), kind: "error" });
+      pushToast({
+        title: "Couldn't save to Brain",
+        body: humanizeError(err),
+        kind: "error",
+      });
     }
   }
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); setOpen(false); }
-      else if (e.key === "ArrowDown") { e.preventDefault(); setIdx((i) => Math.min(i + 1, filtered.length - 1)); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); setIdx((i) => Math.max(i - 1, 0)); }
-      else if (e.key === "Enter") {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setOpen(false);
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setIdx((i) => Math.min(i + 1, filtered.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setIdx((i) => Math.max(i - 1, 0));
+      } else if (e.key === "Enter") {
         e.preventDefault();
         if (filtered[idx]) void pick(filtered[idx]);
       }
@@ -139,11 +150,17 @@ export function SessionPicker() {
   if (!open) return null;
   return (
     <div className="palette-backdrop" onClick={() => setOpen(false)}>
-      <div className="palette session-picker" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="palette session-picker"
+        onClick={(e) => e.stopPropagation()}
+      >
         <input
           autoFocus
           value={q}
-          onChange={(e) => { setQ(e.target.value); setIdx(0); }}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setIdx(0);
+          }}
           placeholder="Resume a chat session…"
         />
         {pickError && (
@@ -194,7 +211,10 @@ export function SessionPicker() {
                 <div className="sp-row">
                   <strong className="sp-title">
                     {importLabel && (
-                      <span className="sp-badge" title={`Imported from ${importLabel} — continue it on any model`}>
+                      <span
+                        className="sp-badge"
+                        title={`Imported from ${importLabel} — continue it on any model`}
+                      >
                         {importLabel}
                       </span>
                     )}
@@ -204,7 +224,8 @@ export function SessionPicker() {
                 </div>
                 <div className="sp-meta muted">
                   {s.message_count} msgs
-                  {s.agents.length > 0 && ` · ${s.agents.filter(Boolean).join(", ")}`}
+                  {s.agents.length > 0 &&
+                    ` · ${s.agents.filter(Boolean).join(", ")}`}
                   <button
                     type="button"
                     className="sp-save"
@@ -222,10 +243,11 @@ export function SessionPicker() {
           })}
         </ul>
         {loading && filtered.length > 0 && (
-          <div className="muted" style={{ padding: 6 }}>loading…</div>
+          <div className="muted" style={{ padding: 6 }}>
+            loading…
+          </div>
         )}
       </div>
     </div>
   );
 }
-

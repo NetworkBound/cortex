@@ -29,7 +29,11 @@
 /* ── Streaming bubbles ─────────────────────────────────────────────────── */
 
 .channels-bubble.live.errored {
-  border-color: color-mix(in srgb, var(--danger, #f87171) 50%, var(--border, #2c2d33));
+  border-color: color-mix(
+    in srgb,
+    var(--danger, #f87171) 50%,
+    var(--border, #2c2d33)
+  );
 }
 
 /* Three-dot "agent is typing" pulse shown before the first delta arrives. */
@@ -120,7 +124,6 @@
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
-
 
 @media (prefers-reduced-motion: reduce) {
   .channels-progress-spinner {

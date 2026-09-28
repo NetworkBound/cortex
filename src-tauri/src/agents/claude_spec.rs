@@ -46,8 +46,7 @@ fn claude_args(ctx: &LaunchCtx) -> Vec<String> {
 pub static CLAUDE_SPEC: CliSpec = CliSpec {
     id: "claude-cli",
     label: "Claude (CLI)",
-    description:
-        "Local Claude Code CLI (`claude`) spawned directly — bypasses the Cortex Gateway.",
+    description: "Local Claude Code CLI (`claude`) spawned directly — bypasses the Cortex Gateway.",
     bin_names: CLAUDE_NAMES,
     extra_dirs: CLAUDE_EXTRA_DIRS,
     headless_args: claude_args,
@@ -61,8 +60,7 @@ pub static CLAUDE_SPEC: CliSpec = CliSpec {
         AgentCapability::Approval,
     ],
     install_url: "https://docs.anthropic.com/en/docs/claude-code",
-    install_hint:
-        "Install Claude Code (expected at ~/.local/bin/claude or on PATH).",
+    install_hint: "Install Claude Code (expected at ~/.local/bin/claude or on PATH).",
     tag: "claude",
     // `claude /login` opens the Anthropic OAuth flow.
     login_cmd: &["claude", "/login"],

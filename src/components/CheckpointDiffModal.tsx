@@ -194,8 +194,8 @@ export function CheckpointDiffModal({
         <div className="ckdiff-summary" role="status">
           {noChanges ? (
             <span>
-              This checkpoint matches your current files — restoring would change
-              nothing.
+              This checkpoint matches your current files — restoring would
+              change nothing.
             </span>
           ) : (
             <>
@@ -209,8 +209,9 @@ export function CheckpointDiffModal({
                 {diff.removed} kept
               </span>
               <span className="ckdiff-hint">
-                Restore overwrites current files with the checkpoint. "Kept" files
-                exist now but not in the checkpoint — they survive untouched.
+                Restore overwrites current files with the checkpoint. "Kept"
+                files exist now but not in the checkpoint — they survive
+                untouched.
               </span>
             </>
           )}
@@ -219,8 +220,8 @@ export function CheckpointDiffModal({
         <div className="ckdiff-list">
           {noChanges ? (
             <p className="ckdiff-empty">
-              Nothing to compare. You can still restore to be safe, but your tree
-              already matches this checkpoint.
+              Nothing to compare. You can still restore to be safe, but your
+              tree already matches this checkpoint.
             </p>
           ) : (
             <ul>

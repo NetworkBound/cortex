@@ -18,7 +18,7 @@
 //! unit test here only exercises that shape-mapping (offline); there is **no**
 //! live network test.
 
-use super::parse::{parse_claude, parse_chatgpt, ImportedConversation};
+use super::parse::{parse_chatgpt, parse_claude, ImportedConversation};
 
 /// A browser-like UA. The internal endpoints reject obviously-automated
 /// clients; this is cosmetic, not auth.
@@ -64,12 +64,16 @@ pub async fn pull_claude(session_key: &str) -> Result<Vec<ImportedConversation>,
         .header(reqwest::header::COOKIE, &cookie)
         .send()
         .await
-        .map_err(|_| "claude.ai: request to /api/organizations failed (network or blocked)".to_string())?
+        .map_err(|_| {
+            "claude.ai: request to /api/organizations failed (network or blocked)".to_string()
+        })?
         .error_for_status()
         .map_err(|e| format!("claude.ai: /api/organizations returned {}", status_of(&e)))?
         .json()
         .await
-        .map_err(|_| "claude.ai: could not parse organizations response (shape changed?)".to_string())?;
+        .map_err(|_| {
+            "claude.ai: could not parse organizations response (shape changed?)".to_string()
+        })?;
 
     let org_uuid = orgs
         .as_array()
@@ -98,7 +102,11 @@ pub async fn pull_claude(session_key: &str) -> Result<Vec<ImportedConversation>,
         .as_array()
         .map(|a| {
             a.iter()
-                .filter_map(|c| c.get("uuid").and_then(|u| u.as_str()).map(|s| s.to_string()))
+                .filter_map(|c| {
+                    c.get("uuid")
+                        .and_then(|u| u.as_str())
+                        .map(|s| s.to_string())
+                })
                 .take(MAX_CONVERSATIONS)
                 .collect()
         })
@@ -117,8 +125,12 @@ pub async fn pull_claude(session_key: &str) -> Result<Vec<ImportedConversation>,
             .send()
             .await;
         let Ok(resp) = resp else { continue };
-        let Ok(resp) = resp.error_for_status() else { continue };
-        let Ok(detail) = resp.json::<serde_json::Value>().await else { continue };
+        let Ok(resp) = resp.error_for_status() else {
+            continue;
+        };
+        let Ok(detail) = resp.json::<serde_json::Value>().await else {
+            continue;
+        };
         // parse_claude expects a top-level array OR single object; a single
         // conversation object is accepted directly.
         out.extend(parse_claude(&detail));
@@ -185,8 +197,12 @@ pub async fn pull_chatgpt(access_token: &str) -> Result<Vec<ImportedConversation
             .send()
             .await;
         let Ok(resp) = resp else { continue };
-        let Ok(resp) = resp.error_for_status() else { continue };
-        let Ok(detail) = resp.json::<serde_json::Value>().await else { continue };
+        let Ok(resp) = resp.error_for_status() else {
+            continue;
+        };
+        let Ok(detail) = resp.json::<serde_json::Value>().await else {
+            continue;
+        };
         // Wrap in a one-element array so parse_chatgpt's top-level handling
         // applies uniformly (it already reads title/create_time/mapping/
         // current_node from each item).
@@ -203,7 +219,9 @@ pub async fn pull_chatgpt(access_token: &str) -> Result<Vec<ImportedConversation
 /// Best-effort status-code extraction from a reqwest error, with no body /
 /// header leakage (so a token embedded in a redirected URL never surfaces).
 fn status_of(e: &reqwest::Error) -> String {
-    e.status().map(|s| s.as_u16().to_string()).unwrap_or_else(|| "error".to_string())
+    e.status()
+        .map(|s| s.as_u16().to_string())
+        .unwrap_or_else(|| "error".to_string())
 }
 
 #[cfg(test)]

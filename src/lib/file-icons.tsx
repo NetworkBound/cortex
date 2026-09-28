@@ -45,7 +45,10 @@ export interface FileIconSpec {
 }
 
 const DIR_OPEN: FileIconSpec = { Icon: FolderOpen, color: "var(--accent)" };
-const DIR_CLOSED: FileIconSpec = { Icon: Folder, color: "var(--accent-strong)" };
+const DIR_CLOSED: FileIconSpec = {
+  Icon: Folder,
+  color: "var(--accent-strong)",
+};
 const DEFAULT_FILE: FileIconSpec = { Icon: File };
 
 // Extension → icon + tint. Keys are lowercase, no leading dot. Shapes are
@@ -159,13 +162,7 @@ export function dirIconFor(open: boolean): FileIconSpec {
  * with the language brand color (falls back to the inherited row color when a
  * type has no tint). Sized to sit in the 18px glyph gutter.
  */
-export function FileIcon({
-  name,
-  size = 14,
-}: {
-  name: string;
-  size?: number;
-}) {
+export function FileIcon({ name, size = 14 }: { name: string; size?: number }) {
   const { Icon, color } = fileIconFor(name);
   return (
     <Icon

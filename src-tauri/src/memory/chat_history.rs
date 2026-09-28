@@ -70,10 +70,14 @@ fn content_to_text(v: &serde_json::Value) -> String {
             let mut out = String::new();
             for block in arr {
                 if let Some(t) = block.get("text").and_then(|x| x.as_str()) {
-                    if !out.is_empty() { out.push('\n'); }
+                    if !out.is_empty() {
+                        out.push('\n');
+                    }
                     out.push_str(t);
                 } else if let Some(t) = block.get("content").and_then(|x| x.as_str()) {
-                    if !out.is_empty() { out.push('\n'); }
+                    if !out.is_empty() {
+                        out.push('\n');
+                    }
                     out.push_str(t);
                 }
             }
@@ -124,7 +128,9 @@ pub fn list_chats() -> Vec<ChatSummary> {
     // WSL side — without this the chat count reads near-zero because the
     // real chats live under `\\wsl.localhost\<distro>\home\<user>\.claude\`.
     let mut homes: Vec<PathBuf> = Vec::new();
-    if let Some(h) = dirs::home_dir() { homes.push(h); }
+    if let Some(h) = dirs::home_dir() {
+        homes.push(h);
+    }
     #[cfg(windows)]
     {
         // Env-derived WSL username first; when absent or wrong, list the
@@ -159,12 +165,18 @@ pub fn list_chats() -> Vec<ChatSummary> {
         if projects.exists() {
             for project_entry in fs::read_dir(&projects).into_iter().flatten().flatten() {
                 let project_dir = project_entry.path();
-                if !project_dir.is_dir() { continue; }
+                if !project_dir.is_dir() {
+                    continue;
+                }
                 let project_label = project_label_from_dir(&project_dir);
                 for entry in fs::read_dir(&project_dir).into_iter().flatten().flatten() {
                     let p = entry.path();
-                    if p.extension().and_then(|s| s.to_str()) != Some("jsonl") { continue; }
-                    if !seen_paths.insert(p.clone()) { continue; }
+                    if p.extension().and_then(|s| s.to_str()) != Some("jsonl") {
+                        continue;
+                    }
+                    if !seen_paths.insert(p.clone()) {
+                        continue;
+                    }
                     if let Some(summary) = summarize_file(&p, project_label.clone()) {
                         out.push(summary);
                     }
@@ -193,19 +205,29 @@ fn summarize_file(path: &Path, project_label: Option<String>) -> Option<ChatSumm
     let mut project_root: Option<String> = None;
 
     for line in reader.lines().map_while(Result::ok) {
-        if line.trim().is_empty() { continue; }
-        let Ok(row) = serde_json::from_str::<Row>(&line) else { continue };
+        if line.trim().is_empty() {
+            continue;
+        }
+        let Ok(row) = serde_json::from_str::<Row>(&line) else {
+            continue;
+        };
         if session_id.is_none() {
             session_id = row.session_id.clone();
         }
         if project_root.is_none() {
             project_root = row.cwd.clone();
         }
-        let Some(k) = row.kind.as_deref() else { continue };
-        if k != "user" && k != "assistant" { continue; }
+        let Some(k) = row.kind.as_deref() else {
+            continue;
+        };
+        if k != "user" && k != "assistant" {
+            continue;
+        }
         let Some(msg) = row.message else { continue };
         let role = msg.role.as_deref().unwrap_or("");
-        if role != "user" && role != "assistant" { continue; }
+        if role != "user" && role != "assistant" {
+            continue;
+        }
         count += 1;
         if first_msg.is_none() && role == "user" {
             if let Some(c) = msg.content.as_ref() {
@@ -245,26 +267,48 @@ pub fn read_chat(path: &Path, max_turns: usize) -> std::io::Result<ChatTranscrip
     let mut project_root: Option<String> = None;
 
     for line in reader.lines().map_while(Result::ok) {
-        if line.trim().is_empty() { continue; }
-        let Ok(row) = serde_json::from_str::<Row>(&line) else { continue };
+        if line.trim().is_empty() {
+            continue;
+        }
+        let Ok(row) = serde_json::from_str::<Row>(&line) else {
+            continue;
+        };
         if session_id.is_none() {
             session_id = row.session_id.clone();
         }
         if project_root.is_none() {
             project_root = row.cwd.clone();
         }
-        let Some(k) = row.kind.as_deref() else { continue };
-        if k != "user" && k != "assistant" { continue; }
+        let Some(k) = row.kind.as_deref() else {
+            continue;
+        };
+        if k != "user" && k != "assistant" {
+            continue;
+        }
         let Some(msg) = row.message else { continue };
         let role = msg.role.clone().unwrap_or_else(|| k.to_string());
-        if role != "user" && role != "assistant" { continue; }
-        let content = msg.content.as_ref().map(content_to_text).unwrap_or_default();
-        if content.trim().is_empty() { continue; }
+        if role != "user" && role != "assistant" {
+            continue;
+        }
+        let content = msg
+            .content
+            .as_ref()
+            .map(content_to_text)
+            .unwrap_or_default();
+        if content.trim().is_empty() {
+            continue;
+        }
         // Cap per-turn content to 8 KB to keep transcripts streamable.
         let content: String = content.chars().take(8000).collect();
         let ts_unix_ms = row.timestamp.as_deref().and_then(ts_to_ms);
-        turns.push(ChatTurn { role, content, ts_unix_ms });
-        if turns.len() >= max_turns { break; }
+        turns.push(ChatTurn {
+            role,
+            content,
+            ts_unix_ms,
+        });
+        if turns.len() >= max_turns {
+            break;
+        }
     }
 
     Ok(ChatTranscript {
@@ -299,13 +343,19 @@ fn floor_char_boundary(s: &str, idx: usize) -> usize {
 
 pub fn search_chats(query: &str, limit: usize) -> Vec<ChatSearchHit> {
     let q = query.trim().to_lowercase();
-    if q.is_empty() { return vec![] }
+    if q.is_empty() {
+        return vec![];
+    }
     let mut hits: Vec<ChatSearchHit> = Vec::new();
     let summaries = list_chats();
     for s in &summaries {
-        if hits.len() >= limit { break }
+        if hits.len() >= limit {
+            break;
+        }
         let path = PathBuf::from(&s.file_path);
-        let Ok(transcript) = read_chat(&path, 2000) else { continue };
+        let Ok(transcript) = read_chat(&path, 2000) else {
+            continue;
+        };
         for t in transcript.turns {
             // Search on a lowercased copy, but compute the snippet on that same
             // lowercased string so byte offsets always refer to the string we slice.
@@ -325,7 +375,9 @@ pub fn search_chats(query: &str, limit: usize) -> Vec<ChatSearchHit> {
                     snippet,
                     modified_unix_ms: s.modified_unix_ms,
                 });
-                if hits.len() >= limit { break }
+                if hits.len() >= limit {
+                    break;
+                }
             }
         }
     }
@@ -343,7 +395,10 @@ mod tests {
 
     #[test]
     fn decodes_windows_drive_slug() {
-        assert_eq!(decode_project_dir_name("C--Users-foo-bar"), "C:\\Users\\foo\\bar");
+        assert_eq!(
+            decode_project_dir_name("C--Users-foo-bar"),
+            "C:\\Users\\foo\\bar"
+        );
         assert_eq!(decode_project_dir_name("d--src"), "D:\\src");
     }
 

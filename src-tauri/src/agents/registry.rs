@@ -32,7 +32,10 @@ pub struct Registry {
 
 impl Registry {
     pub fn new() -> Self {
-        Self { agents: HashMap::new(), health_cache: RwLock::new(HashMap::new()) }
+        Self {
+            agents: HashMap::new(),
+            health_cache: RwLock::new(HashMap::new()),
+        }
     }
 
     /// Record the most recent live `health_check()` result for `id`. Called
@@ -89,7 +92,9 @@ impl Registry {
 }
 
 impl Default for Registry {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]

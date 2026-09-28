@@ -482,11 +482,7 @@ mod tests {
         async fn health_check(&self) -> bool {
             self.available
         }
-        async fn run(
-            &self,
-            req: ChatRequest,
-            tx: mpsc::Sender<AgentEvent>,
-        ) -> anyhow::Result<()> {
+        async fn run(&self, req: ChatRequest, tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
             // Echo the resolved model back so the test can prove the per-call
             // model override reached the adapter.
             let model = req.model.unwrap_or_default();
@@ -548,7 +544,10 @@ mod tests {
         for slug in ["gpt-5.5", "gemini-2.5-pro", "some-gateway-model"] {
             let (id, _) = resolve_adapter_for_model(slug, &reg)
                 .unwrap_or_else(|| panic!("no adapter for {slug}"));
-            assert_eq!(id, "gateway-remote", "{slug} should route to gateway default");
+            assert_eq!(
+                id, "gateway-remote",
+                "{slug} should route to gateway default"
+            );
         }
     }
 
@@ -619,11 +618,23 @@ mod tests {
         let mut store = EloStore::default();
         store.ratings.insert(
             "a".into(),
-            ModelRating { model: "a".into(), rating: 1100.0, wins: 0, losses: 1, total_runs: 1 },
+            ModelRating {
+                model: "a".into(),
+                rating: 1100.0,
+                wins: 0,
+                losses: 1,
+                total_runs: 1,
+            },
         );
         store.ratings.insert(
             "b".into(),
-            ModelRating { model: "b".into(), rating: 1300.0, wins: 1, losses: 0, total_runs: 1 },
+            ModelRating {
+                model: "b".into(),
+                rating: 1300.0,
+                wins: 1,
+                losses: 0,
+                total_runs: 1,
+            },
         );
         let out = sorted_ratings(&store);
         assert_eq!(out[0].model, "b");

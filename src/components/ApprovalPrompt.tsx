@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { humanizeError } from "@/lib/errors";
 import { approveRun } from "@/lib/cortex-bridge";
-import {
-  addAutoApprove,
-  guessAutoApprovePattern,
-} from "@/lib/approvals";
+import { addAutoApprove, guessAutoApprovePattern } from "@/lib/approvals";
 import type { PendingApproval } from "@/state/store";
 import { playSound } from "@/lib/sounds";
 import { pushToast } from "@/lib/toast";
@@ -261,7 +258,11 @@ export function ApprovalPrompt({ approval, onResolved }: Props) {
           disabled={savingAllow || savedAllow}
           title="Add this tool+pattern to ~/.cortex/auto-approve.json — a permanent, global grant"
         >
-          {savedAllow ? "Always allowed" : savingAllow ? "Saving…" : "Always allow this"}
+          {savedAllow
+            ? "Always allowed"
+            : savingAllow
+              ? "Saving…"
+              : "Always allow this"}
         </button>
       </div>
 
@@ -331,7 +332,7 @@ export function ApprovalPrompt({ approval, onResolved }: Props) {
                   ? "All hunks rejected — choose Deny instead"
                   : isDangerChoice(c)
                     ? `${CHOICE_DESC[c] ?? c} This is a permanent, global grant.`
-                    : CHOICE_DESC[c] ?? c
+                    : (CHOICE_DESC[c] ?? c)
               }
             >
               {submitting === c ? "…" : (CHOICE_LABEL[c] ?? c)}

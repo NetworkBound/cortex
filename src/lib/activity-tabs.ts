@@ -131,12 +131,16 @@ export function tabTitle(id: TabId): string {
 
 /** The rail layout: groups in declared order, each with its tabs in declared
  *  order. Derived so the rail can't drift from this table. */
-export const ACTIVITY_RAIL: readonly { group: ActivityGroup; items: ActivityTabMeta[] }[] =
-  ACTIVITY_GROUPS.map((group) => ({
-    group,
-    items: ACTIVITY_TABS.filter((t) => t.group === group),
-  }));
+export const ACTIVITY_RAIL: readonly {
+  group: ActivityGroup;
+  items: ActivityTabMeta[];
+}[] = ACTIVITY_GROUPS.map((group) => ({
+  group,
+  items: ACTIVITY_TABS.filter((t) => t.group === group),
+}));
 
 /** Ctrl+Tab cycle order — every surface, in table order. Replaces the
  *  hand-maintained list in App.tsx (which had silently dropped `ultimate`). */
-export const ACTIVITY_TAB_ORDER: readonly TabId[] = ACTIVITY_TABS.map((t) => t.id);
+export const ACTIVITY_TAB_ORDER: readonly TabId[] = ACTIVITY_TABS.map(
+  (t) => t.id,
+);

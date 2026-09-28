@@ -158,7 +158,11 @@ fn build_source(source: &MemorySource, budget: &mut usize) -> Option<TocSource> 
             continue;
         }
         let title = title_for(&path, &headings);
-        files.push(TocFile { path, title, headings });
+        files.push(TocFile {
+            path,
+            title,
+            headings,
+        });
         *budget -= 1;
     }
     if files.is_empty() {

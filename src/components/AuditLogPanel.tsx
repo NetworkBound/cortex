@@ -28,11 +28,16 @@ const HARD_LIMIT = 1000; // matches the backend clamp
 
 /** Visual badge colour per action category. Anything we don't recognise gets
  * the neutral "default" pill — no need to chase every action name. */
-function badgeKind(action: string): "edit" | "exec" | "approve" | "agent" | "default" {
+function badgeKind(
+  action: string,
+): "edit" | "exec" | "approve" | "agent" | "default" {
   const a = action.toLowerCase();
-  if (a.includes("edit") || a.includes("write") || a.includes("patch")) return "edit";
-  if (a.includes("exec") || a.includes("run") || a.includes("shell")) return "exec";
-  if (a.includes("approve") || a.includes("deny") || a.includes("approval")) return "approve";
+  if (a.includes("edit") || a.includes("write") || a.includes("patch"))
+    return "edit";
+  if (a.includes("exec") || a.includes("run") || a.includes("shell"))
+    return "exec";
+  if (a.includes("approve") || a.includes("deny") || a.includes("approval"))
+    return "approve";
   if (a.includes("agent") || a.includes("spawn")) return "agent";
   return "default";
 }
@@ -114,7 +119,8 @@ export function AuditLogPanel({ onClose }: AuditLogPanelProps) {
     return rows.filter((r) => {
       if (actionFilter !== "all" && r.action !== actionFilter) return false;
       if (!q) return true;
-      const hay = `${r.action} ${r.detail ?? ""} ${r.agent_id ?? ""} ${r.session_id ?? ""}`.toLowerCase();
+      const hay =
+        `${r.action} ${r.detail ?? ""} ${r.agent_id ?? ""} ${r.session_id ?? ""}`.toLowerCase();
       return hay.includes(q);
     });
   }, [rows, actionFilter, search]);
@@ -136,7 +142,11 @@ export function AuditLogPanel({ onClose }: AuditLogPanelProps) {
 
   const onExport = useCallback(async () => {
     if (visible.length === 0) {
-      pushToast({ title: "Nothing to export", body: "No rows match the current filter.", kind: "info" });
+      pushToast({
+        title: "Nothing to export",
+        body: "No rows match the current filter.",
+        kind: "info",
+      });
       return;
     }
     try {
@@ -147,7 +157,11 @@ export function AuditLogPanel({ onClose }: AuditLogPanelProps) {
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Copy failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Copy failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [visible]);
 
@@ -173,8 +187,8 @@ export function AuditLogPanel({ onClose }: AuditLogPanelProps) {
         </header>
 
         <p className="audit-summary">
-          Append-only record of agent tool calls, file edits, and shell execs. Showing the most
-          recent {rows.length} of {HARD_LIMIT} max.
+          Append-only record of agent tool calls, file edits, and shell execs.
+          Showing the most recent {rows.length} of {HARD_LIMIT} max.
         </p>
 
         <section className="audit-controls">
@@ -185,40 +199,46 @@ export function AuditLogPanel({ onClose }: AuditLogPanelProps) {
             placeholder="Search detail / agent / session…"
             onChange={(e) => setSearch(e.target.value)}
           />
-          <button className="audit-export" onClick={onExport} disabled={visible.length === 0}>
+          <button
+            className="audit-export"
+            onClick={onExport}
+            disabled={visible.length === 0}
+          >
             Export CSV
           </button>
         </section>
 
         {(!error || rows.length > 0) && (
-        <section className="audit-filter">
-          <label className="audit-filter-row">
-            <input
-              type="radio"
-              name="audit-action"
-              value="all"
-              checked={actionFilter === "all"}
-              onChange={() => setActionFilter("all")}
-            />
-            <span>all ({rows.length})</span>
-          </label>
-          {actionOptions.map((a) => {
-            const count = rows.filter((r) => r.action === a).length;
-            return (
-              <label key={a} className="audit-filter-row">
-                <input
-                  type="radio"
-                  name="audit-action"
-                  value={a}
-                  checked={actionFilter === a}
-                  onChange={() => setActionFilter(a)}
-                />
-                <span className={`audit-badge audit-badge-${badgeKind(a)}`}>{a}</span>
-                <span className="audit-count">{count}</span>
-              </label>
-            );
-          })}
-        </section>
+          <section className="audit-filter">
+            <label className="audit-filter-row">
+              <input
+                type="radio"
+                name="audit-action"
+                value="all"
+                checked={actionFilter === "all"}
+                onChange={() => setActionFilter("all")}
+              />
+              <span>all ({rows.length})</span>
+            </label>
+            {actionOptions.map((a) => {
+              const count = rows.filter((r) => r.action === a).length;
+              return (
+                <label key={a} className="audit-filter-row">
+                  <input
+                    type="radio"
+                    name="audit-action"
+                    value={a}
+                    checked={actionFilter === a}
+                    onChange={() => setActionFilter(a)}
+                  />
+                  <span className={`audit-badge audit-badge-${badgeKind(a)}`}>
+                    {a}
+                  </span>
+                  <span className="audit-count">{count}</span>
+                </label>
+              );
+            })}
+          </section>
         )}
 
         {error && <div className="audit-error">{error}</div>}
@@ -239,7 +259,9 @@ export function AuditLogPanel({ onClose }: AuditLogPanelProps) {
                     {timeAgo(r.ts, { absoluteAfterDays: 30 })}
                   </td>
                   <td>
-                    <span className={`audit-badge audit-badge-${badgeKind(r.action)}`}>
+                    <span
+                      className={`audit-badge audit-badge-${badgeKind(r.action)}`}
+                    >
                       {r.action}
                     </span>
                   </td>
@@ -270,7 +292,9 @@ export function AuditLogPanel({ onClose }: AuditLogPanelProps) {
 
         <footer className="audit-footer">
           <span className="audit-status">
-            {loading ? "Loading…" : `${visible.length} shown · ${rows.length} loaded`}
+            {loading
+              ? "Loading…"
+              : `${visible.length} shown · ${rows.length} loaded`}
           </span>
           <button
             className="audit-loadmore"

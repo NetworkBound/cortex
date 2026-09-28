@@ -44,12 +44,21 @@ export function CommandPalette() {
   useEffect(() => {
     if (!open) return;
     const root = activeProject?.root;
-    if (!root) { setProfiles([]); return; }
+    if (!root) {
+      setProfiles([]);
+      return;
+    }
     let cancelled = false;
     listProfiles(root)
-      .then((list) => { if (!cancelled) setProfiles(list); })
-      .catch(() => { if (!cancelled) setProfiles([]); });
-    return () => { cancelled = true; };
+      .then((list) => {
+        if (!cancelled) setProfiles(list);
+      })
+      .catch(() => {
+        if (!cancelled) setProfiles([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, activeProject?.root]);
 
   const commands = useMemo<Command[]>(() => {
@@ -59,14 +68,20 @@ export function CommandPalette() {
         label: "Open settings",
         hint: "Cmd+,",
         category: "Cortex",
-        run: () => { setShowSettings(true); setOpen(false); },
+        run: () => {
+          setShowSettings(true);
+          setOpen(false);
+        },
       },
       {
         id: "new-chat",
         label: "New chat session",
         hint: "Cmd+N",
         category: "Cortex",
-        run: () => { resetSession(); setOpen(false); },
+        run: () => {
+          resetSession();
+          setOpen(false);
+        },
       },
     ];
     // Every activity surface gets a "Go to …" entry so the full nav is
@@ -78,7 +93,10 @@ export function CommandPalette() {
         label: `Go to ${t.title}`,
         hint: t.group,
         category: "Go to",
-        run: () => { setActivityTab(t.id); setOpen(false); },
+        run: () => {
+          setActivityTab(t.id);
+          setOpen(false);
+        },
       });
     }
     for (const p of projects) {
@@ -87,7 +105,10 @@ export function CommandPalette() {
         label: `Switch project → ${p.name}`,
         hint: p.has_git ? "git" : "",
         category: "Project",
-        run: () => { setActive(p); setOpen(false); },
+        run: () => {
+          setActive(p);
+          setOpen(false);
+        },
       });
     }
     const root = activeProject?.root;
@@ -116,7 +137,10 @@ export function CommandPalette() {
       c.push({
         id: `slash-${sc.name}`,
         label: `/${sc.name}${sc.usage ? ` ${sc.usage}` : ""} — ${sc.description}`,
-        hint: sc.aliases && sc.aliases.length > 0 ? sc.aliases.map((a) => `/${a}`).join(" ") : "",
+        hint:
+          sc.aliases && sc.aliases.length > 0
+            ? sc.aliases.map((a) => `/${a}`).join(" ")
+            : "",
         category: cat,
         run: () => {
           // Dispatch through the same SlashContext the chat input uses so
@@ -129,12 +153,27 @@ export function CommandPalette() {
       });
     }
     return c;
-  }, [projects, activeProject, profiles, currentProfile, setShowSettings, setActivityTab, setOpen, resetSession, setActive, setCurrentProfile]);
+  }, [
+    projects,
+    activeProject,
+    profiles,
+    currentProfile,
+    setShowSettings,
+    setActivityTab,
+    setOpen,
+    resetSession,
+    setActive,
+    setCurrentProfile,
+  ]);
 
   const filtered = useMemo(() => {
     if (!q.trim()) return commands;
     const lc = q.toLowerCase();
-    return commands.filter((c) => c.label.toLowerCase().includes(lc) || c.hint?.toLowerCase().includes(lc));
+    return commands.filter(
+      (c) =>
+        c.label.toLowerCase().includes(lc) ||
+        c.hint?.toLowerCase().includes(lc),
+    );
   }, [q, commands]);
 
   // Group filtered commands by category, preserving CATEGORY_ORDER. Empty
@@ -177,13 +216,17 @@ export function CommandPalette() {
   }, [grouped, collapsed, q]);
 
   // Reset highlight whenever the visible set changes shape (search, collapse).
-  useEffect(() => { setIdx(0); }, [q, collapsed]);
+  useEffect(() => {
+    setIdx(0);
+  }, [q, collapsed]);
 
   // Keep the keyboard-highlighted row visible as the user arrows past the
   // fold. `block: "nearest"` only scrolls when the row is actually offscreen,
   // so it doesn't jump on every keystroke.
   useEffect(() => {
-    listRef.current?.querySelector(".active")?.scrollIntoView({ block: "nearest" });
+    listRef.current
+      ?.querySelector(".active")
+      ?.scrollIntoView({ block: "nearest" });
   }, [idx]);
 
   useEffect(() => {
@@ -216,7 +259,8 @@ export function CommandPalette() {
   const toggleCategory = (cat: string) => {
     setCollapsed((prev) => {
       const next = new Set(prev);
-      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
       return next;
     });
   };
@@ -231,7 +275,10 @@ export function CommandPalette() {
         <input
           autoFocus
           value={q}
-          onChange={(e) => { setQ(e.target.value); setIdx(0); }}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setIdx(0);
+          }}
           placeholder="Search commands and projects…"
         />
         <ul ref={listRef}>
@@ -247,10 +294,16 @@ export function CommandPalette() {
                   aria-expanded={!isCollapsed}
                 >
                   <span className="palette-category-caret">
-                    {isCollapsed ? <ChevronRight size={14} strokeWidth={1.75} /> : <ChevronDown size={14} strokeWidth={1.75} />}
+                    {isCollapsed ? (
+                      <ChevronRight size={14} strokeWidth={1.75} />
+                    ) : (
+                      <ChevronDown size={14} strokeWidth={1.75} />
+                    )}
                   </span>
                   <span className="palette-category-name">{g.category}</span>
-                  <span className="palette-category-count">{g.items.length}</span>
+                  <span className="palette-category-count">
+                    {g.items.length}
+                  </span>
                 </button>
                 {!isCollapsed && (
                   <ul className="palette-category-items">
@@ -264,7 +317,9 @@ export function CommandPalette() {
                           onClick={c.run}
                         >
                           <span>{c.label}</span>
-                          {c.hint && <span className="palette-hint">{c.hint}</span>}
+                          {c.hint && (
+                            <span className="palette-hint">{c.hint}</span>
+                          )}
                         </li>
                       );
                     })}

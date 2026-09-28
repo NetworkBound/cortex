@@ -44,13 +44,25 @@ import { useCortexStore } from "@/state/store";
 import { ActivityIcon, ARCHITECTURE_ICON } from "@/lib/activity-icons";
 import { tabTitle } from "@/lib/activity-tabs";
 import { timeAgo } from "@/lib/time";
-import { brainSnapshot, type BrainSnapshot, type RecentSession } from "@/lib/brain";
+import {
+  brainSnapshot,
+  type BrainSnapshot,
+  type RecentSession,
+} from "@/lib/brain";
 import { bootstrapProjectSession, loadSessionMessages } from "@/lib/sessions";
 import { searchSessions, type SessionSearchHit } from "@/lib/session-search";
 import { setActiveProject } from "@/lib/projects";
 import { humanizeError } from "@/lib/errors";
 import { pushToast } from "@/lib/toast";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { ActivityTab, Message } from "@/state/store";
 
 // Code-split the two CodeMirror-backed panels out of the main bundle. They're
@@ -79,9 +91,18 @@ function isKeepAliveTab(t: ActivityTab): t is KeepAliveTab {
 /** Mounted-but-hidden wrapper for a keep-alive surface. `display:none` (not
  *  visibility) so the hidden pane takes no layout; xterm/CodeMirror re-measure
  *  on re-show via their own ResizeObservers. */
-function KeepAlive({ active, children }: { active: boolean; children: ReactNode }) {
+function KeepAlive({
+  active,
+  children,
+}: {
+  active: boolean;
+  children: ReactNode;
+}) {
   return (
-    <div className="activity-keepalive" style={active ? undefined : { display: "none" }}>
+    <div
+      className="activity-keepalive"
+      style={active ? undefined : { display: "none" }}
+    >
       {children}
     </div>
   );
@@ -113,7 +134,10 @@ export function ActivityPanel() {
   const showTab = open && !archOpen ? tab : null;
 
   return (
-    <div className="activity-panel" style={open ? undefined : { display: "none" }}>
+    <div
+      className="activity-panel"
+      style={open ? undefined : { display: "none" }}
+    >
       <div className="activity-panel-head">
         {archOpen ? (
           <>
@@ -123,27 +147,40 @@ export function ActivityPanel() {
               </span>
               <span className="label">Architecture</span>
             </span>
-            <button className="link-btn" onClick={() => archTab.close()}>×</button>
+            <button className="link-btn" onClick={() => archTab.close()}>
+              ×
+            </button>
           </>
         ) : tab ? (
           <>
             <span className={`activity-tab-pill active`} title={labelFor(tab)}>
-              <span className="icon" aria-hidden="true"><ActivityIcon tab={tab} /></span>
+              <span className="icon" aria-hidden="true">
+                <ActivityIcon tab={tab} />
+              </span>
               <span className="label">{labelFor(tab)}</span>
             </span>
-            <button className="link-btn" onClick={() => useCortexStore.getState().setActivityTab(null)}>×</button>
+            <button
+              className="link-btn"
+              onClick={() => useCortexStore.getState().setActivityTab(null)}
+            >
+              ×
+            </button>
           </>
         ) : null}
       </div>
       <div className="activity-panel-body">
         {visited.has("editor") && (
           <KeepAlive active={showTab === "editor"}>
-            <Suspense fallback={<PanelLoading />}><EditorPane /></Suspense>
+            <Suspense fallback={<PanelLoading />}>
+              <EditorPane />
+            </Suspense>
           </KeepAlive>
         )}
         {visited.has("multibuffer") && (
           <KeepAlive active={showTab === "multibuffer"}>
-            <Suspense fallback={<PanelLoading />}><MultiBuffer /></Suspense>
+            <Suspense fallback={<PanelLoading />}>
+              <MultiBuffer />
+            </Suspense>
           </KeepAlive>
         )}
         {visited.has("terminal") && (
@@ -199,7 +236,9 @@ export function ActivityPanel() {
 
 // Panel-header title. Sourced from the single tab registry (lib/activity-tabs)
 // so the header can't drift from the rail/palette labels.
-function labelFor(tab: NonNullable<ReturnType<typeof useCortexStore.getState>["activityTab"]>): string {
+function labelFor(
+  tab: NonNullable<ReturnType<typeof useCortexStore.getState>["activityTab"]>,
+): string {
   return tabTitle(tab);
 }
 
@@ -244,7 +283,10 @@ function SessionsList() {
     };
     void tick();
     const id = setInterval(tick, 8_000);
-    return () => { mounted = false; clearInterval(id); };
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
   }, []);
 
   // 300ms debounce on the search input
@@ -255,13 +297,25 @@ function SessionsList() {
 
   useEffect(() => {
     let cancelled = false;
-    if (!debounced) { setHits([]); setSearching(false); return; }
+    if (!debounced) {
+      setHits([]);
+      setSearching(false);
+      return;
+    }
     setSearching(true);
     searchSessions(debounced, 50)
-      .then((r) => { if (!cancelled) setHits(r); })
-      .catch(() => { if (!cancelled) setHits([]); })
-      .finally(() => { if (!cancelled) setSearching(false); });
-    return () => { cancelled = true; };
+      .then((r) => {
+        if (!cancelled) setHits(r);
+      })
+      .catch(() => {
+        if (!cancelled) setHits([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSearching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [debounced]);
 
   async function openSession(sessionId: string) {
@@ -295,7 +349,12 @@ function SessionsList() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ padding: "var(--space-2)", borderBottom: "1px solid var(--border)" }}>
+      <div
+        style={{
+          padding: "var(--space-2)",
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
         <input
           type="search"
           value={query}
@@ -315,15 +374,30 @@ function SessionsList() {
       <div style={{ flex: 1, overflow: "auto" }}>
         {resumeError && (
           <div style={{ padding: "var(--space-2) var(--space-2) 0" }}>
-            <div className="session-picker-error" role="alert" style={{ margin: 0 }}>
+            <div
+              className="session-picker-error"
+              role="alert"
+              style={{ margin: 0 }}
+            >
               <strong>Couldn't open that session.</strong> {resumeError} Pick
               another session, or try again.
             </div>
           </div>
         )}
-        {searchMode
-          ? <SearchHits hits={hits} query={debounced} loading={searching} onOpen={openSession} />
-          : <RecentList snap={snap} error={loadError} onOpen={(s) => void openSession(s.session_id)} />}
+        {searchMode ? (
+          <SearchHits
+            hits={hits}
+            query={debounced}
+            loading={searching}
+            onOpen={openSession}
+          />
+        ) : (
+          <RecentList
+            snap={snap}
+            error={loadError}
+            onOpen={(s) => void openSession(s.session_id)}
+          />
+        )}
       </div>
     </div>
   );
@@ -343,7 +417,11 @@ function RecentList({
   if (!snap && error) {
     return (
       <div style={{ padding: "var(--space-2)" }}>
-        <div className="session-picker-error" role="alert" style={{ margin: 0 }}>
+        <div
+          className="session-picker-error"
+          role="alert"
+          style={{ margin: 0 }}
+        >
           <strong>Couldn't load your sessions.</strong> {error}
         </div>
       </div>
@@ -352,7 +430,10 @@ function RecentList({
   if (!snap) return <PanelLoading />;
   if (snap.recent_sessions.length === 0) {
     return (
-      <div className="muted" style={{ padding: "var(--space-4)", textAlign: "center" }}>
+      <div
+        className="muted"
+        style={{ padding: "var(--space-4)", textAlign: "center" }}
+      >
         No sessions yet.
       </div>
     );
@@ -360,13 +441,20 @@ function RecentList({
   return (
     <div className="brain-list" style={{ padding: "var(--space-2)" }}>
       {snap.recent_sessions.map((s) => (
-        <button key={s.session_id} className="brain-row clickable" onClick={() => onOpen(s)}>
+        <button
+          key={s.session_id}
+          className="brain-row clickable"
+          onClick={() => onOpen(s)}
+        >
           <div className="brain-row-head">
-            <strong>{s.first_message ?? `session ${s.session_id.slice(-8)}`}</strong>
+            <strong>
+              {s.first_message ?? `session ${s.session_id.slice(-8)}`}
+            </strong>
             <span className="muted">{timeAgo(s.last_active_ms)}</span>
           </div>
           <div className="brain-meta">
-            {s.message_count} msgs · {s.agents.filter(Boolean).join(", ") || "—"}
+            {s.message_count} msgs ·{" "}
+            {s.agents.filter(Boolean).join(", ") || "—"}
           </div>
         </button>
       ))}
@@ -386,11 +474,18 @@ function SearchHits({
   onOpen: (sessionId: string) => void;
 }) {
   if (loading && hits.length === 0) {
-    return <div className="muted" style={{ padding: "var(--space-3)" }}>searching…</div>;
+    return (
+      <div className="muted" style={{ padding: "var(--space-3)" }}>
+        searching…
+      </div>
+    );
   }
   if (hits.length === 0) {
     return (
-      <div className="muted" style={{ padding: "var(--space-4)", textAlign: "center" }}>
+      <div
+        className="muted"
+        style={{ padding: "var(--space-4)", textAlign: "center" }}
+      >
         No matches.
       </div>
     );
@@ -410,7 +505,12 @@ function SearchHits({
           <HighlightedSnippet snippet={h.snippet} query={query} />
           <div className="brain-meta">
             {/* Mono session-id microlabel — floored at --text-xs per DESIGN-SPEC §3. */}
-            <code style={{ fontFamily: "var(--mono, monospace)", fontSize: "var(--text-xs)" }}>
+            <code
+              style={{
+                fontFamily: "var(--mono, monospace)",
+                fontSize: "var(--text-xs)",
+              }}
+            >
               {h.session_id.slice(-12)}
             </code>
           </div>
@@ -420,7 +520,13 @@ function SearchHits({
   );
 }
 
-function HighlightedSnippet({ snippet, query }: { snippet: string; query: string }) {
+function HighlightedSnippet({
+  snippet,
+  query,
+}: {
+  snippet: string;
+  query: string;
+}) {
   const parts = useMemo(() => splitHighlight(snippet, query), [snippet, query]);
   return (
     <div
@@ -432,13 +538,16 @@ function HighlightedSnippet({ snippet, query }: { snippet: string; query: string
       }}
     >
       {parts.map((p, i) =>
-        p.match ? <mark key={i}>{p.text}</mark> : <span key={i}>{p.text}</span>
+        p.match ? <mark key={i}>{p.text}</mark> : <span key={i}>{p.text}</span>,
       )}
     </div>
   );
 }
 
-function splitHighlight(text: string, query: string): { text: string; match: boolean }[] {
+function splitHighlight(
+  text: string,
+  query: string,
+): { text: string; match: boolean }[] {
   if (!query) return [{ text, match: false }];
   const out: { text: string; match: boolean }[] = [];
   const lcText = text.toLowerCase();

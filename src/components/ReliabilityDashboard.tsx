@@ -85,7 +85,11 @@ export function ReliabilityDashboard({
   return (
     <div className="reliability">
       <div className="reliability-toolbar">
-        <div className="reliability-range" role="tablist" aria-label="Time range">
+        <div
+          className="reliability-range"
+          role="tablist"
+          aria-label="Time range"
+        >
           {WINDOWS.map((w) => (
             <button
               key={w.hours}
@@ -100,10 +104,18 @@ export function ReliabilityDashboard({
           ))}
         </div>
         <div className="reliability-actions">
-          <button type="button" disabled={!report || isEmpty} onClick={exportCsv}>
+          <button
+            type="button"
+            disabled={!report || isEmpty}
+            onClick={exportCsv}
+          >
             Export CSV
           </button>
-          <button type="button" disabled={!report || isEmpty} onClick={exportJson}>
+          <button
+            type="button"
+            disabled={!report || isEmpty}
+            onClick={exportJson}
+          >
             Export JSON
           </button>
         </div>
@@ -111,13 +123,17 @@ export function ReliabilityDashboard({
 
       <p className="reliability-note muted">
         Local view aggregated from on-device run traces. “Success” is derived
-        from run status + error events; gateway-internal retries are not visible,
-        and cost is an estimate (50/50 token split, prefix pricing).
+        from run status + error events; gateway-internal retries are not
+        visible, and cost is an estimate (50/50 token split, prefix pricing).
       </p>
 
-      {state === "loading" && <div className="reliability-empty">Loading reliability…</div>}
+      {state === "loading" && (
+        <div className="reliability-empty">Loading reliability…</div>
+      )}
       {state === "error" && (
-        <div className="reliability-empty error">Couldn’t load reliability: {err}</div>
+        <div className="reliability-empty error">
+          Couldn’t load reliability: {err}
+        </div>
       )}
       {isEmpty && (
         <div className="reliability-empty">
@@ -157,21 +173,36 @@ export function ReliabilityDashboard({
  * for the first time should see that it's wired up, not wonder if it's missing.
  */
 function McpToolsSection({ mcp }: { mcp: McpToolsSummary }) {
-  const sorted = useMemo(() => [...mcp.by_tool].sort((a, b) => b.calls - a.calls), [mcp.by_tool]);
+  const sorted = useMemo(
+    () => [...mcp.by_tool].sort((a, b) => b.calls - a.calls),
+    [mcp.by_tool],
+  );
   return (
     <div className="reliability-table-wrap">
       <h4>MCP tools</h4>
       {mcp.calls === 0 ? (
         <p className="reliability-empty-inline muted">
-          No MCP tool calls in this window. Expose a server's tools to chat
-          from the MCP panel to see call volume, latency, and cost here.
+          No MCP tool calls in this window. Expose a server's tools to chat from
+          the MCP panel to see call volume, latency, and cost here.
         </p>
       ) : (
         <>
           <div className="reliability-cards reliability-cards-compact">
-            <Card label="Tool calls" value={String(mcp.calls)} sub={`${mcp.calls - mcp.ok_calls} failed`} />
-            <Card label="p95 latency" value={fmtMs(mcp.p95_ms)} sub={`avg ${fmtMs(mcp.avg_ms)}`} />
-            <Card label="Est. cost" value={fmtUsd(mcp.est_usd)} sub="runs that used MCP tools" />
+            <Card
+              label="Tool calls"
+              value={String(mcp.calls)}
+              sub={`${mcp.calls - mcp.ok_calls} failed`}
+            />
+            <Card
+              label="p95 latency"
+              value={fmtMs(mcp.p95_ms)}
+              sub={`avg ${fmtMs(mcp.avg_ms)}`}
+            />
+            <Card
+              label="Est. cost"
+              value={fmtUsd(mcp.est_usd)}
+              sub="runs that used MCP tools"
+            />
           </div>
           <table className="reliability-table">
             <thead>
@@ -188,12 +219,21 @@ function McpToolsSection({ mcp }: { mcp: McpToolsSummary }) {
                 const rate = t.calls > 0 ? t.ok_calls / t.calls : 0;
                 const pct = (rate * 100).toFixed(rate >= 0.995 ? 0 : 1);
                 return (
-                  <tr key={t.name} className={t.ok_calls < t.calls ? "has-errors" : ""}>
+                  <tr
+                    key={t.name}
+                    className={t.ok_calls < t.calls ? "has-errors" : ""}
+                  >
                     <td className="reliability-key" title={t.name}>
                       {t.name}
                     </td>
                     <td>{t.calls}</td>
-                    <td className={rate < 0.7 ? "bad" : rate < 0.9 ? "warn" : "good"}>{pct}%</td>
+                    <td
+                      className={
+                        rate < 0.7 ? "bad" : rate < 0.9 ? "warn" : "good"
+                      }
+                    >
+                      {pct}%
+                    </td>
                     <td>{fmtMs(t.avg_ms)}</td>
                     <td>{fmtMs(t.p95_ms)}</td>
                   </tr>
@@ -208,18 +248,38 @@ function McpToolsSection({ mcp }: { mcp: McpToolsSummary }) {
 }
 
 function SummaryCards({ totals }: { totals: ReliabilityRow }) {
-  const pct = (totals.success_rate * 100).toFixed(totals.success_rate >= 0.995 ? 0 : 1);
+  const pct = (totals.success_rate * 100).toFixed(
+    totals.success_rate >= 0.995 ? 0 : 1,
+  );
   return (
     <div className="reliability-cards">
-      <Card label="Runs" value={String(totals.runs)} sub={`${totals.error_runs} failed`} />
+      <Card
+        label="Runs"
+        value={String(totals.runs)}
+        sub={`${totals.error_runs} failed`}
+      />
       <Card
         label="Success"
         value={`${pct}%`}
         sub={`${totals.ok_runs}/${totals.ok_runs + totals.error_runs} finished`}
-        tone={totals.success_rate >= 0.9 ? "good" : totals.success_rate >= 0.7 ? "warn" : "bad"}
+        tone={
+          totals.success_rate >= 0.9
+            ? "good"
+            : totals.success_rate >= 0.7
+              ? "warn"
+              : "bad"
+        }
       />
-      <Card label="p95 latency" value={fmtMs(totals.p95_ms)} sub={`p50 ${fmtMs(totals.p50_ms)}`} />
-      <Card label="Est. cost" value={fmtUsd(totals.est_usd)} sub={`${fmtTokens(totals.total_tokens)} tok`} />
+      <Card
+        label="p95 latency"
+        value={fmtMs(totals.p95_ms)}
+        sub={`p50 ${fmtMs(totals.p50_ms)}`}
+      />
+      <Card
+        label="Est. cost"
+        value={fmtUsd(totals.est_usd)}
+        sub={`${fmtTokens(totals.total_tokens)} tok`}
+      />
     </div>
   );
 }
@@ -255,7 +315,10 @@ function RowTable({
   keyLabel: string;
   onOpenRun?: (row: ReliabilityRow) => void;
 }) {
-  const sorted = useMemo(() => [...rows].sort((a, b) => b.runs - a.runs), [rows]);
+  const sorted = useMemo(
+    () => [...rows].sort((a, b) => b.runs - a.runs),
+    [rows],
+  );
   if (sorted.length === 0) return null;
   return (
     <div className="reliability-table-wrap">
@@ -275,7 +338,9 @@ function RowTable({
         </thead>
         <tbody>
           {sorted.map((r) => {
-            const pct = (r.success_rate * 100).toFixed(r.success_rate >= 0.995 ? 0 : 1);
+            const pct = (r.success_rate * 100).toFixed(
+              r.success_rate >= 0.995 ? 0 : 1,
+            );
             const failing = r.error_runs > 0;
             return (
               <tr key={r.key} className={failing ? "has-errors" : ""}>
@@ -283,7 +348,15 @@ function RowTable({
                   {r.key}
                 </td>
                 <td>{r.runs}</td>
-                <td className={r.success_rate < 0.7 ? "bad" : r.success_rate < 0.9 ? "warn" : "good"}>
+                <td
+                  className={
+                    r.success_rate < 0.7
+                      ? "bad"
+                      : r.success_rate < 0.9
+                        ? "warn"
+                        : "good"
+                  }
+                >
                   {pct}%
                 </td>
                 <td>{fmtMs(r.p50_ms)}</td>

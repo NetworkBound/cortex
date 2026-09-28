@@ -96,12 +96,11 @@ pub fn trust_allows(trust: McpTrustLevel, user_approved: bool) -> Result<(), Str
         McpTrustLevel::Trusted => Ok(()),
         McpTrustLevel::Ask if user_approved => Ok(()),
         McpTrustLevel::Ask => Err(
-            "this server's trust level is 'ask': the call needs explicit user approval"
-                .to_string(),
+            "this server's trust level is 'ask': the call needs explicit user approval".to_string(),
         ),
-        McpTrustLevel::Untrusted => Err(
-            "this server is marked untrusted: tool calls are refused".to_string(),
-        ),
+        McpTrustLevel::Untrusted => {
+            Err("this server is marked untrusted: tool calls are refused".to_string())
+        }
     }
 }
 

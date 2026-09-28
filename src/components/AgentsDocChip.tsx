@@ -106,9 +106,7 @@ export function AgentsDocChip() {
           {segments.length === 0 ? (
             <div className="agents-doc-empty">
               <p>No AGENTS.md files found.</p>
-              <p className="agents-doc-empty-hint">
-                Cortex looks in:
-              </p>
+              <p className="agents-doc-empty-hint">Cortex looks in:</p>
               <ul>
                 <li>~/.cortex/AGENTS.md (process-wide)</li>
                 <li>~/.codex/AGENTS.md (codex-compat)</li>
@@ -127,10 +125,7 @@ export function AgentsDocChip() {
                     <span className="agents-doc-segment-scope">
                       {seg.scope}
                     </span>
-                    <span
-                      className="agents-doc-segment-path"
-                      title={seg.path}
-                    >
+                    <span className="agents-doc-segment-path" title={seg.path}>
                       {seg.path}
                     </span>
                     <span className="agents-doc-segment-size">

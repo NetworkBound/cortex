@@ -21,5 +21,5 @@
 pub mod loader;
 pub mod runner;
 
-pub use loader::{load_skills, load_skill_by_name, skills_root, Skill, SkillInput};
+pub use loader::{load_skill_by_name, load_skills, skills_root, Skill, SkillInput};
 pub use runner::expand_skill;

@@ -149,16 +149,22 @@ pub async fn search_memory(
     let mut hits: Vec<MemorySearchHit> = Vec::new();
     for src in &srcs {
         for path in sources::walk_markdown(src) {
-            let Ok(body) = std::fs::read_to_string(&path) else { continue };
+            let Ok(body) = std::fs::read_to_string(&path) else {
+                continue;
+            };
             let body_lc = body.to_lowercase();
             let mut score = 0;
             let mut idx = 0;
             while let Some(pos) = body_lc[idx..].find(&q) {
                 score += 1;
                 idx += pos + q.len();
-                if score > 20 { break; }
+                if score > 20 {
+                    break;
+                }
             }
-            if score == 0 { continue; }
+            if score == 0 {
+                continue;
+            }
             // Snippet offsets are computed from `body_lc`, so they must slice
             // `body_lc` too — lowercasing can change byte lengths, so reusing
             // them against `body` can land mid-codepoint and panic. Clamp both

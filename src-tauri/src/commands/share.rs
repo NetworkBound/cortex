@@ -42,8 +42,7 @@ pub async fn share_chat_as_markdown(
         let resolved = PathBuf::from(raw_target);
         validate_target(&resolved, active_project_root.as_deref())?;
         if let Some(parent) = resolved.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("create parent dir failed: {e}"))?;
+            fs::create_dir_all(parent).map_err(|e| format!("create parent dir failed: {e}"))?;
         }
         fs::write(&resolved, &markdown)
             .map_err(|e| format!("write {} failed: {e}", resolved.display()))?;
@@ -56,7 +55,10 @@ fn render(messages: &[ShareMessage]) -> String {
     let mut out = String::new();
     out.push_str("# Cortex chat\n\n");
     let now: DateTime<Local> = Local::now();
-    out.push_str(&format!("_Exported {}_\n\n", now.format("%Y-%m-%d %H:%M:%S %Z")));
+    out.push_str(&format!(
+        "_Exported {}_\n\n",
+        now.format("%Y-%m-%d %H:%M:%S %Z")
+    ));
 
     if messages.is_empty() {
         out.push_str("_(no messages)_\n");
@@ -72,7 +74,12 @@ fn render(messages: &[ShareMessage]) -> String {
             .ts_unix_ms
             .filter(|t| *t > 0)
             .and_then(|t| Utc.timestamp_millis_opt(t).single())
-            .map(|d| format!(" — _{}_", d.with_timezone(&Local).format("%Y-%m-%d %H:%M:%S")))
+            .map(|d| {
+                format!(
+                    " — _{}_",
+                    d.with_timezone(&Local).format("%Y-%m-%d %H:%M:%S")
+                )
+            })
             .unwrap_or_default();
         out.push_str(&format!("## {heading}{stamp}\n\n"));
         out.push_str(m.content.trim_end());
@@ -240,7 +247,11 @@ mod tests {
 
     #[test]
     fn validate_accepts_project_path() {
-        let root = if cfg!(windows) { "C:/tmp/proj" } else { "/tmp/proj" };
+        let root = if cfg!(windows) {
+            "C:/tmp/proj"
+        } else {
+            "/tmp/proj"
+        };
         let p = PathBuf::from(root).join("notes").join("shared.md");
         let res = validate_target(&p, Some(root));
         assert!(res.is_ok(), "expected ok, got {res:?}");

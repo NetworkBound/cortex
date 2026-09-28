@@ -84,10 +84,18 @@ export function SetupPanel() {
 
   async function browse(setter: (v: string) => void, title: string) {
     try {
-      const selected = await openDialog({ directory: true, multiple: false, title });
+      const selected = await openDialog({
+        directory: true,
+        multiple: false,
+        title,
+      });
       if (typeof selected === "string" && selected.length > 0) setter(selected);
     } catch (e) {
-      pushToast({ title: "Couldn't open picker", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Couldn't open picker",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }
 
@@ -100,7 +108,11 @@ export function SetupPanel() {
       setCurrentVault(p);
       pushToast({ title: "Vault connected", body: p, kind: "success" });
     } catch (e) {
-      pushToast({ title: "Couldn't connect vault", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Couldn't connect vault",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setVaultBusy(false);
     }
@@ -114,8 +126,13 @@ export function SetupPanel() {
     setGitOutput("Cloning…");
     try {
       const res = await cloneGitRepo(url, dir);
-      const out = [res.stdout_tail, res.stderr_tail].filter(Boolean).join("\n").trim();
-      setGitOutput(out || (res.ok ? "Clone complete." : `Exit ${res.exit_code}`));
+      const out = [res.stdout_tail, res.stderr_tail]
+        .filter(Boolean)
+        .join("\n")
+        .trim();
+      setGitOutput(
+        out || (res.ok ? "Clone complete." : `Exit ${res.exit_code}`),
+      );
       if (res.ok) {
         setCurrentGitUrl(url);
         // Prefer the canonical path the backend registered the project
@@ -135,7 +152,11 @@ export function SetupPanel() {
       }
     } catch (e) {
       setGitOutput(humanizeError(e));
-      pushToast({ title: "Clone failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Clone failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setGitBusy(false);
     }
@@ -154,7 +175,11 @@ export function SetupPanel() {
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Couldn't connect repo", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Couldn't connect repo",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setGitBusy(false);
     }
@@ -179,7 +204,11 @@ export function SetupPanel() {
         });
       }
     } catch (e) {
-      pushToast({ title: "Couldn't open project", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Couldn't open project",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setGitBusy(false);
     }
@@ -212,7 +241,11 @@ export function SetupPanel() {
           <button
             className="setup-btn primary"
             onClick={() => void connectVault()}
-            disabled={vaultBusy || !vaultPath.trim() || (vaultInfo ? !vaultInfo.is_valid : false)}
+            disabled={
+              vaultBusy ||
+              !vaultPath.trim() ||
+              (vaultInfo ? !vaultInfo.is_valid : false)
+            }
           >
             {vaultBusy ? "Connecting…" : "Connect vault"}
           </button>
@@ -305,7 +338,9 @@ export function SetupPanel() {
                 />
                 <button
                   className="setup-btn"
-                  onClick={() => void browse(setTargetDir, "Select clone target folder")}
+                  onClick={() =>
+                    void browse(setTargetDir, "Select clone target folder")
+                  }
                   disabled={gitBusy}
                 >
                   Browse…
@@ -345,7 +380,9 @@ export function SetupPanel() {
                 />
                 <button
                   className="setup-btn"
-                  onClick={() => void browse(setConnectPath, "Select git repository folder")}
+                  onClick={() =>
+                    void browse(setConnectPath, "Select git repository folder")
+                  }
                   disabled={gitBusy}
                 >
                   Browse…

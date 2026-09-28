@@ -63,9 +63,15 @@ pub fn detect_format(json: &serde_json::Value) -> Format {
         serde_json::Value::Object(_) => Some(json),
         _ => None,
     };
-    let Some(obj) = probe else { return Format::Unknown };
+    let Some(obj) = probe else {
+        return Format::Unknown;
+    };
 
-    if obj.get("chat_messages").map(|v| v.is_array()).unwrap_or(false) {
+    if obj
+        .get("chat_messages")
+        .map(|v| v.is_array())
+        .unwrap_or(false)
+    {
         return Format::Claude;
     }
     if obj.get("mapping").map(|v| v.is_object()).unwrap_or(false) {
@@ -78,10 +84,7 @@ pub fn detect_format(json: &serde_json::Value) -> Format {
 }
 
 /// Parse + dispatch by detected format. `format == None` means auto-detect.
-pub fn parse_any(
-    json: &serde_json::Value,
-    format: Option<Format>,
-) -> Vec<ImportedConversation> {
+pub fn parse_any(json: &serde_json::Value, format: Option<Format>) -> Vec<ImportedConversation> {
     let fmt = format.unwrap_or_else(|| detect_format(json));
     match fmt {
         Format::Claude => parse_claude(json),
@@ -127,7 +130,10 @@ fn parse_ts(v: Option<&serde_json::Value>) -> i64 {
 
 /// Pull text out of either a plain string field or a Claude `content` array of
 /// `{type:"text", text}` blocks. Joins multiple text blocks with newlines.
-fn extract_text(text_field: Option<&serde_json::Value>, content_field: Option<&serde_json::Value>) -> String {
+fn extract_text(
+    text_field: Option<&serde_json::Value>,
+    content_field: Option<&serde_json::Value>,
+) -> String {
     // Prefer the flat `text` if non-empty.
     if let Some(serde_json::Value::String(s)) = text_field {
         if !s.trim().is_empty() {
@@ -139,11 +145,17 @@ fn extract_text(text_field: Option<&serde_json::Value>, content_field: Option<&s
         let joined = blocks
             .iter()
             .filter_map(|b| {
-                let is_text = b.get("type").and_then(|t| t.as_str()).map(|t| t == "text").unwrap_or(true);
+                let is_text = b
+                    .get("type")
+                    .and_then(|t| t.as_str())
+                    .map(|t| t == "text")
+                    .unwrap_or(true);
                 if !is_text {
                     return None;
                 }
-                b.get("text").and_then(|t| t.as_str()).map(|s| s.to_string())
+                b.get("text")
+                    .and_then(|t| t.as_str())
+                    .map(|s| s.to_string())
             })
             .collect::<Vec<_>>()
             .join("\n");
@@ -195,7 +207,11 @@ pub fn parse_claude(json: &serde_json::Value) -> Vec<ImportedConversation> {
                 continue;
             }
             let ts = parse_ts(m.get("created_at"));
-            messages.push(ImportedMessage { role: role.to_string(), content, ts });
+            messages.push(ImportedMessage {
+                role: role.to_string(),
+                content,
+                ts,
+            });
         }
         if messages.is_empty() {
             continue;
@@ -312,8 +328,12 @@ pub fn linearize_chatgpt(
 
     let mut out = Vec::new();
     for key in path {
-        let Some(node) = mapping.get(&key) else { continue };
-        let Some(message) = node.get("message") else { continue };
+        let Some(node) = mapping.get(&key) else {
+            continue;
+        };
+        let Some(message) = node.get("message") else {
+            continue;
+        };
         if message.is_null() {
             continue;
         }
@@ -349,7 +369,11 @@ pub fn linearize_chatgpt(
             continue;
         }
         let ts = parse_ts(message.get("create_time"));
-        out.push(ImportedMessage { role: role.to_string(), content: text.to_string(), ts });
+        out.push(ImportedMessage {
+            role: role.to_string(),
+            content: text.to_string(),
+            ts,
+        });
     }
     out
 }
@@ -388,8 +412,16 @@ pub fn parse_generic(json: &serde_json::Value) -> Vec<ImportedConversation> {
             if content.trim().is_empty() {
                 continue;
             }
-            let ts = parse_ts(m.get("ts").or_else(|| m.get("timestamp")).or_else(|| m.get("created_at")));
-            messages.push(ImportedMessage { role: role.to_string(), content, ts });
+            let ts = parse_ts(
+                m.get("ts")
+                    .or_else(|| m.get("timestamp"))
+                    .or_else(|| m.get("created_at")),
+            );
+            messages.push(ImportedMessage {
+                role: role.to_string(),
+                content,
+                ts,
+            });
         }
         if messages.is_empty() {
             continue;
@@ -486,7 +518,10 @@ mod tests {
         assert_eq!(convs.len(), 1);
         let c = &convs[0];
         let texts: Vec<&str> = c.messages.iter().map(|m| m.content.as_str()).collect();
-        assert_eq!(texts, vec!["question one", "answer one", "follow up A", "final A"]);
+        assert_eq!(
+            texts,
+            vec!["question one", "answer one", "follow up A", "final A"]
+        );
         // Branch B and the tool node must not appear.
         assert!(!texts.iter().any(|t| t.contains("not chosen")));
         assert!(!texts.iter().any(|t| t.contains("tool junk")));
@@ -508,7 +543,11 @@ mod tests {
         }]);
         let convs = parse_chatgpt(&json);
         assert_eq!(convs.len(), 1);
-        let texts: Vec<&str> = convs[0].messages.iter().map(|m| m.content.as_str()).collect();
+        let texts: Vec<&str> = convs[0]
+            .messages
+            .iter()
+            .map(|m| m.content.as_str())
+            .collect();
         assert_eq!(texts, vec!["one", "two"]);
     }
 

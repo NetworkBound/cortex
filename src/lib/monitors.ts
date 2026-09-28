@@ -45,7 +45,9 @@ export async function stopMonitors(): Promise<void> {
  * Read `<project_root>/.cortex/monitors/monitors.json` without starting
  * anything. A missing file resolves to an empty list.
  */
-export async function listMonitors(projectRoot: string): Promise<MonitorSpec[]> {
+export async function listMonitors(
+  projectRoot: string,
+): Promise<MonitorSpec[]> {
   return invoke<MonitorSpec[]>("list_monitors", { projectRoot });
 }
 

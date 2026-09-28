@@ -78,17 +78,14 @@ export function StashManagerModal({ onClose }: StashManagerModalProps) {
     void refresh();
   }, [refresh]);
 
-  const reportOp = useCallback(
-    (label: string, result: StashOpResult) => {
-      const summary = summarizeStashOp(result);
-      pushToast({
-        title: result.ok ? `${label} ok` : `${label} failed`,
-        body: summary,
-        kind: result.ok ? "success" : "error",
-      });
-    },
-    [],
-  );
+  const reportOp = useCallback((label: string, result: StashOpResult) => {
+    const summary = summarizeStashOp(result);
+    pushToast({
+      title: result.ok ? `${label} ok` : `${label} failed`,
+      body: summary,
+      kind: result.ok ? "success" : "error",
+    });
+  }, []);
 
   const onSave = useCallback(async () => {
     if (!activeProject) {
@@ -108,7 +105,11 @@ export function StashManagerModal({ onClose }: StashManagerModalProps) {
       }
       await refresh();
     } catch (e) {
-      pushToast({ title: "stash save failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "stash save failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setBusy(false);
     }
@@ -264,7 +265,12 @@ export function StashManagerModal({ onClose }: StashManagerModalProps) {
                     <div className="stash-manager-actions">
                       <button
                         onClick={() =>
-                          void runRowAction("apply", s.ref_id, gitStashApply, false)
+                          void runRowAction(
+                            "apply",
+                            s.ref_id,
+                            gitStashApply,
+                            false,
+                          )
                         }
                         disabled={rowBusy}
                       >
@@ -281,7 +287,12 @@ export function StashManagerModal({ onClose }: StashManagerModalProps) {
                       <button
                         className="stash-manager-danger"
                         onClick={() =>
-                          void runRowAction("drop", s.ref_id, gitStashDrop, true)
+                          void runRowAction(
+                            "drop",
+                            s.ref_id,
+                            gitStashDrop,
+                            true,
+                          )
                         }
                         disabled={rowBusy}
                       >
@@ -297,7 +308,9 @@ export function StashManagerModal({ onClose }: StashManagerModalProps) {
                     {open && (
                       <pre className="stash-manager-diff">
                         <code>
-                          {diffLoading ? "loading diff…" : diffText || "(empty diff)"}
+                          {diffLoading
+                            ? "loading diff…"
+                            : diffText || "(empty diff)"}
                         </code>
                       </pre>
                     )}

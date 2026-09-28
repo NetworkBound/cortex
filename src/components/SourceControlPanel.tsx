@@ -182,9 +182,7 @@ export function SourceControlPanel() {
             title="Staged"
             files={status?.staged ?? []}
             actionLabel="Unstage"
-            onAction={(path) =>
-              run(() => gitUnstageFile(root, path))
-            }
+            onAction={(path) => run(() => gitUnstageFile(root, path))}
             selectedPath={selected?.mode === "staged" ? selected.path : null}
             onOpenDiff={(path) => toggleDiff(path, "staged")}
           />
@@ -192,9 +190,7 @@ export function SourceControlPanel() {
             title="Unstaged"
             files={status?.unstaged ?? []}
             actionLabel="Stage"
-            onAction={(path) =>
-              run(() => gitStageFile(root, path))
-            }
+            onAction={(path) => run(() => gitStageFile(root, path))}
             extraAction={{
               label: "Discard",
               onAction: (path) =>
@@ -452,12 +448,11 @@ function DiffPane({
 
       {diffError && <div className="git-scm-error">{diffError}</div>}
 
-      {loading && !diffError && (
-        <PanelLoading lines={4} label="Loading diff" />
-      )}
+      {loading && !diffError && <PanelLoading lines={4} label="Loading diff" />}
 
-      {parsed && !diffError && (
-        parsed.hunks.length === 0 ? (
+      {parsed &&
+        !diffError &&
+        (parsed.hunks.length === 0 ? (
           diff !== null && diff.trim().length > 0 ? (
             // No @@ hunks but git said something — binary file, mode change,
             // or our truncation stub. Show the raw text rather than nothing.
@@ -493,8 +488,7 @@ function DiffPane({
               </div>
             ))}
           </div>
-        )
-      )}
+        ))}
     </div>
   );
 }

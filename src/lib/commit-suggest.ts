@@ -10,6 +10,8 @@ import { invoke } from "@tauri-apps/api/core";
  * - there are no changes to summarise,
  * - the gateway call times out or returns an empty message.
  */
-export async function suggestCommitMessage(projectRoot: string): Promise<string> {
+export async function suggestCommitMessage(
+  projectRoot: string,
+): Promise<string> {
   return invoke<string>("suggest_commit_message", { projectRoot });
 }

@@ -54,7 +54,9 @@ pub async fn ts_enable(authkey: Option<String>) -> Result<TsStatus, String> {
         .filter(|k| !k.trim().is_empty())
         .or_else(tailscale::get_authkey);
 
-    tracing::info!("tailscale: no system Tailscale — starting embedded tsnet sidecar (socks5h proxy)");
+    tracing::info!(
+        "tailscale: no system Tailscale — starting embedded tsnet sidecar (socks5h proxy)"
+    );
     manager::start(key, &socks, DEFAULT_HOSTNAME)?;
     Ok(tailscale::current_status())
 }
@@ -103,7 +105,11 @@ pub async fn ts_get_external_socks() -> Result<String, String> {
 /// sidecar is never started and home traffic routes through this address.
 #[tauri::command]
 pub async fn ts_set_external_socks(addr: String) -> Result<(), String> {
-    let value = if addr.trim().is_empty() { None } else { Some(addr) };
+    let value = if addr.trim().is_empty() {
+        None
+    } else {
+        Some(addr)
+    };
     tailscale::set_external_socks(value).map_err(|e| e.to_string())
 }
 
@@ -216,6 +222,10 @@ mod tests {
         assert!(p.qr_svg.starts_with("<?xml") || p.qr_svg.starts_with("<svg"));
         assert!(p.qr_svg.contains("<svg"));
         // A real QR of a ~30-char URL is substantial, never the 1x1 placeholder.
-        assert!(p.qr_svg.len() > 500, "unexpectedly tiny QR svg: {}", p.qr_svg.len());
+        assert!(
+            p.qr_svg.len() > 500,
+            "unexpectedly tiny QR svg: {}",
+            p.qr_svg.len()
+        );
     }
 }

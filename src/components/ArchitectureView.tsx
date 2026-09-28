@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { PanelLoading } from "./Skeleton";
 import { humanizeError } from "@/lib/errors";
 import { invoke } from "@tauri-apps/api/core";
@@ -101,7 +107,7 @@ export function ArchitectureView() {
       }
     },
     // renderMermaid is stable (defined below via closure over refs/setters).
-     
+
     [projectRoot],
   );
 
@@ -161,7 +167,9 @@ export function ArchitectureView() {
 
       <div className="arch-body">
         {phase === "idle" && (
-          <div className="arch-state">Open a project to map its architecture.</div>
+          <div className="arch-state">
+            Open a project to map its architecture.
+          </div>
         )}
         {phase === "loading" && (
           <PanelLoading label="Walking the tree and synthesising the diagram" />
@@ -169,9 +177,14 @@ export function ArchitectureView() {
         {phase === "error" && <div className="arch-error">{error}</div>}
         {phase === "ready" && data && (
           <>
-            {data.description && <p className="arch-description">{data.description}</p>}
+            {data.description && (
+              <p className="arch-description">{data.description}</p>
+            )}
             {svg ? (
-              <div className="arch-diagram" dangerouslySetInnerHTML={{ __html: svg }} />
+              <div
+                className="arch-diagram"
+                dangerouslySetInnerHTML={{ __html: svg }}
+              />
             ) : (
               <div className="arch-state">Rendering diagram…</div>
             )}

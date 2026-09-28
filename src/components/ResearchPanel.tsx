@@ -35,7 +35,12 @@ import { addBookmark } from "@/lib/bookmarks";
 import { pushToast } from "@/lib/toast";
 import { useGatewayConfigured } from "@/lib/gateway";
 import { useCortexStore } from "@/state/store";
-import { useJobs, startDeepResearch, clearResearchReport, type ResearchView } from "@/state/jobs";
+import {
+  useJobs,
+  startDeepResearch,
+  clearResearchReport,
+  type ResearchView,
+} from "@/state/jobs";
 import {
   listResearchReports,
   readResearchReport,
@@ -106,7 +111,11 @@ export function ResearchPanel() {
   const openSaved = useCallback(async (r: SavedReport) => {
     try {
       setOpenError(null);
-      setViewedSaved({ markdown: await readResearchReport(r.path), path: r.path, title: r.title });
+      setViewedSaved({
+        markdown: await readResearchReport(r.path),
+        path: r.path,
+        title: r.title,
+      });
     } catch (e) {
       setOpenError(humanizeError(e));
     }
@@ -118,11 +127,17 @@ export function ResearchPanel() {
     // close the activity panel so the chat is front-and-center, focus the
     // composer so the next keystroke starts the conversation.
     window.dispatchEvent(
-      new CustomEvent("cortex:composer-insert", { detail: { value: `@${report.path} ` } }),
+      new CustomEvent("cortex:composer-insert", {
+        detail: { value: `@${report.path} ` },
+      }),
     );
     setActivityTab(null);
     window.dispatchEvent(new CustomEvent("cortex:composer-focus"));
-    pushToast({ title: "Report attached to chat", body: report.title, kind: "success" });
+    pushToast({
+      title: "Report attached to chat",
+      body: report.title,
+      kind: "success",
+    });
   }, [report, setActivityTab]);
 
   const bookmark = useCallback(async () => {
@@ -135,7 +150,11 @@ export function ResearchPanel() {
       note: null,
     });
     if (added) {
-      pushToast({ title: "Report bookmarked", body: report.title, kind: "success" });
+      pushToast({
+        title: "Report bookmarked",
+        body: report.title,
+        kind: "success",
+      });
     } else {
       pushToast({ title: "Couldn't bookmark report", kind: "error" });
     }
@@ -162,8 +181,8 @@ export function ResearchPanel() {
             <strong>Deep research needs a gateway</strong>
             <span>
               Reports are synthesized by an LLM served through the Cortex
-              Gateway. Connect one to run new research — saved reports below stay
-              readable offline.
+              Gateway. Connect one to run new research — saved reports below
+              stay readable offline.
             </span>
           </div>
           <button
@@ -200,7 +219,9 @@ export function ResearchPanel() {
               onChange={(e) => setMaxSources(Number(e.target.value))}
             >
               {[3, 5, 7, 10].map((n) => (
-                <option key={n} value={n}>{n}</option>
+                <option key={n} value={n}>
+                  {n}
+                </option>
               ))}
             </select>
           </label>
@@ -218,10 +239,14 @@ export function ResearchPanel() {
       {progress && (
         <div className="research-progress" role="status">
           <div className="research-progress-bar">
-            <div className="research-progress-fill" style={{ width: `${Math.max(3, progress.pct)}%` }} />
+            <div
+              className="research-progress-fill"
+              style={{ width: `${Math.max(3, progress.pct)}%` }}
+            />
           </div>
           <span className="research-progress-label">
-            {progress.step}{progress.message ? ` — ${progress.message}` : ""} ({progress.pct}%)
+            {progress.step}
+            {progress.message ? ` — ${progress.message}` : ""} ({progress.pct}%)
           </span>
         </div>
       )}
@@ -253,16 +278,28 @@ export function ResearchPanel() {
               <button
                 className="research-action-btn"
                 disabled={!report.path}
-                title={report.path ? "Attach the report to the chat composer" : "Report wasn't saved to the vault"}
+                title={
+                  report.path
+                    ? "Attach the report to the chat composer"
+                    : "Report wasn't saved to the vault"
+                }
                 onClick={discussInChat}
               >
-                <MessageSquarePlus size={13} strokeWidth={1.9} aria-hidden="true" />
+                <MessageSquarePlus
+                  size={13}
+                  strokeWidth={1.9}
+                  aria-hidden="true"
+                />
                 Discuss in chat
               </button>
               <button
                 className="research-action-btn"
                 disabled={!report.path}
-                title={report.path ? "Bookmark this report" : "Report wasn't saved to the vault"}
+                title={
+                  report.path
+                    ? "Bookmark this report"
+                    : "Report wasn't saved to the vault"
+                }
                 onClick={() => void bookmark()}
               >
                 <BookmarkPlus size={13} strokeWidth={1.9} aria-hidden="true" />
@@ -285,20 +322,33 @@ export function ResearchPanel() {
               {listError ? (
                 <div className="research-error" role="alert">
                   Couldn't load saved reports. {listError}{" "}
-                  <button className="research-action-btn" onClick={() => void reloadSaved()}>
+                  <button
+                    className="research-action-btn"
+                    onClick={() => void reloadSaved()}
+                  >
                     Retry
                   </button>
                 </div>
               ) : saved.length === 0 ? (
-                <p className="research-hint">No saved reports yet. Ask a question above to run your first deep-research report.</p>
+                <p className="research-hint">
+                  No saved reports yet. Ask a question above to run your first
+                  deep-research report.
+                </p>
               ) : (
                 <>
                   <h3 className="research-saved-title">Saved reports</h3>
                   <ul className="research-saved-list">
                     {saved.map((r) => (
                       <li key={r.path}>
-                        <button className="research-saved-row" onClick={() => void openSaved(r)}>
-                          <FileText size={14} strokeWidth={1.75} aria-hidden="true" />
+                        <button
+                          className="research-saved-row"
+                          onClick={() => void openSaved(r)}
+                        >
+                          <FileText
+                            size={14}
+                            strokeWidth={1.75}
+                            aria-hidden="true"
+                          />
                           <span className="research-saved-q">{r.title}</span>
                         </button>
                       </li>

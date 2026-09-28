@@ -38,7 +38,9 @@ pub struct AutoApproveList {
 impl AutoApproveList {
     /// Build an empty list.
     pub fn empty() -> Self {
-        Self { entries: Vec::new() }
+        Self {
+            entries: Vec::new(),
+        }
     }
 
     /// Resolve `~/.cortex/auto-approve.json`. Returns `None` when the home
@@ -66,10 +68,7 @@ impl AutoApproveList {
         let parsed: Vec<AutoApproveEntry> = match serde_json::from_str(&raw) {
             Ok(v) => v,
             Err(e) => {
-                tracing::warn!(
-                    "auto-approve: ignoring malformed {} ({e})",
-                    path.display()
-                );
+                tracing::warn!("auto-approve: ignoring malformed {} ({e})", path.display());
                 return Self::empty();
             }
         };
@@ -130,8 +129,7 @@ impl AutoApproveList {
         }
         let tool_lc = tool_name.to_ascii_lowercase();
         for (entry, matcher) in &self.entries {
-            let tool_ok = entry.tool.is_empty()
-                || entry.tool.eq_ignore_ascii_case(&tool_lc);
+            let tool_ok = entry.tool.is_empty() || entry.tool.eq_ignore_ascii_case(&tool_lc);
             if !tool_ok {
                 continue;
             }
@@ -161,15 +159,16 @@ impl AutoApproveList {
     pub fn add(entry: AutoApproveEntry) -> anyhow::Result<()> {
         Glob::new(&entry.pattern)
             .map_err(|e| anyhow::anyhow!("invalid glob '{}': {e}", entry.pattern))?;
-        let path = Self::file_path()
-            .ok_or_else(|| anyhow::anyhow!("could not resolve home directory"))?;
+        let path =
+            Self::file_path().ok_or_else(|| anyhow::anyhow!("could not resolve home directory"))?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
         let mut entries = Self::list();
-        if entries.iter().any(|e| {
-            e.tool.eq_ignore_ascii_case(&entry.tool) && e.pattern == entry.pattern
-        }) {
+        if entries
+            .iter()
+            .any(|e| e.tool.eq_ignore_ascii_case(&entry.tool) && e.pattern == entry.pattern)
+        {
             return Ok(());
         }
         entries.push(entry);
@@ -181,8 +180,8 @@ impl AutoApproveList {
     /// Remove the entry at `index` (0-based, matching `list()`). Out-of-
     /// range indices are a no-op so the UI can be loose about staleness.
     pub fn remove(index: usize) -> anyhow::Result<()> {
-        let path = Self::file_path()
-            .ok_or_else(|| anyhow::anyhow!("could not resolve home directory"))?;
+        let path =
+            Self::file_path().ok_or_else(|| anyhow::anyhow!("could not resolve home directory"))?;
         let mut entries = Self::list();
         if index >= entries.len() {
             return Ok(());

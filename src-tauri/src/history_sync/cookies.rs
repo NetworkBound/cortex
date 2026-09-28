@@ -123,7 +123,8 @@ pub fn decrypt_chromium_value(key: &[u8], blob: &[u8]) -> Result<String, String>
     let plaintext = cipher
         .decrypt(Nonce::from_slice(nonce), ct_and_tag)
         .map_err(|_| "AES-GCM decrypt failed (wrong key or corrupt value)".to_string())?;
-    String::from_utf8(plaintext).map_err(|_| "decrypted cookie value was not valid UTF-8".to_string())
+    String::from_utf8(plaintext)
+        .map_err(|_| "decrypted cookie value was not valid UTF-8".to_string())
 }
 
 /// Pull the base64 `os_crypt.encrypted_key` out of a Chromium `Local State`
@@ -133,8 +134,7 @@ pub fn decrypt_chromium_value(key: &[u8], blob: &[u8]) -> Result<String, String>
 #[cfg_attr(not(windows), allow(dead_code))]
 fn read_dpapi_wrapped_key(local_state_path: &Path) -> Result<Vec<u8>, String> {
     use base64::Engine as _;
-    let bytes = std::fs::read(local_state_path)
-        .map_err(|e| format!("read Local State: {e}"))?;
+    let bytes = std::fs::read(local_state_path).map_err(|e| format!("read Local State: {e}"))?;
     let json: serde_json::Value =
         serde_json::from_slice(&bytes).map_err(|e| format!("parse Local State JSON: {e}"))?;
     let b64 = json
@@ -239,7 +239,9 @@ fn copy_sqlite_for_read(db: &Path, tag: &str) -> Result<(PathBuf, Vec<TempFileGu
         }
     }
     // SQLite creates `-shm` on open when a WAL is present; make sure it goes too.
-    guards.push(TempFileGuard(std::env::temp_dir().join(format!("{stem}.db-shm"))));
+    guards.push(TempFileGuard(
+        std::env::temp_dir().join(format!("{stem}.db-shm")),
+    ));
     Ok((tmp, guards))
 }
 
@@ -307,8 +309,8 @@ mod firefox {
     /// Read the plaintext cookie value for the first matching `(host, name)`.
     fn read(db: &Path, domains: &[&str], name: &str) -> Result<String, String> {
         let (tmp, _guards) = copy_sqlite_for_read(db, "ff")?;
-        let conn = rusqlite::Connection::open(&tmp)
-            .map_err(|e| format!("open cookies.sqlite: {e}"))?;
+        let conn =
+            rusqlite::Connection::open(&tmp).map_err(|e| format!("open cookies.sqlite: {e}"))?;
         for domain in domains {
             let dotted = format!(".{domain}");
             let mut stmt = conn
@@ -345,8 +347,14 @@ mod windows_impl {
     }
 
     const BROWSERS: &[Browser] = &[
-        Browser { name: "Chrome", rel: r"Google\Chrome\User Data" },
-        Browser { name: "Edge", rel: r"Microsoft\Edge\User Data" },
+        Browser {
+            name: "Chrome",
+            rel: r"Google\Chrome\User Data",
+        },
+        Browser {
+            name: "Edge",
+            rel: r"Microsoft\Edge\User Data",
+        },
     ];
 
     pub fn detect(provider: WebProvider) -> Result<String, String> {
@@ -398,7 +406,10 @@ mod windows_impl {
         // `Default` sorts before `Profile N` already ('D' < 'P').
         let mut out = Vec::new();
         for profile in profiles {
-            for candidate in [profile.join("Network").join("Cookies"), profile.join("Cookies")] {
+            for candidate in [
+                profile.join("Network").join("Cookies"),
+                profile.join("Cookies"),
+            ] {
                 if candidate.is_file() {
                     out.push(candidate);
                     break;
@@ -415,14 +426,15 @@ mod windows_impl {
     ) -> Result<String, String> {
         let wrapped = read_dpapi_wrapped_key(local_state)?;
         let key = dpapi_decrypt(&wrapped)?;
-        let blob = read_encrypted_cookie_blob(cookies_db, provider.domains(), provider.cookie_name())?;
+        let blob =
+            read_encrypted_cookie_blob(cookies_db, provider.domains(), provider.cookie_name())?;
         decrypt_chromium_value(&key, &blob)
     }
 
     /// DPAPI-decrypt the (de-prefixed) `encrypted_key` into the raw AES key via
     /// `CryptUnprotectData`. Current-user scope, no entropy — matching Chromium.
     fn dpapi_decrypt(data: &[u8]) -> Result<Vec<u8>, String> {
-        use windows::Win32::Foundation::{HLOCAL, LocalFree};
+        use windows::Win32::Foundation::{LocalFree, HLOCAL};
         use windows::Win32::Security::Cryptography::{CryptUnprotectData, CRYPT_INTEGER_BLOB};
 
         // SAFETY: we pass a valid input blob and read back the out blob's
@@ -434,16 +446,8 @@ mod windows_impl {
             };
             let mut out_blob = CRYPT_INTEGER_BLOB::default();
 
-            CryptUnprotectData(
-                &mut in_blob,
-                None,
-                None,
-                None,
-                None,
-                0,
-                &mut out_blob,
-            )
-            .map_err(|e| format!("CryptUnprotectData failed: {}", e.code().0))?;
+            CryptUnprotectData(&mut in_blob, None, None, None, None, 0, &mut out_blob)
+                .map_err(|e| format!("CryptUnprotectData failed: {}", e.code().0))?;
 
             if out_blob.pbData.is_null() {
                 return Err("CryptUnprotectData returned null".to_string());
@@ -575,10 +579,8 @@ mod tests {
         {
             let conn = rusqlite::Connection::open(&db).unwrap();
             conn.pragma_update(None, "journal_mode", "WAL").unwrap();
-            conn.execute_batch(
-                "CREATE TABLE t (v TEXT); INSERT INTO t VALUES ('in-wal');",
-            )
-            .unwrap();
+            conn.execute_batch("CREATE TABLE t (v TEXT); INSERT INTO t VALUES ('in-wal');")
+                .unwrap();
             // Keep the connection open so the WAL is NOT checkpointed into the
             // main file: the row only exists in `cookies.sqlite-wal`.
             let (tmp, guards) = copy_sqlite_for_read(&db, "test").unwrap();

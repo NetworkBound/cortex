@@ -81,7 +81,11 @@ fn parse_search_queries(out: &str) -> Vec<String> {
     if let (Some(a), Some(b)) = (out.find('['), out.rfind(']')) {
         if b > a {
             if let Ok(v) = serde_json::from_str::<Vec<String>>(&out[a..=b]) {
-                let v: Vec<String> = v.into_iter().map(|s| s.trim().to_string()).filter(|s| s.len() > 2).collect();
+                let v: Vec<String> = v
+                    .into_iter()
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| s.len() > 2)
+                    .collect();
                 if !v.is_empty() {
                     return v;
                 }
@@ -107,14 +111,25 @@ fn parse_search_queries(out: &str) -> Vec<String> {
 fn slugify(s: &str) -> String {
     let lowered: String = s
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
         .collect();
     let collapsed = lowered
         .split('-')
         .filter(|p| !p.is_empty())
         .collect::<Vec<_>>()
         .join("-");
-    collapsed.chars().take(60).collect::<String>().trim_matches('-').to_string()
+    collapsed
+        .chars()
+        .take(60)
+        .collect::<String>()
+        .trim_matches('-')
+        .to_string()
 }
 
 fn yaml_escape(s: &str) -> String {
@@ -142,7 +157,9 @@ fn extract_frontmatter_field(content: &str, key: &str) -> Option<String> {
 }
 
 fn first_heading(content: &str) -> Option<String> {
-    content.lines().find_map(|l| l.trim().strip_prefix("# ").map(|s| s.trim().to_string()))
+    content
+        .lines()
+        .find_map(|l| l.trim().strip_prefix("# ").map(|s| s.trim().to_string()))
 }
 
 // ----- network / disk -----
@@ -166,8 +183,14 @@ async fn llm_complete(
     let req = ChatCompletionRequest {
         model: model.to_string(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: system.into() },
-            ChatMessage { role: "user".into(), content: user.into() },
+            ChatMessage {
+                role: "system".into(),
+                content: system.into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: user.into(),
+            },
         ],
         stream: true,
         temperature: Some(0.3),
@@ -211,7 +234,8 @@ fn save_report(vault: &Option<PathBuf>, question: &str, markdown: &str) -> Resul
         yaml_escape(question),
         chrono::Utc::now().to_rfc3339(),
     );
-    std::fs::write(&path, format!("{frontmatter}{markdown}")).map_err(|e| format!("write report: {e}"))?;
+    std::fs::write(&path, format!("{frontmatter}{markdown}"))
+        .map_err(|e| format!("write report: {e}"))?;
     Ok(path)
 }
 
@@ -239,7 +263,10 @@ pub async fn deep_research(
     {
         let mut active = ACTIVE_RESEARCH.lock();
         if let Some(run) = active.as_ref() {
-            return Err(format!("A research run is already in progress ({}).", run.question));
+            return Err(format!(
+                "A research run is already in progress ({}).",
+                run.question
+            ));
         }
         *active = Some(ActiveResearch {
             question: question.clone(),
@@ -265,12 +292,21 @@ async fn run_research(
     let max_sources = max_sources.unwrap_or(5).clamp(1, 10);
     let (base_url, model, vault) = {
         let cfg = state.config.read();
-        (cfg.gateway_base_url.clone(), cfg.gateway_model.clone(), cfg.obsidian_vault.clone())
+        (
+            cfg.gateway_base_url.clone(),
+            cfg.gateway_model.clone(),
+            cfg.obsidian_vault.clone(),
+        )
     };
     let api_key = AppState::get_gateway_api_key().unwrap_or_default();
 
     let emit = |step: &str, status: &str, message: Option<String>, pct: u32| {
-        let progress = ResearchProgress { step: step.into(), status: status.into(), message, pct };
+        let progress = ResearchProgress {
+            step: step.into(),
+            status: status.into(),
+            message,
+            pct,
+        };
         // Keep the in-flight registry current so a reload re-adopts the run at
         // its real progress, not "starting".
         if let Some(run) = ACTIVE_RESEARCH.lock().as_mut() {
@@ -294,7 +330,12 @@ async fn run_research(
     if queries.is_empty() {
         queries = vec![question.clone()];
     }
-    emit("planning", "done", Some(format!("{} queries", queries.len())), 15);
+    emit(
+        "planning",
+        "done",
+        Some(format!("{} queries", queries.len())),
+        15,
+    );
 
     // 2. search the web
     emit("searching", "start", None, 20);
@@ -310,10 +351,18 @@ async fn run_research(
         }
     }
     if hits.is_empty() {
-        return Err("No search results came back — is outbound web access available on this machine?".into());
+        return Err(
+            "No search results came back — is outbound web access available on this machine?"
+                .into(),
+        );
     }
     hits.truncate(max_sources);
-    emit("searching", "done", Some(format!("{} sources", hits.len())), 35);
+    emit(
+        "searching",
+        "done",
+        Some(format!("{} sources", hits.len())),
+        35,
+    );
 
     // 3. read the sources
     emit("reading", "start", None, 40);
@@ -321,7 +370,12 @@ async fn run_research(
     let mut sources: Vec<ResearchSource> = Vec::new();
     let mut corpus = String::new();
     for (i, h) in hits.iter().enumerate() {
-        emit("reading", "progress", Some(h.url.clone()), 40 + (i as u32 * 30 / total));
+        emit(
+            "reading",
+            "progress",
+            Some(h.url.clone()),
+            40 + (i as u32 * 30 / total),
+        );
         let text = match crate::commands::context::fetch_url(h.url.clone()).await {
             Ok(page) => page.markdown,
             Err(_) => String::new(),
@@ -332,8 +386,16 @@ async fn run_research(
             continue;
         }
         let n = sources.len() + 1;
-        let title = if h.title.trim().is_empty() { h.url.clone() } else { h.title.clone() };
-        sources.push(ResearchSource { n, title: title.clone(), url: h.url.clone() });
+        let title = if h.title.trim().is_empty() {
+            h.url.clone()
+        } else {
+            h.title.clone()
+        };
+        sources.push(ResearchSource {
+            n,
+            title: title.clone(),
+            url: h.url.clone(),
+        });
         let snippet: String = text.chars().take(4000).collect();
         corpus.push_str(&format!("\n\n[{n}] {title} ({})\n{snippet}\n", h.url));
     }
@@ -361,16 +423,25 @@ async fn run_research(
 
     // 5. save into the Brain
     emit("saving", "start", None, 95);
-    let saved_path = save_report(&vault, &question, &markdown).ok().map(|p| p.display().to_string());
+    let saved_path = save_report(&vault, &question, &markdown)
+        .ok()
+        .map(|p| p.display().to_string());
     emit("saving", "done", saved_path.clone(), 100);
 
-    Ok(ResearchReport { question, markdown, sources, saved_path })
+    Ok(ResearchReport {
+        question,
+        markdown,
+        sources,
+        saved_path,
+    })
 }
 
 #[tauri::command]
 pub fn list_research_reports(state: State<'_, AppState>) -> Result<Vec<SavedReport>, String> {
     let vault = state.config.read().obsidian_vault.clone();
-    let Some(dir) = research_dir(&vault) else { return Ok(vec![]) };
+    let Some(dir) = research_dir(&vault) else {
+        return Ok(vec![]);
+    };
     let mut out = Vec::new();
     if let Ok(rd) = std::fs::read_dir(&dir) {
         for entry in rd.flatten() {
@@ -379,8 +450,11 @@ pub fn list_research_reports(state: State<'_, AppState>) -> Result<Vec<SavedRepo
                 continue;
             }
             let content = std::fs::read_to_string(&path).unwrap_or_default();
-            let question = extract_frontmatter_field(&content, "question")
-                .unwrap_or_else(|| path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default());
+            let question = extract_frontmatter_field(&content, "question").unwrap_or_else(|| {
+                path.file_stem()
+                    .map(|s| s.to_string_lossy().to_string())
+                    .unwrap_or_default()
+            });
             let title = first_heading(&content).unwrap_or_else(|| question.clone());
             let created_unix_ms = entry
                 .metadata()
@@ -389,7 +463,12 @@ pub fn list_research_reports(state: State<'_, AppState>) -> Result<Vec<SavedRepo
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_millis() as i64)
                 .unwrap_or(0);
-            out.push(SavedReport { title, path: path.display().to_string(), question, created_unix_ms });
+            out.push(SavedReport {
+                title,
+                path: path.display().to_string(),
+                question,
+                created_unix_ms,
+            });
         }
     }
     out.sort_by(|a, b| b.created_unix_ms.cmp(&a.created_unix_ms));
@@ -417,14 +496,20 @@ mod tests {
     #[test]
     fn queries_from_json_array() {
         let out = "Here you go:\n[\"rust async runtime\", \"tokio vs async-std\"]";
-        assert_eq!(parse_search_queries(out), vec!["rust async runtime", "tokio vs async-std"]);
+        assert_eq!(
+            parse_search_queries(out),
+            vec!["rust async runtime", "tokio vs async-std"]
+        );
     }
 
     #[test]
     fn queries_fallback_to_lines() {
         let out = "1. first query here\n- second query line\n\"third one\"";
         let q = parse_search_queries(out);
-        assert_eq!(q, vec!["first query here", "second query line", "third one"]);
+        assert_eq!(
+            q,
+            vec!["first query here", "second query line", "third one"]
+        );
     }
 
     // DDG decode/percent-decode/parse are unit-tested in `crate::websearch`
@@ -432,13 +517,19 @@ mod tests {
 
     #[test]
     fn slugify_is_filesystem_safe() {
-        assert_eq!(slugify("What is the best IPTV setup?? (2026)"), "what-is-the-best-iptv-setup-2026");
+        assert_eq!(
+            slugify("What is the best IPTV setup?? (2026)"),
+            "what-is-the-best-iptv-setup-2026"
+        );
     }
 
     #[test]
     fn frontmatter_and_heading_roundtrip() {
         let doc = "---\nquestion: \"how do tides work\"\ncreated: 2026-06-06\n---\n\n# How do tides work\n\nbody";
-        assert_eq!(extract_frontmatter_field(doc, "question").as_deref(), Some("how do tides work"));
+        assert_eq!(
+            extract_frontmatter_field(doc, "question").as_deref(),
+            Some("how do tides work")
+        );
         assert_eq!(first_heading(doc).as_deref(), Some("How do tides work"));
     }
 }

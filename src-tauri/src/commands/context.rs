@@ -389,10 +389,10 @@ fn html_to_markdown(html: &str) -> String {
         }
     }
     let _ = lower; // explicit unused (kept for potential future use)
-    // Replace block-level tags with newlines to preserve paragraph breaks.
+                   // Replace block-level tags with newlines to preserve paragraph breaks.
     let block_breaks = [
-        "<br", "<p", "</p>", "<div", "</div>", "<li", "</li>", "</tr>", "<tr",
-        "<h1", "</h1>", "<h2", "</h2>", "<h3", "</h3>", "<h4", "</h4>",
+        "<br", "<p", "</p>", "<div", "</div>", "<li", "</li>", "</tr>", "<tr", "<h1", "</h1>",
+        "<h2", "</h2>", "<h3", "</h3>", "<h4", "</h4>",
     ];
     for b in block_breaks {
         let lw = work.to_ascii_lowercase();

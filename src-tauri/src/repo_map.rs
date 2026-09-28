@@ -114,7 +114,10 @@ fn cache_key(project_root: &Path, max_files: usize, personalize: &[String]) -> S
     k.push('|');
     let mut sorted: Vec<&String> = personalize.iter().collect();
     sorted.sort();
-    for s in sorted { k.push_str(s); k.push(','); }
+    for s in sorted {
+        k.push_str(s);
+        k.push(',');
+    }
     k
 }
 
@@ -177,7 +180,11 @@ pub fn compute_repo_map_personalized(
         // entry instead of clearing the whole table. Avoids
         // "warmup wave" where cache is empty after every 16th insert.
         if cache.len() >= 16 {
-            if let Some(oldest) = cache.iter().min_by_key(|(_, (t, _))| *t).map(|(k, _)| k.clone()) {
+            if let Some(oldest) = cache
+                .iter()
+                .min_by_key(|(_, (t, _))| *t)
+                .map(|(k, _)| k.clone())
+            {
                 tracing::debug!(
                     target: "cortex::repo_map",
                     "cache evicting oldest: {}",
@@ -204,8 +211,12 @@ fn compute_repo_map_personalized_uncached(
 
     let mut files: Vec<FileSymbols> = Vec::new();
     for (path, _mtime) in candidates.into_iter().take(max_files) {
-        let Some(language) = detect_language(&path) else { continue };
-        let Ok(content) = std::fs::read_to_string(&path) else { continue };
+        let Some(language) = detect_language(&path) else {
+            continue;
+        };
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            continue;
+        };
         let symbols = extract_symbols(&content, &language);
         if symbols.is_empty() {
             continue;
@@ -245,10 +256,14 @@ fn compute_repo_map_personalized_uncached(
         let mut hit: std::collections::HashSet<usize> = std::collections::HashSet::new();
         for ident in &f.references {
             if let Some(defs) = defines.get(ident.as_str()) {
-                for &idx in defs { hit.insert(idx); }
+                for &idx in defs {
+                    hit.insert(idx);
+                }
             }
         }
-        for idx in hit { inbound[idx] = inbound[idx].saturating_add(1); }
+        for idx in hit {
+            inbound[idx] = inbound[idx].saturating_add(1);
+        }
     }
     // Wave 188 — personalize. For each mentioned identifier, boost every
     // file that defines OR references it by +2 inbound. Boosts both
@@ -257,7 +272,9 @@ fn compute_repo_map_personalized_uncached(
     if !personalize.is_empty() {
         for ident in personalize {
             if let Some(defs) = defines.get(ident.as_str()) {
-                for &idx in defs { inbound[idx] = inbound[idx].saturating_add(2); }
+                for &idx in defs {
+                    inbound[idx] = inbound[idx].saturating_add(2);
+                }
             }
             for (i, f) in files.iter().enumerate() {
                 if f.references.iter().any(|r| r == ident) {
@@ -271,7 +288,11 @@ fn compute_repo_map_personalized_uncached(
         f.pagerank = (inbound[i] as f32) / max_in;
     }
     // Stable sort by pagerank desc (preserves mtime order on ties).
-    files.sort_by(|a, b| b.pagerank.partial_cmp(&a.pagerank).unwrap_or(std::cmp::Ordering::Equal));
+    files.sort_by(|a, b| {
+        b.pagerank
+            .partial_cmp(&a.pagerank)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     RepoMap {
         files,
@@ -292,12 +313,16 @@ fn extract_references(content: &str) -> Vec<String> {
     // required `_` or a lowercase→uppercase transition, which missed
     // those entirely and dropped their inbound edge count to zero.
     let looks_id = |s: &str| -> bool {
-        if s.contains('_') { return true; }
+        if s.contains('_') {
+            return true;
+        }
         let mut chars = s.chars();
         let first = chars.next();
         if let Some(c0) = first {
             // CamelCase / PascalCase: starts uppercase, has lowercase.
-            if c0.is_uppercase() && chars.any(|c| c.is_lowercase()) { return true; }
+            if c0.is_uppercase() && chars.any(|c| c.is_lowercase()) {
+                return true;
+            }
         }
         // lowercase→uppercase transition mid-word (e.g. `processOrder`).
         s.chars()
@@ -314,7 +339,9 @@ fn extract_references(content: &str) -> Vec<String> {
         }
         if cur.len() >= 4 && looks_id(&cur) && seen.insert(cur.clone()) {
             out.push(cur.clone());
-            if out.len() >= 200 { return out; }
+            if out.len() >= 200 {
+                return out;
+            }
         }
         cur.clear();
     }
@@ -423,106 +450,252 @@ struct LangRegexes {
 
 static RUST_RX: Lazy<LangRegexes> = Lazy::new(|| LangRegexes {
     patterns: vec![
-        (Regex::new(r"^\s*pub\s+(?:async\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "fn", 1),
-        (Regex::new(r"^\s*pub\s+struct\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "struct", 1),
-        (Regex::new(r"^\s*pub\s+enum\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "enum", 1),
-        (Regex::new(r"^\s*pub\s+trait\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "trait", 1),
-        (Regex::new(r"^\s*pub\s+(?:type|const|static)\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "const", 1),
-        (Regex::new(r"^\s*impl(?:<[^>]*>)?\s+([A-Za-z_][A-Za-z0-9_:<>\s,]*?)\s*\{").unwrap(), "type", 1),
+        (
+            Regex::new(r"^\s*pub\s+(?:async\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "fn",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*pub\s+struct\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "struct",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*pub\s+enum\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "enum",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*pub\s+trait\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "trait",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*pub\s+(?:type|const|static)\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "const",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*impl(?:<[^>]*>)?\s+([A-Za-z_][A-Za-z0-9_:<>\s,]*?)\s*\{").unwrap(),
+            "type",
+            1,
+        ),
     ],
 });
 
 static TS_RX: Lazy<LangRegexes> = Lazy::new(|| LangRegexes {
     patterns: vec![
-        (Regex::new(r"^\s*export\s+(?:async\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(), "fn", 1),
-        (Regex::new(r"^\s*export\s+default\s+(?:async\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(), "fn", 1),
-        (Regex::new(r"^\s*export\s+(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(), "const", 1),
-        (Regex::new(r"^\s*export\s+(?:default\s+)?class\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(), "class", 1),
-        (Regex::new(r"^\s*export\s+(?:default\s+)?interface\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(), "interface", 1),
-        (Regex::new(r"^\s*export\s+(?:default\s+)?type\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(), "type", 1),
-        (Regex::new(r"^\s*export\s+(?:default\s+)?enum\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(), "enum", 1),
-        (Regex::new(r"^\s*(?:async\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(), "fn", 1),
-        (Regex::new(r"^\s*class\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(), "class", 1),
+        (
+            Regex::new(r"^\s*export\s+(?:async\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(),
+            "fn",
+            1,
+        ),
+        (
+            Regex::new(
+                r"^\s*export\s+default\s+(?:async\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)",
+            )
+            .unwrap(),
+            "fn",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*export\s+(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(),
+            "const",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*export\s+(?:default\s+)?class\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(),
+            "class",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*export\s+(?:default\s+)?interface\s+([A-Za-z_$][A-Za-z0-9_$]*)")
+                .unwrap(),
+            "interface",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*export\s+(?:default\s+)?type\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(),
+            "type",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*export\s+(?:default\s+)?enum\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(),
+            "enum",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*(?:async\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(),
+            "fn",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*class\s+([A-Za-z_$][A-Za-z0-9_$]*)").unwrap(),
+            "class",
+            1,
+        ),
     ],
 });
 
 static PY_RX: Lazy<LangRegexes> = Lazy::new(|| LangRegexes {
     patterns: vec![
-        (Regex::new(r"^\s*def\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "fn", 1),
-        (Regex::new(r"^\s*async\s+def\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "fn", 1),
-        (Regex::new(r"^\s*class\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "class", 1),
+        (
+            Regex::new(r"^\s*def\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "fn",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*async\s+def\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "fn",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*class\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "class",
+            1,
+        ),
     ],
 });
 
 static GO_RX: Lazy<LangRegexes> = Lazy::new(|| LangRegexes {
     patterns: vec![
-        (Regex::new(r"^\s*func\s+(?:\([^)]+\)\s+)?([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "fn", 1),
-        (Regex::new(r"^\s*type\s+([A-Za-z_][A-Za-z0-9_]*)\s+(?:struct|interface)").unwrap(), "struct", 1),
-        (Regex::new(r"^\s*type\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "type", 1),
+        (
+            Regex::new(r"^\s*func\s+(?:\([^)]+\)\s+)?([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "fn",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*type\s+([A-Za-z_][A-Za-z0-9_]*)\s+(?:struct|interface)").unwrap(),
+            "struct",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*type\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "type",
+            1,
+        ),
     ],
 });
 
-static JAVA_RX: Lazy<LangRegexes> = Lazy::new(|| LangRegexes {
+static JAVA_RX: Lazy<LangRegexes> = Lazy::new(|| {
+    LangRegexes {
     patterns: vec![
         (Regex::new(r"^\s*public\s+(?:static\s+)?(?:abstract\s+)?(?:final\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "class", 1),
         (Regex::new(r"^\s*public\s+interface\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "interface", 1),
         (Regex::new(r"^\s*public\s+(?:static\s+)?(?:[A-Za-z_][A-Za-z0-9_<>\[\],\s]*\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\(").unwrap(), "fn", 1),
     ],
+}
 });
 
 static SWIFT_RX: Lazy<LangRegexes> = Lazy::new(|| LangRegexes {
     patterns: vec![
-        (Regex::new(r"^\s*(?:public\s+|open\s+)?func\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "fn", 1),
-        (Regex::new(r"^\s*(?:public\s+|open\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "class", 1),
-        (Regex::new(r"^\s*(?:public\s+|open\s+)?struct\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "struct", 1),
-        (Regex::new(r"^\s*(?:public\s+|open\s+)?protocol\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "interface", 1),
-        (Regex::new(r"^\s*(?:public\s+|open\s+)?enum\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "enum", 1),
+        (
+            Regex::new(r"^\s*(?:public\s+|open\s+)?func\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "fn",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*(?:public\s+|open\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "class",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*(?:public\s+|open\s+)?struct\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "struct",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*(?:public\s+|open\s+)?protocol\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "interface",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*(?:public\s+|open\s+)?enum\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "enum",
+            1,
+        ),
     ],
 });
 
 static RUBY_RX: Lazy<LangRegexes> = Lazy::new(|| LangRegexes {
     patterns: vec![
-        (Regex::new(r"^\s*def\s+([A-Za-z_][A-Za-z0-9_?!]*)").unwrap(), "fn", 1),
-        (Regex::new(r"^\s*class\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "class", 1),
-        (Regex::new(r"^\s*module\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "type", 1),
+        (
+            Regex::new(r"^\s*def\s+([A-Za-z_][A-Za-z0-9_?!]*)").unwrap(),
+            "fn",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*class\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "class",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*module\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "type",
+            1,
+        ),
     ],
 });
 
 static PHP_RX: Lazy<LangRegexes> = Lazy::new(|| LangRegexes {
     patterns: vec![
-        (Regex::new(r"^\s*(?:public\s+|private\s+|protected\s+)?function\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "fn", 1),
-        (Regex::new(r"^\s*(?:abstract\s+|final\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "class", 1),
-        (Regex::new(r"^\s*interface\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "interface", 1),
-        (Regex::new(r"^\s*trait\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "trait", 1),
+        (
+            Regex::new(
+                r"^\s*(?:public\s+|private\s+|protected\s+)?function\s+([A-Za-z_][A-Za-z0-9_]*)",
+            )
+            .unwrap(),
+            "fn",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*(?:abstract\s+|final\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "class",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*interface\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "interface",
+            1,
+        ),
+        (
+            Regex::new(r"^\s*trait\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(),
+            "trait",
+            1,
+        ),
     ],
 });
 
-static C_RX: Lazy<LangRegexes> = Lazy::new(|| LangRegexes {
+static C_RX: Lazy<LangRegexes> = Lazy::new(|| {
+    LangRegexes {
     patterns: vec![
         (Regex::new(r"^\s*(?:static\s+|extern\s+)?(?:inline\s+)?[A-Za-z_][A-Za-z0-9_\*\s]*\s+([A-Za-z_][A-Za-z0-9_]*)\s*\([^;]*$").unwrap(), "fn", 1),
         (Regex::new(r"^\s*typedef\s+(?:struct\s+)?[A-Za-z_][A-Za-z0-9_\s\*]*\s+([A-Za-z_][A-Za-z0-9_]*)\s*;").unwrap(), "type", 1),
         (Regex::new(r"^\s*struct\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{").unwrap(), "struct", 1),
     ],
+}
 });
 
-static CPP_RX: Lazy<LangRegexes> = Lazy::new(|| LangRegexes {
+static CPP_RX: Lazy<LangRegexes> = Lazy::new(|| {
+    LangRegexes {
     patterns: vec![
         (Regex::new(r"^\s*(?:template\s*<[^>]+>\s*)?(?:class|struct)\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "class", 1),
         (Regex::new(r"^\s*namespace\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "type", 1),
         (Regex::new(r"^\s*(?:[A-Za-z_][A-Za-z0-9_:<>,\s\*&]+\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\([^;]*\)\s*\{").unwrap(), "fn", 1),
     ],
+}
 });
 
-static CS_RX: Lazy<LangRegexes> = Lazy::new(|| LangRegexes {
+static CS_RX: Lazy<LangRegexes> = Lazy::new(|| {
+    LangRegexes {
     patterns: vec![
         (Regex::new(r"^\s*public\s+(?:static\s+|abstract\s+|sealed\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "class", 1),
         (Regex::new(r"^\s*public\s+interface\s+([A-Za-z_][A-Za-z0-9_]*)").unwrap(), "interface", 1),
         (Regex::new(r"^\s*public\s+(?:static\s+)?(?:async\s+)?[A-Za-z_][A-Za-z0-9_<>\[\],\s]*\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(").unwrap(), "fn", 1),
     ],
+}
 });
 
-static MD_HEADING_RX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^(#{1,3})\s+(.+?)\s*$").unwrap());
+static MD_HEADING_RX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(#{1,3})\s+(.+?)\s*$").unwrap());
 
 fn regex_set_for(language: &str) -> Option<&'static LangRegexes> {
     match language {
@@ -556,7 +729,10 @@ fn extract_symbols(content: &str, language: &str) -> Vec<Symbol> {
         }
         // Cheap filters before regex
         let trimmed = raw_line.trim_start();
-        if trimmed.is_empty() || trimmed.starts_with("//") || trimmed.starts_with('#') && language != "python" {
+        if trimmed.is_empty()
+            || trimmed.starts_with("//")
+            || trimmed.starts_with('#') && language != "python"
+        {
             // markdown uses # but is handled above; '#' lines in source are mostly comments/preproc.
             // For C/C++ '#include' etc. we still skip — they are not symbols.
             continue;
@@ -568,7 +744,9 @@ fn extract_symbols(content: &str, language: &str) -> Vec<Symbol> {
 
         for (rx, kind, group) in &rx_set.patterns {
             if let Some(caps) = rx.captures(raw_line) {
-                let Some(name_match) = caps.get(*group) else { continue };
+                let Some(name_match) = caps.get(*group) else {
+                    continue;
+                };
                 let name = name_match.as_str().trim().to_string();
                 if name.is_empty() {
                     continue;
@@ -595,7 +773,10 @@ fn extract_markdown_symbols(content: &str) -> Vec<Symbol> {
         }
         if let Some(caps) = MD_HEADING_RX.captures(line) {
             let level = caps.get(1).map(|m| m.as_str().len()).unwrap_or(1);
-            let name = caps.get(2).map(|m| m.as_str().to_string()).unwrap_or_default();
+            let name = caps
+                .get(2)
+                .map(|m| m.as_str().to_string())
+                .unwrap_or_default();
             if name.is_empty() {
                 continue;
             }
@@ -651,7 +832,11 @@ pub struct SymbolHit {
 /// matches everything. Hard-capped at 50.
 pub fn repo_symbols(root: &Path, query: &str, limit: usize) -> Vec<SymbolHit> {
     const HARD_CAP: usize = 50;
-    let cap = if limit == 0 { HARD_CAP } else { limit.min(HARD_CAP) };
+    let cap = if limit == 0 {
+        HARD_CAP
+    } else {
+        limit.min(HARD_CAP)
+    };
     let needle = query.trim().to_lowercase();
 
     let mut out: Vec<SymbolHit> = Vec::with_capacity(cap);
@@ -661,8 +846,12 @@ pub fn repo_symbols(root: &Path, query: &str, limit: usize) -> Vec<SymbolHit> {
         if out.len() >= cap {
             break;
         }
-        let Some(language) = detect_language(&path) else { continue };
-        let Ok(content) = std::fs::read_to_string(&path) else { continue };
+        let Some(language) = detect_language(&path) else {
+            continue;
+        };
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            continue;
+        };
         let symbols = extract_symbols(&content, &language);
         if symbols.is_empty() {
             continue;
@@ -909,11 +1098,10 @@ pub fn build_folder(root: &Path, rel: &str, max_bytes: usize) -> Option<String> 
     // Same extension set the other text-scanning providers use (`@grep`,
     // `@recent`) so "what counts as a file" is consistent across the app.
     const TEXT_EXTS: &[&str] = &[
-        "rs", "ts", "tsx", "js", "jsx", "py", "go", "java", "kt", "c", "cc", "cpp",
-        "h", "hpp", "rb", "php", "swift", "scala", "md", "toml", "yaml", "yml",
-        "json", "css", "scss", "html", "sh", "sql", "proto", "gradle", "txt",
-        "zig", "dart", "elm", "lua", "nix", "tf", "mjs", "cjs", "astro", "vue",
-        "svelte", "jl", "ex", "exs", "clj", "hs", "ml",
+        "rs", "ts", "tsx", "js", "jsx", "py", "go", "java", "kt", "c", "cc", "cpp", "h", "hpp",
+        "rb", "php", "swift", "scala", "md", "toml", "yaml", "yml", "json", "css", "scss", "html",
+        "sh", "sql", "proto", "gradle", "txt", "zig", "dart", "elm", "lua", "nix", "tf", "mjs",
+        "cjs", "astro", "vue", "svelte", "jl", "ex", "exs", "clj", "hs", "ml",
     ];
 
     let dir = confine_under(root, rel)?;
@@ -966,7 +1154,9 @@ pub fn build_folder(root: &Path, rel: &str, max_bytes: usize) -> Option<String> 
             out.push_str(&header);
             continue;
         }
-        let Ok(meta) = std::fs::metadata(path) else { continue };
+        let Ok(meta) = std::fs::metadata(path) else {
+            continue;
+        };
         if meta.len() > MAX_FILE_BYTES {
             let header = format!("\n===== {name} (skipped — over size cap) =====\n");
             if out.len() + header.len() > max_bytes {
@@ -976,7 +1166,9 @@ pub fn build_folder(root: &Path, rel: &str, max_bytes: usize) -> Option<String> 
             out.push_str(&header);
             continue;
         }
-        let Ok(mut content) = std::fs::read_to_string(path) else { continue };
+        let Ok(mut content) = std::fs::read_to_string(path) else {
+            continue;
+        };
         if content.len() > MAX_TEXT_BYTES {
             content.truncate(MAX_TEXT_BYTES);
             content.push_str("\n… (file truncated)\n");
@@ -1038,8 +1230,12 @@ pub fn find_definition(root: &Path, name: &str, max_bytes: usize) -> Option<Stri
             if hits.len() >= GATHER_CAP {
                 break;
             }
-            let Some(language) = detect_language(&path) else { continue };
-            let Ok(content) = std::fs::read_to_string(&path) else { continue };
+            let Some(language) = detect_language(&path) else {
+                continue;
+            };
+            let Ok(content) = std::fs::read_to_string(&path) else {
+                continue;
+            };
             let mut symbols = extract_symbols(&content, &language);
             if symbols.is_empty() {
                 continue;
@@ -1062,8 +1258,8 @@ pub fn find_definition(root: &Path, name: &str, max_bytes: usize) -> Option<Stri
                     continue;
                 }
                 let start = sym.line; // 1-based
-                // End at the next top-level symbol (exclusive), else EOF;
-                // clamped so a single definition never floods the context.
+                                      // End at the next top-level symbol (exclusive), else EOF;
+                                      // clamped so a single definition never floods the context.
                 let next = symbols
                     .get(i + 1)
                     .map(|n| n.line)
@@ -1156,7 +1352,10 @@ pub fn find_references(root: &Path, name: &str, max_bytes: usize) -> Option<Stri
     // char (or a string edge) on both sides of at least one occurrence?
     let has_word = |line: &str| -> bool {
         for (idx, _) in line.match_indices(needle) {
-            let before_ok = line[..idx].chars().next_back().map_or(true, |c| !is_ident(c));
+            let before_ok = line[..idx]
+                .chars()
+                .next_back()
+                .map_or(true, |c| !is_ident(c));
             let after = idx + needle.len();
             let after_ok = line[after..].chars().next().map_or(true, |c| !is_ident(c));
             if before_ok && after_ok {
@@ -1169,8 +1368,12 @@ pub fn find_references(root: &Path, name: &str, max_bytes: usize) -> Option<Stri
     let mut rows: Vec<(String, u32, bool, String)> = Vec::new(); // (path, line, is_def, text)
     let mut capped = false;
     'outer: for (path, _mtime) in collect_candidates(root) {
-        let Some(language) = detect_language(&path) else { continue };
-        let Ok(content) = std::fs::read_to_string(&path) else { continue };
+        let Some(language) = detect_language(&path) else {
+            continue;
+        };
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            continue;
+        };
         let rel = path
             .strip_prefix(root)
             .unwrap_or(&path)
@@ -1307,7 +1510,11 @@ export type Id = string;
     fn repo_symbols_filters_case_insensitive() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
-        std::fs::write(root.join("a.rs"), "pub fn alpha() {}\npub fn beta() {}\npub struct Gamma;\n").unwrap();
+        std::fs::write(
+            root.join("a.rs"),
+            "pub fn alpha() {}\npub fn beta() {}\npub struct Gamma;\n",
+        )
+        .unwrap();
         std::fs::write(root.join("b.ts"), "export function delta() {}\n").unwrap();
 
         let hits = repo_symbols(root, "ALPH", 50);
@@ -1401,16 +1608,28 @@ export type Id = string;
         let paths: Vec<&str> = map.files.iter().map(|f| f.path.as_str()).collect();
         assert!(paths.contains(&"a.js"), "real source dropped: {paths:?}");
         assert!(!paths.contains(&"a.min.js"), "minified leaked: {paths:?}");
-        assert!(!paths.contains(&"vendor.abc123.js"), "vendor leaked: {paths:?}");
-        assert!(!paths.contains(&"app.chunk.1.js"), "chunk leaked: {paths:?}");
+        assert!(
+            !paths.contains(&"vendor.abc123.js"),
+            "vendor leaked: {paths:?}"
+        );
+        assert!(
+            !paths.contains(&"app.chunk.1.js"),
+            "chunk leaked: {paths:?}"
+        );
     }
 
     // Wave 287 — SCREAMING_SNAKE_CASE detection (via wave-181 `contains('_')`).
     #[test]
     fn references_picks_screaming_snake() {
         let refs = extract_references("const MAX_SIZE: u32 = DEFAULT_LIMIT * 2;");
-        assert!(refs.contains(&"MAX_SIZE".to_string()), "MAX_SIZE missed: {refs:?}");
-        assert!(refs.contains(&"DEFAULT_LIMIT".to_string()), "DEFAULT_LIMIT missed: {refs:?}");
+        assert!(
+            refs.contains(&"MAX_SIZE".to_string()),
+            "MAX_SIZE missed: {refs:?}"
+        );
+        assert!(
+            refs.contains(&"DEFAULT_LIMIT".to_string()),
+            "DEFAULT_LIMIT missed: {refs:?}"
+        );
     }
 
     // Wave 253 — TitleCase detection (Rust structs/traits).
@@ -1437,7 +1656,11 @@ export type Id = string;
         std::fs::write(root.join("cold.rs"), "pub fn doesNothing() {}\n").unwrap();
         let mentioned = vec!["processOrder".to_string()];
         let map = super::compute_repo_map_personalized(root, 10, &mentioned);
-        assert_eq!(map.files[0].path, "hot.rs", "mentioned ident did not float file: {:#?}", map.files);
+        assert_eq!(
+            map.files[0].path, "hot.rs",
+            "mentioned ident did not float file: {:#?}",
+            map.files
+        );
         assert!(map.files[0].pagerank > map.files.last().unwrap().pagerank);
     }
 
@@ -1448,14 +1671,33 @@ export type Id = string;
         let root = dir.path();
         // `core.rs` defines `CoreThing`; two other files reference it, so it
         // gathers inbound edges and should rank first with a ★ score.
-        std::fs::write(root.join("core.rs"), "pub struct CoreThing {}\npub fn helper() {}\n").unwrap();
-        std::fs::write(root.join("a.rs"), "use crate::CoreThing;\npub fn a() { let _ = CoreThing {}; }\n").unwrap();
-        std::fs::write(root.join("b.rs"), "use crate::CoreThing;\npub fn b() { let _ = CoreThing {}; }\n").unwrap();
-        let block = super::build_context_block(root, "anything", 6 * 1024).expect("non-empty repo => Some");
+        std::fs::write(
+            root.join("core.rs"),
+            "pub struct CoreThing {}\npub fn helper() {}\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("a.rs"),
+            "use crate::CoreThing;\npub fn a() { let _ = CoreThing {}; }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("b.rs"),
+            "use crate::CoreThing;\npub fn b() { let _ = CoreThing {}; }\n",
+        )
+        .unwrap();
+        let block =
+            super::build_context_block(root, "anything", 6 * 1024).expect("non-empty repo => Some");
         let core_pos = block.find("core.rs").expect("core.rs listed");
         let a_pos = block.find("a.rs").expect("a.rs listed");
-        assert!(core_pos < a_pos, "central file should be listed first:\n{block}");
-        assert!(block.contains('★'), "central file should carry a PageRank score:\n{block}");
+        assert!(
+            core_pos < a_pos,
+            "central file should be listed first:\n{block}"
+        );
+        assert!(
+            block.contains('★'),
+            "central file should carry a PageRank score:\n{block}"
+        );
         // Symbol signatures are emitted under their file.
         assert!(block.contains("CoreThing"), "symbols missing:\n{block}");
     }
@@ -1486,7 +1728,11 @@ export type Id = string;
             .unwrap();
         }
         let block = super::build_context_block(root, "", 256).unwrap();
-        assert!(block.len() <= 256 + 64, "block must stay within the byte cap: {} bytes", block.len());
+        assert!(
+            block.len() <= 256 + 64,
+            "block must stay within the byte cap: {} bytes",
+            block.len()
+        );
         // An empty/no-source directory yields nothing to inject.
         let empty = tempfile::tempdir().unwrap();
         assert!(super::build_context_block(empty.path(), "x", 4096).is_none());
@@ -1527,7 +1773,10 @@ export type Id = string;
         std::fs::write(dir.path().join("x.rs"), "pub fn x() {}\n").unwrap();
         let _ = compute_repo_map(dir.path(), 5);
         let before = cache_size();
-        assert!(before > 0, "cache should have at least 1 entry after compute");
+        assert!(
+            before > 0,
+            "cache should have at least 1 entry after compute"
+        );
         let cleared = cache_clear();
         assert_eq!(cleared, before, "cleared count should match prior size");
         assert_eq!(cache_size(), 0);
@@ -1542,7 +1791,11 @@ export type Id = string;
         for i in 0..20 {
             let d = tempfile::tempdir().unwrap();
             let path = d.path().to_path_buf();
-            std::fs::write(path.join(format!("f{i}.rs")), format!("pub fn fn{i}() {{}}\n")).unwrap();
+            std::fs::write(
+                path.join(format!("f{i}.rs")),
+                format!("pub fn fn{i}() {{}}\n"),
+            )
+            .unwrap();
             let m = compute_repo_map(&path, 5);
             assert_eq!(m.files.len(), 1);
             dirs.push(d);
@@ -1601,7 +1854,10 @@ export type Id = string;
         assert!(out.contains("svc.rs · rust · 3 symbols"), "header: {out}");
         // Each symbol carries its 1-based line number and its signature.
         assert!(out.contains("  2  pub struct Order"), "struct line: {out}");
-        assert!(out.contains("  4  pub fn place(o: Order) -> bool"), "fn line: {out}");
+        assert!(
+            out.contains("  4  pub fn place(o: Order) -> bool"),
+            "fn line: {out}"
+        );
         assert!(out.contains("  8  pub enum Status"), "enum line: {out}");
         // The leading comment line is not a symbol.
         assert!(!out.contains("header comment"));
@@ -1698,10 +1954,19 @@ export type Id = string;
         // not the nested dir).
         assert!(out.contains("mod · 3 files"), "header: {out}");
         // Text files are inlined under a banner with their contents.
-        assert!(out.contains("===== a.rs =====") && out.contains("pub fn a()"), "a.rs: {out}");
-        assert!(out.contains("===== b.ts =====") && out.contains("export const b"), "b.ts: {out}");
+        assert!(
+            out.contains("===== a.rs =====") && out.contains("pub fn a()"),
+            "a.rs: {out}"
+        );
+        assert!(
+            out.contains("===== b.ts =====") && out.contains("export const b"),
+            "b.ts: {out}"
+        );
         // Binary is listed but not inlined.
-        assert!(out.contains("logo.png (skipped — non-text)"), "png skip: {out}");
+        assert!(
+            out.contains("logo.png (skipped — non-text)"),
+            "png skip: {out}"
+        );
         // Hidden file and nested-dir contents never appear.
         assert!(!out.contains("secret"), "hidden leaked: {out}");
         assert!(!out.contains("pub fn c()"), "recursed: {out}");
@@ -1739,7 +2004,10 @@ export type Id = string;
         let empty = root.join("empty");
         std::fs::create_dir(&empty).unwrap();
         let out = build_folder(root, "empty", 60 * 1024).expect("folder");
-        assert!(out.contains("(no readable text files in this folder)"), "{out}");
+        assert!(
+            out.contains("(no readable text files in this folder)"),
+            "{out}"
+        );
         // Byte cap truncates a fat folder.
         let big = root.join("big");
         std::fs::create_dir(&big).unwrap();
@@ -1812,16 +2080,19 @@ export type Id = string;
         // 8 files each defining `widget` — only MAX_DEFS (6) shown, with a
         // "+N more" footer noting the remainder.
         for i in 0..8 {
-            std::fs::write(
-                root.join(format!("f{i}.rs")),
-                "pub fn widget() {}\n",
-            )
-            .unwrap();
+            std::fs::write(root.join(format!("f{i}.rs")), "pub fn widget() {}\n").unwrap();
         }
         let out = find_definition(root, "widget", 16 * 1024).expect("def");
         assert!(out.contains("widget · 8 definitions"), "count: {out}");
-        assert!(out.contains("+2 more definitions not shown"), "footer: {out}");
-        assert_eq!(out.matches("(fn)").count(), 6, "shows exactly MAX_DEFS: {out}");
+        assert!(
+            out.contains("+2 more definitions not shown"),
+            "footer: {out}"
+        );
+        assert_eq!(
+            out.matches("(fn)").count(),
+            6,
+            "shows exactly MAX_DEFS: {out}"
+        );
         // A tiny byte budget truncates mid-list.
         let tight = find_definition(root, "widget", 80).expect("def");
         assert!(tight.contains("… (truncated)"), "byte cap: {tight}");
@@ -2008,8 +2279,7 @@ pub mod watcher {
         let root_for_emit = project_root.clone();
 
         // notify -> tokio bridge.
-        let (event_tx, mut event_rx) =
-            mpsc::unbounded_channel::<(String, PathBuf)>();
+        let (event_tx, mut event_rx) = mpsc::unbounded_channel::<(String, PathBuf)>();
 
         let mut watcher: RecommendedWatcher =
             notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
@@ -2030,12 +2300,7 @@ pub mod watcher {
 
         watcher
             .watch(&project_root, RecursiveMode::Recursive)
-            .with_context(|| {
-                format!(
-                    "repo_watcher: failed to watch {}",
-                    project_root.display()
-                )
-            })?;
+            .with_context(|| format!("repo_watcher: failed to watch {}", project_root.display()))?;
 
         let (stop_tx, mut stop_rx) = oneshot::channel::<()>();
 
@@ -2052,8 +2317,7 @@ pub mod watcher {
         tokio::spawn(async move {
             // Per-path coalescing: most-recent timestamp wins; we fire one
             // event per path after the debounce window elapses.
-            let mut pending: HashMap<PathBuf, (String, tokio::time::Instant)> =
-                HashMap::new();
+            let mut pending: HashMap<PathBuf, (String, tokio::time::Instant)> = HashMap::new();
             let debounce = Duration::from_millis(DEBOUNCE_MS);
 
             loop {
@@ -2218,7 +2482,10 @@ pub mod watcher {
                 classify_kind(&EventKind::Remove(RemoveKind::File)),
                 Some("deleted")
             );
-            assert_eq!(classify_kind(&EventKind::Access(notify::event::AccessKind::Any)), None);
+            assert_eq!(
+                classify_kind(&EventKind::Access(notify::event::AccessKind::Any)),
+                None
+            );
         }
 
         #[test]

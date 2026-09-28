@@ -133,7 +133,11 @@ pub struct RetryPolicy {
 
 impl Default for RetryPolicy {
     fn default() -> Self {
-        Self { max_attempts: 3, base_delay_ms: 300, max_delay_ms: 4_000 }
+        Self {
+            max_attempts: 3,
+            base_delay_ms: 300,
+            max_delay_ms: 4_000,
+        }
     }
 }
 
@@ -171,17 +175,54 @@ pub fn classify_error(msg: &str) -> ErrorClass {
     // Permanent wins when both could match (an auth error that mentions
     // "connection" is still auth).
     const PERMANENT: &[&str] = &[
-        "401", "403", "unauthorized", "forbidden", "invalid api key", "invalid_api_key",
-        "authentication", "permission", "400", "invalid request", "bad request",
-        "model not found", "model_not_found", "404", "does not exist", "not found",
-        "unsupported", "context length", "maximum context", "too long",
+        "401",
+        "403",
+        "unauthorized",
+        "forbidden",
+        "invalid api key",
+        "invalid_api_key",
+        "authentication",
+        "permission",
+        "400",
+        "invalid request",
+        "bad request",
+        "model not found",
+        "model_not_found",
+        "404",
+        "does not exist",
+        "not found",
+        "unsupported",
+        "context length",
+        "maximum context",
+        "too long",
     ];
     const TRANSIENT: &[&str] = &[
-        "429", "rate limit", "rate_limit", "overloaded", "over capacity", "capacity",
-        "timed out", "timeout", "temporarily", "try again", "500", "502", "503", "504",
-        "internal server error", "bad gateway", "service unavailable", "gateway timeout",
-        "connection", "reset", "broken pipe", "unexpected eof", "dns", "network",
-        "unreachable", "connect error",
+        "429",
+        "rate limit",
+        "rate_limit",
+        "overloaded",
+        "over capacity",
+        "capacity",
+        "timed out",
+        "timeout",
+        "temporarily",
+        "try again",
+        "500",
+        "502",
+        "503",
+        "504",
+        "internal server error",
+        "bad gateway",
+        "service unavailable",
+        "gateway timeout",
+        "connection",
+        "reset",
+        "broken pipe",
+        "unexpected eof",
+        "dns",
+        "network",
+        "unreachable",
+        "connect error",
     ];
     if PERMANENT.iter().any(|p| m.contains(p)) {
         return ErrorClass::Permanent;
@@ -239,7 +280,11 @@ async fn run_chain<F>(
 where
     F: FnMut(Option<&str>) -> Result<(Arc<dyn AgentAdapter>, String), String>,
 {
-    let owned: Vec<Option<String>> = if chain.is_empty() { vec![None] } else { chain.to_vec() };
+    let owned: Vec<Option<String>> = if chain.is_empty() {
+        vec![None]
+    } else {
+        chain.to_vec()
+    };
     let mut attempts = 0u32;
     let mut last_err = "no model produced a completion".to_string();
 
@@ -335,46 +380,67 @@ mod tests {
         async fn health_check(&self) -> bool {
             true
         }
-        async fn run(
-            &self,
-            _req: ChatRequest,
-            tx: mpsc::Sender<AgentEvent>,
-        ) -> anyhow::Result<()> {
+        async fn run(&self, _req: ChatRequest, tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
             for d in &self.deltas {
-                let _ = tx.send(AgentEvent::Token { delta: (*d).to_string() }).await;
+                let _ = tx
+                    .send(AgentEvent::Token {
+                        delta: (*d).to_string(),
+                    })
+                    .await;
             }
             if let Some(e) = self.error {
-                let _ = tx.send(AgentEvent::Error { message: e.to_string() }).await;
+                let _ = tx
+                    .send(AgentEvent::Error {
+                        message: e.to_string(),
+                    })
+                    .await;
             }
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             Ok(())
         }
     }
 
     #[tokio::test]
     async fn collects_streamed_tokens() {
-        let a = Arc::new(StubAdapter { deltas: vec!["Hello", ", ", "world"], error: None });
+        let a = Arc::new(StubAdapter {
+            deltas: vec!["Hello", ", ", "world"],
+            error: None,
+        });
         let out = collect_completion(a, None, "hi".into()).await.unwrap();
         assert_eq!(out, "Hello, world");
     }
 
     #[tokio::test]
     async fn error_with_no_text_is_err() {
-        let a = Arc::new(StubAdapter { deltas: vec![], error: Some("boom") });
+        let a = Arc::new(StubAdapter {
+            deltas: vec![],
+            error: Some("boom"),
+        });
         let err = collect_completion(a, None, "hi".into()).await.unwrap_err();
         assert_eq!(err, "boom");
     }
 
     #[tokio::test]
     async fn text_survives_late_error() {
-        let a = Arc::new(StubAdapter { deltas: vec!["partial answer"], error: Some("hiccup") });
+        let a = Arc::new(StubAdapter {
+            deltas: vec!["partial answer"],
+            error: Some("hiccup"),
+        });
         let out = collect_completion(a, None, "hi".into()).await.unwrap();
         assert_eq!(out, "partial answer");
     }
 
     #[tokio::test]
     async fn empty_stream_is_err() {
-        let a = Arc::new(StubAdapter { deltas: vec![], error: None });
+        let a = Arc::new(StubAdapter {
+            deltas: vec![],
+            error: None,
+        });
         assert!(collect_completion(a, None, "hi".into()).await.is_err());
     }
 
@@ -397,11 +463,7 @@ mod tests {
         async fn health_check(&self) -> bool {
             true
         }
-        async fn run(
-            &self,
-            _req: ChatRequest,
-            tx: mpsc::Sender<AgentEvent>,
-        ) -> anyhow::Result<()> {
+        async fn run(&self, _req: ChatRequest, tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
             let _ = tx
                 .send(AgentEvent::ApprovalRequest {
                     run_id: "r1".into(),
@@ -456,46 +518,75 @@ mod tests {
         async fn health_check(&self) -> bool {
             true
         }
-        async fn run(
-            &self,
-            _req: ChatRequest,
-            tx: mpsc::Sender<AgentEvent>,
-        ) -> anyhow::Result<()> {
+        async fn run(&self, _req: ChatRequest, tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
             let n = self.calls.fetch_add(1, Ordering::SeqCst);
             if n < self.fail_times {
-                let _ = tx.send(AgentEvent::Error { message: self.err_msg.to_string() }).await;
+                let _ = tx
+                    .send(AgentEvent::Error {
+                        message: self.err_msg.to_string(),
+                    })
+                    .await;
             } else {
-                let _ = tx.send(AgentEvent::Token { delta: self.answer.to_string() }).await;
+                let _ = tx
+                    .send(AgentEvent::Token {
+                        delta: self.answer.to_string(),
+                    })
+                    .await;
             }
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             Ok(())
         }
     }
 
     fn instant_policy(max_attempts: u32) -> RetryPolicy {
-        RetryPolicy { max_attempts, base_delay_ms: 0, max_delay_ms: 0 }
+        RetryPolicy {
+            max_attempts,
+            base_delay_ms: 0,
+            max_delay_ms: 0,
+        }
     }
 
     #[test]
     fn classifies_transient_and_permanent() {
         use ErrorClass::*;
         assert_eq!(classify_error("HTTP 429 Too Many Requests"), Transient);
-        assert_eq!(classify_error("upstream is Overloaded, try again"), Transient);
+        assert_eq!(
+            classify_error("upstream is Overloaded, try again"),
+            Transient
+        );
         assert_eq!(classify_error("503 Service Unavailable"), Transient);
         assert_eq!(classify_error("connection reset by peer"), Transient);
         assert_eq!(classify_error("request timed out"), Transient);
-        assert_eq!(classify_error("401 Unauthorized: invalid api key"), Permanent);
+        assert_eq!(
+            classify_error("401 Unauthorized: invalid api key"),
+            Permanent
+        );
         assert_eq!(classify_error("model not found: claude-retired"), Permanent);
         assert_eq!(classify_error("400 invalid request"), Permanent);
         // Auth wins even when the text also mentions a transient-ish word.
-        assert_eq!(classify_error("unauthorized (connection refused after)"), Permanent);
+        assert_eq!(
+            classify_error("unauthorized (connection refused after)"),
+            Permanent
+        );
         // Unknown → conservative Permanent (don't blind-retry).
-        assert_eq!(classify_error("the model returned an empty response"), Permanent);
+        assert_eq!(
+            classify_error("the model returned an empty response"),
+            Permanent
+        );
     }
 
     #[test]
     fn backoff_is_exponential_and_capped() {
-        let p = RetryPolicy { max_attempts: 5, base_delay_ms: 100, max_delay_ms: 350 };
+        let p = RetryPolicy {
+            max_attempts: 5,
+            base_delay_ms: 100,
+            max_delay_ms: 350,
+        };
         assert_eq!(p.backoff(1), Duration::from_millis(100));
         assert_eq!(p.backoff(2), Duration::from_millis(200));
         assert_eq!(p.backoff(3), Duration::from_millis(350)); // 400 capped → 350
@@ -512,7 +603,9 @@ mod tests {
             answer: "recovered",
         }) as Arc<dyn AgentAdapter>;
         let resolve = |_m: Option<&str>| Ok((a.clone(), "flaky".to_string()));
-        let out = run_chain(&[None], "hi", &instant_policy(3), resolve).await.unwrap();
+        let out = run_chain(&[None], "hi", &instant_policy(3), resolve)
+            .await
+            .unwrap();
         assert_eq!(out.text, "recovered");
         assert_eq!(out.attempts, 3);
         assert!(!out.fell_back);
@@ -528,7 +621,9 @@ mod tests {
         });
         let a_dyn = a.clone() as Arc<dyn AgentAdapter>;
         let resolve = |_m: Option<&str>| Ok((a_dyn.clone(), "flaky".to_string()));
-        let err = run_chain(&[None], "hi", &instant_policy(3), resolve).await.unwrap_err();
+        let err = run_chain(&[None], "hi", &instant_policy(3), resolve)
+            .await
+            .unwrap_err();
         assert!(err.contains("429"));
         // Exactly max_attempts calls, no more.
         assert_eq!(a.calls.load(Ordering::SeqCst), 3);
@@ -557,11 +652,17 @@ mod tests {
             _ => Ok((b_dyn.clone(), "b".to_string())),
         };
         let chain = vec![Some("a".to_string()), Some("b".to_string())];
-        let out = run_chain(&chain, "hi", &instant_policy(3), resolve).await.unwrap();
+        let out = run_chain(&chain, "hi", &instant_policy(3), resolve)
+            .await
+            .unwrap();
         assert_eq!(out.text, "from B");
         assert_eq!(out.model.as_deref(), Some("b"));
         assert!(out.fell_back);
-        assert_eq!(a.calls.load(Ordering::SeqCst), 1, "permanent error must not retry A");
+        assert_eq!(
+            a.calls.load(Ordering::SeqCst),
+            1,
+            "permanent error must not retry A"
+        );
     }
 
     #[tokio::test]
@@ -586,10 +687,16 @@ mod tests {
             _ => Ok((b_dyn.clone(), "b".to_string())),
         };
         let chain = vec![Some("a".to_string()), Some("b".to_string())];
-        let out = run_chain(&chain, "hi", &instant_policy(2), resolve).await.unwrap();
+        let out = run_chain(&chain, "hi", &instant_policy(2), resolve)
+            .await
+            .unwrap();
         assert_eq!(out.text, "from B");
         assert!(out.fell_back);
-        assert_eq!(a.calls.load(Ordering::SeqCst), 2, "A retried up to its cap then yielded");
+        assert_eq!(
+            a.calls.load(Ordering::SeqCst),
+            2,
+            "A retried up to its cap then yielded"
+        );
         assert_eq!(out.attempts, 3, "2 on A + 1 on B");
     }
 
@@ -607,7 +714,9 @@ mod tests {
             _ => Ok((b_dyn.clone(), "b".to_string())),
         };
         let chain = vec![Some("a".to_string()), Some("b".to_string())];
-        let out = run_chain(&chain, "hi", &instant_policy(2), resolve).await.unwrap();
+        let out = run_chain(&chain, "hi", &instant_policy(2), resolve)
+            .await
+            .unwrap();
         assert_eq!(out.text, "from B");
         assert!(out.fell_back);
     }
@@ -663,7 +772,10 @@ mod tests {
         // anything else falls back to the default route — same behavior the
         // chat path gets from orchestrator::route.
         let mut reg = Registry::new();
-        reg.register(Arc::new(StubAdapter { deltas: vec![], error: None })); // id "stub"
+        reg.register(Arc::new(StubAdapter {
+            deltas: vec![],
+            error: None,
+        })); // id "stub"
         let reg = RwLock::new(reg);
         let (_, id) = resolve_adapter(&reg, Some("anything")).unwrap();
         // No gateway-remote/ollama registered → route falls back to the only

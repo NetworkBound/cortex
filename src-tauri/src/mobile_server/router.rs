@@ -73,7 +73,10 @@ pub fn build_router(state: MobileState) -> Router {
         .route("/v1/models", get(handlers::v1_models))
         .route("/v1/chat/completions", post(handlers::v1_chat_completions))
         .route("/api/sessions", get(handlers::sessions))
-        .route("/api/sessions/:id/messages", get(handlers::session_messages))
+        .route(
+            "/api/sessions/:id/messages",
+            get(handlers::session_messages),
+        )
         .route("/api/sessions/:id/export", post(handlers::export_session))
         .route("/api/search", get(handlers::search_chat))
         .route("/api/search/reindex", post(handlers::search_reindex))

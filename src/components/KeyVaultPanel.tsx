@@ -34,7 +34,11 @@ interface FormState {
   key: string;
 }
 
-const EMPTY_FORM: FormState = { provider: "anthropic", label: "personal", key: "" };
+const EMPTY_FORM: FormState = {
+  provider: "anthropic",
+  label: "personal",
+  key: "",
+};
 
 export function KeyVaultPanel({ onClose }: KeyVaultPanelProps) {
   const [items, setItems] = useState<KeyMetadata[]>([]);
@@ -82,7 +86,11 @@ export function KeyVaultPanel({ onClose }: KeyVaultPanelProps) {
     setError(null);
     try {
       await vaultSet(provider, label, key);
-      pushToast({ title: "Key saved", body: `${provider}/${label}`, kind: "success" });
+      pushToast({
+        title: "Key saved",
+        body: `${provider}/${label}`,
+        kind: "success",
+      });
       setForm({ ...EMPTY_FORM, provider });
       await refresh();
     } catch (e) {
@@ -92,34 +100,41 @@ export function KeyVaultPanel({ onClose }: KeyVaultPanelProps) {
     }
   }, [form, refresh]);
 
-  const onReveal = useCallback(async (m: KeyMetadata) => {
-    const k = rowKey(m);
-    if (revealed[k]) {
-      // Toggle off — clear from memory so it doesn't linger on screen.
-      setRevealed((prev) => {
-        const next = { ...prev };
-        delete next[k];
-        return next;
-      });
-      return;
-    }
-    setBusyRow(k);
-    try {
-      const value = await vaultGet(m.provider, m.label);
-      setRevealed((prev) => ({ ...prev, [k]: value }));
-    } catch (e) {
-      setError(humanizeError(e));
-    } finally {
-      setBusyRow(null);
-    }
-  }, [revealed]);
+  const onReveal = useCallback(
+    async (m: KeyMetadata) => {
+      const k = rowKey(m);
+      if (revealed[k]) {
+        // Toggle off — clear from memory so it doesn't linger on screen.
+        setRevealed((prev) => {
+          const next = { ...prev };
+          delete next[k];
+          return next;
+        });
+        return;
+      }
+      setBusyRow(k);
+      try {
+        const value = await vaultGet(m.provider, m.label);
+        setRevealed((prev) => ({ ...prev, [k]: value }));
+      } catch (e) {
+        setError(humanizeError(e));
+      } finally {
+        setBusyRow(null);
+      }
+    },
+    [revealed],
+  );
 
   const onCopy = useCallback(async (m: KeyMetadata) => {
     setBusyRow(rowKey(m));
     try {
       const value = await vaultGet(m.provider, m.label);
       await navigator.clipboard.writeText(value);
-      pushToast({ title: "Copied", body: `${m.provider}/${m.label} key`, kind: "success" });
+      pushToast({
+        title: "Copied",
+        body: `${m.provider}/${m.label} key`,
+        kind: "success",
+      });
     } catch (e) {
       setError(humanizeError(e));
     } finally {
@@ -127,24 +142,34 @@ export function KeyVaultPanel({ onClose }: KeyVaultPanelProps) {
     }
   }, []);
 
-  const onRemove = useCallback(async (m: KeyMetadata) => {
-    if (!(await confirmDialog({
-      title: "Remove key?",
-      message: `Remove ${m.provider}/${m.label}?`,
-      confirmLabel: "Remove",
-      danger: true,
-    }))) return;
-    setBusyRow(rowKey(m));
-    try {
-      await vaultRemove(m.provider, m.label);
-      pushToast({ title: "Key removed", body: `${m.provider}/${m.label}`, kind: "success" });
-      await refresh();
-    } catch (e) {
-      setError(humanizeError(e));
-    } finally {
-      setBusyRow(null);
-    }
-  }, [refresh]);
+  const onRemove = useCallback(
+    async (m: KeyMetadata) => {
+      if (
+        !(await confirmDialog({
+          title: "Remove key?",
+          message: `Remove ${m.provider}/${m.label}?`,
+          confirmLabel: "Remove",
+          danger: true,
+        }))
+      )
+        return;
+      setBusyRow(rowKey(m));
+      try {
+        await vaultRemove(m.provider, m.label);
+        pushToast({
+          title: "Key removed",
+          body: `${m.provider}/${m.label}`,
+          kind: "success",
+        });
+        await refresh();
+      } catch (e) {
+        setError(humanizeError(e));
+      } finally {
+        setBusyRow(null);
+      }
+    },
+    [refresh],
+  );
 
   return (
     <div className="keyvault-backdrop" onMouseDown={onClose}>
@@ -157,13 +182,18 @@ export function KeyVaultPanel({ onClose }: KeyVaultPanelProps) {
       >
         <header className="keyvault-header">
           <h2 id="keyvault-title">Provider Key Vault</h2>
-          <button className="keyvault-close" onClick={onClose} aria-label="Close">
+          <button
+            className="keyvault-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
             ×
           </button>
         </header>
 
         <p className="keyvault-summary">
-          AES-256-GCM, master key in OS keychain. Stored at <code>~/.cortex/keys.enc</code>.
+          AES-256-GCM, master key in OS keychain. Stored at{" "}
+          <code>~/.cortex/keys.enc</code>.
         </p>
 
         <section className="keyvault-add">
@@ -174,7 +204,9 @@ export function KeyVaultPanel({ onClose }: KeyVaultPanelProps) {
               <input
                 list="keyvault-provider-list"
                 value={form.provider}
-                onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, provider: e.target.value }))
+                }
                 disabled={busyRow !== null}
               />
               <datalist id="keyvault-provider-list">
@@ -187,7 +219,9 @@ export function KeyVaultPanel({ onClose }: KeyVaultPanelProps) {
               Label
               <input
                 value={form.label}
-                onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, label: e.target.value }))
+                }
                 placeholder="personal"
                 disabled={busyRow !== null}
               />
@@ -197,7 +231,9 @@ export function KeyVaultPanel({ onClose }: KeyVaultPanelProps) {
               <input
                 type="password"
                 value={form.key}
-                onChange={(e) => setForm((f) => ({ ...f, key: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, key: e.target.value }))
+                }
                 placeholder="sk-…"
                 disabled={busyRow !== null}
               />
@@ -214,7 +250,9 @@ export function KeyVaultPanel({ onClose }: KeyVaultPanelProps) {
 
         <section className="keyvault-list-section">
           <h3>Stored keys ({items.length})</h3>
-          {loading && items.length === 0 && <PanelLoading label="Loading keys" />}
+          {loading && items.length === 0 && (
+            <PanelLoading label="Loading keys" />
+          )}
           {!loading && !error && items.length === 0 && (
             <div className="keyvault-empty">No keys stored yet.</div>
           )}
@@ -228,7 +266,9 @@ export function KeyVaultPanel({ onClose }: KeyVaultPanelProps) {
                   <div className="keyvault-item-meta">
                     <strong>{m.provider}</strong>
                     <span className="keyvault-item-label">{m.label}</span>
-                    <span className="keyvault-item-ts">{formatAddedAt(m.added_unix_ms)}</span>
+                    <span className="keyvault-item-ts">
+                      {formatAddedAt(m.added_unix_ms)}
+                    </span>
                   </div>
                   <code className="keyvault-item-key">
                     {shown ? shown : "•••••••• hidden"}

@@ -71,9 +71,14 @@ fn all_home_roots() -> Vec<PathBuf> {
 /// Build the default list of sources to scan based on `$HOME` and the
 /// active project root (if any). Phase 3 wires the Obsidian path from
 /// settings; for now we include only those that exist on disk.
-pub fn default_sources(active_project: Option<&Path>, obsidian_vault: Option<&Path>) -> Vec<MemorySource> {
+pub fn default_sources(
+    active_project: Option<&Path>,
+    obsidian_vault: Option<&Path>,
+) -> Vec<MemorySource> {
     let homes = all_home_roots();
-    if homes.is_empty() { return vec![]; }
+    if homes.is_empty() {
+        return vec![];
+    }
     let mut sources = Vec::new();
 
     // Per-home scans — covers both Windows home and any reachable WSL homes
@@ -82,12 +87,18 @@ pub fn default_sources(active_project: Option<&Path>, obsidian_vault: Option<&Pa
     for home in &homes {
         let claude_proj = home.join(".claude").join("projects");
         if claude_proj.exists() {
-            for entry in std::fs::read_dir(&claude_proj).into_iter().flatten().flatten() {
+            for entry in std::fs::read_dir(&claude_proj)
+                .into_iter()
+                .flatten()
+                .flatten()
+            {
                 let mem = entry.path().join("memory");
                 if mem.exists() {
                     // De-dup if the same root somehow appears twice (e.g.
                     // mapped drive + UNC path to the same dir).
-                    if sources.iter().any(|s: &MemorySource| s.root == mem) { continue }
+                    if sources.iter().any(|s: &MemorySource| s.root == mem) {
+                        continue;
+                    }
                     sources.push(MemorySource {
                         kind: SourceKind::ClaudeProjectMemory,
                         label: format!("claude:{}", entry.file_name().to_string_lossy()),
@@ -111,14 +122,19 @@ pub fn default_sources(active_project: Option<&Path>, obsidian_vault: Option<&Pa
             home.join(".codex/AGENTS.md"),
         ] {
             if p.exists() {
-                if sources.iter().any(|s: &MemorySource| s.root == p) { continue }
+                if sources.iter().any(|s: &MemorySource| s.root == p) {
+                    continue;
+                }
                 sources.push(MemorySource {
                     kind: SourceKind::GlobalInstructions,
                     label: p
                         .strip_prefix(home)
                         .map(|s| s.to_string_lossy().to_string())
                         .unwrap_or_else(|_| {
-                            p.file_name().unwrap_or_default().to_string_lossy().to_string()
+                            p.file_name()
+                                .unwrap_or_default()
+                                .to_string_lossy()
+                                .to_string()
                         }),
                     root: p,
                     owner_project: None,
@@ -156,14 +172,19 @@ pub fn default_sources(active_project: Option<&Path>, obsidian_vault: Option<&Pa
     for home_root in &homes {
         let projects_root = home_root.join("projects");
         if projects_root.exists() {
-            for entry in std::fs::read_dir(&projects_root).into_iter().flatten().flatten() {
+            for entry in std::fs::read_dir(&projects_root)
+                .into_iter()
+                .flatten()
+                .flatten()
+            {
                 let runbooks = entry.path().join("runbooks");
-                if !runbooks.exists() { continue }
-                if sources.iter().any(|s: &MemorySource| s.root == runbooks) { continue }
-                let label = format!(
-                    "runbooks:{}",
-                    entry.file_name().to_string_lossy()
-                );
+                if !runbooks.exists() {
+                    continue;
+                }
+                if sources.iter().any(|s: &MemorySource| s.root == runbooks) {
+                    continue;
+                }
+                let label = format!("runbooks:{}", entry.file_name().to_string_lossy());
                 sources.push(MemorySource {
                     kind: SourceKind::Runbooks,
                     label,
@@ -194,7 +215,10 @@ pub fn default_sources(active_project: Option<&Path>, obsidian_vault: Option<&Pa
         if vault.exists() {
             sources.push(MemorySource {
                 kind: SourceKind::Obsidian,
-                label: format!("obsidian:{}", vault.file_name().unwrap_or_default().to_string_lossy()),
+                label: format!(
+                    "obsidian:{}",
+                    vault.file_name().unwrap_or_default().to_string_lossy()
+                ),
                 root: vault.to_path_buf(),
                 owner_project: None,
             });
@@ -269,7 +293,10 @@ mod tests {
         // an owner_project — they're the fallback tier, visible everywhere.
         assert!(sources
             .iter()
-            .filter(|s| matches!(s.kind, SourceKind::GlobalInstructions | SourceKind::ClaudeProjectMemory))
+            .filter(|s| matches!(
+                s.kind,
+                SourceKind::GlobalInstructions | SourceKind::ClaudeProjectMemory
+            ))
             .all(|s| s.owner_project.is_none()));
     }
 
@@ -282,10 +309,14 @@ mod tests {
         std::fs::create_dir_all(&vault).unwrap();
 
         let with = default_sources(None, Some(&vault));
-        assert!(with.iter().any(|s| s.kind == SourceKind::Obsidian && s.root == vault));
+        assert!(with
+            .iter()
+            .any(|s| s.kind == SourceKind::Obsidian && s.root == vault));
 
         let without = default_sources(None, None);
-        assert!(!without.iter().any(|s| s.kind == SourceKind::Obsidian && s.root == vault));
+        assert!(!without
+            .iter()
+            .any(|s| s.kind == SourceKind::Obsidian && s.root == vault));
     }
 }
 

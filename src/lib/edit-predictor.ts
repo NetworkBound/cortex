@@ -75,7 +75,10 @@ class StrikeWidget extends WidgetType {
   // to live-strikethrough the original (mark decoration over the full line
   // is unreliable when the user is mid-typing); instead we use a CSS class
   // on the line itself via `lineDeco` below.
-  constructor(readonly suggested: string, readonly reason: string) {
+  constructor(
+    readonly suggested: string,
+    readonly reason: string,
+  ) {
     super();
   }
   override eq(other: StrikeWidget): boolean {
@@ -135,7 +138,9 @@ const suggestionsField = StateField.define<EditSuggestion[]>({
     return next;
   },
   provide: (f) =>
-    EditorView.decorations.from(f, (suggestions) => buildDecorations(suggestions)),
+    EditorView.decorations.from(f, (suggestions) =>
+      buildDecorations(suggestions),
+    ),
 });
 
 function buildDecorations(suggestions: EditSuggestion[]): DecorationSet {
@@ -143,14 +148,13 @@ function buildDecorations(suggestions: EditSuggestion[]): DecorationSet {
   // Sort by line so the decoration set is in document order — CM requires
   // ascending `from`.
   const sorted = [...suggestions].sort((a, b) => a.line - b.line);
-  const ranges = sorted
-    .map((s) => {
-      // Decorations are built relative to a snapshot doc length we don't
-      // have here, so we return placeholders that the EditorView resolves
-      // via the line index. We use `Decoration.line` to mark the original
-      // and a widget AFTER the line to render the proposed text.
-      return s;
-    });
+  const ranges = sorted.map((s) => {
+    // Decorations are built relative to a snapshot doc length we don't
+    // have here, so we return placeholders that the EditorView resolves
+    // via the line index. We use `Decoration.line` to mark the original
+    // and a widget AFTER the line to render the proposed text.
+    return s;
+  });
   // We can't reach into `EditorView.state.doc` from `EditorView.decorations.from`'s
   // callback (it gets only the field value). Instead we encode positions
   // lazily by returning a function-decorations? Not supported. So we use

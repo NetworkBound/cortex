@@ -7,6 +7,9 @@ import { invoke } from "@tauri-apps/api/core";
  * when no notification daemon is available (e.g. headless Linux). Title
  * is required and silently truncated at 256 chars; body at 1024.
  */
-export async function desktopNotify(title: string, body: string = ""): Promise<void> {
+export async function desktopNotify(
+  title: string,
+  body: string = "",
+): Promise<void> {
   return invoke("desktop_notify", { args: { title, body } });
 }

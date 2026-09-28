@@ -145,7 +145,12 @@ pub async fn analyze_vault(
                             .collect(),
                     )
                 } else if let Some(s) = v.as_str() {
-                    Some(s.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect())
+                    Some(
+                        s.split(',')
+                            .map(|t| t.trim().to_string())
+                            .filter(|t| !t.is_empty())
+                            .collect(),
+                    )
                 } else {
                     None
                 }
@@ -223,7 +228,11 @@ pub async fn analyze_vault(
                 })
                 .count();
             VaultFolder {
-                path: if f.is_empty() { "/".to_string() } else { f.clone() },
+                path: if f.is_empty() {
+                    "/".to_string()
+                } else {
+                    f.clone()
+                },
                 note_count,
                 total_count,
             }

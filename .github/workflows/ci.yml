@@ -65,6 +65,9 @@ jobs:
       - name: ESLint
         run: pnpm lint
 
+      - name: Format check (prettier + rustfmt)
+        run: pnpm format:check
+
       - name: Frontend build
         run: pnpm build
 
@@ -80,10 +83,6 @@ jobs:
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
       # --- Advisory gates (style) — reported but non-blocking ---
-      - name: Rust fmt (advisory)
-        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
-        continue-on-error: true
-
       - name: Rust clippy (advisory)
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --message-format=short
         continue-on-error: true

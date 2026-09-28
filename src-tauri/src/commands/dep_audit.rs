@@ -60,8 +60,9 @@ pub async fn audit_deps(
         return Err(format!("not a directory: {project_root}"));
     }
 
-    let ecosystem = detect_ecosystem(&root)
-        .ok_or_else(|| "no supported manifest found (package.json / Cargo.toml / pyproject.toml)".to_string())?;
+    let ecosystem = detect_ecosystem(&root).ok_or_else(|| {
+        "no supported manifest found (package.json / Cargo.toml / pyproject.toml)".to_string()
+    })?;
 
     let report = task::spawn_blocking(move || run_audit(&root, ecosystem))
         .await
@@ -118,7 +119,11 @@ fn run_audit(root: &Path, ecosystem: &'static str) -> Result<DepAuditReport, Str
     // for the raw_output_tail.
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-    let raw = if stdout.is_empty() { stderr.clone() } else { stdout.clone() };
+    let raw = if stdout.is_empty() {
+        stderr.clone()
+    } else {
+        stdout.clone()
+    };
     let raw_output_tail = tail(&raw, RAW_TAIL_BYTES);
 
     // If we got nothing parseable AND the exit code is nonzero, treat that

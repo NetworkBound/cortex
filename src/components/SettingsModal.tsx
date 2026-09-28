@@ -64,7 +64,11 @@ import {
   removeAutoApprove,
   type AutoApproveEntry,
 } from "@/lib/approvals";
-import { checkUpdates, configuredManifestUrl, type UpdateInfo } from "@/lib/updater";
+import {
+  checkUpdates,
+  configuredManifestUrl,
+  type UpdateInfo,
+} from "@/lib/updater";
 import { SettingsThemeTab } from "./SettingsThemeTab";
 import { playSound } from "@/lib/sounds";
 import { useCortexStore } from "@/state/store";
@@ -229,7 +233,9 @@ function ImportSettings() {
           spellCheck={false}
           value={token}
           onChange={(e) => setToken(e.target.value)}
-          placeholder={provider === "claude" ? "sessionKey value" : "accessToken value"}
+          placeholder={
+            provider === "claude" ? "sessionKey value" : "accessToken value"
+          }
           disabled={busy}
         />
       </label>
@@ -362,7 +368,6 @@ function HistorySyncSection() {
       disposed = true;
       if (unlisten) unlisten();
     };
-     
   }, []);
 
   const onToggle = async (provider: string, next: boolean) => {
@@ -509,7 +514,12 @@ function persistTab(id: TabId) {
 
 // One section per "card" inside a tab. `text` is concatenated heading + body
 // text used for the substring search filter at the top of the nav.
-type Section = { tab: TabId; heading: string; text: string; render: () => ReactNode };
+type Section = {
+  tab: TabId;
+  heading: string;
+  text: string;
+  render: () => ReactNode;
+};
 
 /**
  * Brain auto-context toggle. A standalone component (rather than inline render)
@@ -523,13 +533,13 @@ function BrainSettingsSection() {
     <div className="settings-section">
       <h3>Brain</h3>
       <div className="settings-hint spaced">
-        The local brain greps memory + recent edits + project files when
-        you pause typing. Suggested @-tokens appear above the composer
-        so you can click to attach. Disable below if you prefer to
-        trigger brain context manually via the 🧠 button, slash
-        commands, or <code>Alt+B</code>. <strong>Implicit path
-        mentions</strong> (typing <code>src/auth.rs</code> directly into
-        the draft) auto-attach up to 3 files regardless of this setting.
+        The local brain greps memory + recent edits + project files when you
+        pause typing. Suggested @-tokens appear above the composer so you can
+        click to attach. Disable below if you prefer to trigger brain context
+        manually via the 🧠 button, slash commands, or <code>Alt+B</code>.{" "}
+        <strong>Implicit path mentions</strong> (typing <code>src/auth.rs</code>{" "}
+        directly into the draft) auto-attach up to 3 files regardless of this
+        setting.
       </div>
       <label className="settings-check">
         <input
@@ -600,7 +610,10 @@ function AutoApproveSection() {
       {rows && rows.length > 0 && (
         <ul className="settings-list">
           {rows.map((r, i) => (
-            <li key={`${r.tool}|${r.pattern}|${i}`} className="settings-list-row">
+            <li
+              key={`${r.tool}|${r.pattern}|${i}`}
+              className="settings-list-row"
+            >
               <code>{r.tool.trim() === "" ? "(any tool)" : r.tool}</code>
               <span className="settings-muted settings-mono">{r.pattern}</span>
               {r.profile && (
@@ -667,13 +680,13 @@ function OutcomeRoutingSection() {
     <div className="settings-section">
       <h3>Outcome-aware routing</h3>
       <div className="settings-hint spaced">
-        When a message has <em>no</em> explicit agent or model pick, route it
-        to the provider with the best recent success-rate-per-dollar, computed
-        from your local Reliability data (Observability → Reliability). A
-        provider needs at least 5 finished runs in the last 7 days to qualify;
-        with thinner data routing is exactly as today. Explicit picks and
-        model routes always win, and each affected message shows the rationale
-        in its routing reason. Off by default.
+        When a message has <em>no</em> explicit agent or model pick, route it to
+        the provider with the best recent success-rate-per-dollar, computed from
+        your local Reliability data (Observability → Reliability). A provider
+        needs at least 5 finished runs in the last 7 days to qualify; with
+        thinner data routing is exactly as today. Explicit picks and model
+        routes always win, and each affected message shows the rationale in its
+        routing reason. Off by default.
       </div>
       {enabled === null ? (
         <div className="settings-hint">Loading…</div>
@@ -740,7 +753,9 @@ function SessionBudgetSection() {
     const trimmed = capInput.trim();
     const cap = trimmed === "" ? null : Number(trimmed);
     if (cap != null && (!Number.isFinite(cap) || cap <= 0)) {
-      setErr("Enter a positive dollar amount, or leave blank to clear the cap.");
+      setErr(
+        "Enter a positive dollar amount, or leave blank to clear the cap.",
+      );
       return;
     }
     setBusy(true);
@@ -774,13 +789,13 @@ function SessionBudgetSection() {
     <div className="settings-section">
       <h3>Session budget cap</h3>
       <div className="settings-hint spaced">
-        Set a spend ceiling (USD) for <em>this</em> chat session, estimated
-        from local token/pricing data (Observability → Reliability/Usage). As
-        spend nears the cap, outcome-aware routing (above, when enabled)
-        starts preferring cheaper reliable providers; once spend reaches the
-        cap, further Auto messages (no explicit agent or model pick) are
-        blocked until you raise or clear it. Explicit agent picks and model
-        routes are never blocked or biased by a cap. No cap by default.
+        Set a spend ceiling (USD) for <em>this</em> chat session, estimated from
+        local token/pricing data (Observability → Reliability/Usage). As spend
+        nears the cap, outcome-aware routing (above, when enabled) starts
+        preferring cheaper reliable providers; once spend reaches the cap,
+        further Auto messages (no explicit agent or model pick) are blocked
+        until you raise or clear it. Explicit agent picks and model routes are
+        never blocked or biased by a cap. No cap by default.
       </div>
       {loading ? (
         <div className="settings-hint">Loading…</div>
@@ -940,7 +955,9 @@ function SafetySection({ projectRoot }: { projectRoot: string | null }) {
       setEnabled(s.enabled);
       setForceReadOnly(s.force_read_only);
       setPresetConfirming(false);
-      setPresetMsg("CI-safe preset applied: Safe Mode is on, the sandbox tier is clamped to read-only, and the global command policy was replaced.");
+      setPresetMsg(
+        "CI-safe preset applied: Safe Mode is on, the sandbox tier is clamped to read-only, and the global command policy was replaced.",
+      );
       // Refresh the editor if it's currently showing the global scope, so
       // it doesn't silently go stale relative to what's now on disk.
       if (scope === "global") {
@@ -1017,9 +1034,9 @@ function SafetySection({ projectRoot }: { projectRoot: string | null }) {
         it is on: full-access sandboxes behave as <code>workspace-write</code>;
         a <code>never</code> approval policy is pulled back to{" "}
         <code>untrusted</code>; the command policy below is enforced (a denied
-        command is blocked before any approval prompt); commands the policy
-        does not explicitly allow are never auto-approved; and every tool call
-        is written to the audit log. Off by default — nothing changes until you
+        command is blocked before any approval prompt); commands the policy does
+        not explicitly allow are never auto-approved; and every tool call is
+        written to the audit log. Off by default — nothing changes until you
         enable it.
       </div>
       {enabled === null ? (
@@ -1039,18 +1056,20 @@ function SafetySection({ projectRoot }: { projectRoot: string | null }) {
 
       <h4>Presets</h4>
       <div className="settings-hint">
-        <strong className="settings-emph">CI-safe</strong> is the maximum-lockdown
-        preset for an unattended/CI run: the sandbox tier is clamped to{" "}
-        <code>read-only</code> (regardless of any project's own tier), the
-        global command policy is replaced with allowlist mode (a command not
-        explicitly matched below asks instead of running) plus the built-in
-        destructive-command heuristics, and Safe Mode is turned on. This{" "}
-        <strong>overwrites</strong> your existing global command policy —
+        <strong className="settings-emph">CI-safe</strong> is the
+        maximum-lockdown preset for an unattended/CI run: the sandbox tier is
+        clamped to <code>read-only</code> (regardless of any project's own
+        tier), the global command policy is replaced with allowlist mode (a
+        command not explicitly matched below asks instead of running) plus the
+        built-in destructive-command heuristics, and Safe Mode is turned on.
+        This <strong>overwrites</strong> your existing global command policy —
         review the preview before confirming.
         {forceReadOnly && enabled && (
           <>
             {" "}
-            <span className="settings-pill ok">CI-safe is currently applied</span>
+            <span className="settings-pill ok">
+              CI-safe is currently applied
+            </span>
           </>
         )}
       </div>
@@ -1061,15 +1080,25 @@ function SafetySection({ projectRoot }: { projectRoot: string | null }) {
           </button>
         </div>
       ) : (
-        <div className="settings-row spaced" style={{ flexDirection: "column", alignItems: "stretch" }}>
+        <div
+          className="settings-row spaced"
+          style={{ flexDirection: "column", alignItems: "stretch" }}
+        >
           <div className="settings-hint">
             This will overwrite <code>~/.cortex/command-policy.toml</code> with:
           </div>
-          <pre className="settings-mono" style={{ maxHeight: 180, overflow: "auto" }}>
+          <pre
+            className="settings-mono"
+            style={{ maxHeight: 180, overflow: "auto" }}
+          >
             {presetPreview}
           </pre>
           <div className="settings-row spaced">
-            <button type="button" onClick={() => void confirmCiSafe()} disabled={presetBusy}>
+            <button
+              type="button"
+              onClick={() => void confirmCiSafe()}
+              disabled={presetBusy}
+            >
               {presetBusy ? "Applying…" : "Confirm: apply CI-safe preset"}
             </button>
             <button
@@ -1088,8 +1117,8 @@ function SafetySection({ projectRoot }: { projectRoot: string | null }) {
       <h4>Command policy</h4>
       <div className="settings-hint">
         Ordered rules in TOML; deny &gt; ask &gt; allow. The project file can
-        only <em>narrow</em> the global policy (its <code>allow</code> rules
-        are ignored). Saved only if it validates.
+        only <em>narrow</em> the global policy (its <code>allow</code> rules are
+        ignored). Saved only if it validates.
       </div>
       <div className="settings-row spaced">
         <label className="settings-check">
@@ -1111,7 +1140,14 @@ function SafetySection({ projectRoot }: { projectRoot: string | null }) {
             disabled={!projectRoot}
             onChange={() => setScope("project")}
           />
-          <span>Project {projectRoot ? <code>.cortex/command-policy.toml</code> : "(pick a project first)"}</span>
+          <span>
+            Project{" "}
+            {projectRoot ? (
+              <code>.cortex/command-policy.toml</code>
+            ) : (
+              "(pick a project first)"
+            )}
+          </span>
         </label>
       </div>
       {policyRaw === null ? (
@@ -1132,7 +1168,11 @@ function SafetySection({ projectRoot }: { projectRoot: string | null }) {
         <button
           type="button"
           onClick={() => void savePolicy()}
-          disabled={policyBusy || policyRaw === null || (scope === "project" && !projectRoot)}
+          disabled={
+            policyBusy ||
+            policyRaw === null ||
+            (scope === "project" && !projectRoot)
+          }
         >
           {policyBusy ? "Validating…" : "Validate & save"}
         </button>
@@ -1142,7 +1182,9 @@ function SafetySection({ projectRoot }: { projectRoot: string | null }) {
 
       <div className="settings-row spaced">
         <button type="button" onClick={() => void toggleBuiltinRules()}>
-          {showBuiltinRules ? "Hide built-in destructive-command rules" : "View built-in destructive-command rules"}
+          {showBuiltinRules
+            ? "Hide built-in destructive-command rules"
+            : "View built-in destructive-command rules"}
         </button>
       </div>
       {showBuiltinRules && (
@@ -1150,20 +1192,22 @@ function SafetySection({ projectRoot }: { projectRoot: string | null }) {
           <div className="settings-hint">
             These heuristics (rm -rf, dd, mkfs, fork bombs, git push --force,
             curl/wget piped into a shell, chmod -R 777, …) are{" "}
-            <strong>always enforced</strong> while Safe Mode's command policy
-            is active, layered under your own rules above. You can copy rules
-            from here into the editor to customize the wording or add
-            narrower ones of your own, but a built-in Deny/Ask can never be
-            loosened back to an Allow — deny/ask always outrank allow,
-            regardless of source (fail-closed, same as the narrow-only
-            project-file rule above).
+            <strong>always enforced</strong> while Safe Mode's command policy is
+            active, layered under your own rules above. You can copy rules from
+            here into the editor to customize the wording or add narrower ones
+            of your own, but a built-in Deny/Ask can never be loosened back to
+            an Allow — deny/ask always outrank allow, regardless of source
+            (fail-closed, same as the narrow-only project-file rule above).
           </div>
           {builtinErr ? (
             <div className="settings-err">{builtinErr}</div>
           ) : builtinRules === null ? (
             <div className="settings-hint">Loading…</div>
           ) : (
-            <pre className="settings-mono" style={{ maxHeight: 220, overflow: "auto" }}>
+            <pre
+              className="settings-mono"
+              style={{ maxHeight: 220, overflow: "auto" }}
+            >
               {builtinRules}
             </pre>
           )}
@@ -1172,8 +1216,8 @@ function SafetySection({ projectRoot }: { projectRoot: string | null }) {
 
       <h4>Test a command</h4>
       <div className="settings-hint">
-        Dry run against the effective global + project policy. Shows the
-        matched rule and its source — nothing is executed.
+        Dry run against the effective global + project policy. Shows the matched
+        rule and its source — nothing is executed.
       </div>
       <div className="settings-row spaced">
         <input
@@ -1184,14 +1228,19 @@ function SafetySection({ projectRoot }: { projectRoot: string | null }) {
             if (e.key === "Enter" && testCmd.trim()) void runTest();
           }}
         />
-        <button type="button" onClick={() => void runTest()} disabled={!testCmd.trim()}>
+        <button
+          type="button"
+          onClick={() => void runTest()}
+          disabled={!testCmd.trim()}
+        >
           Test
         </button>
       </div>
       {testErr && <div className="settings-err">{testErr}</div>}
       {testResult && (
         <div className="settings-hint">
-          Decision: <strong className="settings-emph">{testResult.action}</strong>
+          Decision:{" "}
+          <strong className="settings-emph">{testResult.action}</strong>
           {" — "}
           {testResult.matched ? (
             <>
@@ -1210,10 +1259,18 @@ function SafetySection({ projectRoot }: { projectRoot: string | null }) {
         <code>~/.cortex/audit-export-&lt;ts&gt;</code>, with secrets redacted.
       </div>
       <div className="settings-row spaced">
-        <button type="button" onClick={() => void doExport("jsonl")} disabled={exportBusy}>
+        <button
+          type="button"
+          onClick={() => void doExport("jsonl")}
+          disabled={exportBusy}
+        >
           Export JSONL
         </button>
-        <button type="button" onClick={() => void doExport("csv")} disabled={exportBusy}>
+        <button
+          type="button"
+          onClick={() => void doExport("csv")}
+          disabled={exportBusy}
+        >
           Export CSV
         </button>
       </div>
@@ -1225,7 +1282,15 @@ function SafetySection({ projectRoot }: { projectRoot: string | null }) {
 
 // Status pill for a provider credential / login state. Green when ready,
 // amber otherwise — semantic tokens only so it tracks the active theme.
-function StatusPill({ ok, okLabel, offLabel }: { ok: boolean; okLabel: string; offLabel: string }) {
+function StatusPill({
+  ok,
+  okLabel,
+  offLabel,
+}: {
+  ok: boolean;
+  okLabel: string;
+  offLabel: string;
+}) {
   return (
     <span className={`settings-pill ${ok ? "ok" : "warn"}`}>
       {ok ? okLabel : offLabel}
@@ -1262,10 +1327,10 @@ function LocalCliProvidersSection() {
     <div className="settings-section">
       <h3>Local AI providers</h3>
       <div className="settings-hint spaced">
-        Every major AI maker's CLI, driven locally — no gateway, no keys to paste.
-        Each row spawns that CLI's own binary; auth is the CLI's own login. Install
-        the ones you want, then click <strong>Sign in</strong> to complete the
-        provider's login flow inside Cortex.
+        Every major AI maker's CLI, driven locally — no gateway, no keys to
+        paste. Each row spawns that CLI's own binary; auth is the CLI's own
+        login. Install the ones you want, then click <strong>Sign in</strong> to
+        complete the provider's login flow inside Cortex.
       </div>
       <div className="settings-row spaced">
         <button type="button" onClick={() => void refresh()}>
@@ -1406,10 +1471,10 @@ function OpenAiCompatProvidersSection() {
     <div className="settings-section">
       <h3>API providers</h3>
       <div className="settings-hint spaced">
-        Per-token API providers — paste a key to enable each one. Every
-        adapter also falls back to its documented env var (shown below each
-        row) if the vault has nothing, so a row can read as configured even
-        with no key saved here.
+        Per-token API providers — paste a key to enable each one. Every adapter
+        also falls back to its documented env var (shown below each row) if the
+        vault has nothing, so a row can read as configured even with no key
+        saved here.
       </div>
       <div className="settings-row spaced">
         <button type="button" onClick={() => void refresh()}>
@@ -1584,7 +1649,9 @@ function ModelFabricSection() {
       </div>
 
       {endpoints.length === 0 && (
-        <div className="settings-muted spaced">No endpoints yet — add one below.</div>
+        <div className="settings-muted spaced">
+          No endpoints yet — add one below.
+        </div>
       )}
       {endpoints.map((ep) => {
         const pr = probes[ep.id];
@@ -1594,25 +1661,39 @@ function ModelFabricSection() {
               <span className="fabric-label">
                 {ep.label}{" "}
                 <span className={`fabric-kind ${ep.kind}`}>{ep.kind}</span>
-                {!ep.enabled && <span className="fabric-kind off">disabled</span>}
+                {!ep.enabled && (
+                  <span className="fabric-kind off">disabled</span>
+                )}
               </span>
               <code className="fabric-url">{ep.base_url}</code>
               {pr && (
                 <span className={`fabric-probe ${pr.ok ? "ok" : "bad"}`}>
                   {pr.ok
                     ? `reachable · ${pr.latency_ms ?? "?"}ms · ${pr.models.length} models`
-                    : pr.error ?? "unreachable"}
+                    : (pr.error ?? "unreachable")}
                 </span>
               )}
             </div>
             <div className="settings-row wrap">
-              <button type="button" disabled={busy} onClick={() => void test(ep)}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void test(ep)}
+              >
                 Test
               </button>
-              <button type="button" disabled={busy} onClick={() => void toggle(ep)}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void toggle(ep)}
+              >
                 {ep.enabled ? "Disable" : "Enable"}
               </button>
-              <button type="button" disabled={busy} onClick={() => void remove(ep)}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void remove(ep)}
+              >
                 Delete
               </button>
             </div>
@@ -1669,7 +1750,9 @@ function ModelFabricSection() {
           </label>
           <button
             type="button"
-            disabled={busy || label.trim().length === 0 || baseUrl.trim().length === 0}
+            disabled={
+              busy || label.trim().length === 0 || baseUrl.trim().length === 0
+            }
             onClick={() => void add()}
           >
             Add endpoint
@@ -1852,8 +1935,8 @@ function TailscaleSection() {
       <h3>Tailscale (embedded)</h3>
       <div className="settings-hint spaced">
         Reach your home Cortex gateway + local LLM from any network, no admin —
-        a userspace Tailscale runs inside Cortex. Local traffic
-        (<code>127.0.0.1</code>, LAN) stays local; only tailnet / home services
+        a userspace Tailscale runs inside Cortex. Local traffic (
+        <code>127.0.0.1</code>, LAN) stays local; only tailnet / home services
         route over the tunnel.
       </div>
 
@@ -1964,7 +2047,9 @@ function TailscaleSection() {
             style={{ justifyContent: "space-between" }}
           >
             <strong>Set up automatically via WSL</strong>
-            {wsl.connected && <span className="settings-pill ok">connected</span>}
+            {wsl.connected && (
+              <span className="settings-pill ok">connected</span>
+            )}
             {!wsl.connected && wsl.daemon_running && (
               <span className="settings-pill warn">needs login</span>
             )}
@@ -2005,10 +2090,7 @@ function TailscaleSection() {
                 Authorise this node on your tailnet:
               </div>
               <div className="settings-row wrap">
-                <button
-                  type="button"
-                  onClick={() => openLogin(wsl.login_url!)}
-                >
+                <button type="button" onClick={() => openLogin(wsl.login_url!)}>
                   Open login page
                 </button>
                 <a
@@ -2039,7 +2121,8 @@ function TailscaleSection() {
       <div className="settings-hint spaced gap-top">
         Or point Cortex at a proxy you run yourself. In WSL:{" "}
         <code>
-          tailscaled --tun=userspace-networking --socks5-server=0.0.0.0:1055 &amp;
+          tailscaled --tun=userspace-networking --socks5-server=0.0.0.0:1055
+          &amp;
         </code>{" "}
         then <code>tailscale up</code>, and enter the WSL IP with{" "}
         <code>:1055</code> below (use the WSL IP, not <code>127.0.0.1</code>,
@@ -2067,8 +2150,8 @@ function TailscaleSection() {
           {savedExternal && <span className="settings-success">Saved.</span>}
         </div>
         <small className="settings-muted">
-          Applies to new requests immediately. A restart is safest so all clients
-          pick it up.
+          Applies to new requests immediately. A restart is safest so all
+          clients pick it up.
         </small>
       </div>
 
@@ -2188,7 +2271,14 @@ const PROVIDER_META: {
     label: "OpenAI",
     keyPlaceholder: "sk-…",
     builtinDefault: "gpt-4o",
-    staticModels: ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "o3", "o4-mini"],
+    staticModels: [
+      "gpt-4o",
+      "gpt-4o-mini",
+      "gpt-4.1",
+      "gpt-4.1-mini",
+      "o3",
+      "o4-mini",
+    ],
   },
 ];
 
@@ -2214,15 +2304,18 @@ function ProviderRow({
 }) {
   const [keyDraft, setKeyDraft] = useState("");
   const [saving, setSaving] = useState(false);
-  const [validation, setValidation] = useState<ValidationState>({ phase: "idle" });
+  const [validation, setValidation] = useState<ValidationState>({
+    phase: "idle",
+  });
   const [liveModels, setLiveModels] = useState<string[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   const keySet =
     meta.id === "anthropic" ? !!cfg?.anthropic_key_set : !!cfg?.openai_key_set;
   const defaultModel =
-    (meta.id === "anthropic" ? cfg?.anthropic_default_model : cfg?.openai_default_model) ??
-    "";
+    (meta.id === "anthropic"
+      ? cfg?.anthropic_default_model
+      : cfg?.openai_default_model) ?? "";
 
   // Vault-write the typed key (if any) so Validate always checks what the
   // adapters will actually use. Shared by Save and Validate.
@@ -2273,7 +2366,8 @@ function ProviderRow({
   const modelOptions = useMemo(() => {
     const merged = [...meta.staticModels];
     for (const m of liveModels) if (!merged.includes(m)) merged.push(m);
-    if (defaultModel && !merged.includes(defaultModel)) merged.unshift(defaultModel);
+    if (defaultModel && !merged.includes(defaultModel))
+      merged.unshift(defaultModel);
     return merged;
   }, [meta.staticModels, liveModels, defaultModel]);
 
@@ -2288,7 +2382,9 @@ function ProviderRow({
           type="password"
           value={keyDraft}
           onChange={(e) => setKeyDraft(e.target.value)}
-          placeholder={keySet ? "leave blank to keep current" : meta.keyPlaceholder}
+          placeholder={
+            keySet ? "leave blank to keep current" : meta.keyPlaceholder
+          }
         />
       </label>
       <div className="settings-row wrap">
@@ -2303,20 +2399,26 @@ function ProviderRow({
           type="button"
           onClick={() => void validate()}
           disabled={
-            validation.phase === "busy" || (!keySet && keyDraft.trim().length === 0)
+            validation.phase === "busy" ||
+            (!keySet && keyDraft.trim().length === 0)
           }
         >
           {validation.phase === "busy" ? "Validating…" : "Validate"}
         </button>
         {validation.phase === "done" && (
-          <small className={`settings-validation ${validation.ok ? "ok" : "err"}`}>
+          <small
+            className={`settings-validation ${validation.ok ? "ok" : "err"}`}
+          >
             {validation.message}
           </small>
         )}
       </div>
       <label className="settings-field-row">
         <span className="settings-field-label">Default model</span>
-        <select value={defaultModel} onChange={(e) => void changeModel(e.target.value)}>
+        <select
+          value={defaultModel}
+          onChange={(e) => void changeModel(e.target.value)}
+        >
           <option value="">Adapter default ({meta.builtinDefault})</option>
           {modelOptions.map((m) => (
             <option key={m} value={m}>
@@ -2327,8 +2429,8 @@ function ProviderRow({
       </label>
       {liveModels.length === 0 && (
         <small className="settings-muted">
-          Validate the key to merge {meta.label}'s live model list into this picker.
-          Model changes apply on the next message — no restart needed.
+          Validate the key to merge {meta.label}'s live model list into this
+          picker. Model changes apply on the next message — no restart needed.
         </small>
       )}
       {err && <div className="settings-err">{err}</div>}
@@ -2418,10 +2520,16 @@ function ProviderSettingsSection() {
           <select
             value={cfg?.runtime_mode ?? "homelab"}
             disabled={!cfg?.standalone_build}
-            onChange={(e) => void changeMode(e.target.value as "homelab" | "cloud")}
+            onChange={(e) =>
+              void changeMode(e.target.value as "homelab" | "cloud")
+            }
           >
-            <option value="homelab">Gateway — route through the Cortex Gateway</option>
-            <option value="cloud">Cloud — direct provider APIs (keys below)</option>
+            <option value="homelab">
+              Gateway — route through the Cortex Gateway
+            </option>
+            <option value="cloud">
+              Cloud — direct provider APIs (keys below)
+            </option>
           </select>
         </label>
         <small className="settings-muted">
@@ -2432,7 +2540,12 @@ function ProviderSettingsSection() {
       </div>
 
       {PROVIDER_META.map((meta) => (
-        <ProviderRow key={meta.id} meta={meta} cfg={cfg} onConfigChange={refresh} />
+        <ProviderRow
+          key={meta.id}
+          meta={meta}
+          cfg={cfg}
+          onConfigChange={refresh}
+        />
       ))}
 
       <div className="settings-row gap-top">
@@ -2471,9 +2584,13 @@ export function SettingsModal() {
   const architectMode = useCortexStore((s) => s.architectMode);
   const setArchitectMode = useCortexStore((s) => s.setArchitectMode);
   const autoCondenseEnabled = useCortexStore((s) => s.autoCondenseEnabled);
-  const setAutoCondenseEnabled = useCortexStore((s) => s.setAutoCondenseEnabled);
+  const setAutoCondenseEnabled = useCortexStore(
+    (s) => s.setAutoCondenseEnabled,
+  );
   const autoCondenseThreshold = useCortexStore((s) => s.autoCondenseThreshold);
-  const setAutoCondenseThreshold = useCortexStore((s) => s.setAutoCondenseThreshold);
+  const setAutoCondenseThreshold = useCortexStore(
+    (s) => s.setAutoCondenseThreshold,
+  );
 
   const [activeTab, setActiveTab] = useState<TabId>(() => loadTab());
   const [query, setQuery] = useState("");
@@ -2549,7 +2666,11 @@ export function SettingsModal() {
       await navigator.clipboard.writeText(diagResult.path);
       pushToast({ title: "Path copied", kind: "success" });
     } catch (e) {
-      pushToast({ title: "Copy failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Copy failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }
 
@@ -2609,12 +2730,24 @@ export function SettingsModal() {
   useEffect(() => {
     if (!show) return;
     const root = activeProject?.root;
-    if (!root) { setProfiles([]); return; }
+    if (!root) {
+      setProfiles([]);
+      return;
+    }
     let cancelled = false;
     listProfiles(root)
-      .then((list) => { if (!cancelled) setProfiles(list); })
-      .catch((e) => { if (!cancelled) { setProfiles([]); setProfileErr(humanizeError(e)); } });
-    return () => { cancelled = true; };
+      .then((list) => {
+        if (!cancelled) setProfiles(list);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setProfiles([]);
+          setProfileErr(humanizeError(e));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [show, activeProject?.root]);
 
   // Refresh `.cortex/rules/*.md` summaries on the same trigger as profiles.
@@ -2622,12 +2755,28 @@ export function SettingsModal() {
   useEffect(() => {
     if (!show) return;
     const root = activeProject?.root;
-    if (!root) { setRules([]); setRulesErr(null); return; }
+    if (!root) {
+      setRules([]);
+      setRulesErr(null);
+      return;
+    }
     let cancelled = false;
     listRules(root)
-      .then((list) => { if (!cancelled) { setRules(list); setRulesErr(null); } })
-      .catch((e) => { if (!cancelled) { setRules([]); setRulesErr(humanizeError(e)); } });
-    return () => { cancelled = true; };
+      .then((list) => {
+        if (!cancelled) {
+          setRules(list);
+          setRulesErr(null);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setRules([]);
+          setRulesErr(humanizeError(e));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [show, activeProject?.root]);
 
   // Load the per-project sandbox tier on open so the picker reflects the
@@ -2635,12 +2784,24 @@ export function SettingsModal() {
   useEffect(() => {
     if (!show) return;
     const root = activeProject?.root;
-    if (!root) { setSandboxTierState(DEFAULT_SANDBOX_TIER); return; }
+    if (!root) {
+      setSandboxTierState(DEFAULT_SANDBOX_TIER);
+      return;
+    }
     let cancelled = false;
     getSandboxTier(root)
-      .then((t) => { if (!cancelled) { setSandboxTierState(t); setSandboxErr(null); } })
-      .catch((e) => { if (!cancelled) setSandboxErr(humanizeError(e)); });
-    return () => { cancelled = true; };
+      .then((t) => {
+        if (!cancelled) {
+          setSandboxTierState(t);
+          setSandboxErr(null);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) setSandboxErr(humanizeError(e));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [show, activeProject?.root]);
 
   // Load the per-project model-role map + the available model list on open, so
@@ -2649,14 +2810,34 @@ export function SettingsModal() {
     if (!show) return;
     let cancelled = false;
     listModels()
-      .then((list) => { if (!cancelled) setModelList(list); })
-      .catch(() => { if (!cancelled) setModelList([]); });
+      .then((list) => {
+        if (!cancelled) setModelList(list);
+      })
+      .catch(() => {
+        if (!cancelled) setModelList([]);
+      });
     const root = activeProject?.root;
-    if (!root) { setModelRolesState({}); setModelRolesErr(null); return; }
+    if (!root) {
+      setModelRolesState({});
+      setModelRolesErr(null);
+      return;
+    }
     getModelRoles(root)
-      .then((r) => { if (!cancelled) { setModelRolesState(r); setModelRolesErr(null); } })
-      .catch((e) => { if (!cancelled) { setModelRolesState({}); setModelRolesErr(humanizeError(e)); } });
-    return () => { cancelled = true; };
+      .then((r) => {
+        if (!cancelled) {
+          setModelRolesState(r);
+          setModelRolesErr(null);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setModelRolesState({});
+          setModelRolesErr(humanizeError(e));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [show, activeProject?.root]);
 
   // Persist a single role assignment (blank clears it). Optimistic local update,
@@ -2672,7 +2853,11 @@ export function SettingsModal() {
       setModelRolesState(stored);
     } catch (e) {
       setModelRolesErr(humanizeError(e));
-      try { setModelRolesState(await getModelRoles(root)); } catch { /* keep optimistic */ }
+      try {
+        setModelRolesState(await getModelRoles(root));
+      } catch {
+        /* keep optimistic */
+      }
     }
   }
 
@@ -2791,8 +2976,8 @@ export function SettingsModal() {
             <h3>Welcome</h3>
             <div className="settings-hint">
               Cortex is the desktop client to your Cortex Gateway. Use the tabs
-              on the left to configure connections, your Obsidian workspace,
-              and other options.
+              on the left to configure connections, your Obsidian workspace, and
+              other options.
             </div>
           </div>
         ),
@@ -2819,7 +3004,8 @@ export function SettingsModal() {
               <span>
                 Enable subtle audio feedback
                 <small>
-                  Short tones on completion, approval, errors, and copy/pin. Off by default.
+                  Short tones on completion, approval, errors, and copy/pin. Off
+                  by default.
                 </small>
               </span>
             </label>
@@ -2835,7 +3021,10 @@ export function SettingsModal() {
             <h3>Gateway backend</h3>
             <label>
               Gateway backend URL
-              <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+              <input
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+              />
             </label>
             <label>
               Model id
@@ -2852,7 +3041,11 @@ export function SettingsModal() {
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder={hasKey ? "leave blank to keep current" : "Bearer key for /v1/* access"}
+                placeholder={
+                  hasKey
+                    ? "leave blank to keep current"
+                    : "Bearer key for /v1/* access"
+                }
               />
             </label>
           </div>
@@ -2877,7 +3070,9 @@ export function SettingsModal() {
                     <label
                       key={t}
                       className={`sandbox-radio${t === sandboxTier ? " selected" : ""}`}
-                      style={t === sandboxTier ? { borderColor: m.color } : undefined}
+                      style={
+                        t === sandboxTier ? { borderColor: m.color } : undefined
+                      }
                     >
                       <input
                         type="radio"
@@ -2892,7 +3087,9 @@ export function SettingsModal() {
                         >
                           {m.label}
                         </span>
-                        <small className="sandbox-radio-desc">{m.description}</small>
+                        <small className="sandbox-radio-desc">
+                          {m.description}
+                        </small>
                       </span>
                     </label>
                   );
@@ -2917,7 +3114,9 @@ export function SettingsModal() {
         tab: "connections",
         heading: "Safety",
         text: "safety safe mode lockdown policy pack shield command policy allowlist denylist deny allow ask audit log export jsonl csv dry run test command redact command-policy.toml safe-mode.json",
-        render: () => <SafetySection projectRoot={activeProject?.root ?? null} />,
+        render: () => (
+          <SafetySection projectRoot={activeProject?.root ?? null} />
+        ),
       },
       {
         tab: "connections",
@@ -2928,30 +3127,63 @@ export function SettingsModal() {
             <h3>Profile</h3>
             {!activeProject && (
               <div className="settings-hint">
-                Pick a project to load its <code>.cortex/profiles/*.toml</code> bundles.
+                Pick a project to load its <code>.cortex/profiles/*.toml</code>{" "}
+                bundles.
               </div>
             )}
             {activeProject && (
               <div className="settings-stack">
                 <div className="settings-hint">
-                  Active: <strong className="settings-emph">{currentProfile?.name ?? "none"}</strong>
+                  Active:{" "}
+                  <strong className="settings-emph">
+                    {currentProfile?.name ?? "none"}
+                  </strong>
                 </div>
                 {currentProfile && (
                   <div className="settings-hint">
-                    {currentProfile.model && <>model: <code>{currentProfile.model}</code><br /></>}
-                    {currentProfile.sandbox_tier && <>sandbox: <code>{currentProfile.sandbox_tier}</code><br /></>}
-                    {currentProfile.reasoning_effort && <>reasoning: <code>{currentProfile.reasoning_effort}</code><br /></>}
-                    {currentProfile.allowed_tools && currentProfile.allowed_tools.length > 0 && (
-                      <>tools: <code>{currentProfile.allowed_tools.join(", ")}</code><br /></>
+                    {currentProfile.model && (
+                      <>
+                        model: <code>{currentProfile.model}</code>
+                        <br />
+                      </>
                     )}
+                    {currentProfile.sandbox_tier && (
+                      <>
+                        sandbox: <code>{currentProfile.sandbox_tier}</code>
+                        <br />
+                      </>
+                    )}
+                    {currentProfile.reasoning_effort && (
+                      <>
+                        reasoning:{" "}
+                        <code>{currentProfile.reasoning_effort}</code>
+                        <br />
+                      </>
+                    )}
+                    {currentProfile.allowed_tools &&
+                      currentProfile.allowed_tools.length > 0 && (
+                        <>
+                          tools:{" "}
+                          <code>{currentProfile.allowed_tools.join(", ")}</code>
+                          <br />
+                        </>
+                      )}
                     {currentProfile.system_prompt && (
-                      <>prompt: <code>{currentProfile.system_prompt.slice(0, 80)}{currentProfile.system_prompt.length > 80 ? "…" : ""}</code></>
+                      <>
+                        prompt:{" "}
+                        <code>
+                          {currentProfile.system_prompt.slice(0, 80)}
+                          {currentProfile.system_prompt.length > 80 ? "…" : ""}
+                        </code>
+                      </>
                     )}
                   </div>
                 )}
                 {profiles.length === 0 ? (
                   <div className="settings-hint">
-                    No profiles in <code>{activeProject.root}/.cortex/profiles/</code>. Drop a <code>&lt;name&gt;.toml</code> there to enable switching.
+                    No profiles in{" "}
+                    <code>{activeProject.root}/.cortex/profiles/</code>. Drop a{" "}
+                    <code>&lt;name&gt;.toml</code> there to enable switching.
                   </div>
                 ) : (
                   <div className="settings-row wrap">
@@ -2983,11 +3215,17 @@ export function SettingsModal() {
             <h3>Ollama</h3>
             <label>
               Ollama base URL
-              <input value={ollamaUrl} onChange={(e) => setOllamaUrl(e.target.value)} />
+              <input
+                value={ollamaUrl}
+                onChange={(e) => setOllamaUrl(e.target.value)}
+              />
             </label>
             <label>
               Ollama model
-              <input value={ollamaModel} onChange={(e) => setOllamaModel(e.target.value)} />
+              <input
+                value={ollamaModel}
+                onChange={(e) => setOllamaModel(e.target.value)}
+              />
             </label>
           </div>
         ),
@@ -3050,8 +3288,8 @@ export function SettingsModal() {
               />
             </label>
             <div className="settings-hint">
-              Cortex auto-detects <code>~/Documents/Cortex Brain</code> on
-              first run. Per-project config lives under <code>.cortex/*</code>
+              Cortex auto-detects <code>~/Documents/Cortex Brain</code> on first
+              run. Per-project config lives under <code>.cortex/*</code>
               inside each workspace directory.
             </div>
           </div>
@@ -3097,8 +3335,9 @@ export function SettingsModal() {
             )}
             {activeProject && !rulesErr && rules.length === 0 && (
               <div className="settings-hint">
-                No rules found in <code>{activeProject.root}/.cortex/rules/</code>.
-                Drop a <code>&lt;name&gt;.md</code> there to add one.
+                No rules found in{" "}
+                <code>{activeProject.root}/.cortex/rules/</code>. Drop a{" "}
+                <code>&lt;name&gt;.md</code> there to add one.
               </div>
             )}
             {activeProject && rules.length > 0 && (
@@ -3164,12 +3403,17 @@ export function SettingsModal() {
                     )}
                   </span>
                 </label>
-                {monitorsErr && <div className="settings-err">{monitorsErr}</div>}
+                {monitorsErr && (
+                  <div className="settings-err">{monitorsErr}</div>
+                )}
                 {monitors.length === 0 ? (
                   <div className="settings-hint">
                     No monitors in
-                    <code> {activeProject.root}/.cortex/monitors/monitors.json</code>.
-                    Drop a JSON array there to enable.
+                    <code>
+                      {" "}
+                      {activeProject.root}/.cortex/monitors/monitors.json
+                    </code>
+                    . Drop a JSON array there to enable.
                   </div>
                 ) : (
                   <ul className="settings-list">
@@ -3203,10 +3447,10 @@ export function SettingsModal() {
               </code>
             </div>
             <div className="settings-hint spaced">
-              Compares your running build against the latest published release on
-              your Gitea (or a manifest URL set in <code>cortex.updateUrl</code>).
-              Newer builds are downloaded and installed manually — this checks and
-              links the release.
+              Compares your running build against the latest published release
+              on your Gitea (or a manifest URL set in{" "}
+              <code>cortex.updateUrl</code>). Newer builds are downloaded and
+              installed manually — this checks and links the release.
             </div>
             <div className="settings-row spaced">
               <button
@@ -3233,9 +3477,7 @@ export function SettingsModal() {
                 <div
                   className={`settings-update-status ${updateInfo.available ? "available" : "ok"}`}
                 >
-                  {updateInfo.available
-                    ? "↑ Update available"
-                    : "✓ Up to date"}
+                  {updateInfo.available ? "↑ Update available" : "✓ Up to date"}
                 </div>
                 {updateInfo.notes && (
                   <div className="settings-note">{updateInfo.notes}</div>
@@ -3280,13 +3522,12 @@ export function SettingsModal() {
             </label>
 
             <div className="settings-group">
-              <div className="settings-subheading">
-                Default model per role
-              </div>
+              <div className="settings-subheading">Default model per role</div>
               <div className="settings-hint">
-                Continue.dev-style. Pin a default model per role for this project.
-                An explicit composer pick (chat) or <code>/architect</code> override
-                always wins; <em>Auto</em> leaves the role unset.
+                Continue.dev-style. Pin a default model per role for this
+                project. An explicit composer pick (chat) or{" "}
+                <code>/architect</code> override always wins; <em>Auto</em>{" "}
+                leaves the role unset.
               </div>
               {!activeProject?.root ? (
                 <div className="settings-hint gap-top">
@@ -3301,14 +3542,18 @@ export function SettingsModal() {
                     const known = modelList.some((m) => m.id === value);
                     return (
                       <label key={key} className="settings-field-row">
-                        <span className="settings-field-label">{MODEL_ROLE_META[key].label}</span>
+                        <span className="settings-field-label">
+                          {MODEL_ROLE_META[key].label}
+                        </span>
                         <select
                           value={value}
                           title={MODEL_ROLE_META[key].help}
                           onChange={(e) => updateModelRole(key, e.target.value)}
                         >
                           <option value="">Auto / default</option>
-                          {!known && value && <option value={value}>{value}</option>}
+                          {!known && value && (
+                            <option value={value}>{value}</option>
+                          )}
                           {modelList.map((m) => (
                             <option key={m.id} value={m.id}>
                               {m.label} ({m.source})
@@ -3321,9 +3566,7 @@ export function SettingsModal() {
                 </div>
               )}
               {modelRolesErr && (
-                <div className="settings-err gap-top">
-                  {modelRolesErr}
-                </div>
+                <div className="settings-err gap-top">{modelRolesErr}</div>
               )}
             </div>
             <label className="settings-check gap-top">
@@ -3349,7 +3592,9 @@ export function SettingsModal() {
                   max={95}
                   step={5}
                   value={autoCondenseThreshold}
-                  onChange={(e) => setAutoCondenseThreshold(Number(e.target.value))}
+                  onChange={(e) =>
+                    setAutoCondenseThreshold(Number(e.target.value))
+                  }
                 />
                 <span className="settings-muted">% of the context window</span>
               </label>
@@ -3359,10 +3604,10 @@ export function SettingsModal() {
               <div className="settings-subheading">Diagnostics</div>
               <div className="settings-hint">
                 Bundle app version, OS info, the crash log, recent session
-                metadata (never message contents) and a redacted config
-                snapshot into a single archive you can attach to a bug
-                report. Keys, tokens, private IPs and home paths are
-                scrubbed before anything touches disk.
+                metadata (never message contents) and a redacted config snapshot
+                into a single archive you can attach to a bug report. Keys,
+                tokens, private IPs and home paths are scrubbed before anything
+                touches disk.
               </div>
               <div className="settings-row gap-top">
                 <button
@@ -3396,7 +3641,44 @@ export function SettingsModal() {
         ),
       },
     ],
-    [baseUrl, model, apiKey, hasKey, ollamaUrl, ollamaModel, obsidian, soundsEnabled, setSoundsEnabled, activeProject, currentProfile, profiles, profileErr, rules, rulesErr, sandboxTier, sandboxErr, monitors, monitorsActive, monitorsBusy, monitorsErr, updateInfo, updateChecking, updateErr, architectMode, setArchitectMode, autoCondenseEnabled, setAutoCondenseEnabled, autoCondenseThreshold, setAutoCondenseThreshold, modelRoles, modelList, modelRolesErr, diagBusy, diagResult, diagErr],
+    [
+      baseUrl,
+      model,
+      apiKey,
+      hasKey,
+      ollamaUrl,
+      ollamaModel,
+      obsidian,
+      soundsEnabled,
+      setSoundsEnabled,
+      activeProject,
+      currentProfile,
+      profiles,
+      profileErr,
+      rules,
+      rulesErr,
+      sandboxTier,
+      sandboxErr,
+      monitors,
+      monitorsActive,
+      monitorsBusy,
+      monitorsErr,
+      updateInfo,
+      updateChecking,
+      updateErr,
+      architectMode,
+      setArchitectMode,
+      autoCondenseEnabled,
+      setAutoCondenseEnabled,
+      autoCondenseThreshold,
+      setAutoCondenseThreshold,
+      modelRoles,
+      modelList,
+      modelRolesErr,
+      diagBusy,
+      diagResult,
+      diagErr,
+    ],
   );
 
   const q = query.trim().toLowerCase();
@@ -3423,7 +3705,8 @@ export function SettingsModal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sections, q]);
 
-  const visibleTabs = q.length > 0 ? TABS.filter((t) => tabHasHits[t.id]) : TABS;
+  const visibleTabs =
+    q.length > 0 ? TABS.filter((t) => tabHasHits[t.id]) : TABS;
 
   useEffect(() => {
     if (q.length === 0) return;
@@ -3434,11 +3717,16 @@ export function SettingsModal() {
 
   if (!show) return null;
 
-  const visibleSections = sections.filter((s) => s.tab === activeTab && matches(s));
+  const visibleSections = sections.filter(
+    (s) => s.tab === activeTab && matches(s),
+  );
 
   return (
     <div className="modal-backdrop" onClick={() => setShow(false)}>
-      <div className="modal modal-settings" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal modal-settings"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="settings-header">
           <h2>Settings</h2>
         </div>
@@ -3476,15 +3764,23 @@ export function SettingsModal() {
                   : "Nothing to configure in this tab yet."}
               </div>
             ) : (
-              visibleSections.map((s, i) => <div key={`${s.tab}-${i}`}>{s.render()}</div>)
+              visibleSections.map((s, i) => (
+                <div key={`${s.tab}-${i}`}>{s.render()}</div>
+              ))
             )}
           </div>
         </div>
         <div className="settings-footer">
           {err && <div className="settings-err">{err}</div>}
           <div className="modal-actions">
-            <button onClick={() => setShow(false)} disabled={saving}>Cancel</button>
-            <button className="btn-primary" onClick={() => void save()} disabled={saving}>
+            <button onClick={() => setShow(false)} disabled={saving}>
+              Cancel
+            </button>
+            <button
+              className="btn-primary"
+              onClick={() => void save()}
+              disabled={saving}
+            >
               {saving ? "Saving…" : "Save"}
             </button>
           </div>

@@ -394,11 +394,11 @@ pub async fn install_recipe_from_url(url: String) -> Result<Recipe, String> {
     // Strip any optional `userinfo@`, then the trailing `:port`, leaving the
     // bare host (an IPv6 literal stays bracketed, e.g. `[::1]`). The authority
     // ends at the first `?`/`#` when there was no path separator.
-    let authority = authority
-        .split(['?', '#'])
-        .next()
+    let authority = authority.split(['?', '#']).next().unwrap_or(authority);
+    let host_port = authority
+        .rsplit_once('@')
+        .map(|(_, hp)| hp)
         .unwrap_or(authority);
-    let host_port = authority.rsplit_once('@').map(|(_, hp)| hp).unwrap_or(authority);
     let host = if let Some(rest) = host_port.strip_prefix('[') {
         // Bracketed IPv6 literal: keep the brackets up to and including `]`.
         match rest.split_once(']') {
@@ -406,7 +406,11 @@ pub async fn install_recipe_from_url(url: String) -> Result<Recipe, String> {
             None => host_port.to_string(),
         }
     } else {
-        host_port.rsplit_once(':').map(|(h, _)| h).unwrap_or(host_port).to_string()
+        host_port
+            .rsplit_once(':')
+            .map(|(h, _)| h)
+            .unwrap_or(host_port)
+            .to_string()
     };
     guard_against_ssrf(&host)?;
     let (path_only, query) = match path_and_query.split_once('?') {
@@ -422,16 +426,13 @@ pub async fn install_recipe_from_url(url: String) -> Result<Recipe, String> {
             None
         }
     });
-    let path_stem = path_only
-        .rsplit('/')
-        .find(|s| !s.is_empty())
-        .map(|seg| {
-            Path::new(seg)
-                .file_stem()
-                .and_then(|x| x.to_str())
-                .unwrap_or(seg)
-                .to_string()
-        });
+    let path_stem = path_only.rsplit('/').find(|s| !s.is_empty()).map(|seg| {
+        Path::new(seg)
+            .file_stem()
+            .and_then(|x| x.to_str())
+            .unwrap_or(seg)
+            .to_string()
+    });
     let name = query_name
         .or(path_stem)
         .ok_or_else(|| "could not derive recipe name from URL".to_string())?;

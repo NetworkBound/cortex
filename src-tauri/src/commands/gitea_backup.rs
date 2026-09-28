@@ -38,13 +38,20 @@ pub struct GiteaConfig {
 /// can show "Xm ago" without round-tripping to Gitea.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GiteaSettings {
-    #[serde(default)] pub enabled: bool,
-    #[serde(default)] pub base_url: String,
-    #[serde(default)] pub token: String,
-    #[serde(default)] pub owner: String,
-    #[serde(default)] pub repo: String,
-    #[serde(default)] pub last_backup_unix_ms: i64,
-    #[serde(default)] pub last_report: Option<BackupReport>,
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub base_url: String,
+    #[serde(default)]
+    pub token: String,
+    #[serde(default)]
+    pub owner: String,
+    #[serde(default)]
+    pub repo: String,
+    #[serde(default)]
+    pub last_backup_unix_ms: i64,
+    #[serde(default)]
+    pub last_report: Option<BackupReport>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -69,13 +76,21 @@ fn cortex_home() -> Result<PathBuf, String> {
     fs::create_dir_all(&dir).map_err(|e| format!("mkdir ~/.cortex: {e}"))?;
     Ok(dir)
 }
-fn config_path() -> Result<PathBuf, String> { Ok(cortex_home()?.join(CONFIG_NAME)) }
-fn mirror_path() -> Result<PathBuf, String> { Ok(cortex_home()?.join(MIRROR_DIR)) }
+fn config_path() -> Result<PathBuf, String> {
+    Ok(cortex_home()?.join(CONFIG_NAME))
+}
+fn mirror_path() -> Result<PathBuf, String> {
+    Ok(cortex_home()?.join(MIRROR_DIR))
+}
 
 /// Returns defaults on missing/corrupt file so a half-write never locks the UI out.
 pub fn load_settings() -> GiteaSettings {
-    let Ok(p) = config_path() else { return GiteaSettings::default(); };
-    let Ok(s) = fs::read_to_string(&p) else { return GiteaSettings::default(); };
+    let Ok(p) = config_path() else {
+        return GiteaSettings::default();
+    };
+    let Ok(s) = fs::read_to_string(&p) else {
+        return GiteaSettings::default();
+    };
     serde_json::from_str(&s).unwrap_or_default()
 }
 pub fn save_settings(s: &GiteaSettings) -> Result<(), String> {
@@ -89,13 +104,22 @@ pub fn save_settings(s: &GiteaSettings) -> Result<(), String> {
 /// Each tuple is `(absolute_root, mirror_subdir, file_filter)`.
 fn source_roots() -> Vec<(PathBuf, &'static str, fn(&Path) -> bool)> {
     let mut out: Vec<(PathBuf, &'static str, fn(&Path) -> bool)> = Vec::new();
-    let home = match dirs::home_dir() { Some(h) => h, None => return out };
+    let home = match dirs::home_dir() {
+        Some(h) => h,
+        None => return out,
+    };
     let cortex = home.join(".cortex");
-    if cortex.exists() { out.push((cortex, "cortex", filter_cortex)); }
+    if cortex.exists() {
+        out.push((cortex, "cortex", filter_cortex));
+    }
     let claude = home.join(".claude").join("projects");
-    if claude.exists() { out.push((claude, "claude-memory", filter_claude_memory)); }
+    if claude.exists() {
+        out.push((claude, "claude-memory", filter_claude_memory));
+    }
     let brain = home.join("Documents").join("Cortex Brain");
-    if brain.exists() { out.push((brain, "brain", filter_brain)); }
+    if brain.exists() {
+        out.push((brain, "brain", filter_brain));
+    }
     out
 }
 
@@ -103,7 +127,9 @@ fn source_roots() -> Vec<(PathBuf, &'static str, fn(&Path) -> bool)> {
 /// and this module's own config: it holds the Gitea token, which must not be
 /// pushed to the very repo it authenticates against.
 fn filter_cortex(rel: &Path) -> bool {
-    let Some(c) = rel.components().next() else { return false };
+    let Some(c) = rel.components().next() else {
+        return false;
+    };
     let first = c.as_os_str().to_string_lossy();
     !matches!(
         first.as_ref(),
@@ -115,23 +141,34 @@ fn filter_cortex(rel: &Path) -> bool {
 fn filter_claude_memory(rel: &Path) -> bool {
     let mut comps = rel.components();
     comps.next(); // project id
-    let second = comps.next().map(|c| c.as_os_str().to_string_lossy().into_owned());
-    if second.as_deref() != Some("memory") { return false; }
-    rel.extension().and_then(|s| s.to_str())
-        .map(|s| s.eq_ignore_ascii_case("md")).unwrap_or(false)
+    let second = comps
+        .next()
+        .map(|c| c.as_os_str().to_string_lossy().into_owned());
+    if second.as_deref() != Some("memory") {
+        return false;
+    }
+    rel.extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.eq_ignore_ascii_case("md"))
+        .unwrap_or(false)
 }
 
 /// Brain vault: skip Obsidian's workspace cache + trash.
 fn filter_brain(rel: &Path) -> bool {
-    let Some(c) = rel.components().next() else { return false };
+    let Some(c) = rel.components().next() else {
+        return false;
+    };
     let first = c.as_os_str().to_string_lossy();
     !matches!(first.as_ref(), ".obsidian" | ".trash")
 }
 
 fn mtime_ms(p: &Path) -> i64 {
-    fs::metadata(p).and_then(|m| m.modified()).ok()
+    fs::metadata(p)
+        .and_then(|m| m.modified())
+        .ok()
         .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
-        .map(|d| d.as_millis() as i64).unwrap_or(0)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
 }
 
 // ─────────── core sync ───────────
@@ -139,54 +176,88 @@ fn mtime_ms(p: &Path) -> i64 {
 /// Walk one root → mirror. Returns the set of relative paths it owns
 /// (used by the prune pass) and bumps report counters in place.
 fn sync_one_root(
-    src_root: &Path, subdir: &str, filter: fn(&Path) -> bool,
-    mirror_root: &Path, report: &mut BackupReport, dry_run: bool,
+    src_root: &Path,
+    subdir: &str,
+    filter: fn(&Path) -> bool,
+    mirror_root: &Path,
+    report: &mut BackupReport,
+    dry_run: bool,
 ) -> HashSet<PathBuf> {
     let dest_root = mirror_root.join(subdir);
     if !dry_run {
         if let Err(e) = fs::create_dir_all(&dest_root) {
-            report.errors.push(format!("mkdir {}: {e}", dest_root.display()));
+            report
+                .errors
+                .push(format!("mkdir {}: {e}", dest_root.display()));
             return HashSet::new();
         }
     }
 
     let mut seen: HashSet<PathBuf> = HashSet::new();
-    for de in WalkDir::new(src_root).follow_links(false).into_iter().filter_map(|e| e.ok()) {
-        if !de.file_type().is_file() { continue; }
+    for de in WalkDir::new(src_root)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        if !de.file_type().is_file() {
+            continue;
+        }
         let abs = de.path();
-        let rel = match abs.strip_prefix(src_root) { Ok(r) => r.to_path_buf(), Err(_) => continue };
-        if !filter(&rel) { continue; }
+        let rel = match abs.strip_prefix(src_root) {
+            Ok(r) => r.to_path_buf(),
+            Err(_) => continue,
+        };
+        if !filter(&rel) {
+            continue;
+        }
 
         let dest = dest_root.join(&rel);
         seen.insert(PathBuf::from(subdir).join(&rel));
 
-        let src_size = match fs::metadata(abs) { Ok(m) => m.len(), Err(_) => continue };
+        let src_size = match fs::metadata(abs) {
+            Ok(m) => m.len(),
+            Err(_) => continue,
+        };
         report.bytes_total = report.bytes_total.saturating_add(src_size);
 
         let (needs_copy, is_new) = match fs::metadata(&dest) {
             Ok(d) => {
-                let d_mt = d.modified().ok()
+                let d_mt = d
+                    .modified()
+                    .ok()
                     .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
-                    .map(|x| x.as_millis() as i64).unwrap_or(0);
+                    .map(|x| x.as_millis() as i64)
+                    .unwrap_or(0);
                 (d.len() != src_size || mtime_ms(abs) > d_mt, false)
             }
             Err(_) => (true, true),
         };
-        if !needs_copy { continue; }
+        if !needs_copy {
+            continue;
+        }
 
-        if is_new { report.files_added = report.files_added.saturating_add(1); }
-        else      { report.files_changed = report.files_changed.saturating_add(1); }
+        if is_new {
+            report.files_added = report.files_added.saturating_add(1);
+        } else {
+            report.files_changed = report.files_changed.saturating_add(1);
+        }
 
-        if dry_run { continue; }
+        if dry_run {
+            continue;
+        }
 
         if let Some(parent) = dest.parent() {
             if let Err(e) = fs::create_dir_all(parent) {
-                report.errors.push(format!("mkdir {}: {e}", parent.display()));
+                report
+                    .errors
+                    .push(format!("mkdir {}: {e}", parent.display()));
                 continue;
             }
         }
         if let Err(e) = fs::copy(abs, &dest) {
-            report.errors.push(format!("copy {} → {}: {e}", abs.display(), dest.display()));
+            report
+                .errors
+                .push(format!("copy {} → {}: {e}", abs.display(), dest.display()));
         }
     }
     seen
@@ -196,19 +267,37 @@ fn sync_one_root(
 /// `.git/` is preserved automatically since it lives at the mirror root,
 /// not inside one of the tracked subdirs.
 fn prune_missing(
-    mirror_root: &Path, subdirs: &[&str], seen: &HashSet<PathBuf>,
-    report: &mut BackupReport, dry_run: bool,
+    mirror_root: &Path,
+    subdirs: &[&str],
+    seen: &HashSet<PathBuf>,
+    report: &mut BackupReport,
+    dry_run: bool,
 ) {
     for subdir in subdirs {
         let dest_root = mirror_root.join(subdir);
-        if !dest_root.exists() { continue; }
-        for de in WalkDir::new(&dest_root).follow_links(false).into_iter().filter_map(|e| e.ok()) {
-            if !de.file_type().is_file() { continue; }
+        if !dest_root.exists() {
+            continue;
+        }
+        for de in WalkDir::new(&dest_root)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if !de.file_type().is_file() {
+                continue;
+            }
             let abs = de.path();
-            let rel = match abs.strip_prefix(mirror_root) { Ok(r) => r.to_path_buf(), Err(_) => continue };
-            if seen.contains(&rel) { continue; }
+            let rel = match abs.strip_prefix(mirror_root) {
+                Ok(r) => r.to_path_buf(),
+                Err(_) => continue,
+            };
+            if seen.contains(&rel) {
+                continue;
+            }
             report.files_deleted = report.files_deleted.saturating_add(1);
-            if dry_run { continue; }
+            if dry_run {
+                continue;
+            }
             if let Err(e) = fs::remove_file(abs) {
                 report.errors.push(format!("rm {}: {e}", abs.display()));
             }
@@ -227,9 +316,11 @@ fn git(args: &[&str], cwd: &Path) -> Result<(bool, String, String), String> {
         .current_dir(cwd)
         .output()
         .map_err(|e| format!("git {args:?} spawn: {e}"))?;
-    Ok((out.status.success(),
+    Ok((
+        out.status.success(),
         String::from_utf8_lossy(&out.stdout).into_owned(),
-        String::from_utf8_lossy(&out.stderr).into_owned()))
+        String::from_utf8_lossy(&out.stderr).into_owned(),
+    ))
 }
 
 /// Init the mirror working copy if needed. Idempotent — safe every backup.
@@ -242,7 +333,9 @@ fn ensure_repo(mirror: &Path, config: &GiteaConfig) -> Result<(), String> {
             // back to a plain init and point the unborn HEAD at `main` so the
             // first commit + push still land on the branch Gitea expects.
             let (ok2, _, err2) = git(&["init"], mirror)?;
-            if !ok2 { return Err(format!("git init failed: {err} / {err2}")); }
+            if !ok2 {
+                return Err(format!("git init failed: {err} / {err2}"));
+            }
             let _ = git(&["symbolic-ref", "HEAD", "refs/heads/main"], mirror);
         }
     }
@@ -252,7 +345,9 @@ fn ensure_repo(mirror: &Path, config: &GiteaConfig) -> Result<(), String> {
         let _ = git(&["remote", "set-url", "origin", &remote], mirror)?;
     } else {
         let (ok, _, err) = git(&["remote", "add", "origin", &remote], mirror)?;
-        if !ok { return Err(format!("git remote add: {}", redact(&err, &config.token))); }
+        if !ok {
+            return Err(format!("git remote add: {}", redact(&err, &config.token)));
+        }
     }
     // Gitea rejects anonymous commits in some setups — pin an identity.
     let email = format!("{}@cortex.local", config.owner);
@@ -264,11 +359,19 @@ fn ensure_repo(mirror: &Path, config: &GiteaConfig) -> Result<(), String> {
 /// Token-in-URL → avoids a credential helper. Caller redacts before logging.
 fn build_remote_url(c: &GiteaConfig) -> String {
     let base = c.base_url.trim_end_matches('/');
-    let (scheme, host) = match base.split_once("://") { Some((s, h)) => (s, h), None => ("http", base) };
+    let (scheme, host) = match base.split_once("://") {
+        Some((s, h)) => (s, h),
+        None => ("http", base),
+    };
     format!("{scheme}://{}@{host}/{}/{}.git", c.token, c.owner, c.repo)
 }
 fn build_web_url(c: &GiteaConfig) -> String {
-    format!("{}/{}/{}", c.base_url.trim_end_matches('/'), c.owner, c.repo)
+    format!(
+        "{}/{}/{}",
+        c.base_url.trim_end_matches('/'),
+        c.owner,
+        c.repo
+    )
 }
 
 /// Probe `/api/v1/repos/...`; create via `/api/v1/user/repos` if missing.
@@ -277,13 +380,21 @@ fn build_web_url(c: &GiteaConfig) -> String {
 async fn ensure_remote_repo(config: &GiteaConfig) -> Result<(), String> {
     let base = config.base_url.trim_end_matches('/');
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(15)).build()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
         .map_err(|e| format!("reqwest build: {e}"))?;
     let auth = format!("token {}", config.token);
 
     let check = format!("{base}/api/v1/repos/{}/{}", config.owner, config.repo);
-    if let Ok(r) = client.get(&check).header("Authorization", &auth).send().await {
-        if r.status().is_success() { return Ok(()); }
+    if let Ok(r) = client
+        .get(&check)
+        .header("Authorization", &auth)
+        .send()
+        .await
+    {
+        if r.status().is_success() {
+            return Ok(());
+        }
     }
 
     let create = format!("{base}/api/v1/user/repos");
@@ -291,8 +402,13 @@ async fn ensure_remote_repo(config: &GiteaConfig) -> Result<(), String> {
         "name": config.repo, "private": true, "auto_init": true,
         "default_branch": "main", "description": "Cortex backup mirror (auto-managed)",
     });
-    let r = client.post(&create).header("Authorization", &auth).json(&body)
-        .send().await.map_err(|e| format!("create repo: {e}"))?;
+    let r = client
+        .post(&create)
+        .header("Authorization", &auth)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("create repo: {e}"))?;
     if !r.status().is_success() {
         let status = r.status();
         let txt = r.text().await.unwrap_or_default();
@@ -318,13 +434,19 @@ fn truncate_on_char_boundary(s: &str, max: usize) -> &str {
 fn detect_default_branch(mirror: &Path) -> String {
     if let Ok((ok, out, _)) = git(&["symbolic-ref", "--short", "HEAD"], mirror) {
         let t = out.trim();
-        if ok && !t.is_empty() { return t.to_string(); }
+        if ok && !t.is_empty() {
+            return t.to_string();
+        }
     }
     "main".to_string()
 }
 
 fn redact(s: &str, token: &str) -> String {
-    if token.is_empty() { s.to_string() } else { s.replace(token, "***") }
+    if token.is_empty() {
+        s.to_string()
+    } else {
+        s.replace(token, "***")
+    }
 }
 
 // ─────────── public entry point ───────────
@@ -333,7 +455,9 @@ fn redact(s: &str, token: &str) -> String {
 pub async fn run_backup(config: GiteaConfig, dry_run: bool) -> Result<BackupReport, String> {
     let started = Utc::now().timestamp_millis();
     let mut report = BackupReport {
-        repo_url: build_web_url(&config), dry_run, started_unix_ms: started,
+        repo_url: build_web_url(&config),
+        dry_run,
+        started_unix_ms: started,
         ..Default::default()
     };
     let mirror = mirror_path()?;
@@ -360,7 +484,14 @@ pub async fn run_backup(config: GiteaConfig, dry_run: bool) -> Result<BackupRepo
     let mut subdirs: Vec<&'static str> = Vec::new();
     for (src, sub, filter) in &roots {
         subdirs.push(*sub);
-        seen.extend(sync_one_root(src, sub, *filter, &mirror, &mut report, dry_run));
+        seen.extend(sync_one_root(
+            src,
+            sub,
+            *filter,
+            &mirror,
+            &mut report,
+            dry_run,
+        ));
     }
     prune_missing(&mirror, &subdirs, &seen, &mut report, dry_run);
 
@@ -390,7 +521,9 @@ pub async fn run_backup(config: GiteaConfig, dry_run: bool) -> Result<BackupRepo
         let branch = detect_default_branch(&mirror);
         let (push_ok, _, push_err) = git(&["push", "-u", "origin", &branch], &mirror)?;
         if !push_ok {
-            report.errors.push(format!("git push: {}", redact(&push_err, &config.token)));
+            report
+                .errors
+                .push(format!("git push: {}", redact(&push_err, &config.token)));
         }
     }
 
@@ -401,7 +534,9 @@ pub async fn run_backup(config: GiteaConfig, dry_run: bool) -> Result<BackupRepo
 // ─────────── Tauri command surface ───────────
 
 #[tauri::command]
-pub async fn gitea_get_settings() -> Result<GiteaSettings, String> { Ok(load_settings()) }
+pub async fn gitea_get_settings() -> Result<GiteaSettings, String> {
+    Ok(load_settings())
+}
 
 #[tauri::command]
 pub async fn gitea_set_settings(settings: GiteaSettings) -> Result<(), String> {
@@ -429,11 +564,15 @@ pub async fn gitea_backup_now() -> Result<BackupReport, String> {
         return Err("Gitea backup is disabled — enable it in the panel first.".into());
     }
     if s.base_url.is_empty() || s.token.is_empty() || s.owner.is_empty() || s.repo.is_empty() {
-        return Err("Gitea backup is missing required settings (base_url / token / owner / repo).".into());
+        return Err(
+            "Gitea backup is missing required settings (base_url / token / owner / repo).".into(),
+        );
     }
     let cfg = GiteaConfig {
-        base_url: s.base_url.clone(), token: s.token.clone(),
-        owner: s.owner.clone(), repo: s.repo.clone(),
+        base_url: s.base_url.clone(),
+        token: s.token.clone(),
+        owner: s.owner.clone(),
+        repo: s.repo.clone(),
     };
     gitea_backup(cfg, false).await
 }
@@ -451,12 +590,21 @@ pub fn spawn_scheduler(_app: tauri::AppHandle) {
         loop {
             interval.tick().await;
             let s = load_settings();
-            if !s.enabled { continue; }
-            if s.base_url.is_empty() || s.token.is_empty()
-                || s.owner.is_empty() || s.repo.is_empty() { continue; }
+            if !s.enabled {
+                continue;
+            }
+            if s.base_url.is_empty()
+                || s.token.is_empty()
+                || s.owner.is_empty()
+                || s.repo.is_empty()
+            {
+                continue;
+            }
             let cfg = GiteaConfig {
-                base_url: s.base_url.clone(), token: s.token.clone(),
-                owner: s.owner.clone(), repo: s.repo.clone(),
+                base_url: s.base_url.clone(),
+                token: s.token.clone(),
+                owner: s.owner.clone(),
+                repo: s.repo.clone(),
             };
             match run_backup(cfg, false).await {
                 Ok(report) => {
@@ -486,8 +634,12 @@ mod tests {
     #[test]
     fn filter_claude_memory_only_md_under_memory() {
         assert!(filter_claude_memory(Path::new("proj-id/memory/note.md")));
-        assert!(!filter_claude_memory(Path::new("proj-id/memory/note.jsonl")));
-        assert!(!filter_claude_memory(Path::new("proj-id/sessions/chat.jsonl")));
+        assert!(!filter_claude_memory(Path::new(
+            "proj-id/memory/note.jsonl"
+        )));
+        assert!(!filter_claude_memory(Path::new(
+            "proj-id/sessions/chat.jsonl"
+        )));
         assert!(!filter_claude_memory(Path::new("proj-id/memory.md")));
     }
     #[test]
@@ -499,15 +651,23 @@ mod tests {
     #[test]
     fn build_urls_strip_trailing_slash() {
         let c = GiteaConfig {
-            base_url: "https://gitea.example.com/".into(), token: "tok".into(),
-            owner: "octocat".into(), repo: "cortex-backup".into(),
+            base_url: "https://gitea.example.com/".into(),
+            token: "tok".into(),
+            owner: "octocat".into(),
+            repo: "cortex-backup".into(),
         };
-        assert_eq!(build_web_url(&c), "https://gitea.example.com/octocat/cortex-backup");
+        assert_eq!(
+            build_web_url(&c),
+            "https://gitea.example.com/octocat/cortex-backup"
+        );
         assert!(build_remote_url(&c).contains("tok@gitea.example.com"));
     }
     #[test]
     fn redact_replaces_token() {
-        assert_eq!(redact("error: tok=abc push failed", "abc"), "error: tok=*** push failed");
+        assert_eq!(
+            redact("error: tok=abc push failed", "abc"),
+            "error: tok=*** push failed"
+        );
         assert_eq!(redact("no token here", ""), "no token here");
     }
 }

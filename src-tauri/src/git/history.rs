@@ -86,10 +86,7 @@ pub fn history(project_root: &Path, limit: u32, offset: u32) -> Result<Vec<Commi
             continue;
         }
         let hash = parts[0].to_string();
-        let parents: Vec<String> = parts[1]
-            .split_whitespace()
-            .map(|p| p.to_string())
-            .collect();
+        let parents: Vec<String> = parts[1].split_whitespace().map(|p| p.to_string()).collect();
         let short = parts[2].to_string();
         let author = parts[3].to_string();
         let age = parts[4].to_string();
@@ -212,11 +209,7 @@ pub fn commit_files(project_root: &Path, hash: &str) -> Result<Vec<CommitFile>, 
 /// Return the unified diff for a single file within a commit:
 /// `git show <hash> -- <path>`. Truncated to [`SHOW_LIMIT_BYTES`] like the
 /// full-commit view.
-pub fn commit_file_diff(
-    project_root: &Path,
-    hash: &str,
-    path: &str,
-) -> Result<String, String> {
+pub fn commit_file_diff(project_root: &Path, hash: &str, path: &str) -> Result<String, String> {
     if !project_root.is_dir() {
         return Err(format!("not a directory: {}", project_root.display()));
     }

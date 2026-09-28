@@ -276,11 +276,7 @@ fn is_interesting_kind(kind: &EventKind) -> bool {
     )
 }
 
-fn process_path(
-    path: &Path,
-    app: &AppHandle,
-    last_hash: &mut HashMap<PathBuf, u64>,
-) -> Result<()> {
+fn process_path(path: &Path, app: &AppHandle, last_hash: &mut HashMap<PathBuf, u64>) -> Result<()> {
     let style = match marker_style_for(path) {
         Some(s) => s,
         None => return Ok(()),

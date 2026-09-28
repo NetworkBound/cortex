@@ -39,9 +39,17 @@ export function buildSummaryMessage(messages: Message[]): Message {
       const t = m.content.trim().replace(/\s+/g, " ").slice(0, 60);
       if (t.length > 0) topics.push(t);
     } else if (m.role === "assistant") {
-      const lines = m.content.trim().split("\n").filter((l) => l.trim().length > 0);
+      const lines = m.content
+        .trim()
+        .split("\n")
+        .filter((l) => l.trim().length > 0);
       const tail = lines[lines.length - 1];
-      if (tail && /\b(done|fixed|added|implemented|created|updated|wrote|removed|refactored)\b/i.test(tail)) {
+      if (
+        tail &&
+        /\b(done|fixed|added|implemented|created|updated|wrote|removed|refactored)\b/i.test(
+          tail,
+        )
+      ) {
         decisions.push(tail.slice(0, 80));
       }
     }

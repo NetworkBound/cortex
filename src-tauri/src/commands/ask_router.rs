@@ -90,8 +90,14 @@ pub async fn ask_router(
     let req = ChatCompletionRequest {
         model: cfg.gateway_model.clone(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: SYSTEM_PROMPT.into() },
-            ChatMessage { role: "user".into(), content: user_prompt },
+            ChatMessage {
+                role: "system".into(),
+                content: SYSTEM_PROMPT.into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: user_prompt,
+            },
         ],
         stream: true,
         temperature: Some(0.1),
@@ -126,8 +132,12 @@ fn render_menu(slashes: &[SlashSpec]) -> String {
             }
         }
         if !s.aliases.is_empty() {
-            let aliases: Vec<&str> =
-                s.aliases.iter().map(|a| a.as_str()).filter(|a| !a.is_empty()).collect();
+            let aliases: Vec<&str> = s
+                .aliases
+                .iter()
+                .map(|a| a.as_str())
+                .filter(|a| !a.is_empty())
+                .collect();
             if !aliases.is_empty() {
                 out.push_str(" (aka ");
                 out.push_str(&aliases.join(", "));
@@ -324,7 +334,8 @@ mod tests {
 
     #[test]
     fn parse_router_json_strips_leading_slash() {
-        let raw = r#"{"slash":"/changelog","args":"1d","confidence":0.81,"reason":"recent changes"}"#;
+        let raw =
+            r#"{"slash":"/changelog","args":"1d","confidence":0.81,"reason":"recent changes"}"#;
         let out = parse_router_json(raw, &menu_sample()).unwrap();
         assert_eq!(out.matched_slash.as_deref(), Some("changelog"));
         assert_eq!(out.suggested_args, "1d");
@@ -342,7 +353,10 @@ mod tests {
     fn parse_router_json_drops_invented_command() {
         let raw = r#"{"slash":"teleport","args":"","confidence":0.99,"reason":"made up"}"#;
         let out = parse_router_json(raw, &menu_sample()).unwrap();
-        assert!(out.matched_slash.is_none(), "model-invented slash must be rejected");
+        assert!(
+            out.matched_slash.is_none(),
+            "model-invented slash must be rejected"
+        );
     }
 
     #[test]

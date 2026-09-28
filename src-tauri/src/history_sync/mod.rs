@@ -32,7 +32,7 @@ pub mod webview_fetch;
 
 use crate::chat_import::{self, ImportResult};
 use crate::observability::tracing_store::TracingStore;
-use config::{SessionSource, HistorySyncConfig};
+use config::{HistorySyncConfig, SessionSource};
 use cookies::WebProvider;
 
 /// OS-keychain service shared with the rest of Cortex.
@@ -59,7 +59,9 @@ pub fn parse_provider(provider: &str) -> Result<WebProvider, String> {
     match provider.to_ascii_lowercase().as_str() {
         "claude" => Ok(WebProvider::Claude),
         "chatgpt" => Ok(WebProvider::ChatGpt),
-        other => Err(format!("unknown provider: {other} (expected claude|chatgpt)")),
+        other => Err(format!(
+            "unknown provider: {other} (expected claude|chatgpt)"
+        )),
     }
 }
 
@@ -104,7 +106,10 @@ fn obtain_session(provider: WebProvider) -> Option<(String, SessionSource)> {
         Ok(_) => {}
         Err(e) => {
             // No cookie value in the message — only structural info.
-            tracing::info!("history_sync: browser auto-detect failed for {}: {e}", provider.key());
+            tracing::info!(
+                "history_sync: browser auto-detect failed for {}: {e}",
+                provider.key()
+            );
         }
     }
     load_login_session(provider).map(|v| (v, SessionSource::Login))
@@ -151,7 +156,9 @@ async fn exchange_chatgpt_access_token(session_cookie: &str) -> Result<String, S
         .map_err(|e| {
             format!(
                 "chatgpt: /api/auth/session returned {}",
-                e.status().map(|s| s.as_u16().to_string()).unwrap_or_else(|| "error".into())
+                e.status()
+                    .map(|s| s.as_u16().to_string())
+                    .unwrap_or_else(|| "error".into())
             )
         })?
         .json()
@@ -171,10 +178,7 @@ async fn exchange_chatgpt_access_token(session_cookie: &str) -> Result<String, S
 /// On no-session-available, returns [`SyncOutcome::NeedsLogin`] (and still
 /// records the attempt timestamp). Errors are returned as strings; the session
 /// credential never appears in any of them.
-pub async fn sync_provider(
-    provider: &str,
-    store: &TracingStore,
-) -> Result<SyncOutcome, String> {
+pub async fn sync_provider(provider: &str, store: &TracingStore) -> Result<SyncOutcome, String> {
     let web = parse_provider(provider)?;
 
     let Some((session, source)) = obtain_session(web) else {
@@ -219,7 +223,10 @@ pub async fn sync_provider_auto(
             match webview_fetch::headless_fetch_and_import(web, app, store).await {
                 Ok(result) => {
                     stamp_last_sync(web, Some(SessionSource::Login));
-                    Ok(SyncOutcome::Imported { result, source: SessionSource::Login })
+                    Ok(SyncOutcome::Imported {
+                        result,
+                        source: SessionSource::Login,
+                    })
                 }
                 Err(e) => {
                     // Most likely the stored session expired — surface needs-login
@@ -257,7 +264,9 @@ pub fn imported_conversation_count(store: &TracingStore, provider: &str) -> i64 
         "chatgpt" => "chatgpt",
         _ => return 0,
     };
-    store.count_imported_sessions(&format!("import:{source}")).unwrap_or(0)
+    store
+        .count_imported_sessions(&format!("import:{source}"))
+        .unwrap_or(0)
 }
 
 /// True if a working web session is obtainable for the provider key — either
@@ -271,7 +280,10 @@ pub fn has_any_session(provider: &str) -> bool {
 }
 
 /// Snapshot a provider's config into the status fields the UI needs.
-pub fn status_for(cfg: &HistorySyncConfig, provider: &str) -> (bool, Option<i64>, Option<SessionSource>) {
+pub fn status_for(
+    cfg: &HistorySyncConfig,
+    provider: &str,
+) -> (bool, Option<i64>, Option<SessionSource>) {
     match cfg.get(provider) {
         Some(c) => (c.enabled, c.last_sync_ts, c.session_source),
         None => (false, None, None),

@@ -7,8 +7,8 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PeerDevice {
     pub label: String,
-    pub host: String,    // tailscale ip or hostname
-    pub user: String,    // the git identity / account name
+    pub host: String, // tailscale ip or hostname
+    pub user: String, // the git identity / account name
     pub paths: Vec<String>,
 }
 
@@ -62,7 +62,9 @@ pub async fn sync_to_peer(peer: &PeerDevice) -> SyncResult {
             .await;
         match output {
             Ok(o) => {
-                if !o.status.success() { all_ok = false; }
+                if !o.status.success() {
+                    all_ok = false;
+                }
                 let so = String::from_utf8_lossy(&o.stdout);
                 let se = String::from_utf8_lossy(&o.stderr);
                 combined_stdout.push_str(&so);
@@ -84,7 +86,9 @@ pub async fn sync_to_peer(peer: &PeerDevice) -> SyncResult {
 }
 
 fn tail(s: &str, max: usize) -> String {
-    if s.len() <= max { return s.to_string(); }
+    if s.len() <= max {
+        return s.to_string();
+    }
     // Clamp the start index up to the next UTF-8 char boundary so we never
     // slice through a multi-byte character (which would panic).
     let mut start = s.len() - max;

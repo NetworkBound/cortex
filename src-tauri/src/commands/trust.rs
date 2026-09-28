@@ -166,7 +166,9 @@ impl TrustMatrix {
         payload_json: &str,
         project_root: Option<&std::path::Path>,
     ) -> bool {
-        use crate::orchestrator::sandbox::{collect_paths, name_matches_any, READ_TOKENS, WRITE_TOKENS};
+        use crate::orchestrator::sandbox::{
+            collect_paths, name_matches_any, READ_TOKENS, WRITE_TOKENS,
+        };
 
         let is_exec = name_matches_any(tool_name, &["run_", "exec", "shell", "bash"]);
         if is_exec {
@@ -174,7 +176,8 @@ impl TrustMatrix {
                 return true;
             }
             if self.safe_commands {
-                if let Some(cmd) = crate::orchestrator::safe_commands::extract_command(payload_json) {
+                if let Some(cmd) = crate::orchestrator::safe_commands::extract_command(payload_json)
+                {
                     if crate::orchestrator::safe_commands::is_read_only_command(&cmd) {
                         return true;
                     }
@@ -186,7 +189,8 @@ impl TrustMatrix {
             // it simply won't match either branch and this returns false.
         }
 
-        let is_read = name_matches_any(tool_name, READ_TOKENS) && !name_matches_any(tool_name, WRITE_TOKENS);
+        let is_read =
+            name_matches_any(tool_name, READ_TOKENS) && !name_matches_any(tool_name, WRITE_TOKENS);
         let is_write = name_matches_any(tool_name, WRITE_TOKENS);
 
         let paths = collect_paths(payload_json);
@@ -196,9 +200,9 @@ impl TrustMatrix {
         // can't establish here), mirroring `sandbox::tier_allows`'s own
         // fail-closed stance on unconfirmable targets.
         let all_paths_in_root = match project_root {
-            Some(root) if !paths.is_empty() => {
-                paths.iter().all(|p| crate::orchestrator::sandbox::path_inside(root, p))
-            }
+            Some(root) if !paths.is_empty() => paths
+                .iter()
+                .all(|p| crate::orchestrator::sandbox::path_inside(root, p)),
             _ => false,
         };
 

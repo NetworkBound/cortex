@@ -82,8 +82,16 @@ export async function recentCrashes(limit = 50): Promise<CrashRow[]> {
   return invoke<CrashRow[]>("recent_crashes", { limit });
 }
 
-export async function recordJsCrash(kind: "js_error" | "js_unhandled_rejection", message: string, stack?: string): Promise<void> {
-  await invoke<void>("record_js_crash", { kind, message, stack: stack ?? null });
+export async function recordJsCrash(
+  kind: "js_error" | "js_unhandled_rejection",
+  message: string,
+  stack?: string,
+): Promise<void> {
+  await invoke<void>("record_js_crash", {
+    kind,
+    message,
+    stack: stack ?? null,
+  });
 }
 
 export async function homelabHealth(): Promise<HealthRow[]> {
@@ -129,7 +137,10 @@ export interface RunReplay {
 }
 
 /** Recent runs for the Run Replay picker (optionally scoped to a session). */
-export async function listReplayRuns(sessionId?: string, limit = 30): Promise<ReplayRunSummary[]> {
+export async function listReplayRuns(
+  sessionId?: string,
+  limit = 30,
+): Promise<ReplayRunSummary[]> {
   return invoke<ReplayRunSummary[]>("list_replay_runs", {
     sessionId: sessionId ?? null,
     limit,

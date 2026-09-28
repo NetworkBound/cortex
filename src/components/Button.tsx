@@ -26,21 +26,25 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
 }
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "secondary", className, type, children, ...rest },
-  ref,
-) {
-  const classes = [VARIANT_CLASS[variant], className].filter(Boolean).join(" ");
-  return (
-    <button
-      ref={ref}
-      // Default to type="button": an unspecified type inside a <form> defaults
-      // to "submit" and silently submits/reloads — a classic footgun.
-      type={type ?? "button"}
-      className={classes || undefined}
-      {...rest}
-    >
-      {children}
-    </button>
-  );
-});
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  function Button(
+    { variant = "secondary", className, type, children, ...rest },
+    ref,
+  ) {
+    const classes = [VARIANT_CLASS[variant], className]
+      .filter(Boolean)
+      .join(" ");
+    return (
+      <button
+        ref={ref}
+        // Default to type="button": an unspecified type inside a <form> defaults
+        // to "submit" and silently submits/reloads — a classic footgun.
+        type={type ?? "button"}
+        className={classes || undefined}
+        {...rest}
+      >
+        {children}
+      </button>
+    );
+  },
+);

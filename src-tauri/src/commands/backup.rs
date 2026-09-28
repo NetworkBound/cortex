@@ -105,7 +105,10 @@ fn capture_roots() -> Vec<PathBuf> {
 /// advertised as a full export.
 fn is_excluded_subpath(rel: &Path) -> bool {
     let mut comps = rel.components();
-    match comps.next().map(|c| c.as_os_str().to_string_lossy().into_owned()) {
+    match comps
+        .next()
+        .map(|c| c.as_os_str().to_string_lossy().into_owned())
+    {
         Some(first) => matches!(first.as_str(), "backups" | "snapshots" | "cache" | ".cache"),
         None => false,
     }
@@ -113,13 +116,22 @@ fn is_excluded_subpath(rel: &Path) -> bool {
 
 /// For Claude memory roots, we only include `.md` files — never jsonl chats.
 fn include_under_claude(rel: &Path) -> bool {
-    rel.extension().and_then(|s| s.to_str()).map(|s| s.eq_ignore_ascii_case("md")).unwrap_or(false)
+    rel.extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.eq_ignore_ascii_case("md"))
+        .unwrap_or(false)
 }
 
 fn sanitize_label(label: &str) -> String {
     let mut s: String = label
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     if s.len() > 40 {
         s.truncate(40);
@@ -148,7 +160,11 @@ fn append_root<W: std::io::Write>(
     if root.is_file() {
         return append_one_file(tar, &prefix, root, root, total, file_count);
     }
-    for de in WalkDir::new(root).follow_links(false).into_iter().filter_map(|e| e.ok()) {
+    for de in WalkDir::new(root)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
         if !de.file_type().is_file() {
             continue;
         }
@@ -191,13 +207,20 @@ fn append_one_file<W: std::io::Write>(
         return Err("total cap reached".into());
     }
     let rel = if abs == root {
-        PathBuf::from(abs.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_default())
+        PathBuf::from(
+            abs.file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_default(),
+        )
     } else {
-        abs.strip_prefix(root).map_err(|e| format!("strip: {e}"))?.to_path_buf()
+        abs.strip_prefix(root)
+            .map_err(|e| format!("strip: {e}"))?
+            .to_path_buf()
     };
     let archive_path = Path::new(prefix).join(&rel);
     let mut fh = File::open(abs).map_err(|e| format!("open: {e}"))?;
-    tar.append_file(&archive_path, &mut fh).map_err(|e| format!("append: {e}"))?;
+    tar.append_file(&archive_path, &mut fh)
+        .map_err(|e| format!("append: {e}"))?;
     *total += size;
     *file_count += 1;
     Ok(())
@@ -205,15 +228,22 @@ fn append_one_file<W: std::io::Write>(
 
 /// Drop the manifest JSON in as the very first entry so a partial-decode tool
 /// can read it without unpacking the whole archive.
-fn append_manifest<W: std::io::Write>(tar: &mut Builder<W>, manifest: &Manifest) -> Result<(), String> {
-    let body = serde_json::to_vec_pretty(manifest).map_err(|e| format!("manifest serialize: {e}"))?;
+fn append_manifest<W: std::io::Write>(
+    tar: &mut Builder<W>,
+    manifest: &Manifest,
+) -> Result<(), String> {
+    let body =
+        serde_json::to_vec_pretty(manifest).map_err(|e| format!("manifest serialize: {e}"))?;
     let mut header = Header::new_gnu();
-    header.set_path(MANIFEST_NAME).map_err(|e| format!("manifest header path: {e}"))?;
+    header
+        .set_path(MANIFEST_NAME)
+        .map_err(|e| format!("manifest header path: {e}"))?;
     header.set_size(body.len() as u64);
     header.set_mode(0o644);
     header.set_mtime(Utc::now().timestamp().max(0) as u64);
     header.set_cksum();
-    tar.append(&header, body.as_slice()).map_err(|e| format!("manifest append: {e}"))?;
+    tar.append(&header, body.as_slice())
+        .map_err(|e| format!("manifest append: {e}"))?;
     Ok(())
 }
 
@@ -238,24 +268,61 @@ pub fn create(label: &str) -> Result<BackupMeta, String> {
     let enc = GzEncoder::new(BufWriter::new(f), Compression::default());
     let mut tar = Builder::new(enc);
 
-    let root_strs: Vec<String> = roots.iter().map(|p| p.to_string_lossy().to_string()).collect();
+    let root_strs: Vec<String> = roots
+        .iter()
+        .map(|p| p.to_string_lossy().to_string())
+        .collect();
     // Placeholder manifest with zeroed counts — restored callers only need the
     // roots + id to decode entries. Sidecar gets the final filled-in copy.
-    append_manifest(&mut tar, &Manifest { id: id.clone(), label: safe.clone(), created_unix_ms: ts_ms, roots: root_strs.clone(), file_count: 0, total_bytes: 0, schema: 1 })?;
+    append_manifest(
+        &mut tar,
+        &Manifest {
+            id: id.clone(),
+            label: safe.clone(),
+            created_unix_ms: ts_ms,
+            roots: root_strs.clone(),
+            file_count: 0,
+            total_bytes: 0,
+            schema: 1,
+        },
+    )?;
 
     let mut total: u64 = 0;
     let mut file_count: usize = 0;
     for (idx, root) in roots.iter().enumerate() {
         // Anything that isn't `~/.cortex` is a Claude project memory dir.
         let is_cortex_home = *root == cortex_home;
-        append_root(&mut tar, idx, root, !is_cortex_home, is_cortex_home, &mut total, &mut file_count)?;
+        append_root(
+            &mut tar,
+            idx,
+            root,
+            !is_cortex_home,
+            is_cortex_home,
+            &mut total,
+            &mut file_count,
+        )?;
     }
     tar.finish().map_err(|e| format!("finalize tar: {e}"))?;
 
     let size_bytes = fs::metadata(&tar_path).map(|m| m.len()).unwrap_or(0);
-    let meta = BackupMeta { id: id.clone(), label: safe.clone(), created_unix_ms: ts_ms, size_bytes, file_count, roots: root_strs.clone() };
+    let meta = BackupMeta {
+        id: id.clone(),
+        label: safe.clone(),
+        created_unix_ms: ts_ms,
+        size_bytes,
+        file_count,
+        roots: root_strs.clone(),
+    };
     let sidecar = dir.join(format!("{id}.json"));
-    let final_manifest = Manifest { id, label: safe, created_unix_ms: ts_ms, roots: root_strs, file_count, total_bytes: total, schema: 1 };
+    let final_manifest = Manifest {
+        id,
+        label: safe,
+        created_unix_ms: ts_ms,
+        roots: root_strs,
+        file_count,
+        total_bytes: total,
+        schema: 1,
+    };
     if let Ok(s) = serde_json::to_string_pretty(&final_manifest) {
         let _ = fs::write(&sidecar, s);
     }
@@ -265,18 +332,42 @@ pub fn create(label: &str) -> Result<BackupMeta, String> {
 pub fn list() -> Result<Vec<BackupMeta>, String> {
     let dir = backups_dir()?;
     let mut out: Vec<BackupMeta> = Vec::new();
-    for de in fs::read_dir(&dir).map_err(|e| format!("read dir: {e}"))?.flatten() {
+    for de in fs::read_dir(&dir)
+        .map_err(|e| format!("read dir: {e}"))?
+        .flatten()
+    {
         let p = de.path();
-        let Some(name) = p.file_name().and_then(|n| n.to_str()) else { continue };
-        if !name.ends_with(".tar.gz") { continue; }
+        let Some(name) = p.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if !name.ends_with(".tar.gz") {
+            continue;
+        }
         let id = name.trim_end_matches(".tar.gz").to_string();
         let size_bytes = fs::metadata(&p).map(|md| md.len()).unwrap_or(0);
         let meta_path = dir.join(format!("{id}.json"));
-        let meta = match fs::read_to_string(&meta_path).ok().and_then(|s| serde_json::from_str::<Manifest>(&s).ok()) {
-            Some(m) => BackupMeta { id: m.id, label: m.label, created_unix_ms: m.created_unix_ms, size_bytes, file_count: m.file_count, roots: m.roots },
+        let meta = match fs::read_to_string(&meta_path)
+            .ok()
+            .and_then(|s| serde_json::from_str::<Manifest>(&s).ok())
+        {
+            Some(m) => BackupMeta {
+                id: m.id,
+                label: m.label,
+                created_unix_ms: m.created_unix_ms,
+                size_bytes,
+                file_count: m.file_count,
+                roots: m.roots,
+            },
             None => {
                 let (ts, label) = parse_id(&id);
-                BackupMeta { id: id.clone(), label, created_unix_ms: ts, size_bytes, file_count: 0, roots: vec![] }
+                BackupMeta {
+                    id: id.clone(),
+                    label,
+                    created_unix_ms: ts,
+                    size_bytes,
+                    file_count: 0,
+                    roots: vec![],
+                }
             }
         };
         out.push(meta);
@@ -399,34 +490,67 @@ pub fn restore(id: &str, dry_run: bool, force: bool) -> Result<RestoreReport, St
     let mut report = RestoreReport::default();
 
     for entry in arc.entries().map_err(|e| format!("read entries: {e}"))? {
-        let mut entry = match entry { Ok(e) => e, Err(e) => { report.errors.push(format!("entry: {e}")); continue; } };
-        let path_owned = match entry.path() { Ok(p) => p.into_owned(), Err(e) => { report.errors.push(format!("entry path: {e}")); continue; } };
+        let mut entry = match entry {
+            Ok(e) => e,
+            Err(e) => {
+                report.errors.push(format!("entry: {e}"));
+                continue;
+            }
+        };
+        let path_owned = match entry.path() {
+            Ok(p) => p.into_owned(),
+            Err(e) => {
+                report.errors.push(format!("entry path: {e}"));
+                continue;
+            }
+        };
         // Skip the manifest entry — it isn't a restorable file.
-        if path_owned == Path::new(MANIFEST_NAME) { continue; }
-        if path_owned.is_absolute() || path_owned.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
-            report.files_skipped += 1; continue;
+        if path_owned == Path::new(MANIFEST_NAME) {
+            continue;
+        }
+        if path_owned.is_absolute()
+            || path_owned
+                .components()
+                .any(|c| matches!(c, std::path::Component::ParentDir))
+        {
+            report.files_skipped += 1;
+            continue;
         }
         let target = match resolve_target(&path_owned, &roots) {
             Some(t) => t,
-            None => { report.files_skipped += 1; continue; }
+            None => {
+                report.files_skipped += 1;
+                continue;
+            }
         };
         // Safety #1: target must live under one of the whitelisted root families.
         // Catches a malicious manifest pointing outside ~/.cortex.
-        if !is_allowed(&target) { report.files_skipped += 1; continue; }
+        if !is_allowed(&target) {
+            report.files_skipped += 1;
+            continue;
+        }
         // Safety #2: don't clobber files newer than the backup unless forced.
         if !force && target.exists() && mtime_ms(&target) > manifest.created_unix_ms {
-            report.files_skipped += 1; continue;
+            report.files_skipped += 1;
+            continue;
         }
-        if dry_run { report.files_restored += 1; continue; }
+        if dry_run {
+            report.files_restored += 1;
+            continue;
+        }
         if let Some(parent) = target.parent() {
             if let Err(e) = fs::create_dir_all(parent) {
-                report.errors.push(format!("mkdir {}: {e}", parent.display()));
+                report
+                    .errors
+                    .push(format!("mkdir {}: {e}", parent.display()));
                 continue;
             }
         }
         match entry.unpack(&target) {
             Ok(_) => report.files_restored += 1,
-            Err(e) => report.errors.push(format!("unpack {}: {e}", target.display())),
+            Err(e) => report
+                .errors
+                .push(format!("unpack {}: {e}", target.display())),
         }
     }
     Ok(report)
@@ -440,7 +564,11 @@ fn resolve_target(archive_path: &Path, roots: &[PathBuf]) -> Option<PathBuf> {
     let idx: usize = head.strip_prefix('r')?.parse().ok()?;
     let orig_root = roots.get(idx)?;
     let rel = comps.as_path();
-    Some(if rel.as_os_str().is_empty() { orig_root.clone() } else { orig_root.join(rel) })
+    Some(if rel.as_os_str().is_empty() {
+        orig_root.clone()
+    } else {
+        orig_root.join(rel)
+    })
 }
 
 /// Read the manifest entry out of a tarball without unpacking everything.
@@ -450,10 +578,15 @@ fn read_manifest_from_archive(tar_path: &Path) -> Result<Manifest, String> {
     let mut arc = Archive::new(dec);
     for entry in arc.entries().map_err(|e| format!("read entries: {e}"))? {
         let mut entry = entry.map_err(|e| format!("entry: {e}"))?;
-        let path = entry.path().map_err(|e| format!("entry path: {e}"))?.into_owned();
+        let path = entry
+            .path()
+            .map_err(|e| format!("entry path: {e}"))?
+            .into_owned();
         if path == Path::new(MANIFEST_NAME) {
             let mut buf = String::new();
-            entry.read_to_string(&mut buf).map_err(|e| format!("read manifest: {e}"))?;
+            entry
+                .read_to_string(&mut buf)
+                .map_err(|e| format!("read manifest: {e}"))?;
             return serde_json::from_str::<Manifest>(&buf)
                 .map_err(|e| format!("parse manifest: {e}"));
         }
@@ -517,7 +650,10 @@ mod tests {
     }
     #[test]
     fn id_round_trip() {
-        assert_eq!(parse_id("1700000000000-manual"), (1_700_000_000_000, "manual".to_string()));
+        assert_eq!(
+            parse_id("1700000000000-manual"),
+            (1_700_000_000_000, "manual".to_string())
+        );
         assert_eq!(parse_id("bogus"), (0, "bogus".to_string()));
         assert_eq!(archive_prefix(0), "r0");
         assert_eq!(archive_prefix(7), "r7");

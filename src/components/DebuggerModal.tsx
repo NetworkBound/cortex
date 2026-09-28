@@ -49,7 +49,9 @@ export function DebuggerModal({
 }: DebuggerModalProps) {
   const [source, setSource] = useState<DebugSource>(initialSource);
   const [manualText, setManualText] = useState<string>(initialErrorText ?? "");
-  const [manualStack, setManualStack] = useState<string>(initialErrorStack ?? "");
+  const [manualStack, setManualStack] = useState<string>(
+    initialErrorStack ?? "",
+  );
   const [result, setResult] = useState<DebugResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -63,7 +65,11 @@ export function DebuggerModal({
   // know the user's intent already, no need to make them click Analyse.
   useEffect(() => {
     if (initialSource === "chat_error" && initialErrorText) {
-      void runAnalysis(initialSource, initialErrorText, initialErrorStack ?? "");
+      void runAnalysis(
+        initialSource,
+        initialErrorText,
+        initialErrorStack ?? "",
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -108,7 +114,8 @@ export function DebuggerModal({
     [result],
   );
 
-  const applyDisabled = !result || result.confidence < 0.6 || !result.code_patch.trim();
+  const applyDisabled =
+    !result || result.confidence < 0.6 || !result.code_patch.trim();
 
   const onApply = useCallback(() => {
     if (!result) return;
@@ -140,14 +147,26 @@ export function DebuggerModal({
 
   const onCopyPatch = useCallback(async () => {
     if (!result?.code_patch) {
-      pushToast({ title: "Nothing to copy", body: "Patch is empty.", kind: "warning" });
+      pushToast({
+        title: "Nothing to copy",
+        body: "Patch is empty.",
+        kind: "warning",
+      });
       return;
     }
     try {
       await navigator.clipboard.writeText(result.code_patch);
-      pushToast({ title: "Patch copied", body: "Unified diff on clipboard.", kind: "success" });
+      pushToast({
+        title: "Patch copied",
+        body: "Unified diff on clipboard.",
+        kind: "success",
+      });
     } catch (e) {
-      pushToast({ title: "Copy failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Copy failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [result]);
 
@@ -179,7 +198,11 @@ export function DebuggerModal({
               Suggest a fix from the chosen error source.
             </div>
           </div>
-          <button className="ai-debugger-close" onClick={onClose} aria-label="Close">
+          <button
+            className="ai-debugger-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
             ×
           </button>
         </header>
@@ -258,11 +281,17 @@ export function DebuggerModal({
                 >
                   {tier} · {(result.confidence * 100).toFixed(0)}%
                 </span>
-                <span className="ai-debugger-summary-text" title={result.error_summary}>
+                <span
+                  className="ai-debugger-summary-text"
+                  title={result.error_summary}
+                >
                   {result.error_summary}
                 </span>
                 {result.source_path && (
-                  <span className="ai-debugger-location" title={result.source_path}>
+                  <span
+                    className="ai-debugger-location"
+                    title={result.source_path}
+                  >
                     {shortenPath(result.source_path)}
                     {result.source_line ? `:${result.source_line}` : ""}
                   </span>
@@ -276,7 +305,9 @@ export function DebuggerModal({
 
               <section className="ai-debugger-section">
                 <h3>Suggested fix</h3>
-                <p>{result.suggested_fix || "(model returned no suggested fix)"}</p>
+                <p>
+                  {result.suggested_fix || "(model returned no suggested fix)"}
+                </p>
               </section>
 
               <section className="ai-debugger-section">
@@ -285,7 +316,8 @@ export function DebuggerModal({
                   <pre className="ai-debugger-patch">{result.code_patch}</pre>
                 ) : (
                   <p className="ai-debugger-patch-empty">
-                    Model returned no patch — the suggested fix above is your starting point.
+                    Model returned no patch — the suggested fix above is your
+                    starting point.
                   </p>
                 )}
               </section>

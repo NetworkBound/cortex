@@ -65,15 +65,15 @@ impl HooksConfig {
     /// config when the file is missing or malformed — hooks are an opt-in
     /// feature, so absence is the common case.
     pub fn load(project_root: &Path) -> Self {
-        let path = project_root.join(".cortex").join("hooks").join("hooks.json");
+        let path = project_root
+            .join(".cortex")
+            .join("hooks")
+            .join("hooks.json");
         match fs::read_to_string(&path) {
             Ok(raw) => match serde_json::from_str::<HooksConfig>(&raw) {
                 Ok(cfg) => cfg,
                 Err(e) => {
-                    tracing::warn!(
-                        "hooks: ignoring malformed {}: {e}",
-                        path.display()
-                    );
+                    tracing::warn!("hooks: ignoring malformed {}: {e}", path.display());
                     HooksConfig::default()
                 }
             },
@@ -133,7 +133,10 @@ mod tests {
         assert_eq!(cfg.for_event(events::PRE_TOOL_USE).len(), 1);
         assert_eq!(cfg.for_event(events::STOP).len(), 1);
         assert_eq!(cfg.for_event(events::PRE_TOOL_USE)[0].command, "/bin/echo");
-        assert_eq!(cfg.for_event(events::PRE_TOOL_USE)[0].timeout_ms, Some(1000));
+        assert_eq!(
+            cfg.for_event(events::PRE_TOOL_USE)[0].timeout_ms,
+            Some(1000)
+        );
         assert!(cfg.for_event(events::STOP)[0].timeout_ms.is_none());
     }
 

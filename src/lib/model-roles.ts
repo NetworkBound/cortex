@@ -21,7 +21,10 @@ export const MODEL_ROLE_KEYS = ["chat", "planner", "editor"] as const;
 export type ModelRoleKey = (typeof MODEL_ROLE_KEYS)[number];
 
 /** Human-facing label + one-line help per role, for the settings UI. */
-export const MODEL_ROLE_META: Record<ModelRoleKey, { label: string; help: string }> = {
+export const MODEL_ROLE_META: Record<
+  ModelRoleKey,
+  { label: string; help: string }
+> = {
   chat: {
     label: "Chat",
     help: "Default model for normal chat turns. An explicit composer pick still wins; this beats Auto-selection.",
@@ -40,7 +43,9 @@ export const MODEL_ROLE_META: Record<ModelRoleKey, { label: string; help: string
  * Load the configured model-role map for a project. A blank root or missing
  * config yields an empty map (best-effort: returns `{}` on failure).
  */
-export async function getModelRoles(projectRoot: string | undefined | null): Promise<ModelRoles> {
+export async function getModelRoles(
+  projectRoot: string | undefined | null,
+): Promise<ModelRoles> {
   if (!projectRoot) return {};
   try {
     return await invoke<ModelRoles>("get_model_roles", { projectRoot });

@@ -26,7 +26,9 @@ import { cliProviderLogin } from "@/lib/cortex-bridge";
  *  its own renderer and can't consume `var(--token)`). */
 function xtermThemeFromTokens(): ITheme {
   const styles =
-    typeof window !== "undefined" ? getComputedStyle(document.documentElement) : null;
+    typeof window !== "undefined"
+      ? getComputedStyle(document.documentElement)
+      : null;
   const token = (name: string, fallback: string): string =>
     styles?.getPropertyValue(name).trim() || fallback;
   const background = token("--bg-sunken", "#0b0f14");
@@ -53,7 +55,9 @@ export function CliLoginModal({
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const idRef = useRef<string | null>(null);
-  const [status, setStatus] = useState<"booting" | "ready" | "closed" | "error">("booting");
+  const [status, setStatus] = useState<
+    "booting" | "ready" | "closed" | "error"
+  >("booting");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -94,8 +98,12 @@ export function CliLoginModal({
         }
         idRef.current = handle.id;
 
-        unlistenOutput = await onTerminalOutput(handle.id, (chunk) => term.write(chunk));
-        unlistenClosed = await onTerminalClosed(handle.id, () => setStatus("closed"));
+        unlistenOutput = await onTerminalOutput(handle.id, (chunk) =>
+          term.write(chunk),
+        );
+        unlistenClosed = await onTerminalClosed(handle.id, () =>
+          setStatus("closed"),
+        );
         if (disposed) {
           // Unmounted while the subscriptions were in flight — the cleanup
           // already ran with them still null, so release everything here.
@@ -149,8 +157,8 @@ export function CliLoginModal({
           <div>
             <strong>Sign in to {providerLabel}</strong>
             <div className="settings-muted">
-              Running <code>{loginCmd}</code>. Follow the prompts below (a browser
-              may open for OAuth). Close when done.
+              Running <code>{loginCmd}</code>. Follow the prompts below (a
+              browser may open for OAuth). Close when done.
             </div>
           </div>
           <button type="button" onClick={onClose}>

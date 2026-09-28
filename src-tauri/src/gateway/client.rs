@@ -62,9 +62,12 @@ pub struct ChatDelta {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Usage {
-    #[serde(default)] pub prompt_tokens: u64,
-    #[serde(default)] pub completion_tokens: u64,
-    #[serde(default)] pub total_tokens: u64,
+    #[serde(default)]
+    pub prompt_tokens: u64,
+    #[serde(default)]
+    pub completion_tokens: u64,
+    #[serde(default)]
+    pub total_tokens: u64,
 }
 
 // ---------- /v1/runs (richer lifecycle) ----------
@@ -154,24 +157,37 @@ pub enum StreamItem {
 
 #[derive(Debug, Clone)]
 pub enum RunStreamItem {
-    Started { run_id: String },
+    Started {
+        run_id: String,
+    },
     Delta(String),
     Reasoning(String),
-    ToolStarted { tool: String, preview: Option<String> },
-    ToolCompleted { tool: String, duration_s: f64, error: bool },
+    ToolStarted {
+        tool: String,
+        preview: Option<String>,
+    },
+    ToolCompleted {
+        tool: String,
+        duration_s: f64,
+        error: bool,
+    },
     ApprovalRequest {
         tool: Option<String>,
         preview: Option<String>,
         choices: Vec<String>,
         raw: serde_json::Value,
     },
-    ApprovalResponded { choice: String },
+    ApprovalResponded {
+        choice: String,
+    },
     Status(String),
     /// Terminal event. `usage` carries the gateway's reported token counts when
     /// the completion event included them (parsed by [`parse_run_usage`]); `None`
     /// when the gateway omitted usage. Threaded through so the primary gateway
     /// path can record real token totals instead of `None`.
-    Done { usage: Option<Usage> },
+    Done {
+        usage: Option<Usage>,
+    },
     Raw(serde_json::Value),
 }
 
@@ -247,12 +263,16 @@ impl GatewayClient {
 
         while let Some(event) = stream.next().await {
             let Ok(event) = event else { continue };
-            if event.data == "[DONE]" { break; }
+            if event.data == "[DONE]" {
+                break;
+            }
             let chunk: ChatCompletionChunk = match serde_json::from_str(&event.data) {
                 Ok(c) => c,
                 Err(_) => continue,
             };
-            if let Some(u) = chunk.usage { final_usage = Some(u); }
+            if let Some(u) = chunk.usage {
+                final_usage = Some(u);
+            }
             for choice in chunk.choices {
                 if let Some(d) = choice.delta.and_then(|d| d.content) {
                     if !d.is_empty() {
@@ -325,11 +345,17 @@ impl GatewayClient {
             .error_for_status()?;
 
         let mut stream = response.bytes_stream().eventsource();
-        let _ = tx.send(RunStreamItem::Started { run_id: run_id.into() }).await;
+        let _ = tx
+            .send(RunStreamItem::Started {
+                run_id: run_id.into(),
+            })
+            .await;
 
         while let Some(event) = stream.next().await {
             let Ok(event) = event else { continue };
-            if event.data == "[DONE]" { break; }
+            if event.data == "[DONE]" {
+                break;
+            }
             let parsed: serde_json::Value = match serde_json::from_str(&event.data) {
                 Ok(v) => v,
                 Err(_) => continue,
@@ -337,7 +363,9 @@ impl GatewayClient {
             let item = map_event(&parsed);
             let finished = matches!(item, RunStreamItem::Done { .. });
             let _ = tx.send(item).await;
-            if finished { break; }
+            if finished {
+                break;
+            }
         }
         Ok(())
     }
@@ -400,7 +428,9 @@ fn map_event(v: &serde_json::Value) -> RunStreamItem {
     let event = v.get("event").and_then(|e| e.as_str()).unwrap_or("");
     match event {
         "message.delta" => {
-            let delta = v.get("delta").and_then(|d| d.as_str())
+            let delta = v
+                .get("delta")
+                .and_then(|d| d.as_str())
                 .or_else(|| v.get("content").and_then(|c| c.as_str()))
                 .or_else(|| v.get("text").and_then(|t| t.as_str()))
                 .unwrap_or("");
@@ -411,31 +441,67 @@ fn map_event(v: &serde_json::Value) -> RunStreamItem {
             RunStreamItem::Reasoning(t.to_string())
         }
         "tool.started" => RunStreamItem::ToolStarted {
-            tool: v.get("tool").and_then(|t| t.as_str()).unwrap_or("tool").to_string(),
-            preview: v.get("preview").and_then(|p| p.as_str()).map(|s| s.to_string()),
+            tool: v
+                .get("tool")
+                .and_then(|t| t.as_str())
+                .unwrap_or("tool")
+                .to_string(),
+            preview: v
+                .get("preview")
+                .and_then(|p| p.as_str())
+                .map(|s| s.to_string()),
         },
         "tool.completed" => RunStreamItem::ToolCompleted {
-            tool: v.get("tool").and_then(|t| t.as_str()).unwrap_or("tool").to_string(),
+            tool: v
+                .get("tool")
+                .and_then(|t| t.as_str())
+                .unwrap_or("tool")
+                .to_string(),
             duration_s: v.get("duration").and_then(|d| d.as_f64()).unwrap_or(0.0),
             error: v.get("error").and_then(|e| e.as_bool()).unwrap_or(false),
         },
         "approval.request" => RunStreamItem::ApprovalRequest {
-            tool: v.get("tool").and_then(|t| t.as_str()).map(|s| s.to_string()),
-            preview: v.get("preview").and_then(|p| p.as_str()).map(|s| s.to_string()),
-            choices: v.get("choices")
+            tool: v
+                .get("tool")
+                .and_then(|t| t.as_str())
+                .map(|s| s.to_string()),
+            preview: v
+                .get("preview")
+                .and_then(|p| p.as_str())
+                .map(|s| s.to_string()),
+            choices: v
+                .get("choices")
                 .and_then(|c| c.as_array())
-                .map(|arr| arr.iter().filter_map(|x| x.as_str().map(String::from)).collect())
-                .unwrap_or_else(|| vec!["once".into(), "session".into(), "always".into(), "deny".into()]),
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_else(|| {
+                    vec![
+                        "once".into(),
+                        "session".into(),
+                        "always".into(),
+                        "deny".into(),
+                    ]
+                }),
             raw: v.clone(),
         },
         "approval.responded" => RunStreamItem::ApprovalResponded {
-            choice: v.get("choice").and_then(|c| c.as_str()).unwrap_or("").to_string(),
+            choice: v
+                .get("choice")
+                .and_then(|c| c.as_str())
+                .unwrap_or("")
+                .to_string(),
         },
         "run.completed" | "run.finished" | "done" => RunStreamItem::Done {
             usage: parse_run_usage(v),
         },
         "run.status" | "status" => RunStreamItem::Status(
-            v.get("status").and_then(|s| s.as_str()).unwrap_or("").to_string(),
+            v.get("status")
+                .and_then(|s| s.as_str())
+                .unwrap_or("")
+                .to_string(),
         ),
         _ => RunStreamItem::Raw(v.clone()),
     }
@@ -459,9 +525,15 @@ mod tests {
 
     #[test]
     fn run_request_serializes_reasoning_effort_when_set() {
-        let req = RunRequest { reasoning_effort: Some("high".into()), ..base_run_req() };
+        let req = RunRequest {
+            reasoning_effort: Some("high".into()),
+            ..base_run_req()
+        };
         let v: serde_json::Value = serde_json::to_value(&req).unwrap();
-        assert_eq!(v.get("reasoning_effort").and_then(|x| x.as_str()), Some("high"));
+        assert_eq!(
+            v.get("reasoning_effort").and_then(|x| x.as_str()),
+            Some("high")
+        );
         assert_eq!(v.get("input").and_then(|x| x.as_str()), Some("hi"));
     }
 
@@ -472,7 +544,10 @@ mod tests {
         // behavior is untouched when nobody opts in.
         let req = base_run_req();
         let v: serde_json::Value = serde_json::to_value(&req).unwrap();
-        assert!(v.get("reasoning_effort").is_none(), "field must be omitted when None");
+        assert!(
+            v.get("reasoning_effort").is_none(),
+            "field must be omitted when None"
+        );
     }
 
     #[test]
@@ -503,7 +578,10 @@ mod tests {
             "event": "run.completed",
             "usage": { "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0 }
         });
-        assert!(parse_run_usage(&zero).is_none(), "all-zero usage is treated as absent");
+        assert!(
+            parse_run_usage(&zero).is_none(),
+            "all-zero usage is treated as absent"
+        );
     }
 
     #[test]

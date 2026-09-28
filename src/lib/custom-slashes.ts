@@ -125,7 +125,8 @@ function toSlashCommand(slash: CustomSlash): TaggedCommand {
   const cmd: TaggedCommand = {
     name: slash.name,
     description:
-      slash.description || `custom: ${slash.body.split(/\r?\n/).filter(Boolean).length} step(s)`,
+      slash.description ||
+      `custom: ${slash.body.split(/\r?\n/).filter(Boolean).length} step(s)`,
     run: async (_args, ctx) => {
       await runCustomBody(slash.body, ctx);
     },

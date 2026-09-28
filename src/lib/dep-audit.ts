@@ -90,10 +90,7 @@ export function normalizeSeverity(raw: string): Severity {
  * their own canonical "show me this package" URL; the GitHub repo link
  * lives on those landing pages.
  */
-export function packageRegistryUrl(
-  ecosystem: string,
-  pkg: string,
-): string {
+export function packageRegistryUrl(ecosystem: string, pkg: string): string {
   const safe = encodeURIComponent(pkg);
   switch (ecosystem) {
     case "npm":

@@ -8,10 +8,7 @@ import {
   type CrashRow,
   type IssueRow,
 } from "@/lib/observability";
-import {
-  subscribeMonitorLines,
-  type MonitorLinePayload,
-} from "@/lib/monitors";
+import { subscribeMonitorLines, type MonitorLinePayload } from "@/lib/monitors";
 import {
   subscribeRepoWatcher,
   type RepoWatcherEvent,
@@ -37,7 +34,14 @@ import {
  */
 
 /** Notification source taxonomy. Drives filter chips and deep-link routing. */
-export type NotifSource = "crash" | "issue" | "audit" | "monitor" | "config" | "repo" | "job";
+export type NotifSource =
+  | "crash"
+  | "issue"
+  | "audit"
+  | "monitor"
+  | "config"
+  | "repo"
+  | "job";
 
 /**
  * Completion/failure record for a long-running or background job (Cookbook
@@ -230,7 +234,9 @@ export async function refreshNotificationCenter(): Promise<void> {
  * whole point of the job-store work; a pull that finishes while the user is
  * in the editor still lands here and lights the StatusBar bell.
  */
-export function recordJobEvent(evt: Omit<JobEventRow, "ts"> & { ts?: number }): void {
+export function recordJobEvent(
+  evt: Omit<JobEventRow, "ts"> & { ts?: number },
+): void {
   pushBounded(state.jobs, { ts: evt.ts ?? Date.now(), ...evt });
   notify();
 }
@@ -253,7 +259,8 @@ function crashSeverity(kind: string): NotifSeverity {
 
 function auditSeverity(action: string): NotifSeverity {
   const a = action.toLowerCase();
-  if (a.includes("deny") || a.includes("fail") || a.includes("error")) return "warning";
+  if (a.includes("deny") || a.includes("fail") || a.includes("error"))
+    return "warning";
   return "info";
 }
 
@@ -350,7 +357,7 @@ function buildAll(): Notification[] {
   }
 
   // Newest first; deterministic tie-break on id so React keys stay stable.
-  out.sort((a, b) => (b.ts - a.ts) || a.id.localeCompare(b.id));
+  out.sort((a, b) => b.ts - a.ts || a.id.localeCompare(b.id));
   return out;
 }
 
@@ -378,7 +385,8 @@ export function useUnread(): { count: number; severity: NotifSeverity | null } {
     if (state.read.has(n.id)) continue;
     count += 1;
     if (n.severity === "error") highest = "error";
-    else if (n.severity === "warning" && highest !== "error") highest = "warning";
+    else if (n.severity === "warning" && highest !== "error")
+      highest = "warning";
     else if (!highest) highest = n.severity;
   }
   return { count, severity: highest };
@@ -426,7 +434,8 @@ export async function openNotification(n: Notification): Promise<void> {
       }
       case "issue":
       case "audit": {
-        const { openAuditLogPanel } = await import("@/components/AuditLogPanel");
+        const { openAuditLogPanel } =
+          await import("@/components/AuditLogPanel");
         openAuditLogPanel();
         return;
       }
@@ -444,7 +453,8 @@ export async function openNotification(n: Notification): Promise<void> {
       case "repo": {
         // Repo events don't have a dedicated viewer — surface in the audit
         // log so the user can scan recent file activity in context.
-        const { openAuditLogPanel } = await import("@/components/AuditLogPanel");
+        const { openAuditLogPanel } =
+          await import("@/components/AuditLogPanel");
         openAuditLogPanel();
         return;
       }
@@ -475,8 +485,7 @@ export async function openNotification(n: Notification): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export async function openNotificationCenter(): Promise<void> {
-  const { mountNotificationCenter } = await import(
-    "@/components/NotificationCenter"
-  );
+  const { mountNotificationCenter } =
+    await import("@/components/NotificationCenter");
   mountNotificationCenter();
 }

@@ -86,10 +86,7 @@ impl AguiServerHandle {
 }
 
 /// Spawn the AG-UI server. `bind` defaults to [`DEFAULT_BIND`].
-pub async fn spawn(
-    bind: Option<SocketAddr>,
-    app: AppState,
-) -> anyhow::Result<AguiServerHandle> {
+pub async fn spawn(bind: Option<SocketAddr>, app: AppState) -> anyhow::Result<AguiServerHandle> {
     let addr: SocketAddr = match bind {
         Some(a) => a,
         None => DEFAULT_BIND
@@ -252,7 +249,11 @@ fn split_messages(messages: &[serde_json::Value]) -> (Vec<ChatTurn>, String) {
 
     let history = turns
         .into_iter()
-        .map(|(role, content)| ChatTurn { role, content, agent: None })
+        .map(|(role, content)| ChatTurn {
+            role,
+            content,
+            agent: None,
+        })
         .collect();
 
     (history, prompt)
@@ -283,12 +284,7 @@ async fn run(
     let (frame_tx, frame_rx) = mpsc::channel::<Result<Event, Infallible>>(256);
 
     let agent = state.app.registry.read().get("gateway-remote");
-    let project_root: Option<PathBuf> = state
-        .app
-        .config
-        .read()
-        .default_project_root
-        .clone();
+    let project_root: Option<PathBuf> = state.app.config.read().default_project_root.clone();
 
     let thread_id = input.thread_id.clone();
     let run_id = input.run_id.clone();
@@ -305,8 +301,7 @@ async fn run(
                 reasoning_effort: None,
             };
 
-            let mut translator_state =
-                TranslatorState::new(Some(thread_id), Some(run_id.clone()));
+            let mut translator_state = TranslatorState::new(Some(thread_id), Some(run_id.clone()));
 
             // Spawn the agent run on a dedicated task. It pushes
             // `AgentEvent`s into `agent_rx`; we translate + forward.
@@ -362,20 +357,19 @@ async fn run(
                 // run is ending anyway.
                 if let Some(id) = translator_state.current_message_id.take() {
                     // Open text — synthesize an END for safety.
-                    let _ = frame_tx.try_send(Ok(encode_frame(
-                        &AgUiEvent::TextMessageEnd(super::TextMessageEnd {
+                    let _ = frame_tx.try_send(Ok(encode_frame(&AgUiEvent::TextMessageEnd(
+                        super::TextMessageEnd {
                             message_id: id,
                             timestamp: None,
-                        }),
-                    )));
+                        },
+                    ))));
                 }
                 if !run_finished {
-                    let _ = frame_tx.try_send(Ok(encode_frame(
-                        &AgUiEvent::RunFinished(RunFinished {
+                    let _ =
+                        frame_tx.try_send(Ok(encode_frame(&AgUiEvent::RunFinished(RunFinished {
                             outcome: None,
                             timestamp: None,
-                        }),
-                    )));
+                        }))));
                 }
             });
         }

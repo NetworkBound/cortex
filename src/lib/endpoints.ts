@@ -51,6 +51,9 @@ export async function deleteEndpoint(id: string): Promise<EndpointCfg[]> {
 }
 
 /** Probe an endpoint (unauthenticated: reachability + latency + models). */
-export async function probeEndpoint(baseUrl: string, id?: string): Promise<ProbeResult> {
+export async function probeEndpoint(
+  baseUrl: string,
+  id?: string,
+): Promise<ProbeResult> {
   return invoke<ProbeResult>("probe_endpoint", { baseUrl, id: id ?? null });
 }

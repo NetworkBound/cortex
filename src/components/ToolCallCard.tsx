@@ -24,13 +24,19 @@ export function ToolCallCard({ tool }: Props) {
   return (
     <div className={`tool-card status-${tool.status}`}>
       <button className="tool-card-header" onClick={() => setOpen((o) => !o)}>
-        <span className={`tool-icon status-${tool.status}`}>{STATUS_ICON[tool.status]}</span>
+        <span className={`tool-icon status-${tool.status}`}>
+          {STATUS_ICON[tool.status]}
+        </span>
         <span className="tool-name">{tool.name}</span>
         {target && (
-          <span className="tool-target" title={target}>{target}</span>
+          <span className="tool-target" title={target}>
+            {target}
+          </span>
         )}
         <span className="tool-dur">{dur}</span>
-        <span className="tool-chevron"><Chevron open={open} size={14} /></span>
+        <span className="tool-chevron">
+          <Chevron open={open} size={14} />
+        </span>
       </button>
       {open && tool.preview && (
         <pre className="tool-preview">{tool.preview}</pre>

@@ -54,12 +54,31 @@ pub struct ChatTurn {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AgentEvent {
-    Started { agent_id: String, run_id: Option<String> },
-    Token { delta: String },
-    Reasoning { text: String },
-    ToolCall { name: String, args: serde_json::Value, preview: Option<String> },
-    ToolResult { name: String, ok: bool, summary: String, duration_ms: Option<i64> },
-    FileEdit { path: PathBuf, lines_changed: i64 },
+    Started {
+        agent_id: String,
+        run_id: Option<String>,
+    },
+    Token {
+        delta: String,
+    },
+    Reasoning {
+        text: String,
+    },
+    ToolCall {
+        name: String,
+        args: serde_json::Value,
+        preview: Option<String>,
+    },
+    ToolResult {
+        name: String,
+        ok: bool,
+        summary: String,
+        duration_ms: Option<i64>,
+    },
+    FileEdit {
+        path: PathBuf,
+        lines_changed: i64,
+    },
     ApprovalRequest {
         run_id: String,
         tool: Option<String>,
@@ -67,9 +86,17 @@ pub enum AgentEvent {
         choices: Vec<String>,
         request: serde_json::Value,
     },
-    ApprovalResolved { run_id: String, choice: String },
-    Error { message: String },
-    Done { total_tokens: Option<u64>, run_id: Option<String> },
+    ApprovalResolved {
+        run_id: String,
+        choice: String,
+    },
+    Error {
+        message: String,
+    },
+    Done {
+        total_tokens: Option<u64>,
+        run_id: Option<String>,
+    },
 }
 
 impl AgentEvent {
@@ -88,7 +115,11 @@ impl AgentEvent {
     /// free-form tool-supplied text of this shape).
     pub fn redacted_for_display(&self) -> AgentEvent {
         match self {
-            AgentEvent::ToolCall { name, args, preview } => {
+            AgentEvent::ToolCall {
+                name,
+                args,
+                preview,
+            } => {
                 let mut args = args.clone();
                 crate::redact::redact_json_value(&mut args);
                 AgentEvent::ToolCall {
@@ -97,7 +128,13 @@ impl AgentEvent {
                     preview: preview.as_deref().map(crate::redact::redact_text),
                 }
             }
-            AgentEvent::ApprovalRequest { run_id, tool, preview, choices, request } => {
+            AgentEvent::ApprovalRequest {
+                run_id,
+                tool,
+                preview,
+                choices,
+                request,
+            } => {
                 let mut request = request.clone();
                 crate::redact::redact_json_value(&mut request);
                 AgentEvent::ApprovalRequest {
@@ -117,11 +154,7 @@ impl AgentEvent {
 pub trait AgentAdapter: Send + Sync {
     fn descriptor(&self) -> AgentDescriptor;
     async fn health_check(&self) -> bool;
-    async fn run(
-        &self,
-        req: ChatRequest,
-        tx: mpsc::Sender<AgentEvent>,
-    ) -> anyhow::Result<()>;
+    async fn run(&self, req: ChatRequest, tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()>;
 }
 
 #[cfg(test)]
@@ -135,15 +168,28 @@ mod tests {
             args: serde_json::json!({
                 "cmd": "curl -H \"Authorization: Bearer sk-abcdefghijklmnopqrstuvwxyz0123\" https://x",
             }),
-            preview: Some("curl -H \"Authorization: Bearer sk-abcdefghijklmnopqrstuvwxyz0123\" https://x".into()),
+            preview: Some(
+                "curl -H \"Authorization: Bearer sk-abcdefghijklmnopqrstuvwxyz0123\" https://x"
+                    .into(),
+            ),
         };
         let redacted = evt.redacted_for_display();
-        let AgentEvent::ToolCall { name, args, preview } = &redacted else {
+        let AgentEvent::ToolCall {
+            name,
+            args,
+            preview,
+        } = &redacted
+        else {
             panic!("expected ToolCall");
         };
         assert_eq!(name, "run_shell");
-        assert!(!args.to_string().contains("sk-abcdefghijklmnopqrstuvwxyz0123"));
-        assert!(!preview.as_ref().unwrap().contains("sk-abcdefghijklmnopqrstuvwxyz0123"));
+        assert!(!args
+            .to_string()
+            .contains("sk-abcdefghijklmnopqrstuvwxyz0123"));
+        assert!(!preview
+            .as_ref()
+            .unwrap()
+            .contains("sk-abcdefghijklmnopqrstuvwxyz0123"));
         assert!(preview.as_ref().unwrap().contains("[REDACTED]"));
     }
 
@@ -157,7 +203,13 @@ mod tests {
             request: serde_json::json!({ "path": ".env", "contents": "api_key = supersecretvalue1234" }),
         };
         let redacted = evt.redacted_for_display();
-        let AgentEvent::ApprovalRequest { run_id, tool, preview, choices, request } = &redacted
+        let AgentEvent::ApprovalRequest {
+            run_id,
+            tool,
+            preview,
+            choices,
+            request,
+        } = &redacted
         else {
             panic!("expected ApprovalRequest");
         };
@@ -177,7 +229,9 @@ mod tests {
     /// carry the model's own streamed prose, not tool-call payloads).
     #[test]
     fn redacted_for_display_passes_through_other_variants_unchanged() {
-        let evt = AgentEvent::Token { delta: "hello sk-abcdefghijklmnopqrstuvwxyz0123".into() };
+        let evt = AgentEvent::Token {
+            delta: "hello sk-abcdefghijklmnopqrstuvwxyz0123".into(),
+        };
         let redacted = evt.redacted_for_display();
         let AgentEvent::Token { delta } = &redacted else {
             panic!("expected Token");

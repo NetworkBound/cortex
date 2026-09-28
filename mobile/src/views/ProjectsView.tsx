@@ -36,7 +36,9 @@ export default function ProjectsView() {
   return (
     <div className="scroll">
       {error && <div className="banner err">{error}</div>}
-      {loading && projects.length === 0 && <div className="empty">Loading projects…</div>}
+      {loading && projects.length === 0 && (
+        <div className="empty">Loading projects…</div>
+      )}
       {!loading && projects.length === 0 && !error && (
         <div className="empty">No projects found.</div>
       )}
@@ -67,7 +69,10 @@ export default function ProjectsView() {
                 <div className="meta">
                   <div className="name">{projectName(p)}</div>
                   <div className="sub">
-                    {(p.subtitle as string) || projectPath(p) || (p.kind as string) || ""}
+                    {(p.subtitle as string) ||
+                      projectPath(p) ||
+                      (p.kind as string) ||
+                      ""}
                   </div>
                 </div>
                 {isActive(p) && <span className="check">✓</span>}

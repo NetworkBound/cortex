@@ -156,12 +156,15 @@ function CustomSlashBuilder({ onClose }: CustomSlashBuilderProps) {
   }
 
   async function handleDelete(name: string) {
-    if (!(await confirmDialog({
-      title: "Delete custom slash?",
-      message: `Delete /${name}?`,
-      confirmLabel: "Delete",
-      danger: true,
-    }))) return;
+    if (
+      !(await confirmDialog({
+        title: "Delete custom slash?",
+        message: `Delete /${name}?`,
+        confirmLabel: "Delete",
+        danger: true,
+      }))
+    )
+      return;
     setBusy(true);
     try {
       const ok = await deleteCustomSlash(name);
@@ -208,7 +211,9 @@ function CustomSlashBuilder({ onClose }: CustomSlashBuilderProps) {
           {loading ? (
             <div className="muted">Loading…</div>
           ) : items.length === 0 ? (
-            <div className="muted">No custom slashes yet — define one below.</div>
+            <div className="muted">
+              No custom slashes yet — define one below.
+            </div>
           ) : (
             items.map((slash) => (
               <div className="custom-slash-row" key={slash.name}>
@@ -249,7 +254,9 @@ function CustomSlashBuilder({ onClose }: CustomSlashBuilderProps) {
 
         <div className="custom-slash-form">
           <div className="custom-slash-form-head">
-            <span>{editingName ? `Editing /${editingName}` : "New custom slash"}</span>
+            <span>
+              {editingName ? `Editing /${editingName}` : "New custom slash"}
+            </span>
             {editingName && (
               <button
                 type="button"
@@ -268,7 +275,9 @@ function CustomSlashBuilder({ onClose }: CustomSlashBuilderProps) {
               type="text"
               placeholder="kebab-case (e.g. morning, clean-build)"
               value={draft.name}
-              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, name: e.target.value }))
+              }
               autoFocus
             />
             {nameInvalid && (
@@ -319,7 +328,8 @@ function CustomSlashBuilder({ onClose }: CustomSlashBuilderProps) {
               {lineCount(draft.body) === 1 ? "" : "s"}
               {bodyTooBig && (
                 <span className="custom-slash-warn">
-                  {" "}— body exceeds {BODY_MAX} char limit.
+                  {" "}
+                  — body exceeds {BODY_MAX} char limit.
                 </span>
               )}
             </span>

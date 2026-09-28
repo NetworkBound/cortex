@@ -31,14 +31,20 @@ pub async fn save_fragment(name: String, body: String) -> Result<String, String>
 #[tauri::command]
 pub async fn list_fragments() -> Result<Vec<String>, String> {
     tokio::task::spawn_blocking(|| {
-        let Some(home) = dirs::home_dir() else { return Vec::<String>::new() };
+        let Some(home) = dirs::home_dir() else {
+            return Vec::<String>::new();
+        };
         let dir = home.join(".cortex").join("fragments");
-        let Ok(entries) = std::fs::read_dir(&dir) else { return vec![] };
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            return vec![];
+        };
         let mut out: Vec<String> = entries
             .flatten()
             .filter_map(|e| {
                 let p = e.path();
-                if p.extension().and_then(|x| x.to_str()) != Some("md") { return None; }
+                if p.extension().and_then(|x| x.to_str()) != Some("md") {
+                    return None;
+                }
                 p.file_stem().and_then(|s| s.to_str().map(String::from))
             })
             .collect();

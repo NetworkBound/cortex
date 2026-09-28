@@ -8,7 +8,13 @@
 import { invoke } from "@tauri-apps/api/core";
 
 /** Canonical style keys understood by the backend `resolve_style` helper. */
-export type DocStyle = "auto" | "rust" | "jsdoc" | "python" | "markdown" | "generic";
+export type DocStyle =
+  | "auto"
+  | "rust"
+  | "jsdoc"
+  | "python"
+  | "markdown"
+  | "generic";
 
 /**
  * Mirrors `src-tauri::commands::doc_gen::DocResult`. `style` is the
@@ -32,7 +38,10 @@ export interface DocResult {
  * @param path  Absolute path to the file the user wants documented.
  * @param style Optional style override — "auto" maps to the language default.
  */
-export async function generateDocs(path: string, style?: DocStyle): Promise<DocResult> {
+export async function generateDocs(
+  path: string,
+  style?: DocStyle,
+): Promise<DocResult> {
   const cleaned = style && style !== "auto" ? style : null;
   return invoke<DocResult>("generate_docs", { path, style: cleaned });
 }

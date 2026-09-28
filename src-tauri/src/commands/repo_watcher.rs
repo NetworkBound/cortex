@@ -25,10 +25,7 @@ fn validate_root(project_root: &str) -> Result<PathBuf, String> {
 
 /// Start (or restart) the repo watcher for `project_root`.
 #[tauri::command]
-pub async fn start_repo_watcher(
-    project_root: String,
-    app: tauri::AppHandle,
-) -> Result<(), String> {
+pub async fn start_repo_watcher(project_root: String, app: tauri::AppHandle) -> Result<(), String> {
     let root = validate_root(&project_root)?;
     watcher::start(root, app).map_err(|e| format!("start_repo_watcher: {e:#}"))
 }

@@ -176,10 +176,7 @@ static TOOL_CACHE: Lazy<std::sync::Mutex<HashMap<String, Vec<McpTool>>>> =
 /// The tools `id` advertised when it was connected. `None` when the server is
 /// not currently connected (never an error — advertisement is best-effort).
 pub fn cached_tools(id: &str) -> Option<Vec<McpTool>> {
-    TOOL_CACHE
-        .lock()
-        .ok()
-        .and_then(|m| m.get(id).cloned())
+    TOOL_CACHE.lock().ok().and_then(|m| m.get(id).cloned())
 }
 
 /// Spawn the server, perform the MCP handshake, fetch its tool list, and
@@ -494,7 +491,10 @@ rl.on('line', (l) => {
         }
         let cfg = mock_cfg("test-mock-mcp-client");
         let tools = connect(&cfg).await.expect("connect + handshake");
-        assert!(tools.iter().any(|t| t.name == "echo"), "tools/list surfaced");
+        assert!(
+            tools.iter().any(|t| t.name == "echo"),
+            "tools/list surfaced"
+        );
 
         // Connecting populates the advertisement cache (issue 008).
         let cached = cached_tools(&cfg.id).expect("cache populated on connect");
@@ -508,6 +508,9 @@ rl.on('line', (l) => {
         // Disconnecting kills the child AND removes the cached tools, so a
         // disconnected server can no longer be advertised to the model.
         disconnect(&cfg.id).await.unwrap();
-        assert!(cached_tools(&cfg.id).is_none(), "cache cleared on disconnect");
+        assert!(
+            cached_tools(&cfg.id).is_none(),
+            "cache cleared on disconnect"
+        );
     }
 }

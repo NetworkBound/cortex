@@ -159,10 +159,13 @@ function step(sim: SimGraph, ticks: number) {
 }
 
 /** Distinct languages present in the payload, sorted by descending count. */
-function languageSummary(g: DepGraph | null): { lang: string; count: number }[] {
+function languageSummary(
+  g: DepGraph | null,
+): { lang: string; count: number }[] {
   if (!g) return [];
   const tally = new Map<string, number>();
-  for (const n of g.nodes) tally.set(n.language, (tally.get(n.language) ?? 0) + 1);
+  for (const n of g.nodes)
+    tally.set(n.language, (tally.get(n.language) ?? 0) + 1);
   return Array.from(tally.entries())
     .map(([lang, count]) => ({ lang, count }))
     .sort((a, b) => b.count - a.count);
@@ -259,7 +262,11 @@ export function DepGraphPanel() {
   return (
     <div className="depgraph-wrap" ref={wrapRef}>
       <div className="depgraph-toolbar">
-        <div className="depgraph-chips" role="group" aria-label="Filter by language">
+        <div
+          className="depgraph-chips"
+          role="group"
+          aria-label="Filter by language"
+        >
           {langs.map(({ lang, count }) => (
             <button
               key={lang}
@@ -325,18 +332,24 @@ export function DepGraphPanel() {
           {loading ? "…" : "Refresh"}
         </button>
         {graph?.truncated && (
-          <span className="depgraph-truncated muted" title="Hit the 500-node / 2000-edge cap">
+          <span
+            className="depgraph-truncated muted"
+            title="Hit the 500-node / 2000-edge cap"
+          >
             truncated
           </span>
         )}
       </div>
       {error ? (
-        <div className="muted" style={{ padding: 16 }}>error: {error}</div>
+        <div className="muted" style={{ padding: 16 }}>
+          error: {error}
+        </div>
       ) : loading && !sim ? (
         <PanelLoading label="Building dependency graph" />
       ) : isEmpty ? (
         <div className="muted" style={{ padding: 16, textAlign: "center" }}>
-          No imports detected — try a project with TypeScript, Rust, or Python files.
+          No imports detected — try a project with TypeScript, Rust, or Python
+          files.
         </div>
       ) : (
         <svg
@@ -344,7 +357,12 @@ export function DepGraphPanel() {
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
           preserveAspectRatio="xMidYMid meet"
         >
-          <g style={{ transform: `scale(${zoom})`, transformOrigin: `${CX}px ${CY}px` }}>
+          <g
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: `${CX}px ${CY}px`,
+            }}
+          >
             {sim!.edges.map((e, idx) => {
               const a = sim!.nodes.find((n) => n.id === e.from);
               const b = sim!.nodes.find((n) => n.id === e.to);
@@ -392,7 +410,9 @@ export function DepGraphPanel() {
                       x={n.x + n.r + 3}
                       y={n.y + 3}
                     >
-                      {n.label.length > 28 ? n.label.slice(0, 27) + "…" : n.label}
+                      {n.label.length > 28
+                        ? n.label.slice(0, 27) + "…"
+                        : n.label}
                     </text>
                   )}
                 </g>

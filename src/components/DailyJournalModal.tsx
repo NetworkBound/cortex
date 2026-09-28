@@ -93,7 +93,11 @@ export function DailyJournalModal({
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Save failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Save failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -109,7 +113,11 @@ export function DailyJournalModal({
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Copy failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Copy failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [report]);
 
@@ -133,12 +141,20 @@ export function DailyJournalModal({
               max={todayYmd()}
             />
           </div>
-          <button className="journal-close" onClick={onClose} aria-label="Close">
+          <button
+            className="journal-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
             ×
           </button>
         </header>
 
-        <div className="journal-stats" role="group" aria-label="Activity counts">
+        <div
+          className="journal-stats"
+          role="group"
+          aria-label="Activity counts"
+        >
           <Stat label="Sessions" value={report?.stats.sessions} />
           <Stat label="Commits" value={report?.stats.commits} />
           <Stat label="Memory" value={report?.stats.memory_updates} />
@@ -149,8 +165,7 @@ export function DailyJournalModal({
         <div className="journal-body">
           {loading && (
             <div className="journal-loading">
-              <span className="journal-spinner" aria-hidden /> Building
-              journal…
+              <span className="journal-spinner" aria-hidden /> Building journal…
             </div>
           )}
           {error && !loading && (

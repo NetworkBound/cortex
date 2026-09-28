@@ -70,7 +70,9 @@ fn config_path() -> Option<PathBuf> {
 /// Load persisted endpoints. Missing/malformed file ⇒ empty list (today's
 /// behavior), never an error — Model Fabric is purely additive.
 pub fn load_endpoints() -> Vec<EndpointCfg> {
-    let Some(path) = config_path() else { return Vec::new() };
+    let Some(path) = config_path() else {
+        return Vec::new();
+    };
     std::fs::read_to_string(&path)
         .ok()
         .and_then(|raw| serde_json::from_str::<Vec<EndpointCfg>>(&raw).ok())
@@ -130,11 +132,16 @@ fn models_url(base_url: &str) -> String {
 /// key; see the module security note). Returns reachability, latency, and any
 /// discovered model ids. Never errors out of band; failures land in `error`.
 pub async fn probe(base_url: &str) -> ProbeResult {
-    let Ok(client) = crate::tailscale::maybe_tailscale_proxy(
-        reqwest::Client::builder().timeout(PROBE_TIMEOUT),
-    )
-    .build() else {
-        return ProbeResult { ok: false, latency_ms: None, models: vec![], error: Some("client build failed".into()) };
+    let Ok(client) =
+        crate::tailscale::maybe_tailscale_proxy(reqwest::Client::builder().timeout(PROBE_TIMEOUT))
+            .build()
+    else {
+        return ProbeResult {
+            ok: false,
+            latency_ms: None,
+            models: vec![],
+            error: Some("client build failed".into()),
+        };
     };
     let started = Instant::now();
     // No bearer_auth here — intentional SSRF/key-harvest guard.
@@ -152,8 +159,17 @@ pub async fn probe(base_url: &str) -> ProbeResult {
                     error: Some(format!("HTTP {status} (reachable; models discover on first chat if auth is required)")),
                 };
             }
-            let models = resp.json::<Value>().await.map(|j| parse_model_ids(&j)).unwrap_or_default();
-            ProbeResult { ok: true, latency_ms: Some(latency), models, error: None }
+            let models = resp
+                .json::<Value>()
+                .await
+                .map(|j| parse_model_ids(&j))
+                .unwrap_or_default();
+            ProbeResult {
+                ok: true,
+                latency_ms: Some(latency),
+                models,
+                error: None,
+            }
         }
         Err(e) => ProbeResult {
             ok: false,
@@ -174,7 +190,10 @@ impl CustomEndpointAgent {
     }
 
     fn chat_url(&self) -> String {
-        format!("{}/chat/completions", self.cfg.base_url.trim_end_matches('/'))
+        format!(
+            "{}/chat/completions",
+            self.cfg.base_url.trim_end_matches('/')
+        )
     }
 
     /// Real API key for the CHAT path only (KeyVault `<id>/api-key`), if the user
@@ -196,7 +215,13 @@ impl CustomEndpointAgent {
             // The bare adapter id (endpoint picked, no concrete model) → let the
             // server's first advertised model win, don't forward the id as a model.
             .filter(|m| *m != self.cfg.id)
-            .map(|m| m.strip_prefix(&colon).or_else(|| m.strip_prefix(&slash)).unwrap_or(m).trim().to_string())
+            .map(|m| {
+                m.strip_prefix(&colon)
+                    .or_else(|| m.strip_prefix(&slash))
+                    .unwrap_or(m)
+                    .trim()
+                    .to_string()
+            })
             .filter(|m| !m.is_empty())
     }
 }
@@ -223,7 +248,10 @@ impl AgentAdapter for CustomEndpointAgent {
 
     async fn run(&self, req: ChatRequest, tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
         let _ = tx
-            .send(AgentEvent::Started { agent_id: self.cfg.id.clone(), run_id: None })
+            .send(AgentEvent::Started {
+                agent_id: self.cfg.id.clone(),
+                run_id: None,
+            })
             .await;
 
         // Resolve a concrete model: explicit (prefix-stripped) → first discovered.
@@ -240,7 +268,12 @@ impl AgentAdapter for CustomEndpointAgent {
                             ),
                         })
                         .await;
-                    let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+                    let _ = tx
+                        .send(AgentEvent::Done {
+                            total_tokens: None,
+                            run_id: None,
+                        })
+                        .await;
                     return Ok(());
                 };
                 first
@@ -278,9 +311,16 @@ impl AgentAdapter for CustomEndpointAgent {
             Ok(r) => r,
             Err(e) => {
                 let _ = tx
-                    .send(AgentEvent::Error { message: format!("{} request failed: {e}", self.cfg.id) })
+                    .send(AgentEvent::Error {
+                        message: format!("{} request failed: {e}", self.cfg.id),
+                    })
                     .await;
-                let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+                let _ = tx
+                    .send(AgentEvent::Done {
+                        total_tokens: None,
+                        run_id: None,
+                    })
+                    .await;
                 return Ok(());
             }
         };
@@ -288,9 +328,16 @@ impl AgentAdapter for CustomEndpointAgent {
             let status = resp.status();
             let detail = resp.text().await.unwrap_or_default();
             let _ = tx
-                .send(AgentEvent::Error { message: format!("{} returned {status}: {}", self.cfg.id, detail.trim()) })
+                .send(AgentEvent::Error {
+                    message: format!("{} returned {status}: {}", self.cfg.id, detail.trim()),
+                })
                 .await;
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             return Ok(());
         }
 
@@ -301,7 +348,9 @@ impl AgentAdapter for CustomEndpointAgent {
                 Ok(e) => e,
                 Err(e) => {
                     let _ = tx
-                        .send(AgentEvent::Error { message: format!("{} stream error: {e}", self.cfg.id) })
+                        .send(AgentEvent::Error {
+                            message: format!("{} stream error: {e}", self.cfg.id),
+                        })
                         .await;
                     break;
                 }
@@ -320,7 +369,12 @@ impl AgentAdapter for CustomEndpointAgent {
                 }
             }
         }
-        let _ = tx.send(AgentEvent::Done { total_tokens, run_id: None }).await;
+        let _ = tx
+            .send(AgentEvent::Done {
+                total_tokens,
+                run_id: None,
+            })
+            .await;
         Ok(())
     }
 }
@@ -331,12 +385,17 @@ mod tests {
 
     #[test]
     fn normalize_id_slugs_and_prefixes() {
-        assert_eq!(normalize_id("My GPU Box!").as_deref(), Some("fabric-my-gpu-box"));
+        assert_eq!(
+            normalize_id("My GPU Box!").as_deref(),
+            Some("fabric-my-gpu-box")
+        );
         assert_eq!(normalize_id("fabric-vllm").as_deref(), Some("fabric-vllm"));
         assert_eq!(normalize_id("  ").as_deref(), None);
         assert_eq!(normalize_id("...").as_deref(), None);
         // Prefix guarantees no collision with a built-in adapter id.
-        assert!(normalize_id("gateway-remote").unwrap().starts_with(FABRIC_PREFIX));
+        assert!(normalize_id("gateway-remote")
+            .unwrap()
+            .starts_with(FABRIC_PREFIX));
     }
 
     #[test]
@@ -368,9 +427,18 @@ mod tests {
             kind: "local".into(),
             enabled: true,
         });
-        assert_eq!(agent.requested_model(Some("fabric-gpu:llama-3")).as_deref(), Some("llama-3"));
-        assert_eq!(agent.requested_model(Some("fabric-gpu/llama-3")).as_deref(), Some("llama-3"));
-        assert_eq!(agent.requested_model(Some("llama-3")).as_deref(), Some("llama-3"));
+        assert_eq!(
+            agent.requested_model(Some("fabric-gpu:llama-3")).as_deref(),
+            Some("llama-3")
+        );
+        assert_eq!(
+            agent.requested_model(Some("fabric-gpu/llama-3")).as_deref(),
+            Some("llama-3")
+        );
+        assert_eq!(
+            agent.requested_model(Some("llama-3")).as_deref(),
+            Some("llama-3")
+        );
         assert_eq!(agent.requested_model(None), None);
     }
 }

@@ -20,7 +20,9 @@ pub async fn get_gateway_config(state: State<'_, AppState>) -> Result<GatewayCon
     Ok(GatewayConfig {
         base_url: cfg.gateway_base_url.clone(),
         model: cfg.gateway_model.clone(),
-        has_api_key: AppState::get_gateway_api_key().filter(|s| !s.is_empty()).is_some(),
+        has_api_key: AppState::get_gateway_api_key()
+            .filter(|s| !s.is_empty())
+            .is_some(),
         ollama_base_url: cfg.ollama_base_url.clone(),
         ollama_model: cfg.ollama_model.clone(),
         obsidian_vault: cfg.obsidian_vault.as_ref().map(|p| p.display().to_string()),
@@ -59,10 +61,18 @@ pub async fn update_gateway_config(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let mut cfg = state.config.write();
-    if let Some(v) = args.gateway_base_url { cfg.gateway_base_url = v; }
-    if let Some(v) = args.gateway_model { cfg.gateway_model = v; }
-    if let Some(v) = args.ollama_base_url { cfg.ollama_base_url = v; }
-    if let Some(v) = args.ollama_model { cfg.ollama_model = v; }
+    if let Some(v) = args.gateway_base_url {
+        cfg.gateway_base_url = v;
+    }
+    if let Some(v) = args.gateway_model {
+        cfg.gateway_model = v;
+    }
+    if let Some(v) = args.ollama_base_url {
+        cfg.ollama_base_url = v;
+    }
+    if let Some(v) = args.ollama_model {
+        cfg.ollama_model = v;
+    }
     Ok(())
 }
 
@@ -130,8 +140,12 @@ pub async fn set_provider_key(args: SetProviderKeyArgs) -> Result<(), String> {
     if args.key.trim().is_empty() {
         return Err("API key cannot be empty".into());
     }
-    crate::commands::keyvault::vault_set(provider, "api-key".to_string(), args.key.trim().to_string())
-        .await
+    crate::commands::keyvault::vault_set(
+        provider,
+        "api-key".to_string(),
+        args.key.trim().to_string(),
+    )
+    .await
 }
 
 #[derive(Debug, Deserialize)]
@@ -156,8 +170,7 @@ pub async fn set_provider_default_model(args: SetProviderDefaultModelArgs) -> Re
     let model = args.model.trim().to_string();
     if model.is_empty() {
         // Clearing an override that was never set is a no-op, not an error.
-        match crate::commands::keyvault::vault_remove(provider, "default-model".to_string()).await
-        {
+        match crate::commands::keyvault::vault_remove(provider, "default-model".to_string()).await {
             Ok(()) => Ok(()),
             Err(e) if e.starts_with("no key for") => Ok(()),
             Err(e) => Err(e),
@@ -185,7 +198,9 @@ pub async fn set_runtime_mode(
 ) -> Result<(), String> {
     let mode = args.mode.trim().to_lowercase();
     if !matches!(mode.as_str(), "homelab" | "cloud") {
-        return Err(format!("invalid runtime mode: {mode} (expected homelab | cloud)"));
+        return Err(format!(
+            "invalid runtime mode: {mode} (expected homelab | cloud)"
+        ));
     }
     AppState::save_runtime_mode(&mode).map_err(|e| e.to_string())?;
     state.config.write().runtime_mode = mode;
@@ -215,14 +230,19 @@ pub async fn set_outcome_routing(enabled: bool) -> Result<bool, String> {
 /// it does today.
 #[tauri::command]
 pub async fn get_session_budget(session_id: String) -> Result<Option<f64>, String> {
-    Ok(crate::orchestrator::cost_router::session_budget_cap(&session_id))
+    Ok(crate::orchestrator::cost_router::session_budget_cap(
+        &session_id,
+    ))
 }
 
 /// Set (or clear, with `cap_usd: None`) the spend cap for one session. Takes
 /// effect on the next `chat_send` in that session — re-read every turn, no
 /// restart needed. Rejects a non-positive/non-finite cap.
 #[tauri::command]
-pub async fn set_session_budget(session_id: String, cap_usd: Option<f64>) -> Result<Option<f64>, String> {
+pub async fn set_session_budget(
+    session_id: String,
+    cap_usd: Option<f64>,
+) -> Result<Option<f64>, String> {
     crate::orchestrator::cost_router::write_session_budget_cap(&session_id, cap_usd)
         .map_err(|e| format!("write session budget: {e}"))?;
     Ok(cap_usd)
@@ -267,9 +287,7 @@ pub async fn validate_provider_key(
     let Some(key) = vault_entry(&provider, "api-key") else {
         return Ok(ProviderValidation {
             ok: false,
-            message: format!(
-                "No {display} API key saved yet — enter one above and save it first."
-            ),
+            message: format!("No {display} API key saved yet — enter one above and save it first."),
             models: vec![],
         });
     };

@@ -74,8 +74,14 @@ pub async fn summarize_session(
     let req = ChatCompletionRequest {
         model: cfg.gateway_model.clone(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: SYSTEM_PROMPT.into() },
-            ChatMessage { role: "user".into(), content: transcript },
+            ChatMessage {
+                role: "system".into(),
+                content: SYSTEM_PROMPT.into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: transcript,
+            },
         ],
         stream: true,
         temperature: Some(0.3),
@@ -189,7 +195,11 @@ fn split_headline(raw: &str) -> (String, String) {
         .trim()
         .to_string();
     let body = lines.collect::<Vec<_>>().join("\n").trim().to_string();
-    let body = if body.is_empty() { raw.trim().to_string() } else { body };
+    let body = if body.is_empty() {
+        raw.trim().to_string()
+    } else {
+        body
+    };
     (headline, body)
 }
 
@@ -269,7 +279,27 @@ fn yaml_escape(input: &str) -> String {
     if cleaned.is_empty() {
         return "unknown".into();
     }
-    if cleaned.chars().any(|c| matches!(c, ':' | '#' | '"' | '\'' | '{' | '}' | '[' | ']' | ',' | '&' | '*' | '!' | '|' | '>' | '%' | '@' | '`')) {
+    if cleaned.chars().any(|c| {
+        matches!(
+            c,
+            ':' | '#'
+                | '"'
+                | '\''
+                | '{'
+                | '}'
+                | '['
+                | ']'
+                | ','
+                | '&'
+                | '*'
+                | '!'
+                | '|'
+                | '>'
+                | '%'
+                | '@'
+                | '`'
+        )
+    }) {
         format!("\"{}\"", cleaned.replace('"', "\\\""))
     } else {
         cleaned

@@ -48,7 +48,10 @@ pub fn read_entry(path: &Path) -> anyhow::Result<MarkdownEntry> {
 
 fn split_frontmatter(raw: &str) -> (serde_json::Value, String) {
     if !raw.starts_with("---") {
-        return (serde_json::Value::Object(Default::default()), raw.to_string());
+        return (
+            serde_json::Value::Object(Default::default()),
+            raw.to_string(),
+        );
     }
     let mut lines = raw.lines();
     lines.next(); // skip opening ---
@@ -63,11 +66,15 @@ fn split_frontmatter(raw: &str) -> (serde_json::Value, String) {
         fm.push('\n');
     }
     if !found_close {
-        return (serde_json::Value::Object(Default::default()), raw.to_string());
+        return (
+            serde_json::Value::Object(Default::default()),
+            raw.to_string(),
+        );
     }
     let body: String = lines.collect::<Vec<_>>().join("\n");
     let body = body.trim_start_matches('\n').to_string();
-    let parsed: serde_json::Value = serde_yaml::from_str(&fm).unwrap_or_else(|_| serde_json::json!({}));
+    let parsed: serde_json::Value =
+        serde_yaml::from_str(&fm).unwrap_or_else(|_| serde_json::json!({}));
     (parsed, body)
 }
 

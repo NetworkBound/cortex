@@ -104,7 +104,11 @@ export function SnippetsPanel() {
       // don't end up with orphaned copies. Backend has no rename op.
       const saved = await saveSnippet(draft.name.trim(), draft.body);
       if (!saved) {
-        pushToast({ title: "Save failed", body: "Backend rejected snippet.", kind: "error" });
+        pushToast({
+          title: "Save failed",
+          body: "Backend rejected snippet.",
+          kind: "error",
+        });
         return;
       }
       if (draft.origName && draft.origName !== saved.name) {
@@ -127,7 +131,11 @@ export function SnippetsPanel() {
           });
         }
       }
-      pushToast({ title: "Saved", body: `#snippet:${saved.name}`, kind: "success" });
+      pushToast({
+        title: "Saved",
+        body: `#snippet:${saved.name}`,
+        kind: "success",
+      });
       setActiveName(saved.name);
       await reload();
     } finally {
@@ -136,12 +144,15 @@ export function SnippetsPanel() {
   }
 
   async function handleDelete(name: string) {
-    if (!(await confirmDialog({
-      title: "Delete snippet?",
-      message: `"${name}" will be deleted. This cannot be undone.`,
-      confirmLabel: "Delete",
-      danger: true,
-    }))) return;
+    if (
+      !(await confirmDialog({
+        title: "Delete snippet?",
+        message: `"${name}" will be deleted. This cannot be undone.`,
+        confirmLabel: "Delete",
+        danger: true,
+      }))
+    )
+      return;
     const ok = await deleteSnippet(name);
     if (!ok) {
       pushToast({ title: "Delete failed", body: name, kind: "error" });
@@ -155,9 +166,17 @@ export function SnippetsPanel() {
   async function handleCopy(s: Snippet) {
     try {
       await navigator.clipboard.writeText(s.body);
-      pushToast({ title: "Copied", body: `#snippet:${s.name}`, kind: "success" });
+      pushToast({
+        title: "Copied",
+        body: `#snippet:${s.name}`,
+        kind: "success",
+      });
     } catch (e) {
-      pushToast({ title: "Copy failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Copy failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }
 
@@ -176,10 +195,18 @@ export function SnippetsPanel() {
             {snippets.length} snippet{snippets.length === 1 ? "" : "s"}
           </span>
           <div className="skills-list-head-actions">
-            <button type="button" className="panel-head-action" onClick={startNew}>
+            <button
+              type="button"
+              className="panel-head-action"
+              onClick={startNew}
+            >
               + new
             </button>
-            <button type="button" className="panel-head-action ghost" onClick={() => void reload()}>
+            <button
+              type="button"
+              className="panel-head-action ghost"
+              onClick={() => void reload()}
+            >
               Refresh
             </button>
           </div>
@@ -237,15 +264,24 @@ export function SnippetsPanel() {
           <div className="muted skills-empty">
             No snippets yet. Use <code>#snippet:name</code> in chat to save a
             reusable prompt.
-            <div className="skills-list-head-actions" style={{ marginTop: "var(--space-3)", justifyContent: "center" }}>
-              <button type="button" className="panel-head-action" onClick={startNew}>
+            <div
+              className="skills-list-head-actions"
+              style={{ marginTop: "var(--space-3)", justifyContent: "center" }}
+            >
+              <button
+                type="button"
+                className="panel-head-action"
+                onClick={startNew}
+              >
                 + new snippet
               </button>
             </div>
           </div>
         )}
         {hasAny && !draft && (
-          <div className="muted skills-empty">Select a snippet, or create a new one.</div>
+          <div className="muted skills-empty">
+            Select a snippet, or create a new one.
+          </div>
         )}
         {draft && (
           <div className="snippets-editor">
@@ -286,7 +322,9 @@ export function SnippetsPanel() {
               >
                 {saving ? "Saving…" : "Save"}
               </button>
-              {dirty && <span className="muted snippets-dirty">unsaved changes</span>}
+              {dirty && (
+                <span className="muted snippets-dirty">unsaved changes</span>
+              )}
             </div>
           </div>
         )}
@@ -294,4 +332,3 @@ export function SnippetsPanel() {
     </div>
   );
 }
-

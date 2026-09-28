@@ -335,7 +335,9 @@ mod tests {
     #[tokio::test]
     async fn captures_stdout() {
         let td = TempDir::new().unwrap();
-        let r = run_in_dir("echo hello-tests", td.path(), 5_000).await.unwrap();
+        let r = run_in_dir("echo hello-tests", td.path(), 5_000)
+            .await
+            .unwrap();
         assert!(r.stdout.contains("hello-tests"));
     }
 
@@ -344,7 +346,11 @@ mod tests {
         let td = TempDir::new().unwrap();
         std::fs::write(td.path().join("marker.txt"), "i-am-here").unwrap();
         // If cwd is the project root, printing marker.txt finds the file.
-        let cmd = if cfg!(windows) { "type marker.txt" } else { "cat marker.txt" };
+        let cmd = if cfg!(windows) {
+            "type marker.txt"
+        } else {
+            "cat marker.txt"
+        };
         let r = run_in_dir(cmd, td.path(), 5_000).await.unwrap();
         assert!(r.passed, "stderr={}", r.stderr);
         assert!(r.stdout.contains("i-am-here"));
@@ -362,8 +368,14 @@ mod tests {
         };
         let r = run_in_dir(cmd, td.path(), 10_000).await.unwrap();
         assert!(r.truncated, "expected the long output to be clipped");
-        assert!(r.stdout.contains("line-5000 marker"), "tail must keep the last line");
-        assert!(!r.stdout.contains("line-1 marker"), "head should be dropped");
+        assert!(
+            r.stdout.contains("line-5000 marker"),
+            "tail must keep the last line"
+        );
+        assert!(
+            !r.stdout.contains("line-1 marker"),
+            "head should be dropped"
+        );
         assert!(r.stdout.len() <= MAX_OUTPUT_BYTES);
     }
 
@@ -378,7 +390,11 @@ mod tests {
     async fn timeout_kills_and_reports() {
         let td = TempDir::new().unwrap();
         // `ping -n` is the portable cmd.exe stand-in for `sleep`.
-        let cmd = if cfg!(windows) { "ping -n 6 127.0.0.1 >nul" } else { "sleep 5" };
+        let cmd = if cfg!(windows) {
+            "ping -n 6 127.0.0.1 >nul"
+        } else {
+            "sleep 5"
+        };
         let r = run_in_dir(cmd, td.path(), 200).await.unwrap();
         assert!(r.timed_out);
         assert!(!r.passed);

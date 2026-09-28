@@ -102,7 +102,11 @@ export function ProjectDocGenModal({
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Copy failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Copy failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [result]);
 
@@ -116,10 +120,17 @@ export function ProjectDocGenModal({
     });
     if (!ok) return;
     try {
-      const written = await saveFileText(result.suggested_path, result.markdown);
+      const written = await saveFileText(
+        result.suggested_path,
+        result.markdown,
+      );
       pushToast({ title: "Saved", body: written, kind: "success" });
     } catch (e) {
-      pushToast({ title: "Save failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Save failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [result]);
 
@@ -290,7 +301,5 @@ export function openProjectDocGenModal(docType: ProjectDocType): void {
     root.unmount();
     if (container.parentNode) container.parentNode.removeChild(container);
   };
-  root.render(
-    <ProjectDocGenModal initialDocType={docType} onClose={close} />,
-  );
+  root.render(<ProjectDocGenModal initialDocType={docType} onClose={close} />);
 }

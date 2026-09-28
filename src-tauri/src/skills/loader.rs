@@ -119,11 +119,7 @@ fn parse_file(path: &std::path::Path) -> Option<Skill> {
     if !is_valid_name(&fm.name) {
         return None;
     }
-    let inputs = fm
-        .inputs
-        .iter()
-        .filter_map(parse_input)
-        .collect::<Vec<_>>();
+    let inputs = fm.inputs.iter().filter_map(parse_input).collect::<Vec<_>>();
     Some(Skill {
         name: fm.name,
         description: fm.description,

@@ -83,9 +83,19 @@ pub async fn reindex(
         }
         match embed_text(ollama_base, model, &text).await {
             // Store the FULL content as the snippet source; embed only the head.
-            Ok(v) if store
-                .upsert_chat_embedding(&id, &session_id, ts, &role, &content, model, &v, project_root.as_deref())
-                .is_ok() =>
+            Ok(v)
+                if store
+                    .upsert_chat_embedding(
+                        &id,
+                        &session_id,
+                        ts,
+                        &role,
+                        &content,
+                        model,
+                        &v,
+                        project_root.as_deref(),
+                    )
+                    .is_ok() =>
             {
                 embedded += 1;
             }
@@ -188,9 +198,19 @@ pub async fn reindex_notes(
         }
         let owner_str = owner.as_ref().map(|p| p.display().to_string());
         match embed_text(ollama_base, model, &text).await {
-            Ok(v) if store
-                .upsert_chat_embedding(&path_str, "vault", mtime, "note", &content, model, &v, owner_str.as_deref())
-                .is_ok() =>
+            Ok(v)
+                if store
+                    .upsert_chat_embedding(
+                        &path_str,
+                        "vault",
+                        mtime,
+                        "note",
+                        &content,
+                        model,
+                        &v,
+                        owner_str.as_deref(),
+                    )
+                    .is_ok() =>
             {
                 embedded += 1;
             }
@@ -239,7 +259,11 @@ pub async fn reindex_all(
     // pass.
     let notes = reindex_notes(store, ollama_base, &model, vault, project_root)
         .await
-        .unwrap_or(ReindexResult { embedded: 0, failed: 0, total_indexed: 0 });
+        .unwrap_or(ReindexResult {
+            embedded: 0,
+            failed: 0,
+            total_indexed: 0,
+        });
     Ok(ReindexResult {
         embedded: chats.embedded + notes.embedded,
         failed: chats.failed + notes.failed,
@@ -264,7 +288,9 @@ pub async fn search(
     if query.is_empty() {
         return Err("empty query".into());
     }
-    let rows = store.all_chat_embeddings(model).map_err(|e| e.to_string())?;
+    let rows = store
+        .all_chat_embeddings(model)
+        .map_err(|e| e.to_string())?;
     if rows.is_empty() {
         return Ok(Vec::new());
     }
@@ -274,17 +300,23 @@ pub async fn search(
     let mut hits: Vec<ChatSemanticHit> = rows
         .into_iter()
         .filter(|(_, _, _, role, _, _, _)| include_notes || role != "note")
-        .map(|(message_id, session_id, ts, role, text, vec, project_root)| ChatSemanticHit {
-            score: cosine(&q, &vec),
-            snippet: head(&text, 280),
-            session_id,
-            message_id,
-            ts,
-            role,
-            project_root,
-        })
+        .map(
+            |(message_id, session_id, ts, role, text, vec, project_root)| ChatSemanticHit {
+                score: cosine(&q, &vec),
+                snippet: head(&text, 280),
+                session_id,
+                message_id,
+                ts,
+                role,
+                project_root,
+            },
+        )
         .collect();
-    hits.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    hits.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     hits.truncate(limit.clamp(1, 50));
     Ok(hits)
 }
@@ -311,5 +343,13 @@ pub async fn semantic_chat_search(
     store: State<'_, TracingStore>,
 ) -> Result<Vec<ChatSemanticHit>, String> {
     let base = state.config.read().ollama_base_url.clone();
-    search(store.inner(), &base, &embed_model(), &query, limit.unwrap_or(10), false).await
+    search(
+        store.inner(),
+        &base,
+        &embed_model(),
+        &query,
+        limit.unwrap_or(10),
+        false,
+    )
+    .await
 }

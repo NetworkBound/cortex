@@ -28,16 +28,18 @@ export interface Thread {
 export const newSessionId = (): string => `session-${crypto.randomUUID()}`;
 export const newThreadId = (): string => `thread-${crypto.randomUUID()}`;
 
-export function makeThread(opts: {
-  id?: string;
-  sessionId?: string;
-  label?: string;
-  customTitle?: string | null;
-  messages?: Message[];
-  runningRunIds?: string[];
-  lastRoutingReason?: string | null;
-  lastTs?: number;
-} = {}): Thread {
+export function makeThread(
+  opts: {
+    id?: string;
+    sessionId?: string;
+    label?: string;
+    customTitle?: string | null;
+    messages?: Message[];
+    runningRunIds?: string[];
+    lastRoutingReason?: string | null;
+    lastTs?: number;
+  } = {},
+): Thread {
   return {
     id: opts.id ?? newThreadId(),
     sessionId: opts.sessionId ?? newSessionId(),

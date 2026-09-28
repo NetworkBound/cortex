@@ -58,8 +58,7 @@ fn load_doc(project_root: &Path) -> Result<SpacesDoc, String> {
     if !path.exists() {
         return Ok(SpacesDoc::default());
     }
-    let body = fs::read_to_string(&path)
-        .map_err(|e| format!("read {}: {e}", path.display()))?;
+    let body = fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
     if body.trim().is_empty() {
         return Ok(SpacesDoc::default());
     }
@@ -215,10 +214,8 @@ mod tests {
     #[test]
     fn missing_yaml_returns_empty() {
         let td = TempDir::new().unwrap();
-        let res = tauri::async_runtime::block_on(list_spaces(
-            td.path().display().to_string(),
-        ))
-        .unwrap();
+        let res =
+            tauri::async_runtime::block_on(list_spaces(td.path().display().to_string())).unwrap();
         assert!(res.is_empty());
     }
 
@@ -233,8 +230,7 @@ mod tests {
             excludes: vec![],
         };
         tauri::async_runtime::block_on(save_space(root.clone(), space)).unwrap();
-        let listed =
-            tauri::async_runtime::block_on(list_spaces(root.clone())).unwrap();
+        let listed = tauri::async_runtime::block_on(list_spaces(root.clone())).unwrap();
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].name, "frontend");
         // Upsert: same name overwrites.
@@ -245,8 +241,7 @@ mod tests {
             excludes: vec![],
         };
         tauri::async_runtime::block_on(save_space(root.clone(), updated)).unwrap();
-        let listed2 =
-            tauri::async_runtime::block_on(list_spaces(root.clone())).unwrap();
+        let listed2 = tauri::async_runtime::block_on(list_spaces(root.clone())).unwrap();
         assert_eq!(listed2.len(), 1);
         assert_eq!(listed2[0].description, "ui v2");
     }
@@ -266,8 +261,7 @@ mod tests {
         ))
         .unwrap();
         tauri::async_runtime::block_on(delete_space(root.clone(), "x".into())).unwrap();
-        let listed =
-            tauri::async_runtime::block_on(list_spaces(root.clone())).unwrap();
+        let listed = tauri::async_runtime::block_on(list_spaces(root.clone())).unwrap();
         assert!(listed.is_empty());
     }
 
@@ -291,12 +285,8 @@ mod tests {
             },
         ))
         .unwrap();
-        let files = tauri::async_runtime::block_on(space_files(
-            root_s.clone(),
-            "fe".into(),
-            None,
-        ))
-        .unwrap();
+        let files =
+            tauri::async_runtime::block_on(space_files(root_s.clone(), "fe".into(), None)).unwrap();
         assert!(files.iter().any(|p| p.ends_with("App.tsx")));
         assert!(!files.iter().any(|p| p.ends_with("App.css")));
         assert!(!files.iter().any(|p| p.ends_with("main.rs")));

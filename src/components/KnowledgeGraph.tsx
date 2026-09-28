@@ -294,7 +294,10 @@ export function KnowledgeGraph() {
           {loading ? "…" : "Refresh"}
         </button>
         {graph?.truncated && (
-          <span className="kgraph-truncated muted" title="Hit the 500-node / 2000-edge cap">
+          <span
+            className="kgraph-truncated muted"
+            title="Hit the 500-node / 2000-edge cap"
+          >
             truncated
           </span>
         )}
@@ -302,7 +305,9 @@ export function KnowledgeGraph() {
       {error ? (
         <div className="kgraph-error">{error}</div>
       ) : loading && !sim ? (
-        <div className="muted" style={{ padding: 16 }}>building graph…</div>
+        <div className="muted" style={{ padding: 16 }}>
+          building graph…
+        </div>
       ) : isEmpty ? (
         <div className="muted" style={{ padding: 16, textAlign: "center" }}>
           No wikilinks found yet — add some <code>[[links]]</code> across your
@@ -314,13 +319,17 @@ export function KnowledgeGraph() {
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
           preserveAspectRatio="xMidYMid meet"
         >
-          <g style={{ transform: `scale(${zoom})`, transformOrigin: `${CX}px ${CY}px` }}>
+          <g
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: `${CX}px ${CY}px`,
+            }}
+          >
             {sim!.edges.map((e, idx) => {
               const a = nodeById.get(e.from);
               const b = nodeById.get(e.to);
               if (!a || !b) return null;
-              const visible =
-                visibleIds.has(a.id) && visibleIds.has(b.id);
+              const visible = visibleIds.has(a.id) && visibleIds.has(b.id);
               const touchesHover =
                 hoverId !== null && (hoverId === a.id || hoverId === b.id);
               const dim = hoverId !== null && !touchesHover;
@@ -362,7 +371,9 @@ export function KnowledgeGraph() {
                       x={n.x + n.r + 3}
                       y={n.y + 3}
                     >
-                      {n.label.length > 28 ? n.label.slice(0, 27) + "…" : n.label}
+                      {n.label.length > 28
+                        ? n.label.slice(0, 27) + "…"
+                        : n.label}
                     </text>
                   )}
                 </g>

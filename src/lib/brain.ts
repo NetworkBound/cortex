@@ -71,7 +71,11 @@ export async function brainRag(
   limit = 8,
   projectRoot?: string | null,
 ): Promise<BrainAnswer> {
-  return invoke<BrainAnswer>("brain_rag", { question, limit, projectRoot: projectRoot ?? null });
+  return invoke<BrainAnswer>("brain_rag", {
+    question,
+    limit,
+    projectRoot: projectRoot ?? null,
+  });
 }
 
 export async function setObsidianVault(path: string | null): Promise<void> {
@@ -95,6 +99,10 @@ export interface DuplicateGroup {
  *  UI can flag likely copy/paste duplicates for the user to merge — detection
  *  only, nothing is deleted. `threshold` overrides the default strictness
  *  (0.0-1.0 cosine similarity). */
-export async function brainMemoryDuplicates(threshold?: number): Promise<DuplicateGroup[]> {
-  return invoke<DuplicateGroup[]>("brain_memory_duplicates", { threshold: threshold ?? null });
+export async function brainMemoryDuplicates(
+  threshold?: number,
+): Promise<DuplicateGroup[]> {
+  return invoke<DuplicateGroup[]>("brain_memory_duplicates", {
+    threshold: threshold ?? null,
+  });
 }

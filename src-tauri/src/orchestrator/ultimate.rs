@@ -72,7 +72,12 @@ pub struct UltimateConfig {
 
 impl Default for UltimateConfig {
     fn default() -> Self {
-        Self { goal: String::new(), project_root: None, fan_out: 3, lead_model: None }
+        Self {
+            goal: String::new(),
+            project_root: None,
+            fan_out: 3,
+            lead_model: None,
+        }
     }
 }
 
@@ -97,9 +102,18 @@ pub enum UltEvent {
     /// The lead finished decomposing the goal.
     Plan { subtasks: Vec<PlannedSubtask> },
     /// A subtask began executing across `models`.
-    SubtaskStarted { id: String, task: String, models: Vec<String> },
+    SubtaskStarted {
+        id: String,
+        task: String,
+        models: Vec<String>,
+    },
     /// One model finished its candidate for a subtask.
-    ModelDone { subtask_id: String, model: String, ok: bool, output: String },
+    ModelDone {
+        subtask_id: String,
+        model: String,
+        ok: bool,
+        output: String,
+    },
     /// A fanned-out subtask's candidates were merged into one result.
     SubtaskMerged { id: String, merged: String },
     /// The final synthesis pass produced the deliverable.
@@ -161,8 +175,7 @@ pub async fn discover_models(registry: &RwLock<Registry>) -> Vec<String> {
     // Catalog/CLI/API models reachable for a chat task. `candidates` already
     // filters to available + capable adapters and inherits the local tags too,
     // so this single call yields the whole roster.
-    let cands =
-        cost_router::candidates(&[AgentCapability::Chat], &registry.read(), &local);
+    let cands = cost_router::candidates(&[AgentCapability::Chat], &registry.read(), &local);
     for c in cands {
         push(c.model, &mut out);
     }
@@ -254,16 +267,11 @@ fn parse_plan(raw: &str, goal: &str) -> Vec<PlannedSubtask> {
         if task.is_empty() {
             continue;
         }
-        let id = r
-            .id
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| format!("s{}", i + 1));
-        let kind = r
-            .kind
-            .as_deref()
-            .and_then(parse_kind)
-            .unwrap_or_default();
+        let id =
+            r.id.map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| format!("s{}", i + 1));
+        let kind = r.kind.as_deref().and_then(parse_kind).unwrap_or_default();
         let difficulty = r
             .difficulty
             .as_deref()
@@ -576,7 +584,10 @@ fn capture_worktree_diff(worktree_path: &Path) -> String {
 /// derived from a unified diff without shelling out again. Cheap and offline so
 /// it's safe to compute in the deterministic path / tests.
 fn diff_stat(diff: &str) -> String {
-    let files = diff.lines().filter(|l| l.starts_with("diff --git ")).count();
+    let files = diff
+        .lines()
+        .filter(|l| l.starts_with("diff --git "))
+        .count();
     let added = diff
         .lines()
         .filter(|l| l.starts_with('+') && !l.starts_with("+++"))
@@ -644,12 +655,19 @@ async fn verify_worktree(worktree_path: &Path) -> String {
     match tokio::time::timeout(VERIFY_TIMEOUT, join).await {
         Ok(Ok(Ok(out))) if out.status.success() => format!("`{cmd_label}` PASSED"),
         Ok(Ok(Ok(out))) => {
-            let code = out.status.code().map(|c| c.to_string()).unwrap_or_else(|| "?".into());
+            let code = out
+                .status
+                .code()
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "?".into());
             format!("`{cmd_label}` FAILED (exit {code})")
         }
         Ok(Ok(Err(e))) => format!("`{cmd_label}` could not run: {e}"),
         Ok(Err(e)) => format!("`{cmd_label}` task panicked: {e}"),
-        Err(_) => format!("`{cmd_label}` timed out after {}s", VERIFY_TIMEOUT.as_secs()),
+        Err(_) => format!(
+            "`{cmd_label}` timed out after {}s",
+            VERIFY_TIMEOUT.as_secs()
+        ),
     }
 }
 
@@ -686,7 +704,11 @@ fn build_select_prompt(task: &str, candidates: &[CodeCandidate]) -> String {
 /// around the number ("Candidate 2 is best" → 1). Out-of-range / unparseable →
 /// `None`.
 fn parse_selected_index(raw: &str, n: usize) -> Option<usize> {
-    let digits: String = raw.chars().skip_while(|c| !c.is_ascii_digit()).take_while(|c| c.is_ascii_digit()).collect();
+    let digits: String = raw
+        .chars()
+        .skip_while(|c| !c.is_ascii_digit())
+        .take_while(|c| c.is_ascii_digit())
+        .collect();
     let one_based: usize = digits.parse().ok()?;
     if one_based >= 1 && one_based <= n {
         Some(one_based - 1)
@@ -744,7 +766,9 @@ fn sanitize_diff(raw: &str) -> String {
             .map(|nl| after_open + 3 + nl + 1)
             .unwrap_or(trimmed.len());
         if let Some(close_rel) = trimmed[body_start..].find("```") {
-            return trimmed[body_start..body_start + close_rel].trim_end().to_string();
+            return trimmed[body_start..body_start + close_rel]
+                .trim_end()
+                .to_string();
         }
     }
     // 2. Unfenced: skip any prose preamble, start at the first diff header.
@@ -770,7 +794,9 @@ fn looks_like_unified_diff(text: &str) -> bool {
     if t.is_empty() {
         return false;
     }
-    let has_header = t.lines().any(|l| l.starts_with("diff --git ") || l.starts_with("--- "));
+    let has_header = t
+        .lines()
+        .any(|l| l.starts_with("diff --git ") || l.starts_with("--- "));
     let has_hunk = t.lines().any(|l| l.starts_with("@@"));
     has_header && has_hunk
 }
@@ -792,7 +818,9 @@ fn apply_diff_to_worktree(worktree_path: &Path, diff: &str) -> Result<(), String
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
-        let mut child = cmd.spawn().map_err(|e| format!("git apply spawn failed: {e}"))?;
+        let mut child = cmd
+            .spawn()
+            .map_err(|e| format!("git apply spawn failed: {e}"))?;
         if let Some(mut stdin) = child.stdin.take() {
             stdin
                 .write_all(diff.as_bytes())
@@ -802,7 +830,9 @@ fn apply_diff_to_worktree(worktree_path: &Path, diff: &str) -> Result<(), String
                 let _ = stdin.write_all(b"\n");
             }
         }
-        let out = child.wait_with_output().map_err(|e| format!("git apply wait failed: {e}"))?;
+        let out = child
+            .wait_with_output()
+            .map_err(|e| format!("git apply wait failed: {e}"))?;
         Ok(out.status.success())
     };
     // Prefer --3way (resolves context against the index/base); fall back to a
@@ -979,8 +1009,12 @@ async fn run_code_subtask_worktrees(
     //    target AND, for ≤1 non-empty diff, the only sensible result. With ≥2
     //    non-empty diffs we ask a strong model to pick by index; a selector
     //    hiccup degrades to the biggest non-empty diff as a cheap proxy.
-    let non_empty: Vec<usize> =
-        candidates.iter().enumerate().filter(|(_, c)| c.ok).map(|(i, _)| i).collect();
+    let non_empty: Vec<usize> = candidates
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.ok)
+        .map(|(i, _)| i)
+        .collect();
     let winner_idx = if non_empty.len() >= 2 {
         let select_prompt = build_select_prompt(&subtask.task, &candidates);
         let sel_model = cost_router::pick_model_for(
@@ -990,17 +1024,24 @@ async fn run_code_subtask_worktrees(
             local_tags,
         )
         .map(|p| p.model);
-        match oneshot::complete_resilient(registry, sel_model.clone(), select_prompt.clone()).await {
+        match oneshot::complete_resilient(registry, sel_model.clone(), select_prompt.clone()).await
+        {
             Ok(o) => {
                 subtask_usd += projected_usd(&select_prompt, &o.text, sel_model.as_deref());
                 parse_selected_index(&o.text, candidates.len())
                     .filter(|i| candidates[*i].ok)
                     // Selector hiccup → biggest non-empty diff as a cheap proxy.
                     .unwrap_or_else(|| {
-                        *non_empty.iter().max_by_key(|i| candidates[**i].diff.len()).unwrap()
+                        *non_empty
+                            .iter()
+                            .max_by_key(|i| candidates[**i].diff.len())
+                            .unwrap()
                     })
             }
-            Err(_) => *non_empty.iter().max_by_key(|i| candidates[**i].diff.len()).unwrap(),
+            Err(_) => *non_empty
+                .iter()
+                .max_by_key(|i| candidates[**i].diff.len())
+                .unwrap(),
         }
     } else if let Some(&i) = non_empty.first() {
         i
@@ -1066,11 +1107,16 @@ async fn run_code_subtask_worktrees(
         let attempt: Result<(Worktree, String), String> = match merge_wt {
             Ok(wt) => {
                 stray_merge_id = Some(wt.id.clone());
-                match oneshot::complete_resilient(registry, merge_model.clone(), merge_prompt.clone())
-                    .await
+                match oneshot::complete_resilient(
+                    registry,
+                    merge_model.clone(),
+                    merge_prompt.clone(),
+                )
+                .await
                 {
                     Ok(o) => {
-                        subtask_usd += projected_usd(&merge_prompt, &o.text, merge_model.as_deref());
+                        subtask_usd +=
+                            projected_usd(&merge_prompt, &o.text, merge_model.as_deref());
                         // 4c. Sanitize + sanity-check the diff (empty/unparseable
                         //     → fall back).
                         match merge_diff_or_fallback(&o.text) {
@@ -1100,7 +1146,11 @@ async fn run_code_subtask_worktrees(
                 // actually landed (3-way apply may normalize it).
                 let landed = {
                     let d = capture_worktree_diff(&mpath);
-                    if d.trim().is_empty() { diff.clone() } else { d }
+                    if d.trim().is_empty() {
+                        diff.clone()
+                    } else {
+                        d
+                    }
                 };
                 let verify_note = verify_worktree(&mpath).await;
                 let verify_ok =
@@ -1252,7 +1302,10 @@ async fn run_code_subtask_worktrees(
     //    synthesis references the ACTUAL branch the user can check out. The
     //    header makes the auto-merge-vs-fallback outcome explicit.
     let header = if auto_merged {
-        format!("AUTO-MERGED {} candidate diffs in a git worktree.", non_empty.len())
+        format!(
+            "AUTO-MERGED {} candidate diffs in a git worktree.",
+            non_empty.len()
+        )
     } else {
         format!("Implemented by model `{result_model}` in a git worktree (merge fallback).")
     };
@@ -1284,7 +1337,10 @@ async fn run_code_subtask_worktrees(
 fn build_aggregate_prompt(task: &str, candidates: &[(String, String)]) -> String {
     let mut sections = String::new();
     for (model, output) in candidates {
-        sections.push_str(&format!("--- candidate from {model} ---\n{}\n\n", output.trim()));
+        sections.push_str(&format!(
+            "--- candidate from {model} ---\n{}\n\n",
+            output.trim()
+        ));
     }
     format!(
         "You are a critical aggregator. Several models independently attempted the \
@@ -1370,7 +1426,9 @@ pub async fn run_ultimate(
 ) -> Result<UltimateResult, String> {
     let goal = cfg.goal.trim().to_string();
     if goal.is_empty() {
-        emit(UltEvent::Error { msg: "empty goal".into() });
+        emit(UltEvent::Error {
+            msg: "empty goal".into(),
+        });
         return Err("empty goal".into());
     }
     let fan_out = cfg.fan_out.max(1);
@@ -1379,11 +1437,16 @@ pub async fn run_ultimate(
     // ── Discover the model roster ─────────────────────────────────────────
     let roster = discover_models(&registry).await;
     if roster.is_empty() {
-        emit(UltEvent::Error { msg: "no models available".into() });
+        emit(UltEvent::Error {
+            msg: "no models available".into(),
+        });
         return Err("no models available".into());
     }
-    let local_tags: Vec<String> =
-        roster.iter().filter(|m| m.starts_with("ollama:")).cloned().collect();
+    let local_tags: Vec<String> = roster
+        .iter()
+        .filter(|m| m.starts_with("ollama:"))
+        .cloned()
+        .collect();
 
     // Lead model: pinned, else the strongest capable chat pick, else roster[0].
     let lead_model: Option<String> = cfg
@@ -1415,13 +1478,23 @@ pub async fn run_ultimate(
                 o.text
             }
             Err(e) => {
-                emit(UltEvent::Error { msg: format!("lead could not plan: {e}") });
+                emit(UltEvent::Error {
+                    msg: format!("lead could not plan: {e}"),
+                });
                 return Err(format!("lead could not plan: {e}"));
             }
         };
-    let _ = record_transcript(&store, "Ultimate — lead plan", &plan_prompt, &plan_raw, &run_id);
+    let _ = record_transcript(
+        &store,
+        "Ultimate — lead plan",
+        &plan_prompt,
+        &plan_raw,
+        &run_id,
+    );
     let subtasks = parse_plan(&plan_raw, &goal);
-    emit(UltEvent::Plan { subtasks: subtasks.clone() });
+    emit(UltEvent::Plan {
+        subtasks: subtasks.clone(),
+    });
 
     // Code subtasks take the git-worktree path when a valid git `project_root`
     // is configured. We open a `WorktreeStore` over the SAME sqlite connection
@@ -1492,7 +1565,8 @@ pub async fn run_ultimate(
             let prompt = prompt.clone();
             async move {
                 let res =
-                    oneshot::complete_resilient(registry_ref, Some(m.clone()), prompt.clone()).await;
+                    oneshot::complete_resilient(registry_ref, Some(m.clone()), prompt.clone())
+                        .await;
                 (m.clone(), prompt, res)
             }
         });
@@ -1571,7 +1645,10 @@ pub async fn run_ultimate(
                         &merged,
                         run_id_ref,
                     );
-                    emit_ref(UltEvent::SubtaskMerged { id: st.id.clone(), merged: merged.clone() });
+                    emit_ref(UltEvent::SubtaskMerged {
+                        id: st.id.clone(),
+                        merged: merged.clone(),
+                    });
                     (merged, usd)
                 }
                 // Aggregator hiccup → fall back to the strongest single candidate
@@ -1586,7 +1663,10 @@ pub async fn run_ultimate(
                 }
             }
         } else {
-            let single = candidates.first().map(|(_, t)| t.clone()).unwrap_or_default();
+            let single = candidates
+                .first()
+                .map(|(_, t)| t.clone())
+                .unwrap_or_default();
             (single, 0.0)
         };
         subtask_usd += merged_via;
@@ -1612,11 +1692,15 @@ pub async fn run_ultimate(
     // ── SYNTHESIZE ────────────────────────────────────────────────────────
     let final_output = if subtasks_out.len() < 2 {
         // Nothing to merge — the single subtask's output IS the deliverable.
-        subtasks_out.first().map(|r| r.output.clone()).unwrap_or_default()
+        subtasks_out
+            .first()
+            .map(|r| r.output.clone())
+            .unwrap_or_default()
     } else {
         let synth_prompt = build_synthesis_prompt(&goal, &subtasks_out);
         let synth_model = lead_model.clone();
-        match oneshot::complete_resilient(&registry, synth_model.clone(), synth_prompt.clone()).await
+        match oneshot::complete_resilient(&registry, synth_model.clone(), synth_prompt.clone())
+            .await
         {
             Ok(o) if !o.text.trim().is_empty() => {
                 total_usd += projected_usd(&synth_prompt, &o.text, synth_model.as_deref());
@@ -1628,7 +1712,9 @@ pub async fn run_ultimate(
                     &merged,
                     &run_id,
                 );
-                emit(UltEvent::Synthesis { merged: merged.clone() });
+                emit(UltEvent::Synthesis {
+                    merged: merged.clone(),
+                });
                 merged
             }
             // Synthesis is best-effort: degrade to a concatenation of the
@@ -1645,7 +1731,11 @@ pub async fn run_ultimate(
     let ok = !subtasks_out.is_empty() && subtasks_out.iter().all(|r| r.ok);
     emit(UltEvent::Done { ok });
 
-    Ok(UltimateResult { final_output, subtasks: subtasks_out, total_usd })
+    Ok(UltimateResult {
+        final_output,
+        subtasks: subtasks_out,
+        total_usd,
+    })
 }
 
 /// Project the USD cost of one completion (prompt always sent; completion priced
@@ -1717,7 +1807,10 @@ mod tests {
         assert!(p.contains("approach A") && p.contains("approach B"));
         assert!(p.contains("model-a") && p.contains("model-b"));
         assert!(p.to_lowercase().contains("merge"));
-        assert!(p.contains("do NOT simply pick one"), "explicitly not a vote");
+        assert!(
+            p.contains("do NOT simply pick one"),
+            "explicitly not a vote"
+        );
     }
 
     #[test]
@@ -1760,7 +1853,11 @@ mod tests {
         assert_eq!(parse_selected_index("Candidate 3 is best", 3), Some(2));
         assert_eq!(parse_selected_index("1", 3), Some(0));
         assert_eq!(parse_selected_index("9", 3), None, "out of range → None");
-        assert_eq!(parse_selected_index("none of them", 3), None, "no digit → None");
+        assert_eq!(
+            parse_selected_index("none of them", 3),
+            None,
+            "no digit → None"
+        );
     }
 
     #[test]
@@ -1789,7 +1886,10 @@ mod tests {
         ];
         let p = build_select_prompt("add a thing", &cands);
         assert!(p.contains("cortex/aaa") && p.contains("cortex/bbb"));
-        assert!(p.contains("ONLY the candidate number"), "selection, not merge");
+        assert!(
+            p.contains("ONLY the candidate number"),
+            "selection, not merge"
+        );
         assert!(p.to_lowercase().contains("best"));
     }
 
@@ -1849,8 +1949,12 @@ mod tests {
 
     #[test]
     fn looks_like_unified_diff_requires_header_and_hunk() {
-        assert!(looks_like_unified_diff("diff --git a/x b/x\n@@ -1 +1 @@\n+a\n"));
-        assert!(looks_like_unified_diff("--- a/x\n+++ b/x\n@@ -1 +1 @@\n+a\n"));
+        assert!(looks_like_unified_diff(
+            "diff --git a/x b/x\n@@ -1 +1 @@\n+a\n"
+        ));
+        assert!(looks_like_unified_diff(
+            "--- a/x\n+++ b/x\n@@ -1 +1 @@\n+a\n"
+        ));
         // Header but no hunk → not a usable patch.
         assert!(!looks_like_unified_diff("diff --git a/x b/x\n"));
         // Hunk but no header → not a usable patch.
@@ -1895,17 +1999,27 @@ mod tests {
             r#"{"scripts":{"test":"jest"}}"#,
         )
         .unwrap();
-        assert_eq!(detect_test_command(js.path()), Some(("npm".into(), vec!["test".into()])));
+        assert_eq!(
+            detect_test_command(js.path()),
+            Some(("npm".into(), vec!["test".into()]))
+        );
 
         // JS WITHOUT a test script → not detected.
         let js2 = tempfile::tempdir().unwrap();
-        std::fs::write(js2.path().join("package.json"), r#"{"scripts":{"build":"x"}}"#).unwrap();
+        std::fs::write(
+            js2.path().join("package.json"),
+            r#"{"scripts":{"build":"x"}}"#,
+        )
+        .unwrap();
         assert_eq!(detect_test_command(js2.path()), None);
 
         // Python.
         let py = tempfile::tempdir().unwrap();
         std::fs::write(py.path().join("pyproject.toml"), "[project]\nname='x'\n").unwrap();
-        assert_eq!(detect_test_command(py.path()), Some(("pytest".into(), vec![])));
+        assert_eq!(
+            detect_test_command(py.path()),
+            Some(("pytest".into(), vec![]))
+        );
 
         // Nothing → None.
         let empty = tempfile::tempdir().unwrap();
@@ -1957,7 +2071,12 @@ mod tests {
                 )
             };
             let _ = tx.send(AgentEvent::Token { delta: body }).await;
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             Ok(())
         }
     }
@@ -2006,9 +2125,16 @@ mod tests {
             "claude-sonnet-4-6".to_string(),
         ];
         let picked = select_models(&reg, &st, &roster, &[], 3);
-        assert!(picked.len() >= 2, "fan-out must pick ≥2 models, got {picked:?}");
+        assert!(
+            picked.len() >= 2,
+            "fan-out must pick ≥2 models, got {picked:?}"
+        );
         let distinct: std::collections::HashSet<_> = picked.iter().collect();
-        assert_eq!(distinct.len(), picked.len(), "models must be distinct: {picked:?}");
+        assert_eq!(
+            distinct.len(),
+            picked.len(),
+            "models must be distinct: {picked:?}"
+        );
     }
 
     #[test]
@@ -2070,7 +2196,10 @@ mod tests {
             _ => None,
         });
         let merged = merged.expect("a SubtaskMerged event for s1");
-        assert!(merged.contains("MERGED"), "aggregator output present: {merged}");
+        assert!(
+            merged.contains("MERGED"),
+            "aggregator output present: {merged}"
+        );
 
         // The run produced a final deliverable and reported Done{ok:true}.
         assert!(!result.final_output.is_empty());
@@ -2113,10 +2242,16 @@ mod tests {
             ) -> anyhow::Result<()> {
                 self.calls.fetch_add(1, Ordering::SeqCst);
                 if req.message.contains("ONLY a JSON array") {
-                    let _ = tx.send(AgentEvent::Token { delta: self.plan.to_string() }).await;
+                    let _ = tx
+                        .send(AgentEvent::Token {
+                            delta: self.plan.to_string(),
+                        })
+                        .await;
                 } else if self.fail {
                     let _ = tx
-                        .send(AgentEvent::Error { message: "401 unauthorized".into() })
+                        .send(AgentEvent::Error {
+                            message: "401 unauthorized".into(),
+                        })
                         .await;
                 } else {
                     let _ = tx
@@ -2125,14 +2260,20 @@ mod tests {
                         })
                         .await;
                 }
-                let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+                let _ = tx
+                    .send(AgentEvent::Done {
+                        total_tokens: None,
+                        run_id: None,
+                    })
+                    .await;
                 Ok(())
             }
         }
 
         // Single non-fan-out subtask; claude-cli (the routed model) fails, the
         // gateway-remote fallback in the roster answers.
-        let plan = r#"[{"id":"s1","task":"do it","kind":"chat","difficulty":"hard","fan_out":false}]"#;
+        let plan =
+            r#"[{"id":"s1","task":"do it","kind":"chat","difficulty":"hard","fan_out":false}]"#;
         let mut r = Registry::new();
         r.register(Arc::new(PickyAdapter {
             id: "claude-cli",
@@ -2155,7 +2296,9 @@ mod tests {
             fan_out: 1,
             lead_model: Some("gateway-remote".into()), // a model the gateway serves
         };
-        let result = run_ultimate(reg, store, cfg, |_| {}).await.expect("run completes");
+        let result = run_ultimate(reg, store, cfg, |_| {})
+            .await
+            .expect("run completes");
         assert_eq!(result.subtasks.len(), 1);
         assert!(
             result.subtasks[0].output.contains("fallback model"),
@@ -2185,7 +2328,12 @@ mod tests {
         let project = home.path().join("proj");
         std::fs::create_dir_all(&project).unwrap();
         let git = |args: &[&str]| {
-            crate::sys::no_window("git").arg("-C").arg(&project).args(args).output().unwrap()
+            crate::sys::no_window("git")
+                .arg("-C")
+                .arg(&project)
+                .args(args)
+                .output()
+                .unwrap()
         };
         assert!(git(&["init", "-q"]).status.success());
         let _ = git(&["config", "user.name", "test"]);
@@ -2228,7 +2376,11 @@ mod tests {
             ) -> anyhow::Result<()> {
                 let msg = &req.message;
                 if msg.contains("ONLY a JSON array") {
-                    let _ = tx.send(AgentEvent::Token { delta: self.plan.to_string() }).await;
+                    let _ = tx
+                        .send(AgentEvent::Token {
+                            delta: self.plan.to_string(),
+                        })
+                        .await;
                 } else if msg.contains("ONLY the candidate number") {
                     // Selector: always pick candidate 1.
                     let _ = tx.send(AgentEvent::Token { delta: "1".into() }).await;
@@ -2248,20 +2400,30 @@ mod tests {
                         })
                         .await;
                 } else {
-                    let _ = tx
-                        .send(AgentEvent::Token { delta: "ok".into() })
-                        .await;
+                    let _ = tx.send(AgentEvent::Token { delta: "ok".into() }).await;
                 }
-                let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+                let _ = tx
+                    .send(AgentEvent::Done {
+                        total_tokens: None,
+                        run_id: None,
+                    })
+                    .await;
                 Ok(())
             }
         }
 
         // Plan: one CODE subtask, fanned out, so ≥2 worktrees race.
-        let plan = r#"[{"id":"s1","task":"add a file","kind":"code","difficulty":"hard","fan_out":true}]"#;
+        let plan =
+            r#"[{"id":"s1","task":"add a file","kind":"code","difficulty":"hard","fan_out":true}]"#;
         let mut r = Registry::new();
-        r.register(Arc::new(CodeAdapter { id: "claude-cli", plan }));
-        r.register(Arc::new(CodeAdapter { id: "gateway-remote", plan }));
+        r.register(Arc::new(CodeAdapter {
+            id: "claude-cli",
+            plan,
+        }));
+        r.register(Arc::new(CodeAdapter {
+            id: "gateway-remote",
+            plan,
+        }));
         let reg = Arc::new(RwLock::new(r));
         let store = TracingStore::in_memory();
         let ws = WorktreeStore::new(store.shared_connection());
@@ -2289,23 +2451,36 @@ mod tests {
             "result threads the winner branch: {}",
             st.output
         );
-        assert!(st.output.contains("```diff"), "diff captured into the result");
+        assert!(
+            st.output.contains("```diff"),
+            "diff captured into the result"
+        );
 
         // A SubtaskMerged event announced the SELECTED candidate.
         let evs = events.lock().clone();
         // This adapter returns no valid merged diff for the merge prompt, so the
         // AUTO-MERGE attempt FALLS BACK to selection — the event says so.
         assert!(
-            evs.iter().any(|e| matches!(e, UltEvent::SubtaskMerged { id, merged }
+            evs.iter()
+                .any(|e| matches!(e, UltEvent::SubtaskMerged { id, merged }
                 if id == "s1" && merged.contains("selected candidate"))),
             "a selection (fallback) event was emitted"
         );
 
         // Cleanup: exactly ONE active worktree remains (the kept result's); both
         // the loser AND the torn-down merge worktree are gone — no orphans.
-        let active = ws.list_active(Some(&project.display().to_string())).unwrap();
-        assert_eq!(active.len(), 1, "only the kept worktree survives: {active:?}");
-        assert!(Path::new(&active[0].path).exists(), "kept worktree still on disk");
+        let active = ws
+            .list_active(Some(&project.display().to_string()))
+            .unwrap();
+        assert_eq!(
+            active.len(),
+            1,
+            "only the kept worktree survives: {active:?}"
+        );
+        assert!(
+            Path::new(&active[0].path).exists(),
+            "kept worktree still on disk"
+        );
     }
 
     /// LIVE/ignored: the git-worktree CODE path AUTO-MERGE happy path. Like the
@@ -2322,7 +2497,12 @@ mod tests {
         let project = home.path().join("proj");
         std::fs::create_dir_all(&project).unwrap();
         let git = |args: &[&str]| {
-            crate::sys::no_window("git").arg("-C").arg(&project).args(args).output().unwrap()
+            crate::sys::no_window("git")
+                .arg("-C")
+                .arg(&project)
+                .args(args)
+                .output()
+                .unwrap()
         };
         assert!(git(&["init", "-q"]).status.success());
         let _ = git(&["config", "user.name", "test"]);
@@ -2371,7 +2551,11 @@ mod tests {
             ) -> anyhow::Result<()> {
                 let msg = &req.message;
                 if msg.contains("ONLY a JSON array") {
-                    let _ = tx.send(AgentEvent::Token { delta: self.plan.to_string() }).await;
+                    let _ = tx
+                        .send(AgentEvent::Token {
+                            delta: self.plan.to_string(),
+                        })
+                        .await;
                 } else if msg.contains("Merged unified diff:") {
                     // The merge model: emit a real, applicable unified diff
                     // (fenced, to also exercise sanitize_diff).
@@ -2388,20 +2572,34 @@ mod tests {
                         );
                     }
                     let _ = tx
-                        .send(AgentEvent::Token { delta: "Created the file.".into() })
+                        .send(AgentEvent::Token {
+                            delta: "Created the file.".into(),
+                        })
                         .await;
                 } else {
                     let _ = tx.send(AgentEvent::Token { delta: "ok".into() }).await;
                 }
-                let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+                let _ = tx
+                    .send(AgentEvent::Done {
+                        total_tokens: None,
+                        run_id: None,
+                    })
+                    .await;
                 Ok(())
             }
         }
 
-        let plan = r#"[{"id":"s1","task":"add a file","kind":"code","difficulty":"hard","fan_out":true}]"#;
+        let plan =
+            r#"[{"id":"s1","task":"add a file","kind":"code","difficulty":"hard","fan_out":true}]"#;
         let mut r = Registry::new();
-        r.register(Arc::new(MergeAdapter { id: "claude-cli", plan }));
-        r.register(Arc::new(MergeAdapter { id: "gateway-remote", plan }));
+        r.register(Arc::new(MergeAdapter {
+            id: "claude-cli",
+            plan,
+        }));
+        r.register(Arc::new(MergeAdapter {
+            id: "gateway-remote",
+            plan,
+        }));
         let reg = Arc::new(RwLock::new(r));
         let store = TracingStore::in_memory();
         let ws = WorktreeStore::new(store.shared_connection());
@@ -2428,20 +2626,30 @@ mod tests {
             "result announces the auto-merge: {}",
             st.output
         );
-        assert!(st.output.contains("merged.txt"), "the merged change is present");
+        assert!(
+            st.output.contains("merged.txt"),
+            "the merged change is present"
+        );
 
         // The merge event announced an auto-merge (not a selection fallback).
         let evs = events.lock().clone();
         assert!(
-            evs.iter().any(|e| matches!(e, UltEvent::SubtaskMerged { id, merged }
+            evs.iter()
+                .any(|e| matches!(e, UltEvent::SubtaskMerged { id, merged }
                 if id == "s1" && merged.contains("AUTO-MERGED"))),
             "an auto-merge event was emitted: {evs:?}"
         );
 
         // Cleanup: exactly ONE active worktree (the merge's); both candidate
         // worktrees were torn down — no orphans.
-        let active = ws.list_active(Some(&project.display().to_string())).unwrap();
-        assert_eq!(active.len(), 1, "only the merge worktree survives: {active:?}");
+        let active = ws
+            .list_active(Some(&project.display().to_string()))
+            .unwrap();
+        assert_eq!(
+            active.len(),
+            1,
+            "only the merge worktree survives: {active:?}"
+        );
         // The surviving worktree actually contains the merged file.
         assert!(
             Path::new(&active[0].path).join("merged.txt").exists(),

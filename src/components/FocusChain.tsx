@@ -12,7 +12,12 @@
 
 import { useEffect, useState } from "react";
 import { useCortexStore } from "@/state/store";
-import { addTask, clearChain, loadFocusChain, tickTask } from "@/lib/focus-chain";
+import {
+  addTask,
+  clearChain,
+  loadFocusChain,
+  tickTask,
+} from "@/lib/focus-chain";
 
 export function FocusChain() {
   const sessionId = useCortexStore((s) => s.sessionId);

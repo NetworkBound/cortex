@@ -46,18 +46,15 @@ pub async fn delete_role(name: String) -> Result<(), String> {
 ///
 /// Returns the trimmed prompt that landed on disk so the UI can confirm.
 #[tauri::command]
-pub async fn apply_role_to_agent(
-    role_name: String,
-    agent_id: String,
-) -> Result<String, String> {
+pub async fn apply_role_to_agent(role_name: String, agent_id: String) -> Result<String, String> {
     if role_name.trim().is_empty() {
         return Err("role_name is required".into());
     }
     if agent_id.trim().is_empty() {
         return Err("agent_id is required".into());
     }
-    let role = roles::get_role(&role_name)
-        .ok_or_else(|| format!("role '{role_name}' not found"))?;
+    let role =
+        roles::get_role(&role_name).ok_or_else(|| format!("role '{role_name}' not found"))?;
     let prompt = role.system_prompt.unwrap_or_default();
     orchestrator::set_agent_instructions(&agent_id, &prompt).map_err(|e| e.to_string())
 }

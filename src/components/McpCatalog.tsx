@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { probeMcpRuntimes, saveMcpServer, type McpServerConfig } from "@/lib/mcp";
+import {
+  probeMcpRuntimes,
+  saveMcpServer,
+  type McpServerConfig,
+} from "@/lib/mcp";
 import {
   CATEGORY_LABELS,
   isEntryAdded,
@@ -21,7 +25,9 @@ interface Props {
   onManual: () => void;
 }
 
-const ALL_CATEGORIES = Object.keys(CATEGORY_LABELS) as CatalogEntry["category"][];
+const ALL_CATEGORIES = Object.keys(
+  CATEGORY_LABELS,
+) as CatalogEntry["category"][];
 
 /**
  * Curated catalog of well-known MCP servers with one-click add. Entries that
@@ -39,7 +45,9 @@ function McpCatalog({ servers, onAdded, onManual }: Props) {
   const [saving, setSaving] = useState(false);
   // Preflight: which launcher runtimes (npx/uvx) exist on PATH. `null` until
   // the probe answers; a failed probe stays null (no false "missing" chips).
-  const [runtimes, setRuntimes] = useState<Record<string, boolean> | null>(null);
+  const [runtimes, setRuntimes] = useState<Record<string, boolean> | null>(
+    null,
+  );
 
   useEffect(() => {
     const commands = [...new Set(MCP_CATALOG.map((e) => e.command))];
@@ -64,7 +72,10 @@ function McpCatalog({ servers, onAdded, onManual }: Props) {
   const needsConfig = (e: CatalogEntry) =>
     (e.env?.length ?? 0) > 0 || (e.argPrompts?.length ?? 0) > 0;
 
-  const persist = async (entry: CatalogEntry, filled: Record<string, string>) => {
+  const persist = async (
+    entry: CatalogEntry,
+    filled: Record<string, string>,
+  ) => {
     const env: Record<string, string> = {};
     for (const v of entry.env ?? []) {
       const value = filled[v.key]?.trim();
@@ -93,7 +104,11 @@ function McpCatalog({ servers, onAdded, onManual }: Props) {
           kind: "error",
         });
       } else {
-        pushToast({ title: "Added from catalog", body: entry.name, kind: "success" });
+        pushToast({
+          title: "Added from catalog",
+          body: entry.name,
+          kind: "success",
+        });
       }
       setConfiguring(null);
       setFills({});
@@ -264,11 +279,14 @@ function McpCatalog({ servers, onAdded, onManual }: Props) {
                 {runtimeMissing(entry) && (
                   <div className="mcp-cat-runtime-warn">
                     <span className="mcp-cat-runtime-chip">
-                      {RUNTIME_INSTALL_HINTS[entry.command]?.runtime ?? entry.command} not installed
+                      {RUNTIME_INSTALL_HINTS[entry.command]?.runtime ??
+                        entry.command}{" "}
+                      not installed
                     </span>
                     <span className="mcp-cat-runtime-hint">
                       needs <code>{entry.command}</code> —{" "}
-                      {RUNTIME_INSTALL_HINTS[entry.command]?.install ?? "install it and reopen"}
+                      {RUNTIME_INSTALL_HINTS[entry.command]?.install ??
+                        "install it and reopen"}
                     </span>
                   </div>
                 )}
@@ -277,7 +295,10 @@ function McpCatalog({ servers, onAdded, onManual }: Props) {
                     {[entry.command, ...entry.argsTemplate].join(" ")}
                   </code>
                   {added ? (
-                    <span className="mcp-cat-added" title="Already in your list">
+                    <span
+                      className="mcp-cat-added"
+                      title="Already in your list"
+                    >
                       ✓ Added
                     </span>
                   ) : (

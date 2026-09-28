@@ -28,7 +28,8 @@ function getCtx(): AudioContext | null {
       typeof window === "undefined"
         ? undefined
         : (window.AudioContext ??
-            (window as unknown as { webkitAudioContext?: AudioCtxCtor }).webkitAudioContext);
+          (window as unknown as { webkitAudioContext?: AudioCtxCtor })
+            .webkitAudioContext);
     if (!Ctor) {
       unavailable = true;
       return null;
@@ -77,7 +78,11 @@ function playTone(
   osc.stop(t1 + 0.02);
 }
 
-function playClick(ac: AudioContext, durationSec: number, peakGain: number): void {
+function playClick(
+  ac: AudioContext,
+  durationSec: number,
+  peakGain: number,
+): void {
   // 30ms white-noise burst rendered into a one-shot AudioBuffer.
   const sampleRate = ac.sampleRate;
   const frames = Math.max(1, Math.floor(sampleRate * durationSec));

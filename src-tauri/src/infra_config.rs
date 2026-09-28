@@ -292,8 +292,7 @@ mod tests {
 
     #[test]
     fn garbage_json_degrades_to_default() {
-        let cfg: InfraConfig =
-            serde_json::from_str("not json").unwrap_or_default();
+        let cfg: InfraConfig = serde_json::from_str("not json").unwrap_or_default();
         assert!(cfg.gateway_base_url.is_none());
     }
 

@@ -159,9 +159,11 @@ fn spawn_command(cmd: &str, args: &[&str]) -> std::process::Command {
 /// non-zero exit with no JSON) are silently swallowed — `@problems` is a
 /// best-effort surface, not a build gate.
 fn run_cargo_check(root: &Path) -> Vec<Diagnostic> {
-    let Some(stdout) =
-        run_capture("cargo", &["check", "--message-format=json", "--quiet"], root)
-    else {
+    let Some(stdout) = run_capture(
+        "cargo",
+        &["check", "--message-format=json", "--quiet"],
+        root,
+    ) else {
         return Vec::new();
     };
 
@@ -196,17 +198,18 @@ fn run_cargo_check(root: &Path) -> Vec<Diagnostic> {
         let (path, line) = msg
             .get("spans")
             .and_then(|v| v.as_array())
-            .and_then(|arr| arr.iter().find(|s| s.get("is_primary").and_then(|p| p.as_bool()) == Some(true)).or_else(|| arr.first()))
+            .and_then(|arr| {
+                arr.iter()
+                    .find(|s| s.get("is_primary").and_then(|p| p.as_bool()) == Some(true))
+                    .or_else(|| arr.first())
+            })
             .map(|span| {
                 let p = span
                     .get("file_name")
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string();
-                let l = span
-                    .get("line_start")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as u32;
+                let l = span.get("line_start").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
                 (p, l)
             })
             .unwrap_or_default();

@@ -124,7 +124,10 @@ impl FireResult {
     /// Convenience: returns the stderr of the blocking hook (if any) for
     /// surfacing in the UI as the rejection reason.
     pub fn block_reason(&self) -> Option<&str> {
-        self.blocked.as_ref().map(|r| r.stderr.trim()).filter(|s| !s.is_empty())
+        self.blocked
+            .as_ref()
+            .map(|r| r.stderr.trim())
+            .filter(|s| !s.is_empty())
     }
 }
 
@@ -137,11 +140,7 @@ impl FireResult {
 /// Failures (spawn error, timeout, killed) are surfaced as `block:
 /// false` with `exit_code: -1` and a descriptive stderr so the chat loop
 /// keeps running instead of dying on a misconfigured hook.
-pub async fn run_hook(
-    spec: &HookSpec,
-    event_name: &str,
-    payload_json: &str,
-) -> HookResult {
+pub async fn run_hook(spec: &HookSpec, event_name: &str, payload_json: &str) -> HookResult {
     // Validate the spec (read verbatim from on-disk JSON) before spawning.
     // A rejected spec must not run; fail CLOSED for gating events so a
     // tampered/malformed config can't slip an action past a guard hook.
@@ -216,10 +215,7 @@ pub async fn run_hook(
             return HookResult {
                 block: is_gating_event(event_name),
                 stdout: String::new(),
-                stderr: format!(
-                    "hook '{}' timed out after {timeout_ms}ms",
-                    spec.command
-                ),
+                stderr: format!("hook '{}' timed out after {timeout_ms}ms", spec.command),
                 exit_code: -1,
             };
         }
@@ -382,7 +378,11 @@ mod tests {
             "PreToolUse".into(),
             vec![
                 shell_spec("exit 0", "exit 0", 2000),
-                shell_spec("echo blocked 1>&2; exit 2", "echo blocked 1>&2 & exit 2", 2000),
+                shell_spec(
+                    "echo blocked 1>&2; exit 2",
+                    "echo blocked 1>&2 & exit 2",
+                    2000,
+                ),
                 // Should never run because the previous one blocked.
                 shell_spec("exit 0", "exit 0", 2000),
             ],

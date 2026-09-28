@@ -20,7 +20,9 @@ fn redaction_filters_secrets_and_long_strings() {
 
 #[test]
 fn orchestrator_honors_explicit_pick() {
-    use cortex_lib::agents::{AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest, Registry};
+    use cortex_lib::agents::{
+        AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest, Registry,
+    };
     use cortex_lib::orchestrator::route;
     use std::sync::Arc;
     use tokio::sync::mpsc;
@@ -37,8 +39,12 @@ fn orchestrator_honors_explicit_pick() {
                 available: true,
             }
         }
-        async fn health_check(&self) -> bool { true }
-        async fn run(&self, _: ChatRequest, _: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> { Ok(()) }
+        async fn health_check(&self) -> bool {
+            true
+        }
+        async fn run(&self, _: ChatRequest, _: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
+            Ok(())
+        }
     }
 
     let mut reg = Registry::new();
@@ -59,7 +65,9 @@ fn orchestrator_honors_explicit_pick() {
 
 #[test]
 fn orchestrator_defaults_to_gateway_remote() {
-    use cortex_lib::agents::{AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest, Registry};
+    use cortex_lib::agents::{
+        AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest, Registry,
+    };
     use cortex_lib::orchestrator::route;
     use std::sync::Arc;
     use tokio::sync::mpsc;
@@ -68,10 +76,20 @@ fn orchestrator_defaults_to_gateway_remote() {
     #[async_trait::async_trait]
     impl AgentAdapter for Stub {
         fn descriptor(&self) -> AgentDescriptor {
-            AgentDescriptor { id: self.0.into(), label: self.0.into(), description: "".into(), capabilities: vec![AgentCapability::Chat], available: true }
+            AgentDescriptor {
+                id: self.0.into(),
+                label: self.0.into(),
+                description: "".into(),
+                capabilities: vec![AgentCapability::Chat],
+                available: true,
+            }
         }
-        async fn health_check(&self) -> bool { true }
-        async fn run(&self, _: ChatRequest, _: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> { Ok(()) }
+        async fn health_check(&self) -> bool {
+            true
+        }
+        async fn run(&self, _: ChatRequest, _: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
+            Ok(())
+        }
     }
 
     let mut reg = Registry::new();
@@ -92,7 +110,11 @@ fn orchestrator_defaults_to_gateway_remote() {
 fn memory_markdown_parses_frontmatter() {
     use cortex_lib::memory::markdown::read_entry;
     let tmp = std::env::temp_dir().join("cortex-test-memory.md");
-    std::fs::write(&tmp, "---\nname: test\ntype: project\n---\n\n# Hello\n\nBody [[other]] here.\n").unwrap();
+    std::fs::write(
+        &tmp,
+        "---\nname: test\ntype: project\n---\n\n# Hello\n\nBody [[other]] here.\n",
+    )
+    .unwrap();
     let entry = read_entry(&tmp).unwrap();
     assert_eq!(entry.title.as_deref(), Some("test"));
     assert!(entry.body.contains("Body"));
@@ -104,8 +126,12 @@ fn memory_markdown_parses_frontmatter() {
 fn tracing_store_records_and_reads() {
     use cortex_lib::observability::tracing_store::TracingStore;
     let store = TracingStore::in_memory();
-    store.record_chat_turn("trace1", "sess1", "hi", &["gateway-remote".into()], None).unwrap();
-    store.start_agent_run("span1", "trace1", "sess1", "gateway-remote", None).unwrap();
+    store
+        .record_chat_turn("trace1", "sess1", "hi", &["gateway-remote".into()], None)
+        .unwrap();
+    store
+        .start_agent_run("span1", "trace1", "sess1", "gateway-remote", None)
+        .unwrap();
     store.finish_agent_run("span1").unwrap();
     let traces = store.recent_traces(10).unwrap();
     assert_eq!(traces.len(), 1);
@@ -118,9 +144,18 @@ fn issue_dedup_works() {
     use cortex_lib::agents::AgentEvent;
     use cortex_lib::observability::tracing_store::TracingStore;
     let store = TracingStore::in_memory();
-    store.start_agent_run("span-1", "trace-1", "sess-1", "gateway-remote", None).unwrap();
+    store
+        .start_agent_run("span-1", "trace-1", "sess-1", "gateway-remote", None)
+        .unwrap();
     for _ in 0..3 {
-        store.record_event("span-1", &AgentEvent::Error { message: "Connection timeout".into() }).unwrap();
+        store
+            .record_event(
+                "span-1",
+                &AgentEvent::Error {
+                    message: "Connection timeout".into(),
+                },
+            )
+            .unwrap();
     }
     let issues = store.recent_issues(10).unwrap();
     assert_eq!(issues.len(), 1);

@@ -19,7 +19,10 @@ interface SessionSummaryModalProps {
   onClose: () => void;
 }
 
-export function SessionSummaryModal({ sessionId, onClose }: SessionSummaryModalProps) {
+export function SessionSummaryModal({
+  sessionId,
+  onClose,
+}: SessionSummaryModalProps) {
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,7 +77,11 @@ export function SessionSummaryModal({ sessionId, onClose }: SessionSummaryModalP
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Save failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Save failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -85,9 +92,17 @@ export function SessionSummaryModal({ sessionId, onClose }: SessionSummaryModalP
     const md = `# ${summary.headline}\n\n${summary.body}\n`;
     try {
       await navigator.clipboard.writeText(md);
-      pushToast({ title: "Copied", body: "Summary copied as markdown.", kind: "success" });
+      pushToast({
+        title: "Copied",
+        body: "Summary copied as markdown.",
+        kind: "success",
+      });
     } catch (e) {
-      pushToast({ title: "Copy failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Copy failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [summary]);
 
@@ -101,7 +116,11 @@ export function SessionSummaryModal({ sessionId, onClose }: SessionSummaryModalP
       >
         <header className="session-summary-header">
           <h2 id="session-summary-title">Session summary</h2>
-          <button className="session-summary-close" onClick={onClose} aria-label="Close">
+          <button
+            className="session-summary-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
             ×
           </button>
         </header>
@@ -109,7 +128,8 @@ export function SessionSummaryModal({ sessionId, onClose }: SessionSummaryModalP
         <div className="session-summary-body">
           {loading && (
             <div className="session-summary-loading">
-              <span className="session-summary-spinner" aria-hidden /> Summarizing…
+              <span className="session-summary-spinner" aria-hidden />{" "}
+              Summarizing…
             </div>
           )}
 

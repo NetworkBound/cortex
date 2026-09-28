@@ -78,8 +78,7 @@ fn save_registered_to(file: &Path, paths: &[PathBuf]) -> anyhow::Result<()> {
 /// entries whose directories no longer exist while it's there. Returns `true`
 /// when the path was newly added.
 pub fn register_project_path(dir: &Path) -> anyhow::Result<bool> {
-    let file =
-        registered_projects_file().ok_or_else(|| anyhow::anyhow!("no home directory"))?;
+    let file = registered_projects_file().ok_or_else(|| anyhow::anyhow!("no home directory"))?;
     register_project_path_in(&file, dir)
 }
 
@@ -102,8 +101,7 @@ fn register_project_path_in(file: &Path, dir: &Path) -> anyhow::Result<bool> {
 /// else by literal equality — the dir may already be deleted). Returns `true`
 /// when an entry was removed.
 pub fn unregister_project_path(dir: &Path) -> anyhow::Result<bool> {
-    let file =
-        registered_projects_file().ok_or_else(|| anyhow::anyhow!("no home directory"))?;
+    let file = registered_projects_file().ok_or_else(|| anyhow::anyhow!("no home directory"))?;
     unregister_project_path_in(&file, dir)
 }
 
@@ -289,8 +287,11 @@ fn discover_code_projects() -> Vec<ProjectMeta> {
         }
     }
     for projects_dir in &roots {
-        if !projects_dir.exists() { continue; }
-        let root_canon = std::fs::canonicalize(projects_dir).unwrap_or_else(|_| projects_dir.clone());
+        if !projects_dir.exists() {
+            continue;
+        }
+        let root_canon =
+            std::fs::canonicalize(projects_dir).unwrap_or_else(|_| projects_dir.clone());
         // Collect candidate dirs shallowest-first so a parent project is
         // recorded before any nested repo/submodule under it. We then prune
         // descendants of already-matched dirs as we go (the borrow checker
@@ -306,11 +307,15 @@ fn discover_code_projects() -> Vec<ProjectMeta> {
         candidates.sort_by_key(|p| p.components().count());
         for path in &candidates {
             let path = path.as_path();
-            if !is_project(path) { continue; }
+            if !is_project(path) {
+                continue;
+            }
             let canon = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
             // Skip if this dir is the same as, or nested under, a dir we've
             // already recorded as a project (or reached via another root).
-            if matched.iter().any(|m| &canon == m || canon.starts_with(m)) { continue; }
+            if matched.iter().any(|m| &canon == m || canon.starts_with(m)) {
+                continue;
+            }
             // Group: repos directly under a root are "Code"; deeper ones use
             // their nearest intermediate folder name relative to the root.
             let rel = canon.strip_prefix(&root_canon).ok();
@@ -363,9 +368,13 @@ fn discover_code_projects() -> Vec<ProjectMeta> {
                 .filter(|e| e.depth() == 1 && e.file_type().is_dir())
             {
                 let path = entry.into_path();
-                if !is_project(&path) { continue; }
+                if !is_project(&path) {
+                    continue;
+                }
                 let canon = std::fs::canonicalize(&path).unwrap_or_else(|_| path.clone());
-                if matched.iter().any(|m| &canon == m || canon.starts_with(m)) { continue; }
+                if matched.iter().any(|m| &canon == m || canon.starts_with(m)) {
+                    continue;
+                }
                 let name = path
                     .file_name()
                     .map(|s| s.to_string_lossy().to_string())
@@ -379,7 +388,10 @@ fn discover_code_projects() -> Vec<ProjectMeta> {
                     group: "Code".to_string(),
                     kind: "code".to_string(),
                     note_path: None,
-                    subtitle: path.strip_prefix(&home_canon).ok().map(|r| r.to_string_lossy().to_string()),
+                    subtitle: path
+                        .strip_prefix(&home_canon)
+                        .ok()
+                        .map(|r| r.to_string_lossy().to_string()),
                     root: path,
                 });
                 matched.push(canon);
@@ -395,7 +407,9 @@ fn discover_code_projects() -> Vec<ProjectMeta> {
 /// project grouped under "Vault Projects". Missing dir → empty list (no error).
 fn discover_vault_projects(vault_root: Option<PathBuf>) -> Vec<ProjectMeta> {
     let mut out = Vec::new();
-    let Some(vault) = vault_root else { return out; };
+    let Some(vault) = vault_root else {
+        return out;
+    };
     let dir = vault.join("30-Projects");
     if !dir.is_dir() {
         return out;
@@ -488,17 +502,29 @@ pub fn list_files(root: &Path, max_entries: usize) -> Vec<FileTreeEntry> {
             // their own descendants out, surfacing as a spaces test failure
             // (and probably more subtle runtime issues for users with
             // tempdir-like project locations).
-            if e.depth() == 0 { return true; }
+            if e.depth() == 0 {
+                return true;
+            }
             let name = e.file_name().to_string_lossy();
-            if name.starts_with('.') { return false; }
+            if name.starts_with('.') {
+                return false;
+            }
             !ignore.is_denied(e.path(), root)
         })
         .filter_map(|e| e.ok())
     {
-        if entry.depth() == 0 { continue; }
-        if out.len() >= max_entries { break; }
+        if entry.depth() == 0 {
+            continue;
+        }
+        if out.len() >= max_entries {
+            break;
+        }
         let is_dir = entry.file_type().is_dir();
-        let size = if is_dir { None } else { entry.metadata().ok().map(|m| m.len()) };
+        let size = if is_dir {
+            None
+        } else {
+            entry.metadata().ok().map(|m| m.len())
+        };
         out.push(FileTreeEntry {
             name: entry.file_name().to_string_lossy().to_string(),
             is_dir,
@@ -597,7 +623,11 @@ mod registry_tests {
         let got = parse_projects_root_env(std::ffi::OsStr::new(&raw));
         assert_eq!(
             got,
-            vec![PathBuf::from("/a/one"), PathBuf::from("/b/two"), PathBuf::from("/c/three")]
+            vec![
+                PathBuf::from("/a/one"),
+                PathBuf::from("/b/two"),
+                PathBuf::from("/c/three")
+            ]
         );
         assert!(parse_projects_root_env(std::ffi::OsStr::new("  ")).is_empty());
     }

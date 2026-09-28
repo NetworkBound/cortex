@@ -221,7 +221,11 @@ mod tests {
     use super::*;
 
     fn turn(role: &str, content: &str) -> ChatTurn {
-        ChatTurn { role: role.into(), content: content.into(), agent: None }
+        ChatTurn {
+            role: role.into(),
+            content: content.into(),
+            agent: None,
+        }
     }
 
     #[test]
@@ -240,12 +244,19 @@ mod tests {
 
     #[test]
     fn transcript_reads_chronologically() {
-        let turns = vec![turn("user", "first"), turn("assistant", "second"), turn("user", "third")];
+        let turns = vec![
+            turn("user", "first"),
+            turn("assistant", "second"),
+            turn("user", "third"),
+        ];
         let t = build_transcript(&turns);
         let first = t.find("first").unwrap();
         let second = t.find("second").unwrap();
         let third = t.find("third").unwrap();
-        assert!(first < second && second < third, "transcript out of order: {t}");
+        assert!(
+            first < second && second < third,
+            "transcript out of order: {t}"
+        );
     }
 
     #[test]
@@ -262,8 +273,14 @@ mod tests {
         let turns = vec![turn("user", &big), turn("assistant", "recent answer")];
         let t = build_transcript(&turns);
         assert!(t.contains("recent answer"), "newest turn must survive");
-        assert!(t.contains("[…older messages truncated…]"), "marker expected");
-        assert!(!t.contains(&big), "the oversized old turn should be dropped");
+        assert!(
+            t.contains("[…older messages truncated…]"),
+            "marker expected"
+        );
+        assert!(
+            !t.contains(&big),
+            "the oversized old turn should be dropped"
+        );
     }
 
     #[test]
@@ -291,9 +308,15 @@ mod tests {
         ));
         let turns = vec![
             turn("user", "Let's refactor the auth module to use JWTs."),
-            turn("assistant", "I updated src/auth/jwt.rs to sign tokens and added a verify() helper."),
+            turn(
+                "assistant",
+                "I updated src/auth/jwt.rs to sign tokens and added a verify() helper.",
+            ),
             turn("user", "Also rotate the signing key on startup."),
-            turn("assistant", "Done — key rotation wired into src/auth/keys.rs at boot."),
+            turn(
+                "assistant",
+                "Done — key rotation wired into src/auth/keys.rs at boot.",
+            ),
         ];
         let msg = build_condense_message(&turns);
         let summary = run_condense(adapter, "ollama:llama3.2:1b".into(), msg, |_| {})

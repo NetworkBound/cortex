@@ -110,7 +110,11 @@ mod tests {
     #[test]
     fn resolve_program_keeps_paths_and_unknown_names_verbatim() {
         // A name with a separator is never looked up.
-        let p = if cfg!(windows) { "C:\\tools\\npm.cmd" } else { "/usr/local/bin/npm" };
+        let p = if cfg!(windows) {
+            "C:\\tools\\npm.cmd"
+        } else {
+            "/usr/local/bin/npm"
+        };
         assert_eq!(resolve_program(p), PathBuf::from(p));
         // An unknown bare name falls back to itself so the spawn error is honest.
         let bogus = "definitely-not-a-real-program-xyzzy-42";
@@ -122,6 +126,9 @@ mod tests {
         // Every CI host has one of these; the resolved path must be absolute.
         let name = if cfg!(windows) { "cmd" } else { "sh" };
         let resolved = resolve_program(name);
-        assert!(resolved.is_absolute(), "expected an absolute path, got {resolved:?}");
+        assert!(
+            resolved.is_absolute(),
+            "expected an absolute path, got {resolved:?}"
+        );
     }
 }

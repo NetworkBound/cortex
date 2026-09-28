@@ -46,8 +46,7 @@ export function SurfaceLayer({ bgImageUrl, children }: SurfaceLayerProps) {
     };
   }, [bgImageUrl]);
 
-  const effectiveUrl =
-    bgImageUrl !== undefined ? bgImageUrl : persistedUrl;
+  const effectiveUrl = bgImageUrl !== undefined ? bgImageUrl : persistedUrl;
 
   // Only render the dimming overlay when there's actually an image behind
   // it. Without that guard, the overlay (z-index: 1, opacity: 0.92) covers

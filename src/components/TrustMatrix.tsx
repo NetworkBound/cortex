@@ -62,14 +62,62 @@ interface ToggleDef {
 }
 
 const TOGGLES: ToggleDef[] = [
-  { key: "read_in_workspace", label: "Read in workspace", hint: "Auto-approve reads of files in the project root.", risk: "low", enforced: true },
-  { key: "read_outside",      label: "Read outside",      hint: "Auto-approve reads of files anywhere on disk.",      risk: "med", enforced: true },
-  { key: "edit_in_workspace", label: "Edit in workspace", hint: "Auto-approve edits to files in the project root.", risk: "med", enforced: true },
-  { key: "edit_outside",      label: "Edit outside",      hint: "Auto-approve edits to files anywhere on disk.",     risk: "high", enforced: true },
-  { key: "safe_commands",     label: "Safe commands",     hint: "Auto-approve allow-listed read-only shell commands.", risk: "low", enforced: true },
-  { key: "all_commands",      label: "All commands",      hint: "Auto-approve every shell command. Use with care.",   risk: "high", enforced: true },
-  { key: "browser",           label: "Browser",           hint: "Auto-approve browser/playwright tool calls.",         risk: "med", enforced: false },
-  { key: "mcp",               label: "MCP",               hint: "Auto-approve MCP server tool invocations.",           risk: "med", enforced: false },
+  {
+    key: "read_in_workspace",
+    label: "Read in workspace",
+    hint: "Auto-approve reads of files in the project root.",
+    risk: "low",
+    enforced: true,
+  },
+  {
+    key: "read_outside",
+    label: "Read outside",
+    hint: "Auto-approve reads of files anywhere on disk.",
+    risk: "med",
+    enforced: true,
+  },
+  {
+    key: "edit_in_workspace",
+    label: "Edit in workspace",
+    hint: "Auto-approve edits to files in the project root.",
+    risk: "med",
+    enforced: true,
+  },
+  {
+    key: "edit_outside",
+    label: "Edit outside",
+    hint: "Auto-approve edits to files anywhere on disk.",
+    risk: "high",
+    enforced: true,
+  },
+  {
+    key: "safe_commands",
+    label: "Safe commands",
+    hint: "Auto-approve allow-listed read-only shell commands.",
+    risk: "low",
+    enforced: true,
+  },
+  {
+    key: "all_commands",
+    label: "All commands",
+    hint: "Auto-approve every shell command. Use with care.",
+    risk: "high",
+    enforced: true,
+  },
+  {
+    key: "browser",
+    label: "Browser",
+    hint: "Auto-approve browser/playwright tool calls.",
+    risk: "med",
+    enforced: false,
+  },
+  {
+    key: "mcp",
+    label: "MCP",
+    hint: "Auto-approve MCP server tool invocations.",
+    risk: "med",
+    enforced: false,
+  },
 ];
 
 export function TrustMatrix() {
@@ -90,7 +138,9 @@ export function TrustMatrix() {
         console.warn("get_trust_matrix failed", err);
         if (!cancelled) setLoaded(true);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Fire-and-forget persist on every edit. We compute the next state from the
@@ -149,7 +199,8 @@ export function TrustMatrix() {
                   className="trust-toggle-unenforced"
                   title="Saved, but not yet consulted by the approval pipeline — browser/MCP tool calls don't reach it yet."
                 >
-                  {" "}· not yet enforced
+                  {" "}
+                  · not yet enforced
                 </span>
               )}
             </span>
@@ -170,16 +221,12 @@ export function TrustMatrix() {
           />
         </label>
         <div className="muted trust-matrix-cap-hint">
-          Hard ceiling on agent tool calls inside a single task. The agent
-          will stop and ask once it hits this number.
+          Hard ceiling on agent tool calls inside a single task. The agent will
+          stop and ask once it hits this number.
         </div>
       </div>
 
-      {error && (
-        <div className="trust-matrix-error">
-          Save failed: {error}
-        </div>
-      )}
+      {error && <div className="trust-matrix-error">Save failed: {error}</div>}
     </div>
   );
 }

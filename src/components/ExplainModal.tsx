@@ -122,7 +122,11 @@ export function ExplainModal({
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Copy failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Copy failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [result]);
 
@@ -143,7 +147,11 @@ export function ExplainModal({
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Save failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Save failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [result]);
 
@@ -174,13 +182,21 @@ export function ExplainModal({
               {path}
             </div>
           </div>
-          <button className="explain-close" onClick={onClose} aria-label="Close">
+          <button
+            className="explain-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
             ×
           </button>
         </header>
 
         <div className="explain-toolbar">
-          <div className="explain-audience" role="radiogroup" aria-label="Audience">
+          <div
+            className="explain-audience"
+            role="radiogroup"
+            aria-label="Audience"
+          >
             {AUDIENCE_OPTIONS.map((opt) => (
               <label
                 key={opt.value}

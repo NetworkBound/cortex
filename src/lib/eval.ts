@@ -79,6 +79,8 @@ export async function evalActive(): Promise<EvalProgress | null> {
   return invoke<EvalProgress | null>("eval_active");
 }
 
-export async function onEvalProgress(cb: (p: EvalProgress) => void): Promise<UnlistenFn> {
+export async function onEvalProgress(
+  cb: (p: EvalProgress) => void,
+): Promise<UnlistenFn> {
   return listen<EvalProgress>("eval:progress", (e) => cb(e.payload));
 }

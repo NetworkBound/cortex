@@ -6,7 +6,12 @@ import type { ImageAttachment } from "@/lib/composer-drop";
 import type { MultibufferExcerpt } from "@/lib/multibuffer";
 import type { ProjectMeta } from "@/lib/projects";
 import type { Profile } from "@/lib/profiles";
-import { makeThread, newSessionId, patchActiveThread, type Thread } from "./threads";
+import {
+  makeThread,
+  newSessionId,
+  patchActiveThread,
+  type Thread,
+} from "./threads";
 
 export type { Thread } from "./threads";
 
@@ -257,7 +262,12 @@ interface CortexState {
     risk?: Risk,
     riskReason?: string,
   ) => void;
-  setToolFinished: (id: string, tool: string, ok: boolean, durationMs: number | null) => void;
+  setToolFinished: (
+    id: string,
+    tool: string,
+    ok: boolean,
+    durationMs: number | null,
+  ) => void;
   setApprovalOnMessage: (id: string, approval: PendingApproval | null) => void;
   setMessageRunId: (id: string, runId: string | null) => void;
   setMessageDone: (id: string) => void;
@@ -310,7 +320,10 @@ interface CortexState {
   /** Set (or clear) the run Run Replay should focus on next time it mounts. */
   setReplayFocusSpanId: (id: string | null) => void;
   setShowComposer: (b: boolean) => void;
-  addComposerEdit: (e: Omit<ComposerEdit, "id" | "ts" | "status"> & Partial<Pick<ComposerEdit, "id" | "ts" | "status">>) => void;
+  addComposerEdit: (
+    e: Omit<ComposerEdit, "id" | "ts" | "status"> &
+      Partial<Pick<ComposerEdit, "id" | "ts" | "status">>,
+  ) => void;
   setComposerEditStatus: (id: string, status: ComposerEdit["status"]) => void;
   clearComposerEdits: () => void;
   setShowSessionPicker: (b: boolean) => void;
@@ -366,14 +379,22 @@ export const useCortexStore = create<CortexState>((set, get) => ({
   lastRoutingReason: initialThread.lastRoutingReason,
   queuedMessages: [],
   soundsEnabled: (() => {
-    try { return localStorage.getItem("cortex.soundsEnabled") === "true"; } catch { return false; }
+    try {
+      return localStorage.getItem("cortex.soundsEnabled") === "true";
+    } catch {
+      return false;
+    }
   })(),
   selectedProviders: (() => {
     try {
       const r = localStorage.getItem("cortex.selectedProviders");
       const v = r ? (JSON.parse(r) as unknown) : [];
-      return Array.isArray(v) ? (v as string[]).filter((x) => typeof x === "string") : [];
-    } catch { return []; }
+      return Array.isArray(v)
+        ? (v as string[]).filter((x) => typeof x === "string")
+        : [];
+    } catch {
+      return [];
+    }
   })(),
   expandedReasonings: new Set<string>(),
   activityTab: null,
@@ -385,7 +406,11 @@ export const useCortexStore = create<CortexState>((set, get) => ({
   currentWorktreeId: null,
   currentWorktreePath: null,
   onboardingComplete: (() => {
-    try { return localStorage.getItem("cortex.onboarded") === "true"; } catch { return false; }
+    try {
+      return localStorage.getItem("cortex.onboarded") === "true";
+    } catch {
+      return false;
+    }
   })(),
   seenFeatures: (() => {
     try {
@@ -393,41 +418,74 @@ export const useCortexStore = create<CortexState>((set, get) => ({
       if (!raw) return new Set<string>();
       const arr = JSON.parse(raw);
       return new Set<string>(Array.isArray(arr) ? arr : []);
-    } catch { return new Set<string>(); }
+    } catch {
+      return new Set<string>();
+    }
   })(),
   currentMode: (() => {
     try {
       const v = localStorage.getItem("cortex.mode");
       return v === "plan" ? "plan" : "act";
-    } catch { return "act"; }
+    } catch {
+      return "act";
+    }
   })(),
   currentProfile: null,
   focusChain: [],
   architectMode: (() => {
-    try { return localStorage.getItem("cortex.architectMode") === "true"; } catch { return false; }
+    try {
+      return localStorage.getItem("cortex.architectMode") === "true";
+    } catch {
+      return false;
+    }
   })(),
   plannerModel: (() => {
-    try { return localStorage.getItem("cortex.plannerModel"); } catch { return null; }
+    try {
+      return localStorage.getItem("cortex.plannerModel");
+    } catch {
+      return null;
+    }
   })(),
   editorModel: (() => {
-    try { return localStorage.getItem("cortex.editorModel"); } catch { return null; }
+    try {
+      return localStorage.getItem("cortex.editorModel");
+    } catch {
+      return null;
+    }
   })(),
   selectedModel: (() => {
     // Build-time default model (set only for custom bundles, e.g. the homelab
     // build that should default to its Model Fabric endpoint instead of the
     // gateway). No-op for normal builds where VITE_DEFAULT_MODEL is unset.
     const buildDefault =
-      ((import.meta as unknown as { env?: Record<string, string> }).env?.VITE_DEFAULT_MODEL) || null;
-    try { return localStorage.getItem("cortex.selectedModel") ?? buildDefault; } catch { return buildDefault; }
+      (import.meta as unknown as { env?: Record<string, string> }).env
+        ?.VITE_DEFAULT_MODEL || null;
+    try {
+      return localStorage.getItem("cortex.selectedModel") ?? buildDefault;
+    } catch {
+      return buildDefault;
+    }
   })(),
   selectedReasoningEffort: (() => {
-    try { return localStorage.getItem("cortex.selectedReasoningEffort"); } catch { return null; }
+    try {
+      return localStorage.getItem("cortex.selectedReasoningEffort");
+    } catch {
+      return null;
+    }
   })(),
   compareModels: (() => {
-    try { return JSON.parse(localStorage.getItem("cortex.compareModels") || "[]"); } catch { return []; }
+    try {
+      return JSON.parse(localStorage.getItem("cortex.compareModels") || "[]");
+    } catch {
+      return [];
+    }
   })(),
   enhancePrompt: (() => {
-    try { return localStorage.getItem("cortex.enhancePrompt") === "true"; } catch { return false; }
+    try {
+      return localStorage.getItem("cortex.enhancePrompt") === "true";
+    } catch {
+      return false;
+    }
   })(),
   editorPath: null,
   editorDirty: false,
@@ -437,10 +495,16 @@ export const useCortexStore = create<CortexState>((set, get) => ({
       const v = localStorage.getItem("cortex.brain.auto");
       // Default ON when unset.
       return v === null ? true : v === "true";
-    } catch { return true; }
+    } catch {
+      return true;
+    }
   })(),
   setBrainAutoEnabled: (v: boolean) => {
-    try { localStorage.setItem("cortex.brain.auto", String(v)); } catch { /* private mode */ }
+    try {
+      localStorage.setItem("cortex.brain.auto", String(v));
+    } catch {
+      /* private mode */
+    }
     set({ brainAutoEnabled: v });
   },
   autoCondenseEnabled: (() => {
@@ -448,10 +512,16 @@ export const useCortexStore = create<CortexState>((set, get) => ({
       const v = localStorage.getItem("cortex.autocondense.enabled");
       // Default ON when unset — Cline condenses on overflow by default.
       return v === null ? true : v === "true";
-    } catch { return true; }
+    } catch {
+      return true;
+    }
   })(),
   setAutoCondenseEnabled: (v: boolean) => {
-    try { localStorage.setItem("cortex.autocondense.enabled", String(v)); } catch { /* private mode */ }
+    try {
+      localStorage.setItem("cortex.autocondense.enabled", String(v));
+    } catch {
+      /* private mode */
+    }
     set({ autoCondenseEnabled: v });
   },
   autoCondenseThreshold: (() => {
@@ -461,11 +531,17 @@ export const useCortexStore = create<CortexState>((set, get) => ({
       // sane band so a corrupt value can't disable or thrash the feature.
       if (!Number.isFinite(raw) || raw < 50 || raw > 95) return 80;
       return raw;
-    } catch { return 80; }
+    } catch {
+      return 80;
+    }
   })(),
   setAutoCondenseThreshold: (pct: number) => {
     const clamped = Math.max(50, Math.min(95, Math.round(pct)));
-    try { localStorage.setItem("cortex.autocondense.threshold", String(clamped)); } catch { /* private mode */ }
+    try {
+      localStorage.setItem("cortex.autocondense.threshold", String(clamped));
+    } catch {
+      /* private mode */
+    }
     set({ autoCondenseThreshold: clamped });
   },
   multibufferExcerpts: [],
@@ -494,7 +570,10 @@ export const useCortexStore = create<CortexState>((set, get) => ({
           const blocks = m.blocks ? [...m.blocks] : [];
           const last = blocks[blocks.length - 1];
           if (last && last.type === "text") {
-            blocks[blocks.length - 1] = { type: "text", text: last.text + delta };
+            blocks[blocks.length - 1] = {
+              type: "text",
+              text: last.text + delta,
+            };
           } else {
             blocks.push({ type: "text", text: delta });
           }
@@ -508,7 +587,9 @@ export const useCortexStore = create<CortexState>((set, get) => ({
       patchActiveThread(s, (t) => ({
         ...t,
         messages: t.messages.map((m) =>
-          m.id === id ? { ...m, reasoning: (m.reasoning ?? "") + delta + "\n" } : m,
+          m.id === id
+            ? { ...m, reasoning: (m.reasoning ?? "") + delta + "\n" }
+            : m,
         ),
         lastTs: Date.now(),
       })),
@@ -549,7 +630,9 @@ export const useCortexStore = create<CortexState>((set, get) => ({
         ...t,
         messages: t.messages.map((m) => {
           if (m.id !== id) return m;
-          const rIdx = [...m.tools].reverse().findIndex((x) => x.name === tool && x.status === "running");
+          const rIdx = [...m.tools]
+            .reverse()
+            .findIndex((x) => x.name === tool && x.status === "running");
           if (rIdx < 0) return m;
           const realIdx = m.tools.length - 1 - rIdx;
           const updated = [...m.tools];
@@ -580,7 +663,9 @@ export const useCortexStore = create<CortexState>((set, get) => ({
     set((s) =>
       patchActiveThread(s, (t) => ({
         ...t,
-        messages: t.messages.map((m) => (m.id === id ? { ...m, pending: false } : m)),
+        messages: t.messages.map((m) =>
+          m.id === id ? { ...m, pending: false } : m,
+        ),
       })),
     ),
   setMessageError: (id, message) =>
@@ -589,7 +674,13 @@ export const useCortexStore = create<CortexState>((set, get) => ({
         ...t,
         messages: t.messages.map((m) =>
           m.id === id
-            ? { ...m, content: (m.content ? m.content + "\n\n" : "") + `error: ${message}`, role: "error", pending: false }
+            ? {
+                ...m,
+                content:
+                  (m.content ? m.content + "\n\n" : "") + `error: ${message}`,
+                role: "error",
+                pending: false,
+              }
             : m,
         ),
       })),
@@ -599,8 +690,12 @@ export const useCortexStore = create<CortexState>((set, get) => ({
   resetSession: () =>
     set((s) => ({
       ...patchActiveThread(s, (t) => ({
-        ...t, sessionId: newSessionId(), messages: [], runningRunIds: [],
-        lastRoutingReason: null, lastTs: Date.now(),
+        ...t,
+        sessionId: newSessionId(),
+        messages: [],
+        runningRunIds: [],
+        lastRoutingReason: null,
+        lastTs: Date.now(),
       })),
       focusChain: [],
       queuedMessages: [],
@@ -608,8 +703,12 @@ export const useCortexStore = create<CortexState>((set, get) => ({
   resumeSession: (sessionId, messages) =>
     set((s) => ({
       ...patchActiveThread(s, (t) => ({
-        ...t, sessionId, messages, runningRunIds: [],
-        lastRoutingReason: null, lastTs: Date.now(),
+        ...t,
+        sessionId,
+        messages,
+        runningRunIds: [],
+        lastRoutingReason: null,
+        lastTs: Date.now(),
       })),
       focusChain: [],
       queuedMessages: [],
@@ -646,40 +745,64 @@ export const useCortexStore = create<CortexState>((set, get) => ({
   clearRunIds: () =>
     set((s) => patchActiveThread(s, (t) => ({ ...t, runningRunIds: [] }))),
   setLastRoutingReason: (reason) =>
-    set((s) => patchActiveThread(s, (t) => ({ ...t, lastRoutingReason: reason }))),
+    set((s) =>
+      patchActiveThread(s, (t) => ({ ...t, lastRoutingReason: reason })),
+    ),
   enqueueMessage: (q) =>
     set((s) => ({ queuedMessages: [...s.queuedMessages, q] })),
   dequeueMessage: (id) =>
-    set((s) => ({ queuedMessages: s.queuedMessages.filter((q) => q.id !== id) })),
+    set((s) => ({
+      queuedMessages: s.queuedMessages.filter((q) => q.id !== id),
+    })),
   clearQueuedMessages: () => set({ queuedMessages: [] }),
   setSoundsEnabled: (b) => {
-    try { localStorage.setItem("cortex.soundsEnabled", String(b)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem("cortex.soundsEnabled", String(b));
+    } catch {
+      /* ignore */
+    }
     set({ soundsEnabled: b });
   },
   setSelectedProviders: (p) => {
-    try { localStorage.setItem("cortex.selectedProviders", JSON.stringify(p)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem("cortex.selectedProviders", JSON.stringify(p));
+    } catch {
+      /* ignore */
+    }
     set({ selectedProviders: p });
   },
   setSelectedModel: (m) => {
     try {
       if (m) localStorage.setItem("cortex.selectedModel", m);
       else localStorage.removeItem("cortex.selectedModel");
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     set({ selectedModel: m });
   },
   setSelectedReasoningEffort: (e) => {
     try {
       if (e) localStorage.setItem("cortex.selectedReasoningEffort", e);
       else localStorage.removeItem("cortex.selectedReasoningEffort");
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     set({ selectedReasoningEffort: e });
   },
   setCompareModels: (m) => {
-    try { localStorage.setItem("cortex.compareModels", JSON.stringify(m)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem("cortex.compareModels", JSON.stringify(m));
+    } catch {
+      /* ignore */
+    }
     set({ compareModels: m });
   },
   setEnhancePrompt: (v: boolean) => {
-    try { localStorage.setItem("cortex.enhancePrompt", String(v)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem("cortex.enhancePrompt", String(v));
+    } catch {
+      /* ignore */
+    }
     set({ enhancePrompt: v });
   },
   toggleReasoning: (id) =>
@@ -710,13 +833,22 @@ export const useCortexStore = create<CortexState>((set, get) => ({
       ],
     })),
   setComposerEditStatus: (id, status) =>
-    set((s) => ({ composerEdits: s.composerEdits.map((e) => (e.id === id ? { ...e, status } : e)) })),
+    set((s) => ({
+      composerEdits: s.composerEdits.map((e) =>
+        e.id === id ? { ...e, status } : e,
+      ),
+    })),
   clearComposerEdits: () => set({ composerEdits: [] }),
   setShowSessionPicker: (b) => set({ showSessionPicker: b }),
   setShowQuickOpen: (b) => set({ showQuickOpen: b }),
-  setCurrentWorktree: (id, path) => set({ currentWorktreeId: id, currentWorktreePath: path ?? null }),
+  setCurrentWorktree: (id, path) =>
+    set({ currentWorktreeId: id, currentWorktreePath: path ?? null }),
   setOnboardingComplete: (b) => {
-    try { localStorage.setItem("cortex.onboarded", String(b)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem("cortex.onboarded", String(b));
+    } catch {
+      /* ignore */
+    }
     set({ onboardingComplete: b });
   },
   markFeatureSeen: (name) =>
@@ -726,19 +858,31 @@ export const useCortexStore = create<CortexState>((set, get) => ({
       next.add(name);
       try {
         localStorage.setItem("cortex.seenFeatures", JSON.stringify([...next]));
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       return { seenFeatures: next };
     }),
   setCurrentMode: (m) => {
-    try { localStorage.setItem("cortex.mode", m); } catch { /* ignore */ }
+    try {
+      localStorage.setItem("cortex.mode", m);
+    } catch {
+      /* ignore */
+    }
     set({ currentMode: m });
     // Best-effort: push to backend so legacy chat_send callers respect it too.
-    void pushModeToBackend(m).catch(() => { /* not in Tauri context */ });
+    void pushModeToBackend(m).catch(() => {
+      /* not in Tauri context */
+    });
   },
   setCurrentProfile: (p) => set({ currentProfile: p }),
   setFocusChain: (items) => set({ focusChain: items }),
   setArchitectMode: (b) => {
-    try { localStorage.setItem("cortex.architectMode", String(b)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem("cortex.architectMode", String(b));
+    } catch {
+      /* ignore */
+    }
     set({ architectMode: b });
   },
   setArchitectModels: (planner, editor) => {
@@ -747,7 +891,9 @@ export const useCortexStore = create<CortexState>((set, get) => ({
       else localStorage.removeItem("cortex.plannerModel");
       if (editor) localStorage.setItem("cortex.editorModel", editor);
       else localStorage.removeItem("cortex.editorModel");
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     set({ plannerModel: planner, editorModel: editor });
   },
   openEditorPath: async (path) => {
@@ -776,7 +922,11 @@ export const useCortexStore = create<CortexState>((set, get) => ({
   toHistory: () =>
     get()
       .messages.filter((m) => m.role === "user" || m.role === "assistant")
-      .map((m) => ({ role: m.role as "user" | "assistant", content: m.content, agent: m.agent })),
+      .map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+        agent: m.agent,
+      })),
 
   // ── Thread actions ──────────────────────────────────────────────────────
   newThread: (label) => {
@@ -859,7 +1009,8 @@ export const useCortexStore = create<CortexState>((set, get) => ({
   hydrateThreads: (threads, activeId) => {
     if (threads.length === 0) return;
     const sorted = threads.slice().sort((a, b) => b.lastTs - a.lastTs);
-    const active = (activeId && sorted.find((t) => t.id === activeId)) || sorted[0];
+    const active =
+      (activeId && sorted.find((t) => t.id === activeId)) || sorted[0];
     set({
       threads: sorted,
       activeThreadId: active.id,

@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { analyzeVault, type VaultAnalysis, type VaultNote } from "@/lib/vault-analysis";
+import {
+  analyzeVault,
+  type VaultAnalysis,
+  type VaultNote,
+} from "@/lib/vault-analysis";
 import { humanizeError } from "@/lib/errors";
 import { invoke } from "@tauri-apps/api/core";
 import { getGatewayConfig } from "@/lib/cortex-bridge";
@@ -66,7 +70,10 @@ function FolderList({ analysis }: { analysis: VaultAnalysis }) {
       return rel !== null && !rel.includes("/");
     });
 
-  const renderFolder = (f: { path: string; note_count: number; total_count: number }, depth: number) => {
+  const renderFolder = (
+    f: { path: string; note_count: number; total_count: number },
+    depth: number,
+  ) => {
     const subs = subFolders(f.path);
     const isExpanded = expanded.has(f.path);
     return (
@@ -78,10 +85,10 @@ function FolderList({ analysis }: { analysis: VaultAnalysis }) {
           <span className="vault-folder-toggle">
             {subs.length > 0 ? (isExpanded ? "v" : ">") : " "}
           </span>
-          <span className="vault-folder-name">
-            {f.path.split("/").pop()}
+          <span className="vault-folder-name">{f.path.split("/").pop()}</span>
+          <span className="muted">
+            {f.note_count} direct / {f.total_count} total
           </span>
-          <span className="muted">{f.note_count} direct / {f.total_count} total</span>
         </div>
         {isExpanded && subs.map((s) => renderFolder(s, depth + 1))}
       </div>
@@ -92,7 +99,9 @@ function FolderList({ analysis }: { analysis: VaultAnalysis }) {
     <div className="vault-list">
       {topFolders.map((f) => renderFolder(f, 0))}
       {topFolders.length === 0 && (
-        <div className="muted" style={{ padding: 12 }}>All notes are in the vault root.</div>
+        <div className="muted" style={{ padding: 12 }}>
+          All notes are in the vault root.
+        </div>
       )}
     </div>
   );
@@ -140,14 +149,19 @@ function NoteList({
     if (sortBy === "title") s.sort((a, b) => a.title.localeCompare(b.title));
     if (sortBy === "size") s.sort((a, b) => b.size - a.size);
     if (sortBy === "links")
-      s.sort((a, b) => b.link_count + b.backlink_count - (a.link_count + a.backlink_count));
+      s.sort(
+        (a, b) =>
+          b.link_count + b.backlink_count - (a.link_count + a.backlink_count),
+      );
     return s;
   }, [notes, sortBy]);
 
   return (
     <div className="vault-list">
       <div className="vault-list-header">
-        <span className="muted">{label} ({notes.length})</span>
+        <span className="muted">
+          {label} ({notes.length})
+        </span>
         <span className="vault-sort-group">
           {(["title", "size", "links"] as const).map((k) => (
             <button
@@ -197,7 +211,9 @@ function BrokenLinkList({
   return (
     <div className="vault-list">
       <div className="vault-list-header">
-        <span className="muted">Broken wikilinks ({analysis.broken_links.length})</span>
+        <span className="muted">
+          Broken wikilinks ({analysis.broken_links.length})
+        </span>
       </div>
       {analysis.broken_links.slice(0, 200).map(([source, target], i) => (
         <div
@@ -205,16 +221,14 @@ function BrokenLinkList({
           className="vault-note-row"
           onClick={() => onOpen(source)}
         >
-          <span className="vault-note-title">
-            [[{target}]]
-          </span>
-          <span className="muted vault-note-meta">
-            in {source}
-          </span>
+          <span className="vault-note-title">[[{target}]]</span>
+          <span className="muted vault-note-meta">in {source}</span>
         </div>
       ))}
       {analysis.broken_links.length === 0 && (
-        <div className="muted" style={{ padding: 12 }}>No broken links found.</div>
+        <div className="muted" style={{ padding: 12 }}>
+          No broken links found.
+        </div>
       )}
     </div>
   );
@@ -301,7 +315,9 @@ export function VaultManager() {
             >
               {n.label}
               {n.id === "orphans" && analysis ? ` (${orphans.length})` : ""}
-              {n.id === "broken" && analysis ? ` (${analysis.broken_link_count})` : ""}
+              {n.id === "broken" && analysis
+                ? ` (${analysis.broken_link_count})`
+                : ""}
             </button>
           ))}
         </div>
@@ -328,15 +344,29 @@ export function VaultManager() {
       {error ? (
         <div className="vault-error">{error}</div>
       ) : loading && !analysis ? (
-        <div className="muted" style={{ padding: 16 }}>Scanning vault...</div>
+        <div className="muted" style={{ padding: 16 }}>
+          Scanning vault...
+        </div>
       ) : !analysis ? null : (
         <div className="vault-body">
           {view === "overview" && (
             <>
               <div className="vault-stats-row">
-                <StatCard label="Notes" value={analysis.total_notes} onClick={() => setView("notes")} />
-                <StatCard label="Folders" value={analysis.total_folders} onClick={() => setView("folders")} />
-                <StatCard label="Tags" value={analysis.total_tags} onClick={() => setView("tags")} />
+                <StatCard
+                  label="Notes"
+                  value={analysis.total_notes}
+                  onClick={() => setView("notes")}
+                />
+                <StatCard
+                  label="Folders"
+                  value={analysis.total_folders}
+                  onClick={() => setView("folders")}
+                />
+                <StatCard
+                  label="Tags"
+                  value={analysis.total_tags}
+                  onClick={() => setView("tags")}
+                />
                 <StatCard
                   label="Orphans"
                   value={analysis.orphan_count}
@@ -355,11 +385,21 @@ export function VaultManager() {
                 <div className="vault-section">
                   <div className="vault-section-header">
                     <span>Top Tags</span>
-                    <button type="button" className="link-btn" onClick={() => setView("tags")}>all</button>
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() => setView("tags")}
+                    >
+                      all
+                    </button>
                   </div>
                   <div className="vault-tag-cloud">
                     {analysis.tags.slice(0, 20).map((t) => (
-                      <span key={t.tag} className="vault-tag-pill" title={`${t.count} notes`}>
+                      <span
+                        key={t.tag}
+                        className="vault-tag-pill"
+                        title={`${t.count} notes`}
+                      >
                         #{t.tag}
                         <span className="vault-tag-count">{t.count}</span>
                       </span>
@@ -372,7 +412,13 @@ export function VaultManager() {
                 <div className="vault-section">
                   <div className="vault-section-header">
                     <span>Top Folders</span>
-                    <button type="button" className="link-btn" onClick={() => setView("folders")}>all</button>
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() => setView("folders")}
+                    >
+                      all
+                    </button>
                   </div>
                   <div className="vault-top-folders">
                     {analysis.folders
@@ -393,8 +439,9 @@ export function VaultManager() {
                   <span>AI Auto-Sort</span>
                 </div>
                 <p className="muted" style={{ margin: "0 0 8px" }}>
-                  Analyze your vault's topology and get AI-powered suggestions for folder moves,
-                  tag cleanup, orphan resolution, and link tightening.
+                  Analyze your vault's topology and get AI-powered suggestions
+                  for folder moves, tag cleanup, orphan resolution, and link
+                  tightening.
                 </p>
                 <button
                   type="button"
@@ -414,7 +461,11 @@ export function VaultManager() {
           {view === "folders" && <FolderList analysis={analysis} />}
           {view === "tags" && <TagCloud analysis={analysis} />}
           {view === "notes" && (
-            <NoteList notes={analysis.notes} label="All notes" onOpen={openNote} />
+            <NoteList
+              notes={analysis.notes}
+              label="All notes"
+              onOpen={openNote}
+            />
           )}
           {view === "orphans" && (
             <NoteList notes={orphans} label="Orphan notes" onOpen={openNote} />

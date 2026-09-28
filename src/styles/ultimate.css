@@ -240,7 +240,11 @@
 }
 
 .ult-model-ok {
-  border-color: color-mix(in srgb, var(--success, var(--accent)) 45%, transparent);
+  border-color: color-mix(
+    in srgb,
+    var(--success, var(--accent)) 45%,
+    transparent
+  );
   color: var(--success, var(--accent));
 }
 

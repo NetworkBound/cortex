@@ -34,10 +34,9 @@ struct SimpleSearchRow {
 /// insecure HTTP port when the plugin has it enabled (no cert hassle for a
 /// localhost client), else the HTTPS port.
 pub fn discover(vault: &Path) -> Option<(String, String)> {
-    let data = std::fs::read_to_string(
-        vault.join(".obsidian/plugins/obsidian-local-rest-api/data.json"),
-    )
-    .ok()?;
+    let data =
+        std::fs::read_to_string(vault.join(".obsidian/plugins/obsidian-local-rest-api/data.json"))
+            .ok()?;
     let v: serde_json::Value = serde_json::from_str(&data).ok()?;
     let key = v.get("apiKey")?.as_str()?.to_string();
     if key.is_empty() {
@@ -48,9 +47,17 @@ pub fn discover(vault: &Path) -> Option<(String, String)> {
         .and_then(|b| b.as_bool())
         .unwrap_or(false);
     let (scheme, port) = if insecure {
-        ("http", v.get("insecurePort").and_then(|p| p.as_u64()).unwrap_or(27123))
+        (
+            "http",
+            v.get("insecurePort")
+                .and_then(|p| p.as_u64())
+                .unwrap_or(27123),
+        )
     } else {
-        ("https", v.get("port").and_then(|p| p.as_u64()).unwrap_or(27124))
+        (
+            "https",
+            v.get("port").and_then(|p| p.as_u64()).unwrap_or(27124),
+        )
     };
     Some((format!("{scheme}://127.0.0.1:{port}"), key))
 }
@@ -80,8 +87,16 @@ fn encode_vault_path(path: &str) -> String {
                 }
                 _ => {
                     out.push('%');
-                    out.push(char::from_digit((byte >> 4) as u32, 16).unwrap().to_ascii_uppercase());
-                    out.push(char::from_digit((byte & 0xF) as u32, 16).unwrap().to_ascii_uppercase());
+                    out.push(
+                        char::from_digit((byte >> 4) as u32, 16)
+                            .unwrap()
+                            .to_ascii_uppercase(),
+                    );
+                    out.push(
+                        char::from_digit((byte & 0xF) as u32, 16)
+                            .unwrap()
+                            .to_ascii_uppercase(),
+                    );
                 }
             }
         }
@@ -130,7 +145,10 @@ impl RestClient {
         Ok(rows
             .into_iter()
             .take(limit)
-            .map(|r| RestHit { path: r.filename, snippet: String::new() })
+            .map(|r| RestHit {
+                path: r.filename,
+                snippet: String::new(),
+            })
             .collect())
     }
 

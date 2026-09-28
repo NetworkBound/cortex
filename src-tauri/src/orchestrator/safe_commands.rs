@@ -27,45 +27,144 @@ use serde_json::Value;
 /// `eval`, `exec`, `command`, `sh`/`bash`/`zsh`, `ssh`, `tee`, `mount`, `top`.
 const ALWAYS_READ_ONLY: &[&str] = &[
     // file/stream inspection
-    "ls", "pwd", "echo", "printf", "cat", "bat", "head", "tail", "wc", "nl",
-    "tac", "rev", "cut", "tr", "column", "comm", "join", "paste", "fold",
-    "expand", "unexpand", "fmt", "sort", "uniq", "look", "strings",
-    "hexdump", "xxd", "od", "diff", "cmp",
+    "ls",
+    "pwd",
+    "echo",
+    "printf",
+    "cat",
+    "bat",
+    "head",
+    "tail",
+    "wc",
+    "nl",
+    "tac",
+    "rev",
+    "cut",
+    "tr",
+    "column",
+    "comm",
+    "join",
+    "paste",
+    "fold",
+    "expand",
+    "unexpand",
+    "fmt",
+    "sort",
+    "uniq",
+    "look",
+    "strings",
+    "hexdump",
+    "xxd",
+    "od",
+    "diff",
+    "cmp",
     // search
-    "grep", "egrep", "fgrep", "rg", "ag", "ack",
+    "grep",
+    "egrep",
+    "fgrep",
+    "rg",
+    "ag",
+    "ack",
     // metadata
-    "stat", "file", "du", "df", "realpath", "readlink", "basename", "dirname",
-    "tree", "wc", "cksum", "md5sum", "sha1sum", "sha256sum", "sha512sum",
+    "stat",
+    "file",
+    "du",
+    "df",
+    "realpath",
+    "readlink",
+    "basename",
+    "dirname",
+    "tree",
+    "wc",
+    "cksum",
+    "md5sum",
+    "sha1sum",
+    "sha256sum",
+    "sha512sum",
     "b2sum",
     // system inspection (read-only)
-    "date", "cal", "whoami", "id", "groups", "users", "who", "w", "last",
-    "hostname", "uname", "arch", "uptime", "free", "ps", "pstree", "lsblk",
-    "lscpu", "lsusb", "lspci", "printenv", "locale", "tty", "which", "type",
+    "date",
+    "cal",
+    "whoami",
+    "id",
+    "groups",
+    "users",
+    "who",
+    "w",
+    "last",
+    "hostname",
+    "uname",
+    "arch",
+    "uptime",
+    "free",
+    "ps",
+    "pstree",
+    "lsblk",
+    "lscpu",
+    "lsusb",
+    "lspci",
+    "printenv",
+    "locale",
+    "tty",
+    "which",
+    "type",
     // misc pure functions / filters
-    "true", "false", "seq", "yes", "jq", "yq",
+    "true",
+    "false",
+    "seq",
+    "yes",
+    "jq",
+    "yq",
 ];
 
 /// `find` action flags that execute a program, delete, or write a file. Their
 /// presence makes a `find` invocation NOT read-only.
 const FIND_WRITE_ACTIONS: &[&str] = &[
-    "-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprintf",
-    "-fls", "-fprint0",
+    "-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprintf", "-fls", "-fprint0",
 ];
 
 /// Read-only `git` subcommands that are safe with any arguments (their args are
 /// refs / pathspecs / format strings — none of these subcommands writes).
 const GIT_READ_SUBCOMMANDS: &[&str] = &[
-    "status", "diff", "log", "show", "rev-parse", "describe", "ls-files",
-    "ls-tree", "ls-remote", "cat-file", "show-ref", "for-each-ref", "rev-list",
-    "merge-base", "name-rev", "shortlog", "blame", "whatchanged", "grep",
-    "count-objects", "var", "help", "version", "annotate", "cherry",
+    "status",
+    "diff",
+    "log",
+    "show",
+    "rev-parse",
+    "describe",
+    "ls-files",
+    "ls-tree",
+    "ls-remote",
+    "cat-file",
+    "show-ref",
+    "for-each-ref",
+    "rev-list",
+    "merge-base",
+    "name-rev",
+    "shortlog",
+    "blame",
+    "whatchanged",
+    "grep",
+    "count-objects",
+    "var",
+    "help",
+    "version",
+    "annotate",
+    "cherry",
 ];
 
 /// Read-only `cargo` subcommands (compiling subcommands like `build`/`check`/
 /// `test`/`run` write to `target/`, so they are excluded).
 const CARGO_READ_SUBCOMMANDS: &[&str] = &[
-    "tree", "metadata", "search", "pkgid", "verify-project", "locate-project",
-    "read-manifest", "help", "version",
+    "tree",
+    "metadata",
+    "search",
+    "pkgid",
+    "verify-project",
+    "locate-project",
+    "read-manifest",
+    "help",
+    "version",
 ];
 
 /// Classify a command line. Returns `true` only when the whole line is provably
@@ -86,8 +185,16 @@ pub fn is_read_only_command(cmd: &str) -> bool {
 /// value is present (the caller then fails closed).
 pub fn extract_command(payload_json: &str) -> Option<String> {
     const CMD_KEYS: &[&str] = &[
-        "cmd", "command", "commandline", "cmdline", "script", "shell", "bash",
-        "sh", "run", "argv",
+        "cmd",
+        "command",
+        "commandline",
+        "cmdline",
+        "script",
+        "shell",
+        "bash",
+        "sh",
+        "run",
+        "argv",
     ];
     let v: Value = serde_json::from_str(payload_json).ok()?;
     fn value_as_command(v: &Value) -> Option<String> {
@@ -283,7 +390,10 @@ fn is_env_assignment(tok: &str) -> bool {
     let name = &tok[..eq];
     !name.is_empty()
         && !name.contains('/')
-        && name.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+        && name
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
         && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
@@ -357,8 +467,7 @@ fn first_subcommand<'a>(args: &[&'a str]) -> Option<&'a str> {
 /// `-c` and `--exec-path` are deliberately NOT here — they are arbitrary-code
 /// vectors handled by `git_has_dangerous_global` (see below), not safe globals
 /// to skip over.
-const GIT_VALUE_GLOBALS: &[&str] =
-    &["-C", "--git-dir", "--work-tree", "--namespace"];
+const GIT_VALUE_GLOBALS: &[&str] = &["-C", "--git-dir", "--work-tree", "--namespace"];
 
 /// Git global options that can execute arbitrary code, used *before* the
 /// subcommand. `-c <key>=<val>` injects config such as `core.fsmonitor` /
@@ -422,7 +531,11 @@ fn git_is_read_only(args: &[&str]) -> bool {
     if GIT_READ_SUBCOMMANDS.contains(&sub) {
         return true;
     }
-    let positionals: Vec<&str> = rest.iter().filter(|a| !a.starts_with('-')).copied().collect();
+    let positionals: Vec<&str> = rest
+        .iter()
+        .filter(|a| !a.starts_with('-'))
+        .copied()
+        .collect();
     match sub {
         // Listing only: no positional (would name a new branch) and no
         // write/modify flag.
@@ -468,7 +581,10 @@ fn git_is_read_only(args: &[&str]) -> bool {
             )
         }),
         // `stash list` / `stash show` only (bare `stash` == push).
-        "stash" => positionals.first().map(|s| matches!(*s, "list" | "show")).unwrap_or(false),
+        "stash" => positionals
+            .first()
+            .map(|s| matches!(*s, "list" | "show"))
+            .unwrap_or(false),
         "worktree" => positionals.first().map(|s| *s == "list").unwrap_or(false),
         // `reflog` / `reflog show` reads; `expire` / `delete` writes.
         "reflog" => positionals

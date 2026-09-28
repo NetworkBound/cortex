@@ -1,0 +1,5 @@
+dist
+mobile/dist
+src-tauri
+pnpm-lock.yaml
+mobile/pnpm-lock.yaml

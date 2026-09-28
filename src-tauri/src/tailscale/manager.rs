@@ -26,7 +26,11 @@ static CHILD: once_cell::sync::Lazy<Arc<Mutex<Option<Child>>>> =
 ///
 /// Returns a clear error (never panics) if no candidate exists.
 pub fn sidecar_path() -> Result<PathBuf, String> {
-    let exe_name = if cfg!(windows) { "cortex-tsnet.exe" } else { "cortex-tsnet" };
+    let exe_name = if cfg!(windows) {
+        "cortex-tsnet.exe"
+    } else {
+        "cortex-tsnet"
+    };
 
     let mut candidates: Vec<PathBuf> = Vec::new();
 
@@ -149,7 +153,10 @@ pub fn start(authkey: Option<String>, socks_addr: &str, hostname: &str) -> Resul
             // stdout closed → process exited. If we still think we're connected,
             // demote to Disconnected (unless an Error was the last word).
             let mut cur = shared().status.write();
-            if matches!(*cur, TsStatus::Connected { .. } | TsStatus::NeedsLogin { .. }) {
+            if matches!(
+                *cur,
+                TsStatus::Connected { .. } | TsStatus::NeedsLogin { .. }
+            ) {
                 *cur = TsStatus::Disconnected;
             }
         })
@@ -169,14 +176,30 @@ fn parse_status_line(line: &str) -> Option<TsStatus> {
     let s = match state {
         "starting" => TsStatus::Disconnected,
         "needs-login" => TsStatus::NeedsLogin {
-            url: v.get("url").and_then(|x| x.as_str()).unwrap_or_default().to_string(),
+            url: v
+                .get("url")
+                .and_then(|x| x.as_str())
+                .unwrap_or_default()
+                .to_string(),
         },
         "connected" => TsStatus::Connected {
-            ip: v.get("ip").and_then(|x| x.as_str()).unwrap_or_default().to_string(),
-            dnsname: v.get("dnsname").and_then(|x| x.as_str()).unwrap_or_default().to_string(),
+            ip: v
+                .get("ip")
+                .and_then(|x| x.as_str())
+                .unwrap_or_default()
+                .to_string(),
+            dnsname: v
+                .get("dnsname")
+                .and_then(|x| x.as_str())
+                .unwrap_or_default()
+                .to_string(),
         },
         "error" => TsStatus::Error {
-            msg: v.get("msg").and_then(|x| x.as_str()).unwrap_or("unknown error").to_string(),
+            msg: v
+                .get("msg")
+                .and_then(|x| x.as_str())
+                .unwrap_or("unknown error")
+                .to_string(),
         },
         _ => return None,
     };

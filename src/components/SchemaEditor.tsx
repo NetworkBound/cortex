@@ -8,7 +8,12 @@ import {
   writeConfigFile,
   type ConfigPreset,
 } from "@/lib/config-files";
-import { lineCount, parseJSON, prettify, type ParseError } from "@/lib/schema-editor";
+import {
+  lineCount,
+  parseJSON,
+  prettify,
+  type ParseError,
+} from "@/lib/schema-editor";
 import { pushToast } from "@/lib/toast";
 import { useCortexStore } from "@/state/store";
 
@@ -71,7 +76,9 @@ export function SchemaEditor({ onClose, initialPresetId }: SchemaEditorProps) {
       setSaveError(null);
       try {
         const projectRoot =
-          preset.target.scope === "project" ? activeProject?.root ?? null : null;
+          preset.target.scope === "project"
+            ? (activeProject?.root ?? null)
+            : null;
         if (preset.target.scope === "project" && !projectRoot) {
           setState(null);
           setLoadError("No active project — pick one from the sidebar first.");
@@ -117,13 +124,10 @@ export function SchemaEditor({ onClose, initialPresetId }: SchemaEditorProps) {
   }, [state]);
 
   const dirty = state ? state.body !== state.pristine : false;
-  const readOnly = selected.readOnly === true || state?.preset.readOnly === true;
+  const readOnly =
+    selected.readOnly === true || state?.preset.readOnly === true;
   const canSave =
-    !!state &&
-    !readOnly &&
-    !saving &&
-    dirty &&
-    (parse === null || parse.ok);
+    !!state && !readOnly && !saving && dirty && (parse === null || parse.ok);
 
   const onSave = useCallback(async () => {
     if (!state) return;
@@ -132,8 +136,14 @@ export function SchemaEditor({ onClose, initialPresetId }: SchemaEditorProps) {
     setSaveError(null);
     try {
       const projectRoot =
-        state.preset.target.scope === "project" ? activeProject?.root ?? null : null;
-      const path = await writeConfigFile(state.preset.target, state.body, projectRoot);
+        state.preset.target.scope === "project"
+          ? (activeProject?.root ?? null)
+          : null;
+      const path = await writeConfigFile(
+        state.preset.target,
+        state.body,
+        projectRoot,
+      );
       setState({ ...state, pristine: state.body, path, exists: true });
       pushToast({
         title: "Config saved",
@@ -144,7 +154,11 @@ export function SchemaEditor({ onClose, initialPresetId }: SchemaEditorProps) {
       // Surface backend validation errors (TOML parse failures etc.) inline so
       // the user sees the precise reason rather than only a transient toast.
       setSaveError(humanizeError(e));
-      pushToast({ title: "Save failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Save failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -283,8 +297,8 @@ export function SchemaEditor({ onClose, initialPresetId }: SchemaEditorProps) {
             <pre>{selected.hint}</pre>
             {readOnly && (
               <p className="schema-editor-readonly-note">
-                This file is shown for reference — it's read-only in this
-                build, so saves are disabled.
+                This file is shown for reference — it's read-only in this build,
+                so saves are disabled.
               </p>
             )}
           </aside>
@@ -317,9 +331,7 @@ function ParseStatus({
   if (parse === null) {
     return (
       <div className="schema-editor-status schema-editor-status-info">
-        {readOnly
-          ? "Read-only"
-          : "Non-JSON file — validated on save"}
+        {readOnly ? "Read-only" : "Non-JSON file — validated on save"}
       </div>
     );
   }

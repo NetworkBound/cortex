@@ -254,14 +254,28 @@ mod tests {
         let store = TracingStore::in_memory();
 
         // First call is within the limit.
-        let ok = call_tool_gated(&cfg, "echo", Some(serde_json::json!({})), true, Some(&store), None)
-            .await;
+        let ok = call_tool_gated(
+            &cfg,
+            "echo",
+            Some(serde_json::json!({})),
+            true,
+            Some(&store),
+            None,
+        )
+        .await;
         assert!(ok.is_ok(), "first call must be allowed: {ok:?}");
 
         // Second call in the same window is over the limit.
-        let err = call_tool_gated(&cfg, "echo", Some(serde_json::json!({})), true, Some(&store), None)
-            .await
-            .expect_err("second call must be rate-limited");
+        let err = call_tool_gated(
+            &cfg,
+            "echo",
+            Some(serde_json::json!({})),
+            true,
+            Some(&store),
+            None,
+        )
+        .await
+        .expect_err("second call must be rate-limited");
         assert!(err.contains("rate limit"), "{err}");
 
         // A different tool on the same server has its own, still-unlimited
@@ -294,8 +308,15 @@ mod tests {
 
         // Safe Mode off (`None`): a Trusted server's tool call succeeds,
         // completely unaffected by whatever a policy might otherwise say.
-        let ok = call_tool_gated(&cfg, "echo", Some(serde_json::json!({})), true, Some(&store), None)
-            .await;
+        let ok = call_tool_gated(
+            &cfg,
+            "echo",
+            Some(serde_json::json!({})),
+            true,
+            Some(&store),
+            None,
+        )
+        .await;
         assert!(ok.is_ok(), "no policy loaded => unaffected: {ok:?}");
 
         // Safe Mode on, with a Deny rule targeting this exact server: blocks
@@ -336,12 +357,8 @@ mod tests {
 
         let rows = store.recent_audit(10).unwrap();
         assert!(
-            rows.iter()
-                .any(|r| r.action == "mcp_tool_denied" && r
-                    .detail
-                    .as_deref()
-                    .unwrap_or_default()
-                    .contains(&cfg.id)),
+            rows.iter().any(|r| r.action == "mcp_tool_denied"
+                && r.detail.as_deref().unwrap_or_default().contains(&cfg.id)),
             "the safe-mode denial must be audited: {rows:?}"
         );
     }

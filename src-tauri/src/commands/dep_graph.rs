@@ -59,8 +59,7 @@ pub struct DepGraph {
 // ---- Regex sets ------------------------------------------------------------
 
 // ESM: `import … from "foo"` and `import "foo"` and `export … from "foo"`.
-static JS_FROM_RX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"from\s+["']([^"']+)["']"#).unwrap());
+static JS_FROM_RX: Lazy<Regex> = Lazy::new(|| Regex::new(r#"from\s+["']([^"']+)["']"#).unwrap());
 // CJS: `require("foo")`.
 static JS_REQUIRE_RX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"require\(\s*["']([^"']+)["']\s*\)"#).unwrap());
@@ -71,9 +70,8 @@ static RS_USE_RX: Lazy<Regex> = Lazy::new(|| Regex::new(r"use\s+([^;]+);").unwra
 static RS_MOD_RX: Lazy<Regex> = Lazy::new(|| Regex::new(r"mod\s+(\w+)\s*;").unwrap());
 
 // Python: `from a.b import …` OR `import a.b`.
-static PY_IMPORT_RX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?m)^\s*(?:from\s+([^\s]+)\s+import|import\s+([^\s,]+))").unwrap()
-});
+static PY_IMPORT_RX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?m)^\s*(?:from\s+([^\s]+)\s+import|import\s+([^\s,]+))").unwrap());
 
 // ---- Language detection ----------------------------------------------------
 
@@ -228,11 +226,7 @@ fn resolve_rust(
 /// Resolve a Python `from a.b.c import x` (or `import a.b`) against the
 /// project root. Dots become slashes; we try both `a/b/c.py` and
 /// `a/b/c/__init__.py`.
-fn resolve_python(
-    spec: &str,
-    root: &Path,
-    known: &HashSet<String>,
-) -> Option<String> {
+fn resolve_python(spec: &str, root: &Path, known: &HashSet<String>) -> Option<String> {
     let trimmed = spec.trim_start_matches('.').trim();
     if trimmed.is_empty() {
         return None;
@@ -283,7 +277,9 @@ pub async fn build_dep_graph(project_root: String) -> Result<DepGraph, String> {
             continue;
         }
         let path = entry.path();
-        let Some(lang) = detect_lang(path) else { continue };
+        let Some(lang) = detect_lang(path) else {
+            continue;
+        };
         let Ok(meta) = entry.metadata() else { continue };
         if meta.len() > MAX_FILE_BYTES {
             continue;
@@ -292,7 +288,9 @@ pub async fn build_dep_graph(project_root: String) -> Result<DepGraph, String> {
             continue;
         }
 
-        let Ok(content) = std::fs::read_to_string(path) else { continue };
+        let Ok(content) = std::fs::read_to_string(path) else {
+            continue;
+        };
         let id = rel_id(path, &root);
         let label = path
             .file_name()
@@ -320,7 +318,9 @@ pub async fn build_dep_graph(project_root: String) -> Result<DepGraph, String> {
     let mut edge_set: HashSet<(String, String, String)> = HashSet::new();
 
     'edges: for node in &nodes {
-        let Some((path, content, lang)) = content_by_id.get(&node.id) else { continue };
+        let Some((path, content, lang)) = content_by_id.get(&node.id) else {
+            continue;
+        };
         let importer_dir = path.parent().unwrap_or(&root).to_path_buf();
 
         // Collected as (specifier, kind) so we apply the right resolver.
@@ -363,9 +363,7 @@ pub async fn build_dep_graph(project_root: String) -> Result<DepGraph, String> {
 
         for (spec, kind) in specs {
             let resolved = match *lang {
-                "ts" | "tsx" | "js" | "jsx" => {
-                    resolve_js(&spec, &importer_dir, &root, &known_ids)
-                }
+                "ts" | "tsx" | "js" | "jsx" => resolve_js(&spec, &importer_dir, &root, &known_ids),
                 "rs" => resolve_rust(&spec, path, &root, &known_ids),
                 "py" => resolve_python(&spec, &root, &known_ids),
                 _ => None,

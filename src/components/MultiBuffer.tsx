@@ -16,9 +16,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { humanizeError } from "@/lib/errors";
 import { EditorState, type Extension } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, highlightActiveLine } from "@codemirror/view";
+import {
+  EditorView,
+  keymap,
+  lineNumbers,
+  highlightActiveLine,
+} from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { bracketMatching, defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import {
+  bracketMatching,
+  defaultHighlightStyle,
+  syntaxHighlighting,
+} from "@codemirror/language";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import { oneDark } from "@codemirror/theme-one-dark";
 
@@ -68,7 +77,8 @@ function cellExtensions(opts: {
     EditorView.theme({
       "&": { fontSize: "12.5px" },
       ".cm-scroller": {
-        fontFamily: "var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
+        fontFamily:
+          "var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
       },
     }),
   ];
@@ -132,7 +142,13 @@ interface CellProps {
   onSaveAll: () => void;
 }
 
-function MultibufferCell({ excerpt, onChange, onSave, onRemove, onSaveAll }: CellProps) {
+function MultibufferCell({
+  excerpt,
+  onChange,
+  onSave,
+  onRemove,
+  onSaveAll,
+}: CellProps) {
   const { hostRef } = useCellEditor({
     excerptId: excerpt.id,
     path: excerpt.path,
@@ -207,15 +223,17 @@ export function MultiBuffer() {
   }, [excerpts]);
 
   function patchExcerpt(id: string, patch: Partial<MultibufferExcerpt>) {
-    const next = useCortexStore.getState().multibufferExcerpts.map((e) =>
-      e.id === id ? { ...e, ...patch } : e,
-    );
+    const next = useCortexStore
+      .getState()
+      .multibufferExcerpts.map((e) => (e.id === id ? { ...e, ...patch } : e));
     setExcerpts(next);
   }
 
   function onChange(id: string, body: string) {
     liveBodiesRef.current.set(id, body);
-    const current = useCortexStore.getState().multibufferExcerpts.find((e) => e.id === id);
+    const current = useCortexStore
+      .getState()
+      .multibufferExcerpts.find((e) => e.id === id);
     if (!current) return;
     // current.body is the saved baseline; editing back to it clears dirty.
     const isDirty = body !== current.body;
@@ -224,7 +242,9 @@ export function MultiBuffer() {
   }
 
   async function onSave(id: string) {
-    const current = useCortexStore.getState().multibufferExcerpts.find((e) => e.id === id);
+    const current = useCortexStore
+      .getState()
+      .multibufferExcerpts.find((e) => e.id === id);
     if (!current) return;
     const body = liveBodiesRef.current.get(id) ?? current.body;
     setBusy(true);
@@ -238,7 +258,11 @@ export function MultiBuffer() {
       });
       pushToast({ title: "Saved", body: current.path, kind: "success" });
     } catch (e) {
-      pushToast({ title: "Save failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Save failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setBusy(false);
     }
@@ -277,7 +301,9 @@ export function MultiBuffer() {
   }
 
   async function onRemove(id: string) {
-    const current = useCortexStore.getState().multibufferExcerpts.find((e) => e.id === id);
+    const current = useCortexStore
+      .getState()
+      .multibufferExcerpts.find((e) => e.id === id);
     if (
       current?.dirty &&
       !(await confirmDialog({
@@ -290,7 +316,9 @@ export function MultiBuffer() {
       return;
     }
     liveBodiesRef.current.delete(id);
-    setExcerpts(useCortexStore.getState().multibufferExcerpts.filter((e) => e.id !== id));
+    setExcerpts(
+      useCortexStore.getState().multibufferExcerpts.filter((e) => e.id !== id),
+    );
   }
 
   async function promptAdd() {
@@ -307,7 +335,11 @@ export function MultiBuffer() {
         pick.range?.end ?? Number.MAX_SAFE_INTEGER,
       );
     } catch (e) {
-      pushToast({ title: "Add excerpt failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Add excerpt failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setBusy(false);
     }
@@ -355,7 +387,10 @@ export function MultiBuffer() {
     }
     window.addEventListener(MULTIBUFFER_OPEN_EVENT, onOpen as EventListener);
     return () =>
-      window.removeEventListener(MULTIBUFFER_OPEN_EVENT, onOpen as EventListener);
+      window.removeEventListener(
+        MULTIBUFFER_OPEN_EVENT,
+        onOpen as EventListener,
+      );
   }, [setExcerpts]);
 
   // Window-level Mod-S inside the panel (covers the case where the user
@@ -381,18 +416,33 @@ export function MultiBuffer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const dirtyCount = useMemo(() => excerpts.filter((e) => e.dirty).length, [excerpts]);
+  const dirtyCount = useMemo(
+    () => excerpts.filter((e) => e.dirty).length,
+    [excerpts],
+  );
 
   return (
     <div className="multibuffer">
       <div className="multibuffer-toolbar">
-        <button className="link-btn" onClick={() => void promptAdd()} disabled={busy}>
+        <button
+          className="link-btn"
+          onClick={() => void promptAdd()}
+          disabled={busy}
+        >
           + Add excerpt
         </button>
-        <button className="link-btn" onClick={() => void onSaveAll()} disabled={busy || dirtyCount === 0}>
+        <button
+          className="link-btn"
+          onClick={() => void onSaveAll()}
+          disabled={busy || dirtyCount === 0}
+        >
           Save all{dirtyCount > 0 ? ` (${dirtyCount})` : ""}
         </button>
-        <button className="link-btn" onClick={clearAll} disabled={busy || excerpts.length === 0}>
+        <button
+          className="link-btn"
+          onClick={clearAll}
+          disabled={busy || excerpts.length === 0}
+        >
           Clear all
         </button>
         <span className="multibuffer-toolbar-spacer" />
@@ -409,8 +459,8 @@ export function MultiBuffer() {
           <div className="multibuffer-empty">
             <div className="multibuffer-empty-title">No excerpts yet</div>
             <div className="multibuffer-empty-hint">
-              Click <strong>+ Add excerpt</strong> or have a search / refactor agent route into
-              this tab.
+              Click <strong>+ Add excerpt</strong> or have a search / refactor
+              agent route into this tab.
             </div>
           </div>
         ) : (

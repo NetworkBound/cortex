@@ -61,7 +61,9 @@ function nodeToText(node: ReactNode): string {
   if (typeof node === "string" || typeof node === "number") return String(node);
   if (Array.isArray(node)) return node.map(nodeToText).join("");
   if (typeof node === "object" && "props" in node) {
-    return nodeToText((node as { props: { children?: ReactNode } }).props.children);
+    return nodeToText(
+      (node as { props: { children?: ReactNode } }).props.children,
+    );
   }
   return "";
 }
@@ -70,7 +72,9 @@ function nodeToText(node: ReactNode): string {
 // (commands/focus_chain.rs) so the chip shows exactly what landed in the
 // FocusChain panel. Non-checklist lines are skipped; zero matches makes the
 // caller fall back to a plain code block.
-function parseFocusItems(text: string): Array<{ title: string; done: boolean }> {
+function parseFocusItems(
+  text: string,
+): Array<{ title: string; done: boolean }> {
   const items: Array<{ title: string; done: boolean }> = [];
   for (const line of text.split("\n")) {
     const m = /^\s*(?:[-*]\s*)?\[( |x|X)\]\s*(\S.*)$/.exec(line);
@@ -82,7 +86,11 @@ function parseFocusItems(text: string): Array<{ title: string; done: boolean }> 
 // The agent's ```focus-chain fence rendered as the checklist it IS instead of
 // raw code — the live copy of this state lives in the FocusChain activity
 // tab (the backend re-emits the block as an `update_focus_chain` tool call).
-function FocusChainBlock({ items }: { items: Array<{ title: string; done: boolean }> }) {
+function FocusChainBlock({
+  items,
+}: {
+  items: Array<{ title: string; done: boolean }>;
+}) {
   const done = items.filter((t) => t.done).length;
   return (
     <div className="md-focus-chain">
@@ -95,7 +103,13 @@ function FocusChainBlock({ items }: { items: Array<{ title: string; done: boolea
       <ul className="md-focus-chain-list">
         {items.map((t, i) => (
           <li key={i} className={`md-focus-chain-item ${t.done ? "done" : ""}`}>
-            <input type="checkbox" checked={t.done} readOnly tabIndex={-1} aria-hidden />
+            <input
+              type="checkbox"
+              checked={t.done}
+              readOnly
+              tabIndex={-1}
+              aria-hidden
+            />
             <span>{t.title}</span>
           </li>
         ))}
@@ -118,7 +132,9 @@ function CopyButton({ getText }: { getText: () => string }) {
             setCopied(true);
             window.setTimeout(() => setCopied(false), 1200);
           })
-          .catch(() => { /* clipboard unavailable; ignore */ });
+          .catch(() => {
+            /* clipboard unavailable; ignore */
+          });
       }}
     >
       {copied ? "Copied" : "Copy"}
@@ -169,7 +185,10 @@ export const MarkdownView = memo(function MarkdownView({ source }: Props) {
                 href={href}
                 onClick={(e) => {
                   e.preventDefault();
-                  if (href) void openExternal(href).catch(() => { /* ignore */ });
+                  if (href)
+                    void openExternal(href).catch(() => {
+                      /* ignore */
+                    });
                 }}
               >
                 {children}

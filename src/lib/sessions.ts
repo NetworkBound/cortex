@@ -12,7 +12,9 @@ export interface StoredMessage {
   project_root?: string | null;
 }
 
-export async function loadSessionMessages(sessionId: string): Promise<StoredMessage[]> {
+export async function loadSessionMessages(
+  sessionId: string,
+): Promise<StoredMessage[]> {
   return invoke<StoredMessage[]>("load_session_messages", { sessionId });
 }
 
@@ -25,7 +27,9 @@ export interface ExportToVaultResult {
 
 /** Save a chat session (incl. imported Claude.ai/ChatGPT history) to the
  *  Obsidian vault as a self-contained Markdown note. No model/provider needed. */
-export async function exportSessionToVault(sessionId: string): Promise<ExportToVaultResult> {
+export async function exportSessionToVault(
+  sessionId: string,
+): Promise<ExportToVaultResult> {
   return invoke<ExportToVaultResult>("export_session_to_vault", { sessionId });
 }
 
@@ -36,7 +40,9 @@ export interface ProjectBootstrap {
   context_files_loaded: number;
 }
 
-export async function bootstrapProjectSession(projectRoot: string): Promise<ProjectBootstrap> {
+export async function bootstrapProjectSession(
+  projectRoot: string,
+): Promise<ProjectBootstrap> {
   return invoke<ProjectBootstrap>("bootstrap_project_session", { projectRoot });
 }
 

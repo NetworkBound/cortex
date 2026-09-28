@@ -78,7 +78,10 @@ pub struct ApplyReport {
 fn is_search_marker(line: &str) -> bool {
     let t = line.trim();
     t.starts_with("<<<<<")
-        && t.trim_start_matches('<').trim().to_ascii_uppercase().starts_with("SEARCH")
+        && t.trim_start_matches('<')
+            .trim()
+            .to_ascii_uppercase()
+            .starts_with("SEARCH")
 }
 
 /// `=======` — a run of at least five `=` and nothing else.
@@ -91,7 +94,10 @@ fn is_divider(line: &str) -> bool {
 fn is_replace_marker(line: &str) -> bool {
     let t = line.trim();
     t.starts_with(">>>>>")
-        && t.trim_start_matches('>').trim().to_ascii_uppercase().starts_with("REPLACE")
+        && t.trim_start_matches('>')
+            .trim()
+            .to_ascii_uppercase()
+            .starts_with("REPLACE")
 }
 
 /// A code-fence line (```` ``` ```` optionally with an info string).
@@ -125,7 +131,12 @@ fn looks_like_path(line: &str) -> bool {
 /// Normalize a candidate path line: drop wrapping backticks and a trailing
 /// colon so `` `src/app.py:` `` → `src/app.py`.
 fn clean_path_candidate(line: &str) -> String {
-    line.trim().trim_matches('`').trim().trim_end_matches(':').trim().to_string()
+    line.trim()
+        .trim_matches('`')
+        .trim()
+        .trim_end_matches(':')
+        .trim()
+        .to_string()
 }
 
 /// Parse every SEARCH/REPLACE block out of an arbitrary assistant message.
@@ -272,9 +283,8 @@ fn apply_search_replace(haystack: &str, search: &str, replace: &str) -> Option<S
         return None;
     }
     for start in 0..=(hay_lines.len() - n) {
-        let matches = (0..n).all(|off| {
-            hay_lines[start + off].trim_end() == needle_lines[off].trim_end()
-        });
+        let matches =
+            (0..n).all(|off| hay_lines[start + off].trim_end() == needle_lines[off].trim_end());
         if matches {
             let mut rebuilt: Vec<String> = Vec::new();
             rebuilt.extend(hay_lines[..start].iter().map(|s| s.to_string()));
@@ -514,7 +524,8 @@ TWO
 
     #[test]
     fn prose_is_not_mistaken_for_a_path() {
-        let text = "Here is the change:\nsrc/x.rs\n<<<<<<< SEARCH\na\n=======\nb\n>>>>>>> REPLACE\n";
+        let text =
+            "Here is the change:\nsrc/x.rs\n<<<<<<< SEARCH\na\n=======\nb\n>>>>>>> REPLACE\n";
         let blocks = parse_edit_blocks(text);
         assert_eq!(blocks.len(), 1);
         assert_eq!(blocks[0].path, "src/x.rs");
@@ -574,7 +585,11 @@ TWO
         assert_eq!(report.failed, 1);
         assert_eq!(report.applied, 0);
         assert_eq!(fs::read_to_string(&f).unwrap(), "original\n");
-        assert!(report.results[0].reason.as_ref().unwrap().contains("not found"));
+        assert!(report.results[0]
+            .reason
+            .as_ref()
+            .unwrap()
+            .contains("not found"));
     }
 
     #[test]
@@ -587,7 +602,10 @@ TWO
         }];
         let report = apply_blocks(td.path(), &blocks, false);
         assert_eq!(report.created, 1);
-        assert_eq!(fs::read_to_string(td.path().join("sub/new.txt")).unwrap(), "fresh\n");
+        assert_eq!(
+            fs::read_to_string(td.path().join("sub/new.txt")).unwrap(),
+            "fresh\n"
+        );
     }
 
     #[test]
@@ -615,7 +633,11 @@ TWO
         }];
         let report = apply_blocks(td.path(), &blocks, false);
         assert_eq!(report.failed, 1);
-        assert!(report.results[0].reason.as_ref().unwrap().contains("absolute"));
+        assert!(report.results[0]
+            .reason
+            .as_ref()
+            .unwrap()
+            .contains("absolute"));
     }
 
     #[test]
@@ -628,7 +650,11 @@ TWO
         }];
         let report = apply_blocks(td.path(), &blocks, false);
         assert_eq!(report.failed, 1);
-        assert!(report.results[0].reason.as_ref().unwrap().contains("escapes"));
+        assert!(report.results[0]
+            .reason
+            .as_ref()
+            .unwrap()
+            .contains("escapes"));
     }
 
     #[test]
@@ -654,9 +680,21 @@ TWO
         fs::write(td.path().join("hit.txt"), "find\n").unwrap();
         fs::write(td.path().join("miss.txt"), "other\n").unwrap();
         let blocks = vec![
-            EditBlock { path: "hit.txt".into(), search: "find\n".into(), replace: "FOUND\n".into() },
-            EditBlock { path: "miss.txt".into(), search: "absent\n".into(), replace: "x\n".into() },
-            EditBlock { path: "made.txt".into(), search: String::new(), replace: "new\n".into() },
+            EditBlock {
+                path: "hit.txt".into(),
+                search: "find\n".into(),
+                replace: "FOUND\n".into(),
+            },
+            EditBlock {
+                path: "miss.txt".into(),
+                search: "absent\n".into(),
+                replace: "x\n".into(),
+            },
+            EditBlock {
+                path: "made.txt".into(),
+                search: String::new(),
+                replace: "new\n".into(),
+            },
         ];
         let report = apply_blocks(td.path(), &blocks, false);
         assert_eq!(report.applied, 1);
@@ -677,7 +715,10 @@ TWO
         ))
         .unwrap();
         assert_eq!(report.applied, 1, "{:?}", report.results);
-        assert_eq!(fs::read_to_string(&f).unwrap(), "def hi():\n    return 'hello'\n");
+        assert_eq!(
+            fs::read_to_string(&f).unwrap(),
+            "def hi():\n    return 'hello'\n"
+        );
     }
 
     #[test]
@@ -719,8 +760,15 @@ TWO
         // The edit landed, a checkpoint id came back, and a tarball exists on disk
         // — so the apply is undoable.
         assert_eq!(report.applied, 1);
-        let id = report.checkpoint_id.expect("real apply should snapshot first");
-        assert!(td.path().join(".cortex").join("checkpoints").join(format!("{id}.tar.gz")).exists());
+        let id = report
+            .checkpoint_id
+            .expect("real apply should snapshot first");
+        assert!(td
+            .path()
+            .join(".cortex")
+            .join("checkpoints")
+            .join(format!("{id}.tar.gz"))
+            .exists());
         assert_eq!(checkpoint_count(td.path()), 1);
     }
 
@@ -736,7 +784,10 @@ TWO
         ))
         .unwrap();
         assert!(report.dry_run);
-        assert!(report.checkpoint_id.is_none(), "a preview must not snapshot");
+        assert!(
+            report.checkpoint_id.is_none(),
+            "a preview must not snapshot"
+        );
         assert_eq!(checkpoint_count(td.path()), 0);
     }
 
@@ -754,7 +805,10 @@ TWO
         .unwrap();
         assert_eq!(report.failed, 1);
         assert_eq!(report.applied + report.created, 0);
-        assert!(report.checkpoint_id.is_none(), "a no-op apply must not spend a checkpoint");
+        assert!(
+            report.checkpoint_id.is_none(),
+            "a no-op apply must not spend a checkpoint"
+        );
         assert_eq!(checkpoint_count(td.path()), 0);
     }
 }

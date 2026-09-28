@@ -35,7 +35,10 @@ export interface EloUpdate {
 }
 
 /** Send one prompt to 2-4 models in parallel and collect each response. */
-export async function arenaSend(prompt: string, models: string[]): Promise<ArenaRun> {
+export async function arenaSend(
+  prompt: string,
+  models: string[],
+): Promise<ArenaRun> {
   return invoke<ArenaRun>("arena_send", { prompt, models });
 }
 

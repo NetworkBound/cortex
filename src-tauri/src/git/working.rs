@@ -410,9 +410,7 @@ fn guard_args(project_root: &Path, args: &[&str]) -> Result<(), String> {
             continue;
         }
         if a.starts_with('-') {
-            return Err(format!(
-                "refusing git arg that looks like a flag: {a:?}"
-            ));
+            return Err(format!("refusing git arg that looks like a flag: {a:?}"));
         }
         ensure_within_root(project_root, a)?;
     }

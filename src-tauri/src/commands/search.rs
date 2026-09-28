@@ -152,9 +152,7 @@ fn ripgrep_search(
     }
     cmd.arg("--").arg(query).arg(".").current_dir(root);
 
-    let output = cmd
-        .output()
-        .map_err(|e| format!("rg spawn failed: {e}"))?;
+    let output = cmd.output().map_err(|e| format!("rg spawn failed: {e}"))?;
     // rg exits 1 when there are zero matches — that's NOT an error.
     if !output.status.success() && output.status.code() != Some(1) {
         return Err(format!(
@@ -289,9 +287,7 @@ fn parse_rg_json(stdout: &str, _root: &Path) -> Vec<SearchHit> {
             .unwrap_or(0) as usize;
         if kind == "match" {
             if let Some(p) = path {
-                last_match_idx = hits
-                    .iter()
-                    .rposition(|h| h.path == p && h.line == line_no);
+                last_match_idx = hits.iter().rposition(|h| h.path == p && h.line == line_no);
             }
         } else if kind == "context" {
             if let (Some(idx), Some(p)) = (last_match_idx, path) {
@@ -337,9 +333,7 @@ fn walkdir_search(
     // match — log a hint so power-users wondering "why didn't my regex work"
     // know to install ripgrep.
     if !fixed_string && !rg_available() {
-        tracing::debug!(
-            "project search: ripgrep not installed — regex mode degraded to substring"
-        );
+        tracing::debug!("project search: ripgrep not installed — regex mode degraded to substring");
     }
 
     let ignore = CortexIgnore::load(root);
@@ -390,7 +384,10 @@ fn walkdir_search(
                 line: i + 1,
                 col,
                 match_text: truncate_line((*line).to_string()),
-                before: i.checked_sub(1).and_then(|j| lines.get(j)).map(|s| truncate_line((*s).to_string())),
+                before: i
+                    .checked_sub(1)
+                    .and_then(|j| lines.get(j))
+                    .map(|s| truncate_line((*s).to_string())),
                 after: lines.get(i + 1).map(|s| truncate_line((*s).to_string())),
             });
         }

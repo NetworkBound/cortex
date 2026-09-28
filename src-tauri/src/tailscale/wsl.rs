@@ -75,8 +75,8 @@ fn win_to_wsl_path(p: &std::path::Path) -> Option<String> {
 /// `keep` leaves the file on disk (for the long-lived daemon launcher).
 fn run_script(body: &str, keep: bool) -> Result<String, String> {
     let path = write_script(body)?;
-    let wsl_path = win_to_wsl_path(&path)
-        .ok_or_else(|| "could not map temp path into WSL".to_string())?;
+    let wsl_path =
+        win_to_wsl_path(&path).ok_or_else(|| "could not map temp path into WSL".to_string())?;
     let out = crate::sys::no_window("wsl.exe")
         .arg("--")
         .arg("bash")
@@ -113,7 +113,9 @@ fn write_script(body: &str) -> Result<std::path::PathBuf, String> {
 
 /// Whether WSL is installed and a default distro answers.
 pub fn available() -> bool {
-    run_script("echo ok", false).map(|s| s.contains("ok")).unwrap_or(false)
+    run_script("echo ok", false)
+        .map(|s| s.contains("ok"))
+        .unwrap_or(false)
 }
 
 /// Candidate addresses the Windows side might reach the WSL SOCKS5 at. In NAT
@@ -155,7 +157,9 @@ fn reachable_proxy(port: u16) -> Option<String> {
             let addr = format!("{host}:{port}");
             if let Ok(mut sas) = addr.to_socket_addrs() {
                 if let Some(sa) = sas.next() {
-                    if TcpStream::connect_timeout(&sa, std::time::Duration::from_millis(600)).is_ok() {
+                    if TcpStream::connect_timeout(&sa, std::time::Duration::from_millis(600))
+                        .is_ok()
+                    {
                         return Some(addr);
                     }
                 }
@@ -216,8 +220,8 @@ fn start_daemon() -> Result<(), String> {
         port = WSL_SOCKS_PORT
     );
     let path = write_script(&body)?;
-    let wsl_path = win_to_wsl_path(&path)
-        .ok_or_else(|| "could not map temp path into WSL".to_string())?;
+    let wsl_path =
+        win_to_wsl_path(&path).ok_or_else(|| "could not map temp path into WSL".to_string())?;
     let child = crate::sys::no_window("wsl.exe")
         .arg("--")
         .arg("bash")
@@ -262,7 +266,10 @@ fn up() -> Result<Option<String>, String> {
 
 /// The node's tailnet IP, if connected.
 fn tailnet_ip() -> Option<String> {
-    let script = format!("{dir}/bin/tailscale --socket={dir}/tailscaled.sock ip -4 2>/dev/null | head -1", dir = WSL_DIR);
+    let script = format!(
+        "{dir}/bin/tailscale --socket={dir}/tailscaled.sock ip -4 2>/dev/null | head -1",
+        dir = WSL_DIR
+    );
     run_script(&script, false)
         .ok()
         .map(|s| s.trim().to_string())

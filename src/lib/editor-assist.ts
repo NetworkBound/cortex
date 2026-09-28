@@ -89,8 +89,12 @@ export function assistContext(
   const doc = view.state.doc;
   const firstLine = doc.lineAt(sel.from).number;
   const lastLine = doc.lineAt(sel.to).number;
-  const beforeFrom = doc.line(Math.max(1, firstLine - CONTEXT_LINES_BEFORE)).from;
-  const afterTo = doc.line(Math.min(doc.lines, lastLine + CONTEXT_LINES_AFTER)).to;
+  const beforeFrom = doc.line(
+    Math.max(1, firstLine - CONTEXT_LINES_BEFORE),
+  ).from;
+  const afterTo = doc.line(
+    Math.min(doc.lines, lastLine + CONTEXT_LINES_AFTER),
+  ).to;
   return {
     before: doc.sliceString(beforeFrom, sel.from),
     after: doc.sliceString(sel.to, afterTo),
@@ -141,8 +145,11 @@ export function diffLines(oldText: string, newText: string): DiffRow[] {
   }
   const rows: DiffRow[] = [];
   for (let i = 0; i < prefix; i++) rows.push({ kind: "context", text: a[i] });
-  for (let i = prefix; i < a.length - suffix; i++) rows.push({ kind: "del", text: a[i] });
-  for (let i = prefix; i < b.length - suffix; i++) rows.push({ kind: "add", text: b[i] });
-  for (let i = a.length - suffix; i < a.length; i++) rows.push({ kind: "context", text: a[i] });
+  for (let i = prefix; i < a.length - suffix; i++)
+    rows.push({ kind: "del", text: a[i] });
+  for (let i = prefix; i < b.length - suffix; i++)
+    rows.push({ kind: "add", text: b[i] });
+  for (let i = a.length - suffix; i < a.length; i++)
+    rows.push({ kind: "context", text: a[i] });
   return rows;
 }

@@ -83,8 +83,14 @@ pub async fn smart_stage(
     let req = ChatCompletionRequest {
         model: cfg.gateway_model.clone(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: SYSTEM_PROMPT.into() },
-            ChatMessage { role: "user".into(), content: user_prompt },
+            ChatMessage {
+                role: "system".into(),
+                content: SYSTEM_PROMPT.into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: user_prompt,
+            },
         ],
         stream: true,
         temperature: Some(0.1),
@@ -150,14 +156,21 @@ fn build_user_prompt(intent: &str, status: &str, diff: &str) -> String {
 /// on any failure (matches `commit_suggest::run_diff` semantics — callers
 /// downgrade gracefully if the repo isn't a git checkout).
 fn read_git(root: &PathBuf, args: &[&str]) -> String {
-    let out = match crate::sys::no_window("git").args(args).current_dir(root).output() {
+    let out = match crate::sys::no_window("git")
+        .args(args)
+        .current_dir(root)
+        .output()
+    {
         Ok(o) => o,
         Err(_) => return String::new(),
     };
     if !out.status.success() {
         return String::new();
     }
-    truncate(String::from_utf8_lossy(&out.stdout).into_owned(), BLOB_LIMIT_BYTES)
+    truncate(
+        String::from_utf8_lossy(&out.stdout).into_owned(),
+        BLOB_LIMIT_BYTES,
+    )
 }
 
 fn run_git_add(root: &PathBuf, path: &str) -> Result<(), String> {

@@ -40,7 +40,10 @@ export async function getSnippet(name: string): Promise<Snippet | null> {
   }
 }
 
-export async function saveSnippet(name: string, body: string): Promise<Snippet | null> {
+export async function saveSnippet(
+  name: string,
+  body: string,
+): Promise<Snippet | null> {
   try {
     return await invoke<Snippet>("save_snippet", { name, body });
   } catch (err) {

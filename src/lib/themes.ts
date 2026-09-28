@@ -82,7 +82,8 @@ export const THEMES: { id: ThemeId; label: string; description: string }[] = [
   {
     id: "tokyo-night",
     label: "Tokyo Night",
-    description: "Deep navy surfaces with a calm blue accent — the beloved dev theme.",
+    description:
+      "Deep navy surfaces with a calm blue accent — the beloved dev theme.",
   },
   {
     id: "dracula",

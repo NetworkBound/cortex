@@ -46,8 +46,7 @@ export async function generateTests(
 ): Promise<TestGenResult> {
   const cleanedFn =
     functionName && functionName.trim().length > 0 ? functionName.trim() : null;
-  const cleanedFw =
-    framework && framework !== "auto" ? framework : null;
+  const cleanedFw = framework && framework !== "auto" ? framework : null;
   return invoke<TestGenResult>("generate_tests", {
     path,
     functionName: cleanedFn,

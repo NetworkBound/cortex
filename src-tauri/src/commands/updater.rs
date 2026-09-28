@@ -75,16 +75,31 @@ pub async fn check_updates(manifest_url: String) -> Result<UpdateInfo, String> {
             .or_else(|| arr.first());
         match rel {
             Some(r) => (
-                r.get("tag_name").and_then(|v| v.as_str()).unwrap_or("").trim().to_string(),
-                r.get("body").and_then(|v| v.as_str()).filter(|s| !s.trim().is_empty()).map(str::to_string),
-                r.get("html_url").and_then(|v| v.as_str()).map(str::to_string),
+                r.get("tag_name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .trim()
+                    .to_string(),
+                r.get("body")
+                    .and_then(|v| v.as_str())
+                    .filter(|s| !s.trim().is_empty())
+                    .map(str::to_string),
+                r.get("html_url")
+                    .and_then(|v| v.as_str())
+                    .map(str::to_string),
             ),
             None => return Ok(unavailable(&current)),
         }
     } else {
         (
-            val.get("version").and_then(|v| v.as_str()).unwrap_or("").trim().to_string(),
-            val.get("notes").and_then(|v| v.as_str()).map(str::to_string),
+            val.get("version")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim()
+                .to_string(),
+            val.get("notes")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
             val.get("url").and_then(|v| v.as_str()).map(str::to_string),
         )
     };
@@ -93,7 +108,13 @@ pub async fn check_updates(manifest_url: String) -> Result<UpdateInfo, String> {
         return Ok(unavailable(&current));
     }
     let available = is_newer(&latest, &current);
-    Ok(UpdateInfo { current, latest, available, notes, url })
+    Ok(UpdateInfo {
+        current,
+        latest,
+        available,
+        notes,
+        url,
+    })
 }
 
 fn unavailable(current: &str) -> UpdateInfo {

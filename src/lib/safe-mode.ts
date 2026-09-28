@@ -59,8 +59,12 @@ export async function setSafeMode(enabled: boolean): Promise<SafeMode> {
  * the global `~/.cortex/command-policy.toml`. A missing file yields a
  * commented starter template.
  */
-export async function getCommandPolicy(projectRoot?: string | null): Promise<string> {
-  return invoke<string>("get_command_policy", { projectRoot: projectRoot ?? null });
+export async function getCommandPolicy(
+  projectRoot?: string | null,
+): Promise<string> {
+  return invoke<string>("get_command_policy", {
+    projectRoot: projectRoot ?? null,
+  });
 }
 
 /** Validate-then-write a policy file. Rejects (file untouched) on bad TOML. */
@@ -76,7 +80,10 @@ export async function testCommandPolicy(
   projectRoot: string | null,
   command: string,
 ): Promise<PolicyDecision> {
-  return invoke<PolicyDecision>("test_command_policy", { projectRoot, command });
+  return invoke<PolicyDecision>("test_command_policy", {
+    projectRoot,
+    command,
+  });
 }
 
 /**

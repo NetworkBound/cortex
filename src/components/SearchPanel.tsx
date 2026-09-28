@@ -57,7 +57,11 @@ export function setSearchPreload(handle: SearchPanelHandle): void {
 }
 
 const SCOPES: { key: Mode; label: string; title: string }[] = [
-  { key: "all", label: "Everything", title: "Search project files and memory/vault" },
+  {
+    key: "all",
+    label: "Everything",
+    title: "Search project files and memory/vault",
+  },
   { key: "text", label: "Project", title: "Find in project files" },
   { key: "memory", label: "Memory", title: "Search memory, runbooks & vault" },
   { key: "files", label: "Go to file", title: "Fuzzy file-path search" },
@@ -245,7 +249,10 @@ export function SearchPanel() {
               />
               <span>Aa</span>
             </label>
-            <label className="search-toggle" title="Match as literal string (no regex)">
+            <label
+              className="search-toggle"
+              title="Match as literal string (no regex)"
+            >
               <input
                 type="checkbox"
                 checked={fixedString}
@@ -290,7 +297,13 @@ function placeholderFor(mode: Mode): string {
   }
 }
 
-function ScopeBar({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
+function ScopeBar({
+  mode,
+  onChange,
+}: {
+  mode: Mode;
+  onChange: (m: Mode) => void;
+}) {
   return (
     <div className="search-scopes" role="tablist" aria-label="Search scope">
       {SCOPES.map((s) => (
@@ -358,8 +371,8 @@ function UnifiedResults({
         <div className="search-empty-title">No matches</div>
         <p className="search-empty-hint">
           Nothing for &ldquo;{query}&rdquo;
-          {totalSections > 1 ? " in either universe" : ""}. Try a different
-          term or widen the scope.
+          {totalSections > 1 ? " in either universe" : ""}. Try a different term
+          or widen the scope.
         </p>
       </div>
     );
@@ -388,11 +401,15 @@ function UnifiedResults({
                     <span className="search-hit-line">{h.line}</span>
                     <span className="search-hit-text">
                       {h.before && (
-                        <span className="search-hit-context">{h.before + "\n"}</span>
+                        <span className="search-hit-context">
+                          {h.before + "\n"}
+                        </span>
                       )}
                       <Highlighted text={h.match_text} query={query} />
                       {h.after && (
-                        <span className="search-hit-context">{"\n" + h.after}</span>
+                        <span className="search-hit-context">
+                          {"\n" + h.after}
+                        </span>
                       )}
                     </span>
                   </button>
@@ -405,7 +422,9 @@ function UnifiedResults({
       {showMemory && (
         <SearchSection label="Memory / Vault" count={memoryCount}>
           {memoryCount === 0 ? (
-            <div className="search-section-empty">No notes or vault matches.</div>
+            <div className="search-section-empty">
+              No notes or vault matches.
+            </div>
           ) : (
             memHits.map((h, i) => (
               <button
@@ -452,7 +471,13 @@ function SearchSection({
   );
 }
 
-function FileHits({ files, projectRoot }: { files: string[]; projectRoot: string | null }) {
+function FileHits({
+  files,
+  projectRoot,
+}: {
+  files: string[];
+  projectRoot: string | null;
+}) {
   if (files.length === 0) {
     return (
       <div className="search-empty">
@@ -490,7 +515,10 @@ function Highlighted({ text, query }: { text: string; query: string }) {
   );
 }
 
-function splitHighlight(text: string, query: string): { text: string; match: boolean }[] {
+function splitHighlight(
+  text: string,
+  query: string,
+): { text: string; match: boolean }[] {
   if (!query) return [{ text, match: false }];
   const out: { text: string; match: boolean }[] = [];
   const lcText = text.toLowerCase();

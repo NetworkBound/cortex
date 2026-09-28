@@ -31,8 +31,13 @@ const nextId = () => `m${++mid}`;
 const SEND_WATCHDOG_MS = 45_000;
 
 export default function ChatView() {
-  const { activeProjectRoot, openSession, setOpenSession, wsStatus, newChatNonce } =
-    useStore();
+  const {
+    activeProjectRoot,
+    openSession,
+    setOpenSession,
+    wsStatus,
+    newChatNonce,
+  } = useStore();
   const [models, setModels] = useState<string[]>([]);
   const [model, setModel] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -173,7 +178,10 @@ export default function ChatView() {
           ...m,
           tools: [
             ...m.tools,
-            { name: f.name as string, preview: f.preview as string | undefined },
+            {
+              name: f.name as string,
+              preview: f.preview as string | undefined,
+            },
           ],
         }));
         break;
@@ -391,7 +399,9 @@ function MessageBubble({ m }: { m: Message }) {
     return <div className="msg user">{m.text}</div>;
   }
   return (
-    <div className={`msg assistant${m.streaming && !m.text ? " streaming" : ""}`}>
+    <div
+      className={`msg assistant${m.streaming && !m.text ? " streaming" : ""}`}
+    >
       {m.reasoning && (
         <details className="reasoning-toggle">
           <summary>Reasoning</summary>
@@ -403,7 +413,11 @@ function MessageBubble({ m }: { m: Message }) {
       ) : (
         !m.streaming && !m.error && <span className="faint">no output</span>
       )}
-      {m.error && <div className="banner err" style={{ margin: "8px 0 0" }}>{m.error}</div>}
+      {m.error && (
+        <div className="banner err" style={{ margin: "8px 0 0" }}>
+          {m.error}
+        </div>
+      )}
       {!m.streaming && m.text && (
         <div className="msg-actions">
           <CopyButton text={m.text} />

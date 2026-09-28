@@ -5,14 +5,13 @@ pub mod brain;
 pub mod chat_import;
 mod commands;
 pub mod connectivity;
-pub mod git;
 pub mod gateway;
+pub mod git;
 pub mod history_sync;
+pub mod hooks;
 pub mod infra_config;
 pub mod lanes;
 pub mod mcp;
-pub mod hooks;
-pub mod redact;
 pub mod memory;
 pub mod mobile_server;
 pub mod monitors;
@@ -23,6 +22,7 @@ pub mod preview;
 pub mod pricing;
 pub mod projects;
 pub mod prp;
+pub mod redact;
 pub mod repo_map;
 pub mod retrieval;
 pub mod skills;
@@ -73,7 +73,8 @@ pub fn run() {
         // the user (login URL surfaced in Settings → Tailscale); after that it is
         // fully automatic on every launch.
         if crate::tailscale::wsl::available() {
-            std::thread::spawn(|| match crate::tailscale::wsl::setup() {
+            std::thread::spawn(|| {
+                match crate::tailscale::wsl::setup() {
                 Ok(st) => match st.login_url {
                     Some(url) => tracing::warn!(
                         "tailscale (WSL): needs authentication — open {url} (or Settings → Tailscale)"
@@ -85,6 +86,7 @@ pub fn run() {
                     ),
                 },
                 Err(e) => tracing::warn!("tailscale (WSL) auto-start failed: {e}"),
+            }
             });
         }
         // WSL runs the SOCKS proxy on the WSL IP (NAT); Windows loopback does NOT
@@ -108,7 +110,9 @@ pub fn run() {
             "tailscale: system Tailscale detected — using it directly (embedded sidecar NOT started)"
         );
     } else if *crate::tailscale::shared().enabled.read() {
-        tracing::info!("tailscale: no system Tailscale — starting embedded tsnet sidecar (socks5h proxy)");
+        tracing::info!(
+            "tailscale: no system Tailscale — starting embedded tsnet sidecar (socks5h proxy)"
+        );
         let socks = crate::tailscale::socks_addr();
         let key = crate::tailscale::get_authkey();
         if let Err(e) = crate::tailscale::manager::start(key, &socks, "cortex") {
@@ -209,7 +213,9 @@ pub fn run() {
         // the vault key.
         for cfg in crate::agents::custom_endpoint::load_endpoints() {
             if cfg.enabled {
-                reg.register(Arc::new(crate::agents::custom_endpoint::CustomEndpointAgent::new(cfg)));
+                reg.register(Arc::new(
+                    crate::agents::custom_endpoint::CustomEndpointAgent::new(cfg),
+                ));
             }
         }
         // E2E only: deterministic fake-LLM adapter the probe drives through
@@ -233,8 +239,8 @@ pub fn run() {
 
     // Lanes whose watcher died with the previous process would show "running"
     // forever — stamp them interrupted before anything reads the table.
-    if let Ok(n) = crate::lanes::LaneStore::new(tracing_store.shared_connection())
-        .mark_stale_interrupted()
+    if let Ok(n) =
+        crate::lanes::LaneStore::new(tracing_store.shared_connection()).mark_stale_interrupted()
     {
         if n > 0 {
             tracing::info!("marked {n} stale lane run(s) interrupted from a previous session");
@@ -737,9 +743,7 @@ pub fn run() {
                 let app_handle = app.handle().clone();
                 tauri::async_runtime::spawn(async move {
                     tokio::time::sleep(std::time::Duration::from_secs(8)).await;
-                    if let Some(win) =
-                        tauri::Manager::get_webview_window(&app_handle, "main")
-                    {
+                    if let Some(win) = tauri::Manager::get_webview_window(&app_handle, "main") {
                         if !win.is_visible().unwrap_or(true) {
                             let _ = win.show();
                         }
@@ -927,7 +931,9 @@ pub fn build_headless_state() -> (AppState, TracingStore) {
         // Model Fabric parity for the headless/mobile server (see run()).
         for cfg in crate::agents::custom_endpoint::load_endpoints() {
             if cfg.enabled {
-                reg.register(Arc::new(crate::agents::custom_endpoint::CustomEndpointAgent::new(cfg)));
+                reg.register(Arc::new(
+                    crate::agents::custom_endpoint::CustomEndpointAgent::new(cfg),
+                ));
             }
         }
     }

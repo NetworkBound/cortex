@@ -72,7 +72,8 @@ function parseHeaders(text: string): Record<string, string> {
 function describeTest(r: TestResult): string {
   const lat = `${r.latency_ms}ms`;
   if (r.ok) return `OK (HTTP ${r.status ?? "?"}) · ${lat}`;
-  if (r.status != null) return `HTTP ${r.status} · ${lat}${r.error ? ` · ${r.error}` : ""}`;
+  if (r.status != null)
+    return `HTTP ${r.status} · ${lat}${r.error ? ` · ${r.error}` : ""}`;
   return `failed · ${lat}${r.error ? ` · ${r.error}` : ""}`;
 }
 
@@ -83,7 +84,9 @@ export function WebhooksPanel({ onClose }: WebhooksPanelProps) {
   const [editingId, setEditingId] = useState<string | null | "__new">(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
+  const [testResults, setTestResults] = useState<Record<string, TestResult>>(
+    {},
+  );
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -164,12 +167,15 @@ export function WebhooksPanel({ onClose }: WebhooksPanelProps) {
 
   const onDelete = useCallback(
     async (w: Webhook) => {
-      if (!(await confirmDialog({
-        title: "Delete webhook?",
-        message: `Delete webhook "${w.label}"?`,
-        confirmLabel: "Delete",
-        danger: true,
-      }))) return;
+      if (
+        !(await confirmDialog({
+          title: "Delete webhook?",
+          message: `Delete webhook "${w.label}"?`,
+          confirmLabel: "Delete",
+          danger: true,
+        }))
+      )
+        return;
       setBusyId(w.id);
       try {
         await deleteWebhook(w.id);
@@ -244,24 +250,35 @@ export function WebhooksPanel({ onClose }: WebhooksPanelProps) {
       >
         <header className="webhooks-header">
           <h2 id="webhooks-title">Webhooks</h2>
-          <button className="webhooks-close" onClick={onClose} aria-label="Close">
+          <button
+            className="webhooks-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
             ×
           </button>
         </header>
 
         <p className="webhooks-summary">
-          Outbound POSTs on selected events. Stored at <code>~/.cortex/webhooks.json</code>. Errors
-          are logged but never block the agent.
+          Outbound POSTs on selected events. Stored at{" "}
+          <code>~/.cortex/webhooks.json</code>. Errors are logged but never
+          block the agent.
         </p>
 
         <section className="webhooks-toolbar">
-          <button className="webhooks-primary" onClick={startNew} disabled={editingId !== null}>
+          <button
+            className="webhooks-primary"
+            onClick={startNew}
+            disabled={editingId !== null}
+          >
             + Add webhook
           </button>
           <span className="webhooks-count">{items.length} configured</span>
         </section>
 
-        {loading && items.length === 0 && <PanelLoading label="Loading webhooks" />}
+        {loading && items.length === 0 && (
+          <PanelLoading label="Loading webhooks" />
+        )}
 
         {!loading && items.length === 0 && editingId === null && (
           <div className="webhooks-empty">No webhooks yet.</div>
@@ -273,9 +290,15 @@ export function WebhooksPanel({ onClose }: WebhooksPanelProps) {
             const isEditing = editingId === w.id;
             const last = testResults[w.id];
             return (
-              <li key={w.id} className={`webhooks-item ${isEditing ? "webhooks-item-editing" : ""}`}>
+              <li
+                key={w.id}
+                className={`webhooks-item ${isEditing ? "webhooks-item-editing" : ""}`}
+              >
                 <div className="webhooks-item-row">
-                  <label className="webhooks-toggle" title={w.enabled ? "Disable" : "Enable"}>
+                  <label
+                    className="webhooks-toggle"
+                    title={w.enabled ? "Disable" : "Enable"}
+                  >
                     <input
                       type="checkbox"
                       checked={w.enabled}
@@ -305,7 +328,12 @@ export function WebhooksPanel({ onClose }: WebhooksPanelProps) {
                     <button onClick={() => onTest(w)} disabled={busy}>
                       Test
                     </button>
-                    <button onClick={() => (isEditing ? setEditingId(null) : startEdit(w))} disabled={busy}>
+                    <button
+                      onClick={() =>
+                        isEditing ? setEditingId(null) : startEdit(w)
+                      }
+                      disabled={busy}
+                    >
                       {isEditing ? "Cancel" : "Edit"}
                     </button>
                     <button
@@ -329,7 +357,9 @@ export function WebhooksPanel({ onClose }: WebhooksPanelProps) {
               Label
               <input
                 value={form.label}
-                onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, label: e.target.value }))
+                }
                 placeholder="CI on memory snapshot"
                 disabled={busyId !== null}
               />
@@ -338,7 +368,9 @@ export function WebhooksPanel({ onClose }: WebhooksPanelProps) {
               URL
               <input
                 value={form.url}
-                onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, url: e.target.value }))
+                }
                 placeholder="https://hooks.example.com/..."
                 disabled={busyId !== null}
               />
@@ -390,7 +422,9 @@ export function WebhooksPanel({ onClose }: WebhooksPanelProps) {
               <textarea
                 value={form.headersText}
                 rows={3}
-                onChange={(e) => setForm((f) => ({ ...f, headersText: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, headersText: e.target.value }))
+                }
                 placeholder={"X-Token: abc\nX-Source: cortex"}
                 disabled={busyId !== null}
               />
@@ -399,16 +433,25 @@ export function WebhooksPanel({ onClose }: WebhooksPanelProps) {
               <input
                 type="checkbox"
                 checked={form.enabled}
-                onChange={(e) => setForm((f) => ({ ...f, enabled: e.target.checked }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, enabled: e.target.checked }))
+                }
                 disabled={busyId !== null}
               />
               Enabled
             </label>
             <div className="webhooks-edit-actions">
-              <button onClick={() => setEditingId(null)} disabled={busyId !== null}>
+              <button
+                onClick={() => setEditingId(null)}
+                disabled={busyId !== null}
+              >
                 Cancel
               </button>
-              <button className="webhooks-primary" onClick={onSave} disabled={busyId !== null}>
+              <button
+                className="webhooks-primary"
+                onClick={onSave}
+                disabled={busyId !== null}
+              >
                 {busyId !== null ? "Saving…" : "Save"}
               </button>
             </div>

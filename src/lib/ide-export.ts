@@ -21,7 +21,11 @@ export const IDE_FORMATS = [
   { id: "cursor", label: "Cursor", target: ".cursor/rules/cortex.mdc" },
   { id: "windsurf", label: "Windsurf", target: ".windsurfrules" },
   { id: "cline", label: "Cline", target: ".clinerules/cortex.md" },
-  { id: "copilot", label: "GitHub Copilot", target: ".github/copilot-instructions.md" },
+  {
+    id: "copilot",
+    label: "GitHub Copilot",
+    target: ".github/copilot-instructions.md",
+  },
   { id: "codex", label: "Codex (global)", target: "~/.codex/AGENTS.md" },
 ] as const;
 

@@ -8,9 +8,7 @@
 //! that updating the key via Settings takes effect immediately without
 //! requiring an app restart or registry re-registration.
 
-use super::adapter::{
-    AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest,
-};
+use super::adapter::{AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest};
 use crate::app_state::AppState;
 use crate::gateway::client::{ChatMessage, GatewayClient, RunRequest, RunStreamItem};
 use parking_lot::RwLock;
@@ -77,28 +75,44 @@ impl AgentAdapter for GatewayRemoteAgent {
         self.current_client().health().await
     }
 
-    async fn run(
-        &self,
-        req: ChatRequest,
-        tx: mpsc::Sender<AgentEvent>,
-    ) -> anyhow::Result<()> {
+    async fn run(&self, req: ChatRequest, tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
         let client = self.current_client();
 
         if self.base_url.read().trim().is_empty() {
-            let _ = tx.send(AgentEvent::Started { agent_id: "gateway-remote".into(), run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Started {
+                    agent_id: "gateway-remote".into(),
+                    run_id: None,
+                })
+                .await;
             let _ = tx.send(AgentEvent::Error {
                 message: "Cortex Gateway is not configured. Open Settings → Connection and enter your gateway URL (or set CORTEX_GATEWAY_BASE_URL / gateway_base_url in ~/.cortex/infra.json).".into(),
             }).await;
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             return Ok(());
         }
 
         if client.api_key.is_empty() {
-            let _ = tx.send(AgentEvent::Started { agent_id: "gateway-remote".into(), run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Started {
+                    agent_id: "gateway-remote".into(),
+                    run_id: None,
+                })
+                .await;
             let _ = tx.send(AgentEvent::Error {
                 message: "No Cortex Gateway API key set. Open Settings → paste your Bearer key → Save.".into(),
             }).await;
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             return Ok(());
         }
 
@@ -112,7 +126,10 @@ impl AgentAdapter for GatewayRemoteAgent {
         let history: Vec<ChatMessage> = req
             .history
             .iter()
-            .map(|t| ChatMessage { role: t.role.clone(), content: t.content.clone() })
+            .map(|t| ChatMessage {
+                role: t.role.clone(),
+                content: t.content.clone(),
+            })
             .collect();
 
         // Per-call model override wins over the adapter's configured hint —
@@ -125,14 +142,22 @@ impl AgentAdapter for GatewayRemoteAgent {
             .filter(|s| !s.is_empty())
             .or_else(|| {
                 let hint = self.model_hint.read().trim().to_string();
-                if hint.is_empty() { None } else { Some(hint) }
+                if hint.is_empty() {
+                    None
+                } else {
+                    Some(hint)
+                }
             });
 
         let run_req = RunRequest {
             input: req.message.clone(),
             instructions: None,
             previous_response_id: None,
-            conversation_history: if history.is_empty() { None } else { Some(history) },
+            conversation_history: if history.is_empty() {
+                None
+            } else {
+                Some(history)
+            },
             model: model_override,
             // Already normalized to a canonical level (or None) by
             // `orchestrator::reasoning::resolve` in chat.rs.
@@ -150,28 +175,49 @@ impl AgentAdapter for GatewayRemoteAgent {
         {
             Ok(id) => id,
             Err(e) => {
-                let _ = tx.send(AgentEvent::Started { agent_id: "gateway-remote".into(), run_id: None }).await;
+                let _ = tx
+                    .send(AgentEvent::Started {
+                        agent_id: "gateway-remote".into(),
+                        run_id: None,
+                    })
+                    .await;
                 let detail = format!("{e}");
                 let hint = if detail.contains("401") {
                     " — your API key is invalid or expired. Open Settings to re-enter."
                 } else if detail.contains("connect") || detail.contains("dns") {
                     " — gateway unreachable. Check the gateway URL in Settings → Connection."
-                } else { "" };
-                let _ = tx.send(AgentEvent::Error { message: format!("start_run: {detail}{hint}") }).await;
-                let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+                } else {
+                    ""
+                };
+                let _ = tx
+                    .send(AgentEvent::Error {
+                        message: format!("start_run: {detail}{hint}"),
+                    })
+                    .await;
+                let _ = tx
+                    .send(AgentEvent::Done {
+                        total_tokens: None,
+                        run_id: None,
+                    })
+                    .await;
                 return Ok(());
             }
         };
 
         let _ = tx
-            .send(AgentEvent::Started { agent_id: "gateway-remote".into(), run_id: Some(run_id.clone()) })
+            .send(AgentEvent::Started {
+                agent_id: "gateway-remote".into(),
+                run_id: Some(run_id.clone()),
+            })
             .await;
 
         let (item_tx, mut item_rx) = mpsc::channel::<RunStreamItem>(128);
         let client_for_sub = client.clone();
         let run_id_clone = run_id.clone();
         let sub_task = tokio::spawn(async move {
-            client_for_sub.run_event_stream(&run_id_clone, item_tx).await
+            client_for_sub
+                .run_event_stream(&run_id_clone, item_tx)
+                .await
         });
 
         // Token total reported by the gateway on the terminal event (when it
@@ -189,43 +235,60 @@ impl AgentAdapter for GatewayRemoteAgent {
                     let _ = tx.send(AgentEvent::Reasoning { text: t }).await;
                 }
                 RunStreamItem::ToolStarted { tool, preview } => {
-                    let _ = tx.send(AgentEvent::ToolCall {
-                        name: tool,
-                        args: serde_json::Value::Null,
-                        preview,
-                    }).await;
+                    let _ = tx
+                        .send(AgentEvent::ToolCall {
+                            name: tool,
+                            args: serde_json::Value::Null,
+                            preview,
+                        })
+                        .await;
                 }
-                RunStreamItem::ToolCompleted { tool, duration_s, error } => {
-                    let _ = tx.send(AgentEvent::ToolResult {
-                        name: tool,
-                        ok: !error,
-                        summary: String::new(),
-                        duration_ms: {
-                            let ms = duration_s * 1000.0;
-                            // NaN -> 0, +/-Inf and out-of-range floats clamp to
-                            // i64 bounds instead of saturating to garbage.
-                            Some(if ms.is_nan() {
-                                0
-                            } else {
-                                ms.clamp(i64::MIN as f64, i64::MAX as f64) as i64
-                            })
-                        },
-                    }).await;
+                RunStreamItem::ToolCompleted {
+                    tool,
+                    duration_s,
+                    error,
+                } => {
+                    let _ = tx
+                        .send(AgentEvent::ToolResult {
+                            name: tool,
+                            ok: !error,
+                            summary: String::new(),
+                            duration_ms: {
+                                let ms = duration_s * 1000.0;
+                                // NaN -> 0, +/-Inf and out-of-range floats clamp to
+                                // i64 bounds instead of saturating to garbage.
+                                Some(if ms.is_nan() {
+                                    0
+                                } else {
+                                    ms.clamp(i64::MIN as f64, i64::MAX as f64) as i64
+                                })
+                            },
+                        })
+                        .await;
                 }
-                RunStreamItem::ApprovalRequest { tool, preview, choices, raw } => {
-                    let _ = tx.send(AgentEvent::ApprovalRequest {
-                        run_id: run_id.clone(),
-                        tool,
-                        preview,
-                        choices,
-                        request: raw,
-                    }).await;
+                RunStreamItem::ApprovalRequest {
+                    tool,
+                    preview,
+                    choices,
+                    raw,
+                } => {
+                    let _ = tx
+                        .send(AgentEvent::ApprovalRequest {
+                            run_id: run_id.clone(),
+                            tool,
+                            preview,
+                            choices,
+                            request: raw,
+                        })
+                        .await;
                 }
                 RunStreamItem::ApprovalResponded { choice } => {
-                    let _ = tx.send(AgentEvent::ApprovalResolved {
-                        run_id: run_id.clone(),
-                        choice,
-                    }).await;
+                    let _ = tx
+                        .send(AgentEvent::ApprovalResolved {
+                            run_id: run_id.clone(),
+                            choice,
+                        })
+                        .await;
                 }
                 RunStreamItem::Done { usage } => {
                     // Prefer the gateway's reported total; fall back to
@@ -250,7 +313,9 @@ impl AgentAdapter for GatewayRemoteAgent {
             Ok(Ok(())) => {}
             Ok(Err(e)) => {
                 let _ = tx
-                    .send(AgentEvent::Error { message: format!("event stream: {e}") })
+                    .send(AgentEvent::Error {
+                        message: format!("event stream: {e}"),
+                    })
                     .await;
             }
             Err(join_err) => {
@@ -262,7 +327,12 @@ impl AgentAdapter for GatewayRemoteAgent {
             }
         }
 
-        let _ = tx.send(AgentEvent::Done { total_tokens, run_id: Some(run_id) }).await;
+        let _ = tx
+            .send(AgentEvent::Done {
+                total_tokens,
+                run_id: Some(run_id),
+            })
+            .await;
         Ok(())
     }
 }

@@ -79,9 +79,7 @@ export function ProjectMetricsPanel() {
         </div>
       )}
 
-      {!metrics && loading && (
-        <PanelLoading label="Scanning project tree" />
-      )}
+      {!metrics && loading && <PanelLoading label="Scanning project tree" />}
 
       {metrics && (
         <>
@@ -91,8 +89,8 @@ export function ProjectMetricsPanel() {
           <BiggestDirs m={metrics} />
           {metrics.truncated && (
             <div className="metrics-warn">
-              ⚠ Scan capped at 50,000 entries — numbers may underrepresent
-              the full tree.
+              ⚠ Scan capped at 50,000 entries — numbers may underrepresent the
+              full tree.
             </div>
           )}
         </>

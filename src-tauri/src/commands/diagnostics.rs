@@ -50,8 +50,9 @@ static PRIVATE_IP_RE: Lazy<Regex> = Lazy::new(|| {
 /// Home-directory prefixes (Linux / macOS / Windows). Only the prefix +
 /// username collapses to `~`; the path tail stays readable so a bug report
 /// still shows *which* file was involved.
-static HOME_PATH_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)(?:/home/|/Users/|[A-Z]:[\\/]Users[\\/])[A-Za-z0-9._-]+").unwrap());
+static HOME_PATH_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)(?:/home/|/Users/|[A-Z]:[\\/]Users[\\/])[A-Za-z0-9._-]+").unwrap()
+});
 
 /// JSON-aware sensitive assignments. The shared `redact::redact_text`
 /// ASSIGN_RE needs a word boundary before the key word and no quote between
@@ -87,10 +88,7 @@ struct SessionMeta {
     project_root: Option<String>,
 }
 
-fn recent_session_meta(
-    conn: &Mutex<Connection>,
-    limit: usize,
-) -> anyhow::Result<Vec<SessionMeta>> {
+fn recent_session_meta(conn: &Mutex<Connection>, limit: usize) -> anyhow::Result<Vec<SessionMeta>> {
     let guard = conn.lock();
     let mut stmt = guard.prepare(
         "SELECT session_id, COUNT(*), MIN(ts), MAX(ts), MAX(COALESCE(project_root, ''))
@@ -168,8 +166,7 @@ fn build_bundle_files(
         "arch": std::env::consts::ARCH,
         "exported_at": chrono::Utc::now().to_rfc3339(),
     });
-    let config_json =
-        serde_json::to_string_pretty(config).unwrap_or_else(|_| "{}".to_string());
+    let config_json = serde_json::to_string_pretty(config).unwrap_or_else(|_| "{}".to_string());
 
     let mut files: Vec<(String, String)> = vec![
         (
@@ -232,13 +229,11 @@ pub async fn export_diagnostics(
     // Crash log via the same connection the panic hook writes to.
     let conn = store.shared_connection();
     let crashes = crash::recent_crashes(&conn, 100).unwrap_or_default();
-    let crashes_json =
-        serde_json::to_string_pretty(&crashes).map_err(|e| e.to_string())?;
+    let crashes_json = serde_json::to_string_pretty(&crashes).map_err(|e| e.to_string())?;
 
     // Recent session metadata — ids/counts/timestamps only, never contents.
     let sessions = recent_session_meta(&conn, 25).unwrap_or_default();
-    let sessions_json =
-        serde_json::to_string_pretty(&sessions).map_err(|e| e.to_string())?;
+    let sessions_json = serde_json::to_string_pretty(&sessions).map_err(|e| e.to_string())?;
     drop(conn);
 
     // Allowlisted ~/.cortex config files (redacted later, with everything else).
@@ -313,7 +308,9 @@ pub fn format_audit_rows(rows: &[AuditRow], format: &str) -> Result<String, Stri
             }
             Ok(out)
         }
-        other => Err(format!("unknown export format '{other}' (expected \"jsonl\" or \"csv\")")),
+        other => Err(format!(
+            "unknown export format '{other}' (expected \"jsonl\" or \"csv\")"
+        )),
     }
 }
 
@@ -336,7 +333,9 @@ pub async fn export_audit_log(
     format: String,
     store: State<'_, TracingStore>,
 ) -> Result<AuditLogExport, String> {
-    let rows = store.audit_between(from_ts, to_ts).map_err(|e| e.to_string())?;
+    let rows = store
+        .audit_between(from_ts, to_ts)
+        .map_err(|e| e.to_string())?;
     let content = format_audit_rows(&rows, &format)?;
     let ext = format.trim().to_ascii_lowercase();
     let home = dirs::home_dir().ok_or_else(|| "no home directory".to_string())?;
@@ -440,7 +439,14 @@ mod tests {
 
     #[test]
     fn leaves_public_ips_alone() {
-        for ip in ["8.8.8.8", "100.1.1.1", "100.128.0.1", "172.32.0.1", "192.169.0.1", "11.0.0.1"] {
+        for ip in [
+            "8.8.8.8",
+            "100.1.1.1",
+            "100.128.0.1",
+            "172.32.0.1",
+            "192.169.0.1",
+            "11.0.0.1",
+        ] {
             let out = redact_diagnostics(&format!("ping {ip} ok"));
             assert!(out.contains(ip), "over-redacted public ip {ip}: {out}");
         }
@@ -452,7 +458,10 @@ mod tests {
     fn collapses_home_paths_keeping_tail() {
         let out = redact_diagnostics("/home/exampleuser/projects/cortex/src/lib.rs:42");
         assert!(!out.contains("exampleuser"), "leaked username: {out}");
-        assert!(out.contains("~/projects/cortex/src/lib.rs:42"), "tail lost: {out}");
+        assert!(
+            out.contains("~/projects/cortex/src/lib.rs:42"),
+            "tail lost: {out}"
+        );
 
         let mac = redact_diagnostics("/Users/exampleuser/Library/Logs/app.log");
         assert!(!mac.contains("exampleuser"), "leaked: {mac}");
@@ -490,7 +499,8 @@ mod tests {
     #[test]
     fn bundle_never_contains_secrets_ips_or_usernames() {
         let crashes = r#"[{"message": "panic: bad key sk-ant-api03-LeakedKeyAbCdEfGh99 at http://192.168.1.10:8642", "stack": "/home/exampleuser/x.rs:1"}]"#;
-        let sessions = r#"[{"session_id": "s1", "project_root": "/home/exampleuser/projects/cortex"}]"#;
+        let sessions =
+            r#"[{"session_id": "s1", "project_root": "/home/exampleuser/projects/cortex"}]"#;
         let cfg_files = vec![(
             "git-config.json".to_string(),
             r#"{"git_server_url": "http://192.168.1.20:3000", "token": "ghp_0123456789abcdefghijABCDEFG"}"#.to_string(),
@@ -501,13 +511,27 @@ mod tests {
         assert!(files.iter().any(|(n, _)| n == "config.json"));
         assert!(files.iter().any(|(n, _)| n == "crash-log.json"));
         assert!(files.iter().any(|(n, _)| n == "sessions.json"));
-        assert!(files.iter().any(|(n, _)| n == "cortex-config/git-config.json"));
+        assert!(files
+            .iter()
+            .any(|(n, _)| n == "cortex-config/git-config.json"));
 
         for (name, content) in &files {
-            assert!(!content.contains("sk-ant"), "{name} leaked a key: {content}");
-            assert!(!content.contains("ghp_0123"), "{name} leaked a PAT: {content}");
-            assert!(!content.contains("192.168."), "{name} leaked an IP: {content}");
-            assert!(!content.contains("exampleuser"), "{name} leaked username: {content}");
+            assert!(
+                !content.contains("sk-ant"),
+                "{name} leaked a key: {content}"
+            );
+            assert!(
+                !content.contains("ghp_0123"),
+                "{name} leaked a PAT: {content}"
+            );
+            assert!(
+                !content.contains("192.168."),
+                "{name} leaked an IP: {content}"
+            );
+            assert!(
+                !content.contains("exampleuser"),
+                "{name} leaked username: {content}"
+            );
         }
         // Useful debugging context survives redaction.
         let config = &files.iter().find(|(n, _)| n == "config.json").unwrap().1;
@@ -597,12 +621,24 @@ mod tests {
         let rows = poisoned_audit_rows();
         for format in ["jsonl", "csv"] {
             let out = format_audit_rows(&rows, format).unwrap();
-            assert!(!out.contains("sk-abcdefghijklmnopqrstuvwxyz0123"), "{format} leaked key: {out}");
-            assert!(!out.contains("hunter2secret"), "{format} leaked password: {out}");
-            assert!(!out.contains("ghp_0123456789"), "{format} leaked PAT: {out}");
+            assert!(
+                !out.contains("sk-abcdefghijklmnopqrstuvwxyz0123"),
+                "{format} leaked key: {out}"
+            );
+            assert!(
+                !out.contains("hunter2secret"),
+                "{format} leaked password: {out}"
+            );
+            assert!(
+                !out.contains("ghp_0123456789"),
+                "{format} leaked PAT: {out}"
+            );
             assert!(out.contains("[REDACTED]"), "{format} has no mask: {out}");
             // Useful context survives.
-            assert!(out.contains("safe-mode.toggled"), "{format} lost action: {out}");
+            assert!(
+                out.contains("safe-mode.toggled"),
+                "{format} lost action: {out}"
+            );
             assert!(out.contains("shell_exec"), "{format} lost tool name: {out}");
         }
     }
@@ -627,7 +663,10 @@ mod tests {
         let out = format_audit_rows(&poisoned_audit_rows(), "csv").unwrap();
         assert!(out.starts_with("ts,session_id,agent_id,action,detail\n"));
         // The hostile action's quotes are doubled and the field is wrapped.
-        assert!(out.contains("\"weird,\"\"action\"\"\nline\""), "bad quoting: {out}");
+        assert!(
+            out.contains("\"weird,\"\"action\"\"\nline\""),
+            "bad quoting: {out}"
+        );
     }
 
     #[test]
@@ -647,7 +686,8 @@ mod tests {
     #[test]
     fn session_meta_has_no_message_content() {
         let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch(include_str!("../observability/schema.sql")).unwrap();
+        conn.execute_batch(include_str!("../observability/schema.sql"))
+            .unwrap();
         conn.execute(
             "INSERT INTO messages (id, session_id, ts, role, content, project_root)
              VALUES ('m1', 's1', 100, 'user', 'TOP SECRET PROMPT', '/home/u/proj')",

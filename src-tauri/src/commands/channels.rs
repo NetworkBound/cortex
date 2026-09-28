@@ -147,8 +147,7 @@ fn save_channel(channel: &Channel) -> Result<(), String> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("mkdir failed: {e}"))?;
     }
-    let json =
-        serde_json::to_vec_pretty(channel).map_err(|e| format!("serialize failed: {e}"))?;
+    let json = serde_json::to_vec_pretty(channel).map_err(|e| format!("serialize failed: {e}"))?;
     fs::write(&path, json).map_err(|e| format!("write failed: {e}"))
 }
 
@@ -362,8 +361,14 @@ pub async fn post_message(
         let req = ChatCompletionRequest {
             model,
             messages: vec![
-                ChatMessage { role: "system".into(), content: system_prompt },
-                ChatMessage { role: "user".into(), content: user_prompt },
+                ChatMessage {
+                    role: "system".into(),
+                    content: system_prompt,
+                },
+                ChatMessage {
+                    role: "user".into(),
+                    content: user_prompt,
+                },
             ],
             stream: true,
             temperature: Some(0.7),
@@ -407,7 +412,10 @@ pub async fn post_message(
         {
             Ok(b) => (b.trim().to_string(), false),
             Err(_) => (
-                format!("⚠️ {role_name} timed out after {}s", AGENT_TIMEOUT.as_secs()),
+                format!(
+                    "⚠️ {role_name} timed out after {}s",
+                    AGENT_TIMEOUT.as_secs()
+                ),
                 true,
             ),
         };
@@ -426,7 +434,11 @@ pub async fn post_message(
             &channel_id,
             ChannelProgress {
                 role: role_name.clone(),
-                status: if timed_out || is_empty { "error".into() } else { "done".into() },
+                status: if timed_out || is_empty {
+                    "error".into()
+                } else {
+                    "done".into()
+                },
                 text: Some(final_body.clone()),
             },
         );
@@ -510,8 +522,7 @@ mod tests {
 
     #[test]
     fn transcript_tail_keeps_only_last_n() {
-        let msgs: Vec<ChannelMessage> =
-            (0..5).map(|i| msg("u", &format!("m{i}"))).collect();
+        let msgs: Vec<ChannelMessage> = (0..5).map(|i| msg("u", &format!("m{i}"))).collect();
         assert_eq!(transcript_tail(&msgs, 2), "u: m3\nu: m4\n");
     }
 

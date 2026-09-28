@@ -16,7 +16,9 @@ import { useCortexStore } from "@/state/store";
 
 export function BrainPanel() {
   const [snap, setSnap] = useState<BrainSnapshot | null>(null);
-  const [tab, setTab] = useState<"ask" | "sessions" | "projects" | "memory">("ask");
+  const [tab, setTab] = useState<"ask" | "sessions" | "projects" | "memory">(
+    "ask",
+  );
   // Memory-tab dedup scan state.
   const [dupGroups, setDupGroups] = useState<DuplicateGroup[] | null>(null);
   const [dupLoading, setDupLoading] = useState(false);
@@ -62,11 +64,16 @@ export function BrainPanel() {
       try {
         const s = await brainSnapshot();
         if (mounted) setSnap(s);
-      } catch { /* backend warming */ }
+      } catch {
+        /* backend warming */
+      }
     };
     void tick();
     const id = setInterval(tick, 8_000);
-    return () => { mounted = false; clearInterval(id); };
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
   }, []);
 
   if (!snap) return <PanelLoading label="Loading brain" />;
@@ -74,16 +81,28 @@ export function BrainPanel() {
   return (
     <div className="brain-panel">
       <div className="brain-tabs">
-        <button className={tab === "ask" ? "active" : ""} onClick={() => setTab("ask")}>
+        <button
+          className={tab === "ask" ? "active" : ""}
+          onClick={() => setTab("ask")}
+        >
           ask
         </button>
-        <button className={tab === "sessions" ? "active" : ""} onClick={() => setTab("sessions")}>
+        <button
+          className={tab === "sessions" ? "active" : ""}
+          onClick={() => setTab("sessions")}
+        >
           sessions <span className="badge">{snap.recent_sessions.length}</span>
         </button>
-        <button className={tab === "projects" ? "active" : ""} onClick={() => setTab("projects")}>
+        <button
+          className={tab === "projects" ? "active" : ""}
+          onClick={() => setTab("projects")}
+        >
           projects <span className="badge">{snap.recent_projects.length}</span>
         </button>
-        <button className={tab === "memory" ? "active" : ""} onClick={() => setTab("memory")}>
+        <button
+          className={tab === "memory" ? "active" : ""}
+          onClick={() => setTab("memory")}
+        >
           memory <span className="badge">{snap.recent_memory.length}</span>
         </button>
       </div>
@@ -103,22 +122,30 @@ export function BrainPanel() {
                 placeholder="Ask your brain — grounded in your notes + past chats…"
                 disabled={asking}
               />
-              <button onClick={() => void runAsk()} disabled={asking || !question.trim()}>
+              <button
+                onClick={() => void runAsk()}
+                disabled={asking || !question.trim()}
+              >
                 {asking ? "Thinking…" : "Ask"}
               </button>
             </div>
             {askError && <div className="settings-err">{askError}</div>}
-            {asking && <div className="muted">Searching your notes + chats…</div>}
+            {asking && (
+              <div className="muted">Searching your notes + chats…</div>
+            )}
             {!answer && !asking && !askError && (
               <div className="muted brain-ask-hint">
-                Ask anything about what you've discussed or noted. Cortex retrieves from your
-                imported chats + Obsidian vault and answers with citations — all local.
+                Ask anything about what you've discussed or noted. Cortex
+                retrieves from your imported chats + Obsidian vault and answers
+                with citations — all local.
               </div>
             )}
             {answer && (
               <div className="brain-answer">
                 {!answer.used_context && (
-                  <div className="muted">No relevant context found in your brain.</div>
+                  <div className="muted">
+                    No relevant context found in your brain.
+                  </div>
                 )}
                 <div className="brain-answer-body">{answer.answer}</div>
                 {answer.citations.length > 0 && (
@@ -149,7 +176,9 @@ export function BrainPanel() {
                           useCortexStore.getState().setActivityTab("editor");
                           setTimeout(() => {
                             window.dispatchEvent(
-                              new CustomEvent("cortex:editor-open", { detail: { path } }),
+                              new CustomEvent("cortex:editor-open", {
+                                detail: { path },
+                              }),
                             );
                           }, 0);
                         }
@@ -180,7 +209,9 @@ export function BrainPanel() {
                               stale
                             </span>
                           )}
-                          <span className="muted brain-cite-score">{c.score.toFixed(2)}</span>
+                          <span className="muted brain-cite-score">
+                            {c.score.toFixed(2)}
+                          </span>
                         </div>
                       );
                     })}
@@ -194,7 +225,9 @@ export function BrainPanel() {
         {tab === "sessions" && (
           <div className="brain-list">
             {snap.recent_sessions.length === 0 && (
-              <div className="muted">No sessions yet. Start chatting and they'll show up here.</div>
+              <div className="muted">
+                No sessions yet. Start chatting and they'll show up here.
+              </div>
             )}
             {snap.recent_sessions.map((s) => {
               const resume = () => {
@@ -220,11 +253,14 @@ export function BrainPanel() {
                   title="Click to resume this session in chat"
                 >
                   <div className="brain-row-head">
-                    <strong>{s.first_message ?? `session ${s.session_id.slice(-8)}`}</strong>
+                    <strong>
+                      {s.first_message ?? `session ${s.session_id.slice(-8)}`}
+                    </strong>
                     <span className="muted">{timeAgo(s.last_active_ms)}</span>
                   </div>
                   <div className="muted brain-meta">
-                    {s.message_count} msgs · {s.agents.filter(Boolean).join(", ") || "—"}
+                    {s.message_count} msgs ·{" "}
+                    {s.agents.filter(Boolean).join(", ") || "—"}
                   </div>
                 </div>
               );
@@ -234,7 +270,9 @@ export function BrainPanel() {
 
         {tab === "projects" && (
           <div className="brain-list">
-            {snap.recent_projects.length === 0 && <div className="muted">No projects in ~/projects.</div>}
+            {snap.recent_projects.length === 0 && (
+              <div className="muted">No projects in ~/projects.</div>
+            )}
             {snap.recent_projects.map((p) => {
               // Same hand-off the Projects sidebar rows run (backend
               // set_active_project + store + chat bootstrap), then reveal the
@@ -271,7 +309,11 @@ export function BrainPanel() {
                     <span className="muted">{timeAgo(p.last_modified_ms)}</span>
                   </div>
                   <div className="muted brain-meta">
-                    {[p.has_git && "git", p.has_claude_md && "claude", p.has_runbooks && "runbooks"]
+                    {[
+                      p.has_git && "git",
+                      p.has_claude_md && "claude",
+                      p.has_runbooks && "runbooks",
+                    ]
                       .filter(Boolean)
                       .join(" · ") || "—"}
                   </div>
@@ -285,20 +327,28 @@ export function BrainPanel() {
           <div className="brain-list">
             {snap.obsidian_vault === null ? (
               <div className="brain-banner">
-                No Obsidian vault detected. Drop notes in <code>~/Documents/Cortex Brain</code> or
-                point Settings → Workspace at your vault.
+                No Obsidian vault detected. Drop notes in{" "}
+                <code>~/Documents/Cortex Brain</code> or point Settings →
+                Workspace at your vault.
               </div>
             ) : (
-              <div className="brain-banner" style={{ borderLeftColor: "var(--success)" }}>
+              <div
+                className="brain-banner"
+                style={{ borderLeftColor: "var(--success)" }}
+              >
                 ✓ Vault: <code>{snap.obsidian_vault}</code>
               </div>
             )}
             <div className="brain-dedup">
               <div className="brain-ask-bar">
                 <div className="muted" style={{ flex: 1 }}>
-                  Near-duplicate memories — likely copy/paste or repeated-save notes worth merging.
+                  Near-duplicate memories — likely copy/paste or repeated-save
+                  notes worth merging.
                 </div>
-                <button onClick={() => void runDedupScan()} disabled={dupLoading}>
+                <button
+                  onClick={() => void runDedupScan()}
+                  disabled={dupLoading}
+                >
                   {dupLoading ? "Scanning…" : "Find duplicates"}
                 </button>
               </div>
@@ -312,7 +362,9 @@ export function BrainPanel() {
                     <div key={gi} className="brain-row">
                       <div className="brain-row-head">
                         <strong>{g.members.length} similar notes</strong>
-                        <span className="muted">{(g.max_similarity * 100).toFixed(0)}% match</span>
+                        <span className="muted">
+                          {(g.max_similarity * 100).toFixed(0)}% match
+                        </span>
                       </div>
                       {g.members.map((m) => (
                         <div
@@ -324,17 +376,23 @@ export function BrainPanel() {
                             useCortexStore.getState().setActivityTab("editor");
                             setTimeout(() => {
                               window.dispatchEvent(
-                                new CustomEvent("cortex:editor-open", { detail: { path: m.open_path } }),
+                                new CustomEvent("cortex:editor-open", {
+                                  detail: { path: m.open_path },
+                                }),
                               );
                             }, 0);
                           }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              useCortexStore.getState().setActivityTab("editor");
+                              useCortexStore
+                                .getState()
+                                .setActivityTab("editor");
                               setTimeout(() => {
                                 window.dispatchEvent(
-                                  new CustomEvent("cortex:editor-open", { detail: { path: m.open_path } }),
+                                  new CustomEvent("cortex:editor-open", {
+                                    detail: { path: m.open_path },
+                                  }),
                                 );
                               }, 0);
                             }
@@ -350,14 +408,19 @@ export function BrainPanel() {
               )}
             </div>
             {snap.recent_memory.length === 0 && (
-              <div className="muted">No memory files indexed yet — try the Memory tab (Ctrl+Shift+F) for full search.</div>
+              <div className="muted">
+                No memory files indexed yet — try the Memory tab (Ctrl+Shift+F)
+                for full search.
+              </div>
             )}
             {snap.recent_memory.map((m) => {
               const openEditor = () => {
                 useCortexStore.getState().setActivityTab("editor");
                 setTimeout(() => {
                   window.dispatchEvent(
-                    new CustomEvent("cortex:editor-open", { detail: { path: m.path } }),
+                    new CustomEvent("cortex:editor-open", {
+                      detail: { path: m.path },
+                    }),
                   );
                 }, 0);
               };

@@ -23,12 +23,18 @@ export async function listSpaces(projectRoot: string): Promise<Space[]> {
 }
 
 /** Upsert by name (case-insensitive). Creates `.cortex/` if missing. */
-export async function saveSpace(projectRoot: string, space: Space): Promise<void> {
+export async function saveSpace(
+  projectRoot: string,
+  space: Space,
+): Promise<void> {
   return invoke<void>("save_space", { projectRoot, space });
 }
 
 /** Idempotent delete — no-op if the name isn't present. */
-export async function deleteSpace(projectRoot: string, name: string): Promise<void> {
+export async function deleteSpace(
+  projectRoot: string,
+  name: string,
+): Promise<void> {
   return invoke<void>("delete_space", { projectRoot, name });
 }
 
@@ -41,7 +47,11 @@ export async function spaceFiles(
   name: string,
   limit?: number,
 ): Promise<string[]> {
-  return invoke<string[]>("space_files", { projectRoot, name, limit: limit ?? null });
+  return invoke<string[]>("space_files", {
+    projectRoot,
+    name,
+    limit: limit ?? null,
+  });
 }
 
 /** Build a fresh Space with sensible empty defaults — handy for new-space forms. */

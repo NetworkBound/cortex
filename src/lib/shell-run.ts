@@ -36,11 +36,18 @@ export async function shellExec(
  * doesn't blow out on a `find /` accident — the backend's byte cap
  * doesn't account for line-count, only total bytes.
  */
-export function formatShellResult(cmd: string, r: ShellResult, maxLines = 64): string {
+export function formatShellResult(
+  cmd: string,
+  r: ShellResult,
+  maxLines = 64,
+): string {
   const header = r.timed_out
     ? `\`$ ${cmd}\` — _timed out after ${r.duration_ms}ms_`
     : `\`$ ${cmd}\` — exit ${r.exit_code ?? "?"} (${r.duration_ms}ms)`;
-  const body = clipLines([r.stdout, r.stderr].filter(Boolean).join("\n"), maxLines);
+  const body = clipLines(
+    [r.stdout, r.stderr].filter(Boolean).join("\n"),
+    maxLines,
+  );
   const truncHint = r.truncated ? "\n\n_…output truncated (16 KiB cap)._" : "";
   if (!body.trim()) return `${header}\n_(no output)_${truncHint}`;
   return `${header}\n\n\`\`\`\n${body}\n\`\`\`${truncHint}`;

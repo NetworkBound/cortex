@@ -15,9 +15,7 @@
 //! so its registry id (`"claude-cli"`), capabilities, and event stream are
 //! identical to the original adapter.
 
-use super::adapter::{
-    AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest,
-};
+use super::adapter::{AgentAdapter, AgentCapability, AgentDescriptor, AgentEvent, ChatRequest};
 use super::cli_discovery::{self, DirProvider};
 use serde_json::Value;
 use std::path::PathBuf;
@@ -294,17 +292,16 @@ impl AgentAdapter for GenericCliAgent {
         self.spec.discover().is_some()
     }
 
-    async fn run(
-        &self,
-        req: ChatRequest,
-        tx: mpsc::Sender<AgentEvent>,
-    ) -> anyhow::Result<()> {
+    async fn run(&self, req: ChatRequest, tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
         let spec = self.spec;
         let id = spec.id;
 
         let Some(bin) = spec.discover() else {
             let _ = tx
-                .send(AgentEvent::Started { agent_id: id.into(), run_id: None })
+                .send(AgentEvent::Started {
+                    agent_id: id.into(),
+                    run_id: None,
+                })
                 .await;
             let _ = tx
                 .send(AgentEvent::Error {
@@ -314,7 +311,12 @@ impl AgentAdapter for GenericCliAgent {
                     ),
                 })
                 .await;
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             return Ok(());
         };
 
@@ -334,7 +336,11 @@ impl AgentAdapter for GenericCliAgent {
 
         // Build the prompt (history folded in), then let the spec build argv.
         let prompt = build_prompt(&req);
-        let ctx = LaunchCtx { prompt: &prompt, model: &model, req: &req };
+        let ctx = LaunchCtx {
+            prompt: &prompt,
+            model: &model,
+            req: &req,
+        };
         let args = (spec.headless_args)(&ctx);
 
         // Build argv individually — the user message is a single arg, never a
@@ -357,11 +363,16 @@ impl AgentAdapter for GenericCliAgent {
         let mut cmd = {
             #[cfg(windows)]
             {
-                let ext = bin.extension()
+                let ext = bin
+                    .extension()
                     .and_then(|e| e.to_str())
                     .map(|e| e.to_ascii_lowercase());
                 let is_shim = matches!(ext.as_deref(), Some("cmd") | Some("bat"));
-                let direct = if is_shim { resolve_cmd_shim(&bin) } else { None };
+                let direct = if is_shim {
+                    resolve_cmd_shim(&bin)
+                } else {
+                    None
+                };
                 match direct {
                     Some((node_exe, pre_args)) => {
                         let mut c = crate::sys::tokio_no_window(node_exe);
@@ -396,7 +407,10 @@ impl AgentAdapter for GenericCliAgent {
             Ok(c) => c,
             Err(e) => {
                 let _ = tx
-                    .send(AgentEvent::Started { agent_id: id.into(), run_id: None })
+                    .send(AgentEvent::Started {
+                        agent_id: id.into(),
+                        run_id: None,
+                    })
                     .await;
                 #[cfg(windows)]
                 let hint = if shim_fallback {
@@ -416,7 +430,12 @@ impl AgentAdapter for GenericCliAgent {
                         message: format!("failed to spawn `{}`: {e}{hint}", spec.tag),
                     })
                     .await;
-                let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+                let _ = tx
+                    .send(AgentEvent::Done {
+                        total_tokens: None,
+                        run_id: None,
+                    })
+                    .await;
                 return Ok(());
             }
         };
@@ -426,7 +445,10 @@ impl AgentAdapter for GenericCliAgent {
         // Announce the run immediately; structured streams may carry a real
         // session id later, but the UI wants a Started promptly.
         let _ = tx
-            .send(AgentEvent::Started { agent_id: id.into(), run_id: None })
+            .send(AgentEvent::Started {
+                agent_id: id.into(),
+                run_id: None,
+            })
             .await;
 
         // Drain stderr concurrently so a chatty CLI can't dead-lock the pipe.
@@ -480,22 +502,18 @@ impl AgentAdapter for GenericCliAgent {
                             if line.is_empty() {
                                 continue;
                             }
-                            let Ok(json) = serde_json::from_str::<Value>(line)
-                            else {
+                            let Ok(json) = serde_json::from_str::<Value>(line) else {
                                 continue; // skip non-JSON noise
                             };
                             // Capture rate-limit events (out-of-band).
-                            if json.get("type").and_then(Value::as_str)
-                                == Some("rate_limit_event")
+                            if json.get("type").and_then(Value::as_str) == Some("rate_limit_event")
                             {
                                 if let Some(info) = json.get("rate_limit_info") {
                                     last_rate_limit = Some(info.clone());
                                 }
                                 continue;
                             }
-                            if let EventOutcome::Result =
-                                handle_claude_event(&json, &tx).await
-                            {
+                            if let EventOutcome::Result = handle_claude_event(&json, &tx).await {
                                 saw_result = true;
                             }
                         }
@@ -504,13 +522,10 @@ impl AgentAdapter for GenericCliAgent {
                             if line.is_empty() {
                                 continue;
                             }
-                            let Ok(json) = serde_json::from_str::<Value>(line)
-                            else {
+                            let Ok(json) = serde_json::from_str::<Value>(line) else {
                                 continue; // skip non-JSON noise
                             };
-                            if let EventOutcome::Result =
-                                handle_codex_event(&json, &tx).await
-                            {
+                            if let EventOutcome::Result = handle_codex_event(&json, &tx).await {
                                 saw_result = true;
                             }
                         }
@@ -561,7 +576,12 @@ impl AgentAdapter for GenericCliAgent {
 
         // Always close with a Done if a terminal result didn't already emit one.
         if !saw_result {
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
         }
 
         Ok(())
@@ -694,7 +714,9 @@ async fn handle_claude_event(json: &Value, tx: &mpsc::Sender<AgentEvent>) -> Eve
                                 delta.and_then(|d| d.get("text")).and_then(Value::as_str)
                             {
                                 let _ = tx
-                                    .send(AgentEvent::Token { delta: text.to_string() })
+                                    .send(AgentEvent::Token {
+                                        delta: text.to_string(),
+                                    })
                                     .await;
                             }
                         }
@@ -704,7 +726,9 @@ async fn handle_claude_event(json: &Value, tx: &mpsc::Sender<AgentEvent>) -> Eve
                                 .and_then(Value::as_str)
                             {
                                 let _ = tx
-                                    .send(AgentEvent::Reasoning { text: text.to_string() })
+                                    .send(AgentEvent::Reasoning {
+                                        text: text.to_string(),
+                                    })
                                     .await;
                             }
                         }
@@ -713,9 +737,7 @@ async fn handle_claude_event(json: &Value, tx: &mpsc::Sender<AgentEvent>) -> Eve
                 }
                 "content_block_start" => {
                     let block = event.get("content_block");
-                    let is_tool = block
-                        .and_then(|b| b.get("type"))
-                        .and_then(Value::as_str)
+                    let is_tool = block.and_then(|b| b.get("type")).and_then(Value::as_str)
                         == Some("tool_use");
                     if is_tool {
                         let name = block
@@ -760,7 +782,10 @@ async fn handle_claude_event(json: &Value, tx: &mpsc::Sender<AgentEvent>) -> Eve
                 .and_then(Value::as_u64);
 
             let _ = tx
-                .send(AgentEvent::Done { total_tokens, run_id: None })
+                .send(AgentEvent::Done {
+                    total_tokens,
+                    run_id: None,
+                })
                 .await;
             EventOutcome::Result
         }
@@ -800,7 +825,9 @@ async fn handle_codex_event(json: &Value, tx: &mpsc::Sender<AgentEvent>) -> Even
                         .filter(|s| !s.is_empty())
                     {
                         let _ = tx
-                            .send(AgentEvent::Token { delta: text.to_string() })
+                            .send(AgentEvent::Token {
+                                delta: text.to_string(),
+                            })
                             .await;
                     }
                 }
@@ -812,7 +839,9 @@ async fn handle_codex_event(json: &Value, tx: &mpsc::Sender<AgentEvent>) -> Even
                         .filter(|s| !s.is_empty())
                     {
                         let _ = tx
-                            .send(AgentEvent::Reasoning { text: text.to_string() })
+                            .send(AgentEvent::Reasoning {
+                                text: text.to_string(),
+                            })
                             .await;
                     }
                 }
@@ -853,7 +882,10 @@ async fn handle_codex_event(json: &Value, tx: &mpsc::Sender<AgentEvent>) -> Even
                 .and_then(|u| u.get("output_tokens"))
                 .and_then(Value::as_u64);
             let _ = tx
-                .send(AgentEvent::Done { total_tokens, run_id: None })
+                .send(AgentEvent::Done {
+                    total_tokens,
+                    run_id: None,
+                })
                 .await;
             EventOutcome::Result
         }
@@ -891,10 +923,15 @@ async fn handle_gemini_json(buf: &str, tx: &mpsc::Sender<AgentEvent>) -> bool {
         // Not JSON (e.g. the CLI fell back to text or printed a bare error):
         // forward the raw text so the user still sees something useful.
         let _ = tx
-            .send(AgentEvent::Token { delta: trimmed.to_string() })
+            .send(AgentEvent::Token {
+                delta: trimmed.to_string(),
+            })
             .await;
         let _ = tx
-            .send(AgentEvent::Done { total_tokens: None, run_id: None })
+            .send(AgentEvent::Done {
+                total_tokens: None,
+                run_id: None,
+            })
             .await;
         return true;
     };
@@ -918,7 +955,9 @@ async fn handle_gemini_json(buf: &str, tx: &mpsc::Sender<AgentEvent>) -> bool {
         .filter(|s| !s.is_empty())
     {
         let _ = tx
-            .send(AgentEvent::Token { delta: text.to_string() })
+            .send(AgentEvent::Token {
+                delta: text.to_string(),
+            })
             .await;
     }
 
@@ -931,7 +970,10 @@ async fn handle_gemini_json(buf: &str, tx: &mpsc::Sender<AgentEvent>) -> bool {
         .and_then(Value::as_u64);
 
     let _ = tx
-        .send(AgentEvent::Done { total_tokens, run_id: None })
+        .send(AgentEvent::Done {
+            total_tokens,
+            run_id: None,
+        })
         .await;
     true
 }
@@ -973,7 +1015,9 @@ fn persist_claude_limit(info: &Value) {
         "updated_ms": now_ms,
     });
 
-    let Ok(bytes) = serde_json::to_vec_pretty(&out) else { return };
+    let Ok(bytes) = serde_json::to_vec_pretty(&out) else {
+        return;
+    };
     let target = dir.join("claude-usage.json");
     let tmp = dir.join(format!("claude-usage.json.tmp.{now_ms}"));
     if std::fs::write(&tmp, &bytes).is_err() {
@@ -1012,7 +1056,11 @@ mod tests {
         let r = req(
             "final question",
             vec![
-                ChatTurn { role: "user".into(), content: "earlier".into(), agent: None },
+                ChatTurn {
+                    role: "user".into(),
+                    content: "earlier".into(),
+                    agent: None,
+                },
                 ChatTurn {
                     role: "assistant".into(),
                     content: "reply".into(),
@@ -1090,7 +1138,10 @@ mod tests {
         let args = parse_cmd_shim_invocation(legacy, "D:\\npm").expect("legacy shim parses");
         assert_eq!(
             args,
-            vec!["--no-warnings", "D:\\npm\\node_modules\\codex\\bin\\codex.js"]
+            vec![
+                "--no-warnings",
+                "D:\\npm\\node_modules\\codex\\bin\\codex.js"
+            ]
         );
     }
 
@@ -1101,9 +1152,7 @@ mod tests {
         // Forwarder present but no node program token.
         assert!(parse_cmd_shim_invocation("python \"%~dp0\\tool.py\" %*", "C:\\x").is_none());
         // Unexpanded batch variable left in an argument → fall back to the shim.
-        assert!(
-            parse_cmd_shim_invocation("node \"%SOMEWHERE%\\cli.js\" %*", "C:\\x").is_none()
-        );
+        assert!(parse_cmd_shim_invocation("node \"%SOMEWHERE%\\cli.js\" %*", "C:\\x").is_none());
         // Only flags, no script.
         assert!(parse_cmd_shim_invocation("node --version %*", "C:\\x").is_none());
     }

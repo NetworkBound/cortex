@@ -24,8 +24,11 @@ function statusOf(span: Span): StatusKey {
 }
 
 function fmtTs(ms: number): string {
-  return new Date(ms).toLocaleTimeString(undefined, { hour12: false }) +
-    "." + String(ms % 1000).padStart(3, "0");
+  return (
+    new Date(ms).toLocaleTimeString(undefined, { hour12: false }) +
+    "." +
+    String(ms % 1000).padStart(3, "0")
+  );
 }
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -36,8 +39,11 @@ function PayloadView({ payload }: { payload: unknown }) {
   const [open, setOpen] = useState(false);
   if (payload === null || payload === undefined) return null;
   const text = (() => {
-    try { return JSON.stringify(payload, null, 2); }
-    catch { return String(payload); }
+    try {
+      return JSON.stringify(payload, null, 2);
+    } catch {
+      return String(payload);
+    }
   })();
   if (text === "{}" || text === "null") return null;
   const preview = text.length > 80 ? text.slice(0, 80) + "…" : text;
@@ -48,7 +54,8 @@ function PayloadView({ payload }: { payload: unknown }) {
         className="link-btn td-payload-toggle"
         onClick={() => setOpen((v) => !v)}
       >
-        <Chevron open={open} size={12} />payload{!open && <span className="muted"> {preview}</span>}
+        <Chevron open={open} size={12} />
+        payload{!open && <span className="muted"> {preview}</span>}
       </button>
       {open && <pre className="td-payload-json">{text}</pre>}
     </div>
@@ -91,7 +98,9 @@ export function TraceDetail({ trace_id, onClose }: Props) {
         if (mounted) setLoading(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [trace_id]);
 
   // ESC to close
@@ -164,9 +173,11 @@ export function TraceDetail({ trace_id, onClose }: Props) {
         break;
       }
     }
-    window.dispatchEvent(new CustomEvent("cortex:chat-replay", {
-      detail: { trace_id: trace.trace_id, message: userMessage },
-    }));
+    window.dispatchEvent(
+      new CustomEvent("cortex:chat-replay", {
+        detail: { trace_id: trace.trace_id, message: userMessage },
+      }),
+    );
   };
 
   const spanEventIndex = useMemo(() => {
@@ -182,34 +193,54 @@ export function TraceDetail({ trace_id, onClose }: Props) {
   return (
     <div
       className="modal-backdrop td-backdrop"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className="trace-detail" role="dialog" aria-label="Trace detail">
         <header className="td-header">
           <div className="td-header-left">
             <div className="td-title">
-              <span className="muted">trace</span>{" "}
-              <code>{trace_id}</code>
+              <span className="muted">trace</span> <code>{trace_id}</code>
             </div>
             <div className="td-stats">
-              <span><span className="muted">started</span> {fmtTs(start)}</span>
-              <span><span className="muted">duration</span> {duration}ms</span>
-              <span><span className="muted">spans</span> {trace?.spans.length ?? 0}</span>
-              <span><span className="muted">events</span> {events.length}</span>
+              <span>
+                <span className="muted">started</span> {fmtTs(start)}
+              </span>
+              <span>
+                <span className="muted">duration</span> {duration}ms
+              </span>
+              <span>
+                <span className="muted">spans</span> {trace?.spans.length ?? 0}
+              </span>
+              <span>
+                <span className="muted">events</span> {events.length}
+              </span>
             </div>
           </div>
           <div className="td-actions">
-            <button type="button" className="link-btn" onClick={copyJson}>Copy as JSON</button>
+            <button type="button" className="link-btn" onClick={copyJson}>
+              Copy as JSON
+            </button>
             {isChatTurn && (
               <button type="button" className="link-btn" onClick={replayInChat}>
                 Replay in chat
               </button>
             )}
-            <button type="button" className="link-btn" onClick={onClose} aria-label="Close">✕</button>
+            <button
+              type="button"
+              className="link-btn"
+              onClick={onClose}
+              aria-label="Close"
+            >
+              ✕
+            </button>
           </div>
         </header>
 
-        {err && <div className="td-error">failed to load trace events: {err}</div>}
+        {err && (
+          <div className="td-error">failed to load trace events: {err}</div>
+        )}
         {loading && <div className="td-loading muted">loading…</div>}
 
         {!loading && trace && (
@@ -223,7 +254,8 @@ export function TraceDetail({ trace_id, onClose }: Props) {
               <div className="td-waterfall-rows">
                 {trace.spans.map((s) => {
                   const left = ((s.started_at - start) / duration) * 100;
-                  const w = ((s.ended_at ?? end) - s.started_at) / duration * 100;
+                  const w =
+                    (((s.ended_at ?? end) - s.started_at) / duration) * 100;
                   const status = statusOf(s);
                   const sel = selectedSpan === s.id;
                   const spanDur = (s.ended_at ?? end) - s.started_at;
@@ -236,12 +268,17 @@ export function TraceDetail({ trace_id, onClose }: Props) {
                     >
                       <div className="td-row-label" title={s.name}>
                         <span className="td-row-name">{s.name}</span>
-                        {s.agent_id && <span className="muted">:{s.agent_id}</span>}
+                        {s.agent_id && (
+                          <span className="muted">:{s.agent_id}</span>
+                        )}
                       </div>
                       <div className="td-row-track">
                         <div
                           className={`td-bar status-${status}`}
-                          style={{ left: `${left}%`, width: `${Math.max(w, 0.5)}%` }}
+                          style={{
+                            left: `${left}%`,
+                            width: `${Math.max(w, 0.5)}%`,
+                          }}
                         />
                       </div>
                       <div className="td-row-dur">{spanDur}ms</div>
@@ -264,7 +301,9 @@ export function TraceDetail({ trace_id, onClose }: Props) {
                 return (
                   <div
                     key={i}
-                    ref={(el) => { eventRefs.current[`ev-${i}`] = el; }}
+                    ref={(el) => {
+                      eventRefs.current[`ev-${i}`] = el;
+                    }}
                     className={`td-event ${highlight ? "highlight" : ""}`}
                   >
                     <div className="td-event-head">
@@ -272,23 +311,30 @@ export function TraceDetail({ trace_id, onClose }: Props) {
                       <span className="td-event-ts">{fmtTs(ev.ts)}</span>
                       <span className="td-event-name">{ev.name}</span>
                       <span className="muted">· {ev.span_name}</span>
-                      {ev.agent_id && <span className="muted">· {ev.agent_id}</span>}
+                      {ev.agent_id && (
+                        <span className="muted">· {ev.agent_id}</span>
+                      )}
                     </div>
                     <PayloadView payload={ev.payload} />
                   </div>
                 );
               })}
-              {selectedSpan && spanEventIndex.get(
-                trace.spans.find((sp) => sp.id === selectedSpan)?.name ?? "",
-              )?.length === 0 && (
-                <div className="muted td-empty">no events recorded for selected span</div>
-              )}
+              {selectedSpan &&
+                spanEventIndex.get(
+                  trace.spans.find((sp) => sp.id === selectedSpan)?.name ?? "",
+                )?.length === 0 && (
+                  <div className="muted td-empty">
+                    no events recorded for selected span
+                  </div>
+                )}
             </section>
           </div>
         )}
 
         {!loading && !trace && !err && (
-          <div className="td-empty muted">trace not found in recent history</div>
+          <div className="td-empty muted">
+            trace not found in recent history
+          </div>
         )}
       </div>
     </div>

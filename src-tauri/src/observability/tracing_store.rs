@@ -273,14 +273,18 @@ impl TracingStore {
         let _ = conn.pragma_update(None, "synchronous", "NORMAL");
         conn.execute_batch(SCHEMA)?;
         Self::migrate(&conn);
-        Ok(Self { inner: Arc::new(Mutex::new(conn)) })
+        Ok(Self {
+            inner: Arc::new(Mutex::new(conn)),
+        })
     }
 
     pub fn in_memory() -> Self {
         let conn = Connection::open_in_memory().expect("in-mem sqlite");
         conn.execute_batch(SCHEMA).expect("schema");
         Self::migrate(&conn);
-        Self { inner: Arc::new(Mutex::new(conn)) }
+        Self {
+            inner: Arc::new(Mutex::new(conn)),
+        }
     }
 
     /// Additive column migrations for databases created before the column
@@ -313,7 +317,10 @@ impl TracingStore {
         // NULL on every pre-existing row until the next reindex retags it —
         // that just means old rows keep today's behavior (always visible)
         // rather than being newly hidden by the isolation filter.
-        let _ = conn.execute("ALTER TABLE chat_embeddings ADD COLUMN project_root TEXT", []);
+        let _ = conn.execute(
+            "ALTER TABLE chat_embeddings ADD COLUMN project_root TEXT",
+            [],
+        );
     }
 
     pub fn shared_connection(&self) -> Arc<Mutex<Connection>> {
@@ -344,7 +351,10 @@ impl TracingStore {
         Ok(rows.flatten().collect())
     }
 
-    pub fn tokens_by_session(&self, limit: usize) -> anyhow::Result<Vec<crate::usage::SessionTokens>> {
+    pub fn tokens_by_session(
+        &self,
+        limit: usize,
+    ) -> anyhow::Result<Vec<crate::usage::SessionTokens>> {
         let conn = self.inner.lock();
         let mut stmt = conn.prepare(
             "SELECT s.session_id,
@@ -368,7 +378,10 @@ impl TracingStore {
         Ok(rows.flatten().collect())
     }
 
-    pub fn tokens_by_provider(&self, limit: usize) -> anyhow::Result<Vec<crate::usage::ProviderUsage>> {
+    pub fn tokens_by_provider(
+        &self,
+        limit: usize,
+    ) -> anyhow::Result<Vec<crate::usage::ProviderUsage>> {
         let conn = self.inner.lock();
         let mut stmt = conn.prepare(
             "SELECT s.agent_id,
@@ -556,12 +569,23 @@ impl TracingStore {
                 })?
                 .filter_map(|r| r.ok())
                 .collect();
-            traces.push(Trace { trace_id, session_id, started_at, spans });
+            traces.push(Trace {
+                trace_id,
+                session_id,
+                started_at,
+                spans,
+            });
         }
         Ok(traces)
     }
 
-    pub fn record_health(&self, source: &str, ok: bool, latency_ms: Option<i64>, payload: Option<&str>) -> anyhow::Result<()> {
+    pub fn record_health(
+        &self,
+        source: &str,
+        ok: bool,
+        latency_ms: Option<i64>,
+        payload: Option<&str>,
+    ) -> anyhow::Result<()> {
         let conn = self.inner.lock();
         let now = chrono::Utc::now().timestamp_millis();
         conn.execute(
@@ -611,7 +635,13 @@ impl TracingStore {
         Ok(rows.filter_map(|r| r.ok()).collect())
     }
 
-    pub fn record_audit(&self, session_id: Option<&str>, agent_id: Option<&str>, action: &str, detail: Option<&str>) -> anyhow::Result<()> {
+    pub fn record_audit(
+        &self,
+        session_id: Option<&str>,
+        agent_id: Option<&str>,
+        action: &str,
+        detail: Option<&str>,
+    ) -> anyhow::Result<()> {
         let now = chrono::Utc::now().timestamp_millis();
         let conn = self.inner.lock();
         conn.execute(
@@ -636,9 +666,19 @@ impl TracingStore {
             let agents_str: Option<String> = r.get(3).ok();
             let agents: Vec<String> = agents_str
                 .as_deref()
-                .map(|s| s.split(',').filter(|x| !x.is_empty()).map(String::from).collect())
+                .map(|s| {
+                    s.split(',')
+                        .filter(|x| !x.is_empty())
+                        .map(String::from)
+                        .collect()
+                })
                 .unwrap_or_default();
-            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?, agents))
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, i64>(2)?,
+                agents,
+            ))
         })?;
         let mut out: Vec<SessionSummary> = Vec::new();
         for r in rows.flatten() {
@@ -715,7 +755,11 @@ impl TracingStore {
         Ok(rows.filter_map(|r| r.ok()).collect())
     }
 
-    pub fn search_messages(&self, query: &str, limit: i64) -> anyhow::Result<Vec<SessionSearchHit>> {
+    pub fn search_messages(
+        &self,
+        query: &str,
+        limit: i64,
+    ) -> anyhow::Result<Vec<SessionSearchHit>> {
         // Escape LIKE wildcards (`%`, `_`) and the escape char itself so the
         // user's query is matched literally rather than as a pattern.
         let escaped = query
@@ -800,7 +844,17 @@ impl TracingStore {
             "INSERT OR REPLACE INTO chat_embeddings
                  (message_id, session_id, ts, role, text, model, dim, vec, project_root)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![message_id, session_id, ts, role, text, model, vec.len() as i64, bytes, project_root],
+            params![
+                message_id,
+                session_id,
+                ts,
+                role,
+                text,
+                model,
+                vec.len() as i64,
+                bytes,
+                project_root
+            ],
         )?;
         Ok(())
     }
@@ -810,7 +864,17 @@ impl TracingStore {
     pub fn all_chat_embeddings(
         &self,
         model: &str,
-    ) -> anyhow::Result<Vec<(String, String, i64, String, String, Vec<f32>, Option<String>)>> {
+    ) -> anyhow::Result<
+        Vec<(
+            String,
+            String,
+            i64,
+            String,
+            String,
+            Vec<f32>,
+            Option<String>,
+        )>,
+    > {
         let conn = self.inner.lock();
         let mut stmt = conn.prepare(
             "SELECT message_id, session_id, ts, role, text, vec, project_root
@@ -849,8 +913,9 @@ impl TracingStore {
             Ok(s) => s,
             Err(_) => return Vec::new(),
         };
-        let rows = stmt
-            .query_map(params![model], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)));
+        let rows = stmt.query_map(params![model], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+        });
         match rows {
             Ok(it) => it.filter_map(|r| r.ok()).collect(),
             Err(_) => Vec::new(),
@@ -941,7 +1006,11 @@ impl TracingStore {
         };
         let heads = stmt
             .query_map(params![limit as i64], |r| {
-                Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?))
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, i64>(1)?,
+                    r.get::<_, i64>(2)?,
+                ))
             })?
             .filter_map(|r| r.ok())
             .collect::<Vec<_>>();
@@ -1106,11 +1175,15 @@ impl TracingStore {
                 Ok(RunRecord {
                     span_id: r.get(0)?,
                     session_id: r.get(1)?,
-                    agent_id: r.get::<_, Option<String>>(2)?.unwrap_or_else(|| "unknown".into()),
+                    agent_id: r
+                        .get::<_, Option<String>>(2)?
+                        .unwrap_or_else(|| "unknown".into()),
                     model: r.get::<_, Option<String>>(3)?,
                     started: r.get(4)?,
                     ended: r.get::<_, Option<i64>>(5)?,
-                    status: r.get::<_, Option<String>>(6)?.unwrap_or_else(|| "running".into()),
+                    status: r
+                        .get::<_, Option<String>>(6)?
+                        .unwrap_or_else(|| "running".into()),
                     tokens: r.get::<_, i64>(7)?.max(0) as u64,
                     had_error: r.get::<_, i64>(8)? != 0,
                     err_msg: r.get::<_, Option<String>>(9)?,
@@ -1119,10 +1192,14 @@ impl TracingStore {
             rows.flatten().collect::<Vec<RunRecord>>()
         };
 
-        let mut by_provider: std::collections::BTreeMap<String, Vec<&RunRecord>> = Default::default();
+        let mut by_provider: std::collections::BTreeMap<String, Vec<&RunRecord>> =
+            Default::default();
         let mut by_model: std::collections::BTreeMap<String, Vec<&RunRecord>> = Default::default();
         for rec in &recs {
-            by_provider.entry(rec.agent_id.clone()).or_default().push(rec);
+            by_provider
+                .entry(rec.agent_id.clone())
+                .or_default()
+                .push(rec);
             if let Some(m) = &rec.model {
                 by_model.entry(m.clone()).or_default().push(rec);
             }
@@ -1229,7 +1306,8 @@ impl TracingStore {
             cost
         };
 
-        let mut by_tool: std::collections::BTreeMap<String, Vec<&ToolResultRow>> = Default::default();
+        let mut by_tool: std::collections::BTreeMap<String, Vec<&ToolResultRow>> =
+            Default::default();
         for r in &rows {
             by_tool.entry(r.name.clone()).or_default().push(r);
         }
@@ -1250,7 +1328,13 @@ impl TracingStore {
             .into_iter()
             .map(|(name, group)| {
                 let (calls, ok_calls, avg_ms, p95_ms) = tool_stats(&group);
-                McpToolStat { name, calls, ok_calls, avg_ms, p95_ms }
+                McpToolStat {
+                    name,
+                    calls,
+                    ok_calls,
+                    avg_ms,
+                    p95_ms,
+                }
             })
             .collect();
         by_tool_rows.sort_by(|a, b| b.calls.cmp(&a.calls).then_with(|| a.name.cmp(&b.name)));
@@ -1258,7 +1342,14 @@ impl TracingStore {
         let all_refs: Vec<&ToolResultRow> = rows.iter().collect();
         let (calls, ok_calls, avg_ms, p95_ms) = tool_stats(&all_refs);
 
-        Ok(McpToolsSummary { calls, ok_calls, avg_ms, p95_ms, est_usd, by_tool: by_tool_rows })
+        Ok(McpToolsSummary {
+            calls,
+            ok_calls,
+            avg_ms,
+            p95_ms,
+            est_usd,
+            by_tool: by_tool_rows,
+        })
     }
 
     /// Provider-level reliability rows for the cost-per-success router
@@ -1301,11 +1392,15 @@ impl TracingStore {
                 Ok(RunRecord {
                     span_id: r.get(0)?,
                     session_id: r.get(1)?,
-                    agent_id: r.get::<_, Option<String>>(2)?.unwrap_or_else(|| "unknown".into()),
+                    agent_id: r
+                        .get::<_, Option<String>>(2)?
+                        .unwrap_or_else(|| "unknown".into()),
                     model: r.get::<_, Option<String>>(3)?,
                     started: r.get(4)?,
                     ended: r.get::<_, Option<i64>>(5)?,
-                    status: r.get::<_, Option<String>>(6)?.unwrap_or_else(|| "running".into()),
+                    status: r
+                        .get::<_, Option<String>>(6)?
+                        .unwrap_or_else(|| "running".into()),
                     tokens: r.get::<_, i64>(7)?.max(0) as u64,
                     had_error: r.get::<_, i64>(8)? != 0,
                     err_msg: r.get::<_, Option<String>>(9)?,
@@ -1352,7 +1447,9 @@ impl TracingStore {
                 model: r.get::<_, Option<String>>(4)?,
                 started_at: r.get(5)?,
                 ended_at: r.get::<_, Option<i64>>(6)?,
-                status: r.get::<_, Option<String>>(7)?.unwrap_or_else(|| "running".into()),
+                status: r
+                    .get::<_, Option<String>>(7)?
+                    .unwrap_or_else(|| "running".into()),
                 tokens: r.get::<_, i64>(8)?.max(0) as u64,
                 had_error: r.get::<_, i64>(9)? != 0,
                 // Redact the prompt preview — captured raw, may contain secrets.
@@ -1380,7 +1477,8 @@ impl TracingStore {
                         r.get::<_, String>(1)?,
                         r.get::<_, Option<String>>(2)?,
                         r.get::<_, Option<String>>(3)?,
-                        r.get::<_, Option<String>>(4)?.unwrap_or_else(|| "running".into()),
+                        r.get::<_, Option<String>>(4)?
+                            .unwrap_or_else(|| "running".into()),
                         r.get::<_, i64>(5)?,
                         r.get::<_, Option<i64>>(6)?,
                     ))
@@ -1395,7 +1493,12 @@ impl TracingStore {
                         json_extract(attributes, '$.first_message_preview')
                  FROM spans WHERE trace_id = ?1 AND name = 'chat.turn' LIMIT 1",
                 params![trace_id],
-                |r| Ok((r.get::<_, Option<String>>(0)?, r.get::<_, Option<String>>(1)?)),
+                |r| {
+                    Ok((
+                        r.get::<_, Option<String>>(0)?,
+                        r.get::<_, Option<String>>(1)?,
+                    ))
+                },
             )
             .unwrap_or((None, None));
         // routing_reason was redacted at write; prompt_preview was not.
@@ -1409,7 +1512,11 @@ impl TracingStore {
                 let payload_str: String = r.get(2)?;
                 let payload: serde_json::Value =
                     serde_json::from_str(&payload_str).unwrap_or(serde_json::Value::Null);
-                Ok(ReplayStepRow { ts: r.get(0)?, name: r.get(1)?, payload })
+                Ok(ReplayStepRow {
+                    ts: r.get(0)?,
+                    name: r.get(1)?,
+                    payload,
+                })
             })?
             .flatten()
             .collect();
@@ -1421,7 +1528,11 @@ impl TracingStore {
             .filter_map(|s| s.payload.get("tokens").and_then(|t| t.as_u64()))
             .sum();
         let est_usd = if total_tokens > 0 {
-            let price = lookup_price(model.as_deref().unwrap_or(agent_id.as_deref().unwrap_or("")));
+            let price = lookup_price(
+                model
+                    .as_deref()
+                    .unwrap_or(agent_id.as_deref().unwrap_or("")),
+            );
             let (p, c) = split_tokens(total_tokens);
             compute_usd(p, c, price)
         } else {
@@ -1519,7 +1630,11 @@ fn build_reliability_row(
             error_runs += 1;
             let class = error_class(rec.err_msg.as_deref().unwrap_or("agent error"));
             *error_class_counts.entry(class).or_insert(0) += 1;
-            if last_error.as_ref().map(|(t, ..)| rec.started > *t).unwrap_or(true) {
+            if last_error
+                .as_ref()
+                .map(|(t, ..)| rec.started > *t)
+                .unwrap_or(true)
+            {
                 last_error = Some((rec.started, rec.span_id.clone(), rec.session_id.clone()));
             }
         } else if rec.ended.is_some() {
@@ -1547,7 +1662,11 @@ fn build_reliability_row(
         Some((durations.iter().sum::<i64>() / durations.len() as i64).max(0))
     };
     let finished = ok_runs + error_runs;
-    let success_rate = if finished > 0 { ok_runs as f64 / finished as f64 } else { 0.0 };
+    let success_rate = if finished > 0 {
+        ok_runs as f64 / finished as f64
+    } else {
+        0.0
+    };
     let top_error_class = error_class_counts
         .into_iter()
         .max_by_key(|(_, n)| *n)
@@ -1576,16 +1695,52 @@ fn build_reliability_row(
 
 fn event_to_record(event: &AgentEvent) -> (&'static str, serde_json::Value) {
     match event {
-        AgentEvent::Started { agent_id, run_id } => ("started", serde_json::json!({ "agent_id": agent_id, "run_id": run_id })),
-        AgentEvent::Token { delta } => ("token", serde_json::json!({ "chars": delta.chars().count() })),
-        AgentEvent::Reasoning { text } => ("reasoning", serde_json::json!({ "chars": text.chars().count() })),
-        AgentEvent::ToolCall { name, preview, .. } => ("tool_call", serde_json::json!({ "name": name, "preview": preview })),
-        AgentEvent::ToolResult { name, ok, duration_ms, .. } => ("tool_result", serde_json::json!({ "name": name, "ok": ok, "duration_ms": duration_ms })),
-        AgentEvent::FileEdit { path, lines_changed } => ("file_edit", serde_json::json!({ "path": path, "lines": lines_changed })),
-        AgentEvent::ApprovalRequest { tool, .. } => ("approval_request", serde_json::json!({ "tool": tool })),
-        AgentEvent::ApprovalResolved { choice, .. } => ("approval_resolved", serde_json::json!({ "choice": choice })),
+        AgentEvent::Started { agent_id, run_id } => (
+            "started",
+            serde_json::json!({ "agent_id": agent_id, "run_id": run_id }),
+        ),
+        AgentEvent::Token { delta } => (
+            "token",
+            serde_json::json!({ "chars": delta.chars().count() }),
+        ),
+        AgentEvent::Reasoning { text } => (
+            "reasoning",
+            serde_json::json!({ "chars": text.chars().count() }),
+        ),
+        AgentEvent::ToolCall { name, preview, .. } => (
+            "tool_call",
+            serde_json::json!({ "name": name, "preview": preview }),
+        ),
+        AgentEvent::ToolResult {
+            name,
+            ok,
+            duration_ms,
+            ..
+        } => (
+            "tool_result",
+            serde_json::json!({ "name": name, "ok": ok, "duration_ms": duration_ms }),
+        ),
+        AgentEvent::FileEdit {
+            path,
+            lines_changed,
+        } => (
+            "file_edit",
+            serde_json::json!({ "path": path, "lines": lines_changed }),
+        ),
+        AgentEvent::ApprovalRequest { tool, .. } => {
+            ("approval_request", serde_json::json!({ "tool": tool }))
+        }
+        AgentEvent::ApprovalResolved { choice, .. } => {
+            ("approval_resolved", serde_json::json!({ "choice": choice }))
+        }
         AgentEvent::Error { message } => ("error", serde_json::json!({ "message": message })),
-        AgentEvent::Done { total_tokens, run_id } => ("done", serde_json::json!({ "tokens": total_tokens, "run_id": run_id })),
+        AgentEvent::Done {
+            total_tokens,
+            run_id,
+        } => (
+            "done",
+            serde_json::json!({ "tokens": total_tokens, "run_id": run_id }),
+        ),
     }
 }
 
@@ -1651,12 +1806,19 @@ fn simple_fingerprint(msg: &str) -> String {
 }
 
 fn error_class(msg: &str) -> String {
-    if msg.contains("timeout") { "TimeoutError".into() }
-    else if msg.contains("connection") || msg.contains("Connection") { "ConnectionError".into() }
-    else if msg.contains("401") || msg.contains("unauthor") || msg.contains("Unauthor") { "AuthError".into() }
-    else if msg.contains("429") || msg.contains("rate") { "RateLimitError".into() }
-    else if msg.contains("500") || msg.contains("503") { "UpstreamError".into() }
-    else { "AgentError".into() }
+    if msg.contains("timeout") {
+        "TimeoutError".into()
+    } else if msg.contains("connection") || msg.contains("Connection") {
+        "ConnectionError".into()
+    } else if msg.contains("401") || msg.contains("unauthor") || msg.contains("Unauthor") {
+        "AuthError".into()
+    } else if msg.contains("429") || msg.contains("rate") {
+        "RateLimitError".into()
+    } else if msg.contains("500") || msg.contains("503") {
+        "UpstreamError".into()
+    } else {
+        "AgentError".into()
+    }
 }
 
 #[cfg(test)]
@@ -1687,7 +1849,10 @@ mod tests {
             store
                 .record_event(
                     &span_id,
-                    &AgentEvent::Done { total_tokens: Some(*tokens), run_id: None },
+                    &AgentEvent::Done {
+                        total_tokens: Some(*tokens),
+                        run_id: None,
+                    },
                 )
                 .unwrap();
             store.finish_agent_run(&span_id).unwrap();
@@ -1721,7 +1886,10 @@ mod tests {
 
         // by-session totals climb too (same fix).
         let by_session = store.tokens_by_session(10).unwrap();
-        let sess = by_session.iter().find(|s| s.session_id == "sess-1").unwrap();
+        let sess = by_session
+            .iter()
+            .find(|s| s.session_id == "sess-1")
+            .unwrap();
         assert_eq!(sess.total_tokens, 180);
         assert_eq!(sess.runs, 3);
     }
@@ -1735,13 +1903,16 @@ mod tests {
             .start_agent_run("s1", "t", "sess", "ollama", None)
             .unwrap();
         store
-            .record_event("s1", &AgentEvent::Done { total_tokens: Some(42), run_id: None })
+            .record_event(
+                "s1",
+                &AgentEvent::Done {
+                    total_tokens: Some(42),
+                    run_id: None,
+                },
+            )
             .unwrap();
         assert!(store.tokens_by_model(10).unwrap().is_empty());
-        assert_eq!(
-            store.tokens_by_provider(10).unwrap()[0].total_tokens,
-            42
-        );
+        assert_eq!(store.tokens_by_provider(10).unwrap()[0].total_tokens, 42);
     }
 
     /// Reliability aggregation: ok/error classification, success rate,
@@ -1753,18 +1924,41 @@ mod tests {
         for (i, tokens) in [(0, 100u64), (1, 60u64)].iter() {
             let sid = format!("ok-{i}");
             store
-                .start_agent_run(&sid, "t", "sess", "gateway-remote", Some("claude-sonnet-4-6"))
+                .start_agent_run(
+                    &sid,
+                    "t",
+                    "sess",
+                    "gateway-remote",
+                    Some("claude-sonnet-4-6"),
+                )
                 .unwrap();
             store
-                .record_event(&sid, &AgentEvent::Done { total_tokens: Some(*tokens), run_id: None })
+                .record_event(
+                    &sid,
+                    &AgentEvent::Done {
+                        total_tokens: Some(*tokens),
+                        run_id: None,
+                    },
+                )
                 .unwrap();
             store.finish_agent_run(&sid).unwrap();
         }
         store
-            .start_agent_run("err-1", "t", "sess", "gateway-remote", Some("claude-sonnet-4-6"))
+            .start_agent_run(
+                "err-1",
+                "t",
+                "sess",
+                "gateway-remote",
+                Some("claude-sonnet-4-6"),
+            )
             .unwrap();
         store
-            .record_event("err-1", &AgentEvent::Error { message: "upstream returned 500".into() })
+            .record_event(
+                "err-1",
+                &AgentEvent::Error {
+                    message: "upstream returned 500".into(),
+                },
+            )
             .unwrap();
         store.finish_agent_run("err-1").unwrap();
 
@@ -1775,15 +1969,29 @@ mod tests {
         assert!((report.totals.success_rate - 2.0 / 3.0).abs() < 1e-9);
         assert_eq!(report.totals.total_tokens, 160);
         assert!(report.totals.est_usd > 0.0, "cost estimated from tokens");
-        assert_eq!(report.totals.top_error_class.as_deref(), Some("UpstreamError"));
+        assert_eq!(
+            report.totals.top_error_class.as_deref(),
+            Some("UpstreamError")
+        );
 
         // Grouped views: one provider row, one model row, same counts.
-        let prov = report.by_provider.iter().find(|r| r.key == "gateway-remote").unwrap();
+        let prov = report
+            .by_provider
+            .iter()
+            .find(|r| r.key == "gateway-remote")
+            .unwrap();
         assert_eq!(prov.runs, 3);
         assert_eq!(prov.error_runs, 1);
-        let model = report.by_model.iter().find(|r| r.key == "claude-sonnet-4-6").unwrap();
+        let model = report
+            .by_model
+            .iter()
+            .find(|r| r.key == "claude-sonnet-4-6")
+            .unwrap();
         assert_eq!(model.runs, 3);
-        assert!(model.p95_ms.is_some(), "percentiles computed from finished runs");
+        assert!(
+            model.p95_ms.is_some(),
+            "percentiles computed from finished runs"
+        );
 
         // `since_ms` in the future excludes everything → empty, not an error.
         let empty = store
@@ -1794,7 +2002,11 @@ mod tests {
 
         // The failing row deep-link fields point at the errored run.
         let prov = store.reliability_summary(None).unwrap();
-        let row = prov.by_provider.iter().find(|r| r.key == "gateway-remote").unwrap();
+        let row = prov
+            .by_provider
+            .iter()
+            .find(|r| r.key == "gateway-remote")
+            .unwrap();
         assert_eq!(row.last_error_span.as_deref(), Some("err-1"));
 
         // A report with zero MCP tool activity carries a quiet, zeroed
@@ -1853,7 +2065,13 @@ mod tests {
             )
             .unwrap();
         store
-            .record_event("mcp-a", &AgentEvent::Done { total_tokens: Some(100), run_id: None })
+            .record_event(
+                "mcp-a",
+                &AgentEvent::Done {
+                    total_tokens: Some(100),
+                    run_id: None,
+                },
+            )
             .unwrap();
         store.finish_agent_run("mcp-a").unwrap();
 
@@ -1873,7 +2091,13 @@ mod tests {
             )
             .unwrap();
         store
-            .record_event("plain-b", &AgentEvent::Done { total_tokens: Some(50), run_id: None })
+            .record_event(
+                "plain-b",
+                &AgentEvent::Done {
+                    total_tokens: Some(50),
+                    run_id: None,
+                },
+            )
             .unwrap();
         store.finish_agent_run("plain-b").unwrap();
 
@@ -1886,7 +2110,11 @@ mod tests {
         assert!(mcp.est_usd > 0.0, "run-a's priced tokens attribute a cost");
 
         assert_eq!(mcp.by_tool.len(), 2, "two distinct MCP tools");
-        let read_file = mcp.by_tool.iter().find(|t| t.name == "mcp__fs__read_file").unwrap();
+        let read_file = mcp
+            .by_tool
+            .iter()
+            .find(|t| t.name == "mcp__fs__read_file")
+            .unwrap();
         assert_eq!(read_file.calls, 2);
         assert_eq!(read_file.ok_calls, 1);
         assert_eq!(read_file.avg_ms, Some((120 + 80) / 2));
@@ -1914,19 +2142,43 @@ mod tests {
         for (i, tokens) in [(0, 100u64), (1, 60u64)].iter() {
             let sid = format!("budget-ok-{i}");
             store
-                .start_agent_run(&sid, "t", "session-a", "gateway-remote", Some("claude-sonnet-4-6"))
+                .start_agent_run(
+                    &sid,
+                    "t",
+                    "session-a",
+                    "gateway-remote",
+                    Some("claude-sonnet-4-6"),
+                )
                 .unwrap();
             store
-                .record_event(&sid, &AgentEvent::Done { total_tokens: Some(*tokens), run_id: None })
+                .record_event(
+                    &sid,
+                    &AgentEvent::Done {
+                        total_tokens: Some(*tokens),
+                        run_id: None,
+                    },
+                )
                 .unwrap();
             store.finish_agent_run(&sid).unwrap();
         }
         // A run in a different session must not count toward session-a's spend.
         store
-            .start_agent_run("budget-other", "t", "session-b", "gateway-remote", Some("claude-sonnet-4-6"))
+            .start_agent_run(
+                "budget-other",
+                "t",
+                "session-b",
+                "gateway-remote",
+                Some("claude-sonnet-4-6"),
+            )
             .unwrap();
         store
-            .record_event("budget-other", &AgentEvent::Done { total_tokens: Some(1_000_000), run_id: None })
+            .record_event(
+                "budget-other",
+                &AgentEvent::Done {
+                    total_tokens: Some(1_000_000),
+                    run_id: None,
+                },
+            )
             .unwrap();
         store.finish_agent_run("budget-other").unwrap();
 
@@ -1941,7 +2193,10 @@ mod tests {
         assert!((report.totals.est_usd - (spend_a + spend_b)).abs() < 1e-9);
 
         // A session with no runs at all is a quiet 0.0, not an error.
-        assert_eq!(store.session_spend_usd("session-never-existed").unwrap(), 0.0);
+        assert_eq!(
+            store.session_spend_usd("session-never-existed").unwrap(),
+            0.0
+        );
     }
 
     /// Run Replay: the timeline reconstructs a run's ordered events, and the
@@ -1951,28 +2206,61 @@ mod tests {
         let store = TracingStore::in_memory();
         // A chat.turn carrying a routing reason + prompt preview for the trace.
         store
-            .record_chat_turn("trace-r", "sess-r", "please refactor auth.rs", &["gateway-remote".into()], Some("explicit pick: gateway-remote"))
+            .record_chat_turn(
+                "trace-r",
+                "sess-r",
+                "please refactor auth.rs",
+                &["gateway-remote".into()],
+                Some("explicit pick: gateway-remote"),
+            )
             .unwrap();
         store
-            .start_agent_run("run-r", "trace-r", "sess-r", "gateway-remote", Some("claude-sonnet-4-6"))
+            .start_agent_run(
+                "run-r",
+                "trace-r",
+                "sess-r",
+                "gateway-remote",
+                Some("claude-sonnet-4-6"),
+            )
             .unwrap();
         store
-            .record_event("run-r", &AgentEvent::ToolCall { name: "read_file".into(), args: serde_json::Value::Null, preview: Some("auth.rs".into()) })
+            .record_event(
+                "run-r",
+                &AgentEvent::ToolCall {
+                    name: "read_file".into(),
+                    args: serde_json::Value::Null,
+                    preview: Some("auth.rs".into()),
+                },
+            )
             .unwrap();
         // A poisoned error message reaches the store RAW (record_event does not
         // itself redact — the chat path redacts before it; the export must too).
         store
-            .record_event("run-r", &AgentEvent::Error { message: "boom key=sk-ant-api03-DEADBEEFdeadbeef0123456789 leaked".into() })
+            .record_event(
+                "run-r",
+                &AgentEvent::Error {
+                    message: "boom key=sk-ant-api03-DEADBEEFdeadbeef0123456789 leaked".into(),
+                },
+            )
             .unwrap();
         store
-            .record_event("run-r", &AgentEvent::Done { total_tokens: Some(120), run_id: None })
+            .record_event(
+                "run-r",
+                &AgentEvent::Done {
+                    total_tokens: Some(120),
+                    run_id: None,
+                },
+            )
             .unwrap();
         store.finish_agent_run("run-r").unwrap();
 
         let replay = store.run_replay("run-r").unwrap();
         assert_eq!(replay.span_id, "run-r");
         assert_eq!(replay.model.as_deref(), Some("claude-sonnet-4-6"));
-        assert_eq!(replay.routing_reason.as_deref(), Some("explicit pick: gateway-remote"));
+        assert_eq!(
+            replay.routing_reason.as_deref(),
+            Some("explicit pick: gateway-remote")
+        );
         assert_eq!(replay.total_tokens, 120);
         assert!(replay.est_usd > 0.0);
         // Ordered: tool_call → error → done.
@@ -1987,7 +2275,10 @@ mod tests {
 
         // Export redacts the leaked key — the choke-point guarantee.
         let jsonl = store.export_run_replay_jsonl("run-r").unwrap();
-        assert!(!jsonl.contains("sk-ant-api03-DEADBEEF"), "secret must not survive export");
+        assert!(
+            !jsonl.contains("sk-ant-api03-DEADBEEF"),
+            "secret must not survive export"
+        );
         assert!(jsonl.contains("run_replay_meta"));
         assert!(jsonl.contains("tool_call"));
     }

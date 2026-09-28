@@ -41,7 +41,10 @@ export interface ActiveResearch {
   progress: ResearchProgress;
 }
 
-export async function deepResearch(question: string, maxSources = 5): Promise<ResearchReport> {
+export async function deepResearch(
+  question: string,
+  maxSources = 5,
+): Promise<ResearchReport> {
   return invoke<ResearchReport>("deep_research", { question, maxSources });
 }
 
@@ -62,8 +65,12 @@ export async function readResearchReport(path: string): Promise<string> {
   return invoke<string>("read_research_report", { path });
 }
 
-export async function onResearchProgress(cb: (p: ResearchProgress) => void): Promise<UnlistenFn> {
-  return listen<ResearchProgress>("deep_research:progress", (e) => cb(e.payload));
+export async function onResearchProgress(
+  cb: (p: ResearchProgress) => void,
+): Promise<UnlistenFn> {
+  return listen<ResearchProgress>("deep_research:progress", (e) =>
+    cb(e.payload),
+  );
 }
 
 // NOTE: the old pending-question/window-event hand-off (`requestResearch`)

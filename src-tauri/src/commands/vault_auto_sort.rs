@@ -25,9 +25,7 @@ Keep each suggestion to one line. Group by category with markdown headers. \
 If the vault is already well-organized, say so briefly.";
 
 #[tauri::command]
-pub async fn vault_auto_sort(
-    state: State<'_, AppState>,
-) -> Result<String, String> {
+pub async fn vault_auto_sort(state: State<'_, AppState>) -> Result<String, String> {
     let analysis = analyze_vault(None, state.clone()).await?;
 
     let mut prompt = String::with_capacity(8192);
@@ -42,7 +40,10 @@ pub async fn vault_auto_sort(
 
     prompt.push_str("## Folders\n");
     for f in &analysis.folders {
-        prompt.push_str(&format!("- `{}` — {} direct, {} total\n", f.path, f.note_count, f.total_count));
+        prompt.push_str(&format!(
+            "- `{}` — {} direct, {} total\n",
+            f.path, f.note_count, f.total_count
+        ));
     }
 
     if !analysis.tags.is_empty() {

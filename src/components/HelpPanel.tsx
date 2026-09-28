@@ -2,7 +2,11 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { triggerTour } from "@/lib/onboarding";
 import { COMMANDS, categorize, CATEGORY_ORDER } from "@/lib/slash-commands";
-import { AT_PROVIDERS, AT_PROVIDER_CATEGORIES, type AtProvider } from "@/lib/at-vocab";
+import {
+  AT_PROVIDERS,
+  AT_PROVIDER_CATEGORIES,
+  type AtProvider,
+} from "@/lib/at-vocab";
 
 /**
  * Help panel — a flat reference of every major Cortex feature, grouped by
@@ -55,12 +59,19 @@ function buildCommandGroups(): CmdGroup[] {
     seen.add(c.name);
     const cat = categorize(c.name);
     const arr = byCat.get(cat) ?? [];
-    arr.push({ name: c.name, usage: c.usage, description: c.description, aliases: c.aliases });
+    arr.push({
+      name: c.name,
+      usage: c.usage,
+      description: c.description,
+      aliases: c.aliases,
+    });
     byCat.set(cat, arr);
   }
   return CATEGORY_ORDER.filter((cat) => byCat.has(cat)).map((cat) => ({
     category: cat,
-    cmds: (byCat.get(cat) as CmdEntry[]).sort((a, b) => a.name.localeCompare(b.name)),
+    cmds: (byCat.get(cat) as CmdEntry[]).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    ),
   }));
 }
 
@@ -243,10 +254,16 @@ export function HelpPanel() {
   const aq = atFilter.trim().toLowerCase();
   const filteredAtGroups = aq
     ? atGroups
-        .map((g) => ({ ...g, providers: g.providers.filter((p) => atMatches(p, aq)) }))
+        .map((g) => ({
+          ...g,
+          providers: g.providers.filter((p) => atMatches(p, aq)),
+        }))
         .filter((g) => g.providers.length > 0)
     : atGroups;
-  const filteredAtCount = filteredAtGroups.reduce((n, g) => n + g.providers.length, 0);
+  const filteredAtCount = filteredAtGroups.reduce(
+    (n, g) => n + g.providers.length,
+    0,
+  );
 
   return (
     <div className="help-panel">
@@ -275,7 +292,11 @@ export function HelpPanel() {
                 onClick={() => toggle(s.id)}
               >
                 <span className="help-section-caret" aria-hidden="true">
-                  {isOpen ? <ChevronDown size={14} strokeWidth={1.75} /> : <ChevronRight size={14} strokeWidth={1.75} />}
+                  {isOpen ? (
+                    <ChevronDown size={14} strokeWidth={1.75} />
+                  ) : (
+                    <ChevronRight size={14} strokeWidth={1.75} />
+                  )}
                 </span>
                 <span className="help-section-title">{s.title}</span>
                 {s.hint && (
@@ -304,7 +325,9 @@ export function HelpPanel() {
                       />
                     </div>
                     {filteredAtCount === 0 ? (
-                      <div className="help-cmd-empty">No @-mentions match “{atFilter.trim()}”.</div>
+                      <div className="help-cmd-empty">
+                        No @-mentions match “{atFilter.trim()}”.
+                      </div>
                     ) : (
                       filteredAtGroups.map((g) => (
                         <div key={g.category} className="help-cmd-group">
@@ -312,9 +335,13 @@ export function HelpPanel() {
                           {g.providers.map((p) => (
                             <div key={p.syntax} className="help-cmd-row">
                               <div className="help-cmd-sig">
-                                <code className="help-cmd-name">{p.syntax}</code>
+                                <code className="help-cmd-name">
+                                  {p.syntax}
+                                </code>
                                 {p.aliases && p.aliases.length > 0 && (
-                                  <span className="help-cmd-alias">{p.aliases.join(", ")}</span>
+                                  <span className="help-cmd-alias">
+                                    {p.aliases.join(", ")}
+                                  </span>
                                 )}
                               </div>
                               <div className="help-cmd-desc">{p.summary}</div>
@@ -339,7 +366,9 @@ export function HelpPanel() {
                       />
                     </div>
                     {filteredCount === 0 ? (
-                      <div className="help-cmd-empty">No commands match “{cmdFilter.trim()}”.</div>
+                      <div className="help-cmd-empty">
+                        No commands match “{cmdFilter.trim()}”.
+                      </div>
                     ) : (
                       filteredGroups.map((g) => (
                         <div key={g.category} className="help-cmd-group">
@@ -348,14 +377,20 @@ export function HelpPanel() {
                             <div key={c.name} className="help-cmd-row">
                               <div className="help-cmd-sig">
                                 <code className="help-cmd-name">/{c.name}</code>
-                                {c.usage && <span className="help-cmd-usage">{c.usage}</span>}
+                                {c.usage && (
+                                  <span className="help-cmd-usage">
+                                    {c.usage}
+                                  </span>
+                                )}
                                 {c.aliases && c.aliases.length > 0 && (
                                   <span className="help-cmd-alias">
                                     {c.aliases.map((a) => `/${a}`).join(", ")}
                                   </span>
                                 )}
                               </div>
-                              <div className="help-cmd-desc">{c.description}</div>
+                              <div className="help-cmd-desc">
+                                {c.description}
+                              </div>
                             </div>
                           ))}
                         </div>

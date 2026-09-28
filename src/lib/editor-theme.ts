@@ -20,7 +20,10 @@
  */
 import { EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
-import { defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import {
+  defaultHighlightStyle,
+  syntaxHighlighting,
+} from "@codemirror/language";
 import { oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
 
 /** Resolved app theme mode. The theme-engine mirrors the active theme's mode
@@ -28,7 +31,9 @@ import { oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
  *  an absent attribute means dark. */
 export function appThemeMode(): "dark" | "light" {
   if (typeof document === "undefined") return "dark";
-  return document.documentElement.dataset.themeMode === "light" ? "light" : "dark";
+  return document.documentElement.dataset.themeMode === "light"
+    ? "light"
+    : "dark";
 }
 
 /** Chrome theme — every color is a token reference, so it tracks the active

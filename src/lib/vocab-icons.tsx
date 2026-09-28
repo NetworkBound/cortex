@@ -84,7 +84,19 @@ interface VocabIconProps {
 // Render the icon for a vocab kind. Defaults: 14px, a 1.75 stroke (calmer than
 // Lucide's default 2 at small sizes), `currentColor` so it inherits the row's
 // text color in every state — matching the composer/nav icon conventions.
-export function VocabIcon({ kind, size = 14, strokeWidth = 1.75, className }: VocabIconProps) {
+export function VocabIcon({
+  kind,
+  size = 14,
+  strokeWidth = 1.75,
+  className,
+}: VocabIconProps) {
   const Icon = VOCAB_ICONS[kind];
-  return <Icon size={size} strokeWidth={strokeWidth} className={className} aria-hidden="true" />;
+  return (
+    <Icon
+      size={size}
+      strokeWidth={strokeWidth}
+      className={className}
+      aria-hidden="true"
+    />
+  );
 }

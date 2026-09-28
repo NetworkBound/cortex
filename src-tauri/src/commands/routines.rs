@@ -196,7 +196,9 @@ fn store_path() -> Option<PathBuf> {
 }
 
 fn load_store() -> RoutineStore {
-    let Some(path) = store_path() else { return RoutineStore::default() };
+    let Some(path) = store_path() else {
+        return RoutineStore::default();
+    };
     let Ok(raw) = std::fs::read_to_string(&path) else {
         return RoutineStore::default(); // absent → empty store
     };
@@ -234,7 +236,9 @@ fn runs_path() -> Option<PathBuf> {
 }
 
 fn load_runs() -> RoutineRunLog {
-    let Some(path) = runs_path() else { return RoutineRunLog::default() };
+    let Some(path) = runs_path() else {
+        return RoutineRunLog::default();
+    };
     let Ok(raw) = std::fs::read_to_string(&path) else {
         return RoutineRunLog::default();
     };
@@ -260,13 +264,25 @@ fn save_runs(log: &RoutineRunLog) -> Result<(), String> {
 
 // ----- execution -----
 
-async fn llm_complete(base_url: &str, api_key: &str, model: &str, system: &str, user: &str) -> Result<String, String> {
+async fn llm_complete(
+    base_url: &str,
+    api_key: &str,
+    model: &str,
+    system: &str,
+    user: &str,
+) -> Result<String, String> {
     let client = GatewayClient::new(base_url.to_string(), api_key.to_string());
     let req = ChatCompletionRequest {
         model: model.to_string(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: system.into() },
-            ChatMessage { role: "user".into(), content: user.into() },
+            ChatMessage {
+                role: "system".into(),
+                content: system.into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: user.into(),
+            },
         ],
         stream: true,
         temperature: Some(0.4),
@@ -556,7 +572,9 @@ pub async fn routine_run_as_session(
         ..user.clone()
     };
     store.record_message(&user).map_err(|e| e.to_string())?;
-    store.record_message(&assistant).map_err(|e| e.to_string())?;
+    store
+        .record_message(&assistant)
+        .map_err(|e| e.to_string())?;
     Ok(session_id)
 }
 
@@ -646,7 +664,9 @@ mod tests {
 
     #[test]
     fn e2e_fake_markers_short_circuit_and_real_prompts_pass_through() {
-        assert!(matches!(e2e_fake_result("[[e2e:ok]] say hi"), Some(Ok(s)) if s.contains("say hi")));
+        assert!(
+            matches!(e2e_fake_result("[[e2e:ok]] say hi"), Some(Ok(s)) if s.contains("say hi"))
+        );
         assert!(matches!(e2e_fake_result("  [[e2e:err]]"), Some(Err(_))));
         assert!(e2e_fake_result("summarize the homelab status").is_none());
         assert!(e2e_fake_result("").is_none());
@@ -669,7 +689,10 @@ mod tests {
         assert_eq!(after.len(), 1, "edit replaces, not appends");
         assert_eq!(after[0].name, "renamed");
         assert_eq!(after[0].interval_minutes, 120);
-        assert_eq!(after[0].last_run_unix_ms, 123, "run history preserved across edit");
+        assert_eq!(
+            after[0].last_run_unix_ms, 123,
+            "run history preserved across edit"
+        );
         assert_eq!(after[0].last_status, "ok");
     }
 }

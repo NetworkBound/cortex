@@ -82,7 +82,11 @@ export function DocGenModal({ path, onClose }: DocGenModalProps) {
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Copy failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Copy failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [result]);
 
@@ -93,7 +97,9 @@ export function DocGenModal({ path, onClose }: DocGenModalProps) {
     const dot = path.lastIndexOf(".");
     const sep = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
     const suggested =
-      dot > sep ? `${path.slice(0, dot)}.docs${path.slice(dot)}` : `${path}.docs`;
+      dot > sep
+        ? `${path.slice(0, dot)}.docs${path.slice(dot)}`
+        : `${path}.docs`;
     const target = await promptDialog({
       title: "Save documented file",
       message: "Save documented file as:",
@@ -108,7 +114,11 @@ export function DocGenModal({ path, onClose }: DocGenModalProps) {
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Save failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Save failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [result, path]);
 
@@ -129,7 +139,11 @@ export function DocGenModal({ path, onClose }: DocGenModalProps) {
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Replace failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Replace failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [result, path]);
 
@@ -181,7 +195,8 @@ export function DocGenModal({ path, onClose }: DocGenModalProps) {
         <div className="docgen-body">
           {loading && (
             <div className="docgen-loading">
-              <span className="docgen-spinner" aria-hidden /> Generating documentation…
+              <span className="docgen-spinner" aria-hidden /> Generating
+              documentation…
             </div>
           )}
 

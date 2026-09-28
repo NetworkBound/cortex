@@ -237,7 +237,12 @@ mod tests {
     #[test]
     fn canonical_ids_are_idempotent() {
         for m in CATALOG {
-            assert_eq!(canonicalize(m.id).as_deref(), Some(m.id), "id {} not idempotent", m.id);
+            assert_eq!(
+                canonicalize(m.id).as_deref(),
+                Some(m.id),
+                "id {} not idempotent",
+                m.id
+            );
         }
     }
 
@@ -259,15 +264,24 @@ mod tests {
     fn resolution_is_case_and_whitespace_insensitive() {
         assert_eq!(canonicalize("  Opus ").as_deref(), Some("claude-opus-4-8"));
         assert_eq!(canonicalize("GPT5").as_deref(), Some("gpt-5.5"));
-        assert_eq!(canonicalize("Claude-Sonnet-4-6").as_deref(), Some("claude-sonnet-4-6"));
+        assert_eq!(
+            canonicalize("Claude-Sonnet-4-6").as_deref(),
+            Some("claude-sonnet-4-6")
+        );
     }
 
     #[test]
     fn common_shorthands_map_to_flagships() {
         assert_eq!(canonicalize("claude").as_deref(), Some("claude-sonnet-4-6"));
         assert_eq!(canonicalize("gpt").as_deref(), Some("gpt-5.5"));
-        assert_eq!(canonicalize("gemini").as_deref(), Some("gemini-3.1-pro-preview"));
-        assert_eq!(canonicalize("flash").as_deref(), Some("gemini-3-flash-preview"));
+        assert_eq!(
+            canonicalize("gemini").as_deref(),
+            Some("gemini-3.1-pro-preview")
+        );
+        assert_eq!(
+            canonicalize("flash").as_deref(),
+            Some("gemini-3-flash-preview")
+        );
     }
 
     #[test]
@@ -329,9 +343,21 @@ mod tests {
         // no longer canonicalize — left untouched, they pass through to whatever
         // adapter/gateway actually serves them (or simply 404 if nothing does),
         // never a different model.
-        assert_eq!(canonicalize("gpt-4"), None, "gpt-4 must not re-route to gpt-4o");
-        assert_eq!(canonicalize("gpt-5"), None, "gpt-5 must not re-route to gpt-5.5");
-        assert_eq!(canonicalize("gpt-5-mini"), None, "gpt-5-mini must not re-route");
+        assert_eq!(
+            canonicalize("gpt-4"),
+            None,
+            "gpt-4 must not re-route to gpt-4o"
+        );
+        assert_eq!(
+            canonicalize("gpt-5"),
+            None,
+            "gpt-5 must not re-route to gpt-5.5"
+        );
+        assert_eq!(
+            canonicalize("gpt-5-mini"),
+            None,
+            "gpt-5-mini must not re-route"
+        );
         // resolve_model now leaves them verbatim (the picker/resolver drift fix:
         // a live `/v1/models` id matching one of these is no longer rewritten).
         assert_eq!(resolve_model("gpt-4"), "gpt-4");

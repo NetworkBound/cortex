@@ -67,10 +67,14 @@ impl WorktreeStore {
             })
         };
         let rows: Vec<Worktree> = if project_root.is_some() {
-            stmt.query_map(rusqlite::params_from_iter(params_vec.iter().map(|b| b.as_ref())), row_to_wt)?
-                .collect::<rusqlite::Result<Vec<_>>>()?
+            stmt.query_map(
+                rusqlite::params_from_iter(params_vec.iter().map(|b| b.as_ref())),
+                row_to_wt,
+            )?
+            .collect::<rusqlite::Result<Vec<_>>>()?
         } else {
-            stmt.query_map([], row_to_wt)?.collect::<rusqlite::Result<Vec<_>>>()?
+            stmt.query_map([], row_to_wt)?
+                .collect::<rusqlite::Result<Vec<_>>>()?
         };
         Ok(rows)
     }
@@ -143,7 +147,10 @@ pub fn create_worktree(
     const MAX_NOTE_LEN: usize = 4096;
     if let Some(n) = note.as_ref() {
         if n.len() > MAX_NOTE_LEN {
-            anyhow::bail!("worktree note too long: {} bytes (max {MAX_NOTE_LEN})", n.len());
+            anyhow::bail!(
+                "worktree note too long: {} bytes (max {MAX_NOTE_LEN})",
+                n.len()
+            );
         }
     }
     if !project_root.exists() {
@@ -212,7 +219,12 @@ pub fn remove_worktree(
 
     if archive_commit && path.exists() {
         // Commit any WIP changes to the cortex/ branch so they aren't lost.
-        let _ = crate::sys::no_window("git").arg("-C").arg(&path).arg("add").arg("-A").output();
+        let _ = crate::sys::no_window("git")
+            .arg("-C")
+            .arg(&path)
+            .arg("add")
+            .arg("-A")
+            .output();
         let _ = crate::sys::no_window("git")
             .arg("-C")
             .arg(&path)

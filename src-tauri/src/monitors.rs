@@ -113,7 +113,10 @@ fn registry() -> Arc<Mutex<HashMap<String, ChildHandle>>> {
 
 /// Absolute path to the monitors config for a project.
 pub fn config_path(project_root: &Path) -> PathBuf {
-    project_root.join(".cortex").join("monitors").join("monitors.json")
+    project_root
+        .join(".cortex")
+        .join("monitors")
+        .join("monitors.json")
 }
 
 /// Parse `monitors.json` for the given project. Returns an empty vec if the

@@ -58,8 +58,7 @@ pub async fn generate_docs(
         return Err(format!("not a file: {path}"));
     }
 
-    let raw = fs::read_to_string(&p)
-        .map_err(|e| format!("read {} failed: {e}", p.display()))?;
+    let raw = fs::read_to_string(&p).map_err(|e| format!("read {} failed: {e}", p.display()))?;
     let original = raw.clone();
     let body = truncate(raw, FILE_LIMIT_BYTES);
     if body.trim().is_empty() {
@@ -80,8 +79,14 @@ pub async fn generate_docs(
     let req = ChatCompletionRequest {
         model: cfg.gateway_model.clone(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: system_prompt },
-            ChatMessage { role: "user".into(), content: user_prompt },
+            ChatMessage {
+                role: "system".into(),
+                content: system_prompt,
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: user_prompt,
+            },
         ],
         stream: true,
         temperature: Some(0.2),
@@ -150,7 +155,9 @@ fn build_user_prompt(path: &str, language: &str, style: &str, body: &str) -> Str
 /// Resolve the user-supplied style arg into a canonical style key. `None`,
 /// `Some("auto")`, or `Some("")` fall back to a language-driven default.
 fn resolve_style(style: Option<&str>, language: &str) -> String {
-    let trimmed = style.map(|s| s.trim().to_ascii_lowercase()).unwrap_or_default();
+    let trimmed = style
+        .map(|s| s.trim().to_ascii_lowercase())
+        .unwrap_or_default();
     let pick = match trimmed.as_str() {
         "" | "auto" => default_style_for(language),
         "rust" | "rustdoc" => "rust",

@@ -159,7 +159,10 @@ pub fn build_plan_prompt(team: &Team, goal: &str) -> String {
             .and_then(|r| r.description)
             .map(|d| format!(" — {d}"))
             .unwrap_or_default();
-        roster.push_str(&format!("- worker_id \"{}\": role \"{}\"{}\n", w.agent_id, w.role, desc));
+        roster.push_str(&format!(
+            "- worker_id \"{}\": role \"{}\"{}\n",
+            w.agent_id, w.role, desc
+        ));
     }
     format!(
         "You are \"{manager}\", the manager of the team \"{name}\".\n\
@@ -217,7 +220,10 @@ pub fn parse_assignments(raw: &str, team: &Team, goal: &str) -> Vec<Assignment> 
         let (task, kind, difficulty) = match planned {
             Some(a) => (
                 a.task.trim().to_string(),
-                a.kind.as_deref().and_then(TaskKind::parse).unwrap_or_default(),
+                a.kind
+                    .as_deref()
+                    .and_then(TaskKind::parse)
+                    .unwrap_or_default(),
                 a.difficulty
                     .as_deref()
                     .and_then(TaskDifficulty::parse)
@@ -327,7 +333,11 @@ fn parse_verdict(merged: &str) -> Option<teams::Verdict> {
     let span = extract_last_json_object(merged)?;
     let raw: RawVerdict = serde_json::from_str(&span).ok()?;
     let score = raw.score.unwrap_or(0.0).clamp(0.0, 100.0).round() as u8;
-    Some(teams::Verdict { pass: raw.pass, score, checks: raw.checks })
+    Some(teams::Verdict {
+        pass: raw.pass,
+        score,
+        checks: raw.checks,
+    })
 }
 
 /// Capabilities a subtask of `kind` requires of its model (slice 3). A `Code`
@@ -415,7 +425,12 @@ fn route_worker(
     // 1. Static role pin — never overridden by cost routing.
     if let Some(m) = role_model.map(str::trim).filter(|s| !s.is_empty()) {
         let (input_price, output_price, local) = price_for_slug(m);
-        return Routed { model: Some(m.to_string()), input_price, output_price, local };
+        return Routed {
+            model: Some(m.to_string()),
+            input_price,
+            output_price,
+            local,
+        };
     }
     // 2. Cost-aware route on a clear difficulty signal.
     if let Some(diff) = cost_difficulty(difficulty) {
@@ -434,9 +449,19 @@ fn route_worker(
     match run_model.map(str::trim).filter(|s| !s.is_empty()) {
         Some(m) => {
             let (input_price, output_price, local) = price_for_slug(m);
-            Routed { model: Some(m.to_string()), input_price, output_price, local }
+            Routed {
+                model: Some(m.to_string()),
+                input_price,
+                output_price,
+                local,
+            }
         }
-        None => Routed { model: None, input_price: 0.0, output_price: 0.0, local: false },
+        None => Routed {
+            model: None,
+            input_price: 0.0,
+            output_price: 0.0,
+            local: false,
+        },
     }
 }
 
@@ -547,8 +572,15 @@ async fn run_lane_worker(
         Err(e) => {
             let body = format!("The repo lane could not be started: {e}");
             let session = record_transcript(store, &title, task, &body, run_id).ok();
-            let _ =
-                teams::patch_worker(team_id, &worker.agent_id, "error", None, session, None, Some(0.0));
+            let _ = teams::patch_worker(
+                team_id,
+                &worker.agent_id,
+                "error",
+                None,
+                session,
+                None,
+                Some(0.0),
+            );
             notify();
             WorkerSummary {
                 ok: false,
@@ -639,16 +671,17 @@ pub async fn execute_team(
     notify: impl Fn() + Send + Sync,
 ) -> Result<(), String> {
     let team = teams::get_team(&team_id).ok_or_else(|| format!("team '{team_id}' not found"))?;
-    let run_id = format!(
-        "{}:{}",
-        team_id,
-        team.last_run_unix_ms.unwrap_or_default()
-    );
+    let run_id = format!("{}:{}", team_id, team.last_run_unix_ms.unwrap_or_default());
 
     // ── Phase 1: the manager plans ────────────────────────────────────────
     let plan_prompt = build_plan_prompt(&team, &goal);
-    let plan_raw =
-        run_completion(&registry, model.as_deref(), plan_prompt.clone(), PLAN_TIMEOUT).await;
+    let plan_raw = run_completion(
+        &registry,
+        model.as_deref(),
+        plan_prompt.clone(),
+        PLAN_TIMEOUT,
+    )
+    .await;
 
     let assignments = match &plan_raw {
         Ok(raw) => parse_assignments(raw, &team, &goal),
@@ -657,8 +690,7 @@ pub async fn execute_team(
             // failure honestly and stop instead of fanning out N more failures.
             let outcome = format!("The manager could not produce a plan: {e}");
             let plan_session =
-                record_transcript(&store, &plan_title(&team), &plan_prompt, &outcome, &run_id)
-                    .ok();
+                record_transcript(&store, &plan_title(&team), &plan_prompt, &outcome, &run_id).ok();
             let _ = teams::set_run_status(&team_id, "error", plan_session);
             notify();
             return Err(outcome);
@@ -675,11 +707,23 @@ pub async fn execute_team(
     .ok();
     teams::set_run_status(&team_id, "running", plan_session).map_err(|e| e.to_string())?;
     for a in &assignments {
-        let _ =
-            teams::patch_worker(&team_id, &a.worker_id, "working", Some(a.task.clone()), None, None, None);
+        let _ = teams::patch_worker(
+            &team_id,
+            &a.worker_id,
+            "working",
+            Some(a.task.clone()),
+            None,
+            None,
+            None,
+        );
         // Persist the plan's kind/difficulty tags so cost-aware dispatch below
         // (and the dashboard) can read the manager's classification back.
-        let _ = teams::set_worker_tags(&team_id, &a.worker_id, a.kind.as_str(), a.difficulty.as_str());
+        let _ = teams::set_worker_tags(
+            &team_id,
+            &a.worker_id,
+            a.kind.as_str(),
+            a.difficulty.as_str(),
+        );
     }
     notify();
 
@@ -715,8 +759,15 @@ pub async fn execute_team(
             if a.kind == TaskKind::Code {
                 if let Some(dispatcher) = lane_dispatcher_ref {
                     return run_lane_worker(
-                        dispatcher, store_ref, team_ref, worker, goal_ref, &a.task, team_id_ref,
-                        run_id_ref, notify,
+                        dispatcher,
+                        store_ref,
+                        team_ref,
+                        worker,
+                        goal_ref,
+                        &a.task,
+                        team_id_ref,
+                        run_id_ref,
+                        notify,
                     )
                     .await;
                 }
@@ -733,9 +784,13 @@ pub async fn execute_team(
                 local_tags_ref,
             );
             let prompt = build_worker_prompt(team_ref, worker, goal_ref, &a.task);
-            let result =
-                run_completion(registry_ref, routed.model.as_deref(), prompt.clone(), WORKER_TIMEOUT)
-                    .await;
+            let result = run_completion(
+                registry_ref,
+                routed.model.as_deref(),
+                prompt.clone(),
+                WORKER_TIMEOUT,
+            )
+            .await;
             let (status, outcome): (&'static str, String) = match &result {
                 Ok(out) => ("done", out.clone()),
                 Err(e) => ("error", format!("The worker run failed: {e}")),
@@ -906,11 +961,17 @@ fn route_synthesizer(
 ) -> Routed {
     if let Some(m) = run_model.map(str::trim).filter(|s| !s.is_empty()) {
         let (input_price, output_price, local) = price_for_slug(m);
-        return Routed { model: Some(m.to_string()), input_price, output_price, local };
+        return Routed {
+            model: Some(m.to_string()),
+            input_price,
+            output_price,
+            local,
+        };
     }
     // Unpinned run → escalate to the strongest capable chat model.
     let caps = required_caps(TaskKind::Chat);
-    if let Some(p) = cost_router::pick_model_for(Difficulty::Hard, &caps, &registry.read(), local_tags)
+    if let Some(p) =
+        cost_router::pick_model_for(Difficulty::Hard, &caps, &registry.read(), local_tags)
     {
         return Routed {
             model: Some(p.model),
@@ -919,7 +980,12 @@ fn route_synthesizer(
             local: p.local,
         };
     }
-    Routed { model: None, input_price: 0.0, output_price: 0.0, local: false }
+    Routed {
+        model: None,
+        input_price: 0.0,
+        output_price: 0.0,
+        local: false,
+    }
 }
 
 fn plan_title(team: &Team) -> String {
@@ -1138,7 +1204,10 @@ mod tests {
         assert_eq!(TaskKind::parse("nonsense"), None);
         assert_eq!(TaskDifficulty::parse("HARD"), Some(TaskDifficulty::Hard));
         assert_eq!(TaskDifficulty::parse("trivial"), Some(TaskDifficulty::Easy));
-        assert_eq!(TaskDifficulty::parse("moderate"), Some(TaskDifficulty::Medium));
+        assert_eq!(
+            TaskDifficulty::parse("moderate"),
+            Some(TaskDifficulty::Medium)
+        );
         assert_eq!(TaskDifficulty::parse("???"), None);
         // as_str round-trips back to the canonical wire form.
         assert_eq!(TaskKind::Code.as_str(), "code");
@@ -1166,9 +1235,7 @@ mod tests {
 
     // ── Slice 3: cost-aware routing (deterministic, no live model) ──────────
 
-    use crate::agents::adapter::{
-        AgentAdapter, AgentDescriptor, AgentEvent, ChatRequest,
-    };
+    use crate::agents::adapter::{AgentAdapter, AgentDescriptor, AgentEvent, ChatRequest};
     use async_trait::async_trait;
     use tokio::sync::mpsc;
 
@@ -1235,8 +1302,14 @@ mod tests {
 
     #[test]
     fn cost_helpers_map_tags_and_caps() {
-        assert_eq!(cost_difficulty(TaskDifficulty::Easy), Some(Difficulty::Easy));
-        assert_eq!(cost_difficulty(TaskDifficulty::Hard), Some(Difficulty::Hard));
+        assert_eq!(
+            cost_difficulty(TaskDifficulty::Easy),
+            Some(Difficulty::Easy)
+        );
+        assert_eq!(
+            cost_difficulty(TaskDifficulty::Hard),
+            Some(Difficulty::Hard)
+        );
         // Medium has no clear cost signal → no cost route (stays on default).
         assert_eq!(cost_difficulty(TaskDifficulty::Medium), None);
         // Code requires code-editing; chat only chat. Neither demands ShellExec
@@ -1315,7 +1388,10 @@ mod tests {
             None,
             &["ollama:llama3.2:1b".to_string()],
         );
-        assert!(!routed.local, "hard work must not fall to a free local model");
+        assert!(
+            !routed.local,
+            "hard work must not fall to a free local model"
+        );
         assert_eq!(routed.model.as_deref(), Some("claude-opus-4-8"));
         assert_eq!((routed.input_price, routed.output_price), (15.00, 75.00));
     }
@@ -1336,7 +1412,14 @@ mod tests {
         assert_eq!(routed.model.as_deref(), Some("ollama:llama3.2:1b"));
         assert!(routed.local);
         // With no run-model either, it degrades to the adapter default (unpriced).
-        let bare = route_worker(&reg, None, TaskKind::Chat, TaskDifficulty::Medium, None, &[]);
+        let bare = route_worker(
+            &reg,
+            None,
+            TaskKind::Chat,
+            TaskDifficulty::Medium,
+            None,
+            &[],
+        );
         assert!(bare.model.is_none());
         assert_eq!((bare.input_price, bare.output_price), (0.0, 0.0));
     }
@@ -1374,7 +1457,12 @@ mod tests {
                 "echo".into()
             };
             let _ = tx.send(AgentEvent::Token { delta: body }).await;
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             Ok(())
         }
     }
@@ -1390,7 +1478,10 @@ mod tests {
     #[async_trait]
     impl LaneDispatcher for FakeDispatcher {
         async fn dispatch(&self, goal: &str, task: &str) -> Result<LaneDispatch, String> {
-            assert!(!goal.is_empty() && !task.is_empty(), "lane gets goal + task");
+            assert!(
+                !goal.is_empty() && !task.is_empty(),
+                "lane gets goal + task"
+            );
             Ok(LaneDispatch {
                 lane_run_id: self.run_id.into(),
                 status: self.status.into(),
@@ -1440,10 +1531,22 @@ mod tests {
         let done = teams::get_team(&team.id).unwrap();
         assert_eq!(done.run_status.as_deref(), Some("done"));
         let w = &done.workers[0];
-        assert_eq!(w.task_kind.as_deref(), Some("code"), "manager tagged it code");
+        assert_eq!(
+            w.task_kind.as_deref(),
+            Some("code"),
+            "manager tagged it code"
+        );
         assert_eq!(w.status, "done", "lane done → worker done");
-        assert_eq!(w.lane_run_id.as_deref(), Some("lane-fake-001"), "lane linked");
-        assert_eq!(w.effective_model.as_deref(), Some("e2e-fake"), "provider recorded");
+        assert_eq!(
+            w.lane_run_id.as_deref(),
+            Some("lane-fake-001"),
+            "lane linked"
+        );
+        assert_eq!(
+            w.effective_model.as_deref(),
+            Some("e2e-fake"),
+            "provider recorded"
+        );
         // The worker transcript references the lane (no dead-end output).
         let sid = w.session_id.as_deref().expect("transcript recorded");
         let msgs = store.load_session_messages(sid).unwrap();
@@ -1553,11 +1656,23 @@ mod tests {
         ];
         let p = build_synthesis_prompt(&t, "ship the parser", &outcomes);
         assert!(p.contains("ship the parser"), "goal present");
-        assert!(p.contains("coder") && p.contains("reviewer"), "roles present");
-        assert!(p.contains("[done]") && p.contains("[error]"), "statuses present");
+        assert!(
+            p.contains("coder") && p.contains("reviewer"),
+            "roles present"
+        );
+        assert!(
+            p.contains("[done]") && p.contains("[error]"),
+            "statuses present"
+        );
         assert!(p.contains("wrote the parser"), "worker output inlined");
-        assert!(p.contains("## Verification"), "asks for a verification section");
-        assert!(p.contains("merged result") || p.contains("merged"), "asks for a merge");
+        assert!(
+            p.contains("## Verification"),
+            "asks for a verification section"
+        );
+        assert!(
+            p.contains("merged result") || p.contains("merged"),
+            "asks for a merge"
+        );
     }
 
     #[test]
@@ -1583,12 +1698,14 @@ mod tests {
         // …with only a local model available it's the strongest thing there is,
         // so synthesis legitimately runs on it (better than no synthesis).
         let local_only = registry_with(vec![ollama_stub()]);
-        let only_local =
-            route_synthesizer(&local_only, None, &["ollama:llama3.2:1b".to_string()]);
+        let only_local = route_synthesizer(&local_only, None, &["ollama:llama3.2:1b".to_string()]);
         assert_eq!(only_local.model.as_deref(), Some("ollama:llama3.2:1b"));
         // Nothing available at all → the adapter's own default route (None).
         let bare = route_synthesizer(&local_only, None, &[]);
-        assert!(bare.model.is_none(), "no candidates → adapter default route");
+        assert!(
+            bare.model.is_none(),
+            "no candidates → adapter default route"
+        );
     }
 
     /// Adapter that plays all three roles in a team run deterministically:
@@ -1643,7 +1760,12 @@ mod tests {
                     .repeat(2)
             };
             let _ = tx.send(AgentEvent::Token { delta: body }).await;
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             Ok(())
         }
     }
@@ -1658,9 +1780,12 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         std::env::set_var("HOME", tmp.path());
 
-        let team =
-            teams::create_team("synth-test", "manager", &["coder".into(), "reviewer".into()])
-                .unwrap();
+        let team = teams::create_team(
+            "synth-test",
+            "manager",
+            &["coder".into(), "reviewer".into()],
+        )
+        .unwrap();
         teams::begin_run(&team.id, "build and review the feature").unwrap();
 
         let mut registry = Registry::new();
@@ -1776,7 +1901,10 @@ mod tests {
         let done = teams::get_team(&team.id).unwrap();
         eprintln!("LIVE TEAM AFTER RUN: {done:#?}");
         assert_eq!(done.run_status.as_deref(), Some("done"));
-        assert!(done.plan_session_id.is_some(), "manager plan transcript missing");
+        assert!(
+            done.plan_session_id.is_some(),
+            "manager plan transcript missing"
+        );
         // Slice 3: the run's total spend is recorded. Only Ollama is registered,
         // so every worker — whether routed by the cost router (easy/hard) or via
         // the run-model default (medium) — lands on a free local model, so the
@@ -1816,7 +1944,12 @@ mod tests {
                 "worker {} routed to non-local model {model}",
                 w.role
             );
-            assert_eq!(w.projected_usd, Some(0.0), "local worker {} should project $0", w.role);
+            assert_eq!(
+                w.projected_usd,
+                Some(0.0),
+                "local worker {} should project $0",
+                w.role
+            );
             let sid = w.session_id.as_deref().expect("worker transcript missing");
             let msgs = store.load_session_messages(sid).unwrap();
             assert_eq!(msgs.len(), 2, "transcript should be user+assistant");

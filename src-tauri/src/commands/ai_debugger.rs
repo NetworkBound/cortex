@@ -99,8 +99,14 @@ pub async fn debug_error(
     let req = ChatCompletionRequest {
         model: cfg.gateway_model.clone(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: SYSTEM_PROMPT.into() },
-            ChatMessage { role: "user".into(), content: user_prompt },
+            ChatMessage {
+                role: "system".into(),
+                content: SYSTEM_PROMPT.into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: user_prompt,
+            },
         ],
         stream: true,
         temperature: Some(0.2),
@@ -126,23 +132,40 @@ fn resolve_error(args: &DebugErrorArgs, store: &TracingStore) -> Result<Resolved
     match args.error_source.as_str() {
         "recent_crash" => {
             let conn = store.shared_connection();
-            let row = crash::recent_crashes(&conn, 1).map_err(|e| e.to_string())?
-                .into_iter().next()
+            let row = crash::recent_crashes(&conn, 1)
+                .map_err(|e| e.to_string())?
+                .into_iter()
+                .next()
                 .ok_or_else(|| "no recent crashes — nothing to debug".to_string())?;
-            let summary = format!("[crash:{}] {}", row.kind, truncate_one_line(&row.message, 120));
-            Ok(ResolvedError { summary, message: row.message, stack: row.stack })
+            let summary = format!(
+                "[crash:{}] {}",
+                row.kind,
+                truncate_one_line(&row.message, 120)
+            );
+            Ok(ResolvedError {
+                summary,
+                message: row.message,
+                stack: row.stack,
+            })
         }
         "recent_issue" => {
-            let row = store.recent_issues(1).map_err(|e| e.to_string())?
-                .into_iter().next()
+            let row = store
+                .recent_issues(1)
+                .map_err(|e| e.to_string())?
+                .into_iter()
+                .next()
                 .ok_or_else(|| "no recent issues — nothing to debug".to_string())?;
             let class = row.error_class.as_deref().unwrap_or("issue");
             let summary = format!("[{class}] {}", truncate_one_line(&row.message, 120));
-            Ok(ResolvedError { summary, message: row.message, stack: None })
+            Ok(ResolvedError {
+                summary,
+                message: row.message,
+                stack: None,
+            })
         }
         "last_test_failure" => {
-            let path = test_failure_path()
-                .ok_or_else(|| "could not resolve ~/.cortex".to_string())?;
+            let path =
+                test_failure_path().ok_or_else(|| "could not resolve ~/.cortex".to_string())?;
             if !path.is_file() {
                 return Err("no recent test failure recorded yet — run /test first".into());
             }
@@ -177,26 +200,43 @@ fn parse_test_failure(blob: &str) -> Result<ResolvedError, String> {
     if let Some(failures) = v.get("failures").and_then(|x| x.as_array()) {
         if let Some(first) = failures.first() {
             let name = first.get("name").and_then(|x| x.as_str()).unwrap_or("test");
-            let message = first.get("message").and_then(|x| x.as_str()).unwrap_or("").to_string();
+            let message = first
+                .get("message")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .to_string();
             let location = first.get("location").and_then(|x| x.as_str());
             let stack = location.map(|l| format!("at {l}"));
             let summary = format!("[test:{name}] {}", truncate_one_line(&message, 120));
-            return Ok(ResolvedError { summary, message, stack });
+            return Ok(ResolvedError {
+                summary,
+                message,
+                stack,
+            });
         }
     }
 
     // Fallback flat shape.
-    let message = v.get("message")
+    let message = v
+        .get("message")
         .and_then(|x| x.as_str())
         .ok_or_else(|| "last-test-failure.json missing `message`".to_string())?
         .to_string();
     let stack = v.get("stack").and_then(|x| x.as_str()).map(str::to_string);
     let summary = format!("[test] {}", truncate_one_line(&message, 120));
-    Ok(ResolvedError { summary, message, stack })
+    Ok(ResolvedError {
+        summary,
+        message,
+        stack,
+    })
 }
 
 fn test_failure_path() -> Option<PathBuf> {
-    Some(dirs::home_dir()?.join(".cortex").join("last-test-failure.json"))
+    Some(
+        dirs::home_dir()?
+            .join(".cortex")
+            .join("last-test-failure.json"),
+    )
 }
 
 /// Find `path:line` in message+stack, read a ~CONTEXT_LINES window. Falls back
@@ -231,23 +271,37 @@ fn extract_code_context(
 fn find_path_line(haystack: &str, project_root: &str) -> Option<(String, usize)> {
     let root = Path::new(project_root);
     let mut best: Option<(String, usize)> = None;
-    for token in haystack.split(|c: char| c.is_whitespace() || matches!(c, '(' | ')' | '[' | ']' | '"' | '\'' | ',')) {
+    for token in haystack
+        .split(|c: char| c.is_whitespace() || matches!(c, '(' | ')' | '[' | ']' | '"' | '\'' | ','))
+    {
         let token = token.trim_matches(|c: char| matches!(c, '`' | '<' | '>' | '|' | ';'));
-        if token.len() < 4 || !token.contains(':') { continue; }
+        if token.len() < 4 || !token.contains(':') {
+            continue;
+        }
         // rsplitn keeps Windows drive letters intact.
         let parts: Vec<&str> = token.rsplitn(3, ':').collect();
         let (path_part, line_part) = match parts.as_slice() {
-            [maybe_col, line_str, path] if maybe_col.parse::<usize>().is_ok() && line_str.parse::<usize>().is_ok() => (*path, *line_str),
+            [maybe_col, line_str, path]
+                if maybe_col.parse::<usize>().is_ok() && line_str.parse::<usize>().is_ok() =>
+            {
+                (*path, *line_str)
+            }
             [line_str, path, ..] if line_str.parse::<usize>().is_ok() => (*path, *line_str),
             _ => continue,
         };
-        let Ok(line) = line_part.parse::<usize>() else { continue };
-        if line == 0 { continue; }
+        let Ok(line) = line_part.parse::<usize>() else {
+            continue;
+        };
+        if line == 0 {
+            continue;
+        }
         // Only resolve paths confined to the project root; never read absolute
         // or `..`-escaping tokens supplied in user-controlled error text. An
         // out-of-bounds token is dropped entirely (not even kept as a fallback)
         // so the caller can never `fs::read_to_string` it.
-        let Some(confined) = confine_to_root(root, path_part) else { continue };
+        let Some(confined) = confine_to_root(root, path_part) else {
+            continue;
+        };
         if confined.is_file() {
             return Some((confined.to_string_lossy().into_owned(), line));
         }
@@ -295,7 +349,9 @@ fn confine_to_root(root: &Path, path_part: &str) -> Option<PathBuf> {
 
 fn slice_window(body: &str, line: usize, ctx: usize, byte_cap: usize) -> String {
     let lines: Vec<&str> = body.lines().collect();
-    if lines.is_empty() { return String::new(); }
+    if lines.is_empty() {
+        return String::new();
+    }
     let max_line = lines.len();
     let start = line.saturating_sub(ctx / 2).max(1);
     let end = (line + ctx / 2).min(max_line);
@@ -385,7 +441,11 @@ fn parse_response(raw: &str) -> ParsedDebug {
                 root_cause: pick_string(&v, "root_cause").unwrap_or_else(|| cleaned.to_string()),
                 suggested_fix: pick_string(&v, "suggested_fix").unwrap_or_default(),
                 code_patch: pick_string(&v, "code_patch").unwrap_or_default(),
-                confidence: v.get("confidence").and_then(|x| x.as_f64()).unwrap_or(0.4).clamp(0.0, 1.0),
+                confidence: v
+                    .get("confidence")
+                    .and_then(|x| x.as_f64())
+                    .unwrap_or(0.4)
+                    .clamp(0.0, 1.0),
             };
         }
     }
@@ -419,15 +479,27 @@ fn first_json_object(s: &str) -> Option<&str> {
     // doesn't trip us.
     let (mut depth, mut in_string, mut escape) = (0_i32, false, false);
     for (i, &b) in s.as_bytes().iter().enumerate().skip(start) {
-        if escape { escape = false; continue; }
+        if escape {
+            escape = false;
+            continue;
+        }
         if in_string {
-            match b { b'\\' => escape = true, b'"' => in_string = false, _ => {} }
+            match b {
+                b'\\' => escape = true,
+                b'"' => in_string = false,
+                _ => {}
+            }
             continue;
         }
         match b {
             b'"' => in_string = true,
             b'{' => depth += 1,
-            b'}' => { depth -= 1; if depth == 0 { return Some(&s[start..=i]); } }
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(&s[start..=i]);
+                }
+            }
             _ => {}
         }
     }
@@ -468,7 +540,11 @@ mod tests {
     fn find_path_line_never_reads_absolute_tokens() {
         // A real, readable absolute path pasted into user-controlled error text
         // must NOT be resolved/read — only confined project-relative paths are.
-        let abs = if cfg!(windows) { "C:\\Windows\\win.ini:1" } else { "/etc/hostname:1" };
+        let abs = if cfg!(windows) {
+            "C:\\Windows\\win.ini:1"
+        } else {
+            "/etc/hostname:1"
+        };
         // Root is unrelated; the absolute token resolves on disk but is out of bounds.
         assert_eq!(find_path_line(abs, "/tmp/some-project"), None);
     }
@@ -494,18 +570,25 @@ mod tests {
 
     #[test]
     fn slice_window_marks_and_caps() {
-        let body = (1..=20).map(|i| format!("line{i}")).collect::<Vec<_>>().join("\n");
+        let body = (1..=20)
+            .map(|i| format!("line{i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
         let out = slice_window(&body, 10, 4, 4096);
         assert!(out.contains(">>    10 | line10"));
         assert!(out.contains("    8 | line8"));
-        let big = (1..=500).map(|i| format!("line{i:04}")).collect::<Vec<_>>().join("\n");
+        let big = (1..=500)
+            .map(|i| format!("line{i:04}"))
+            .collect::<Vec<_>>()
+            .join("\n");
         let capped = slice_window(&big, 250, 200, 256);
         assert!(capped.ends_with("[truncated]\n"));
     }
 
     #[test]
     fn parse_response_extracts_clean_json() {
-        let raw = r#"{"root_cause":"x","suggested_fix":"y","code_patch":"--- a\n","confidence":0.8}"#;
+        let raw =
+            r#"{"root_cause":"x","suggested_fix":"y","code_patch":"--- a\n","confidence":0.8}"#;
         let p = parse_response(raw);
         assert_eq!(p.root_cause, "x");
         assert_eq!(p.code_patch, "--- a\n");
@@ -548,7 +631,13 @@ mod tests {
 
     #[test]
     fn build_user_prompt_assembles_sections() {
-        let p = build_user_prompt("boom", Some("at foo.ts:3"), Some("foo.ts"), Some(3), Some("   3 | code\n"));
+        let p = build_user_prompt(
+            "boom",
+            Some("at foo.ts:3"),
+            Some("foo.ts"),
+            Some(3),
+            Some("   3 | code\n"),
+        );
         assert!(p.contains("--- ERROR ---"));
         assert!(p.contains("--- STACK ---"));
         assert!(p.contains("--- SOURCE: foo.ts:3 ---"));

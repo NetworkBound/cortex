@@ -46,7 +46,9 @@ export async function listRoutines(): Promise<RoutineSpec[]> {
   return invoke<RoutineSpec[]>("list_routines");
 }
 
-export async function saveRoutine(routine: RoutineSpec): Promise<RoutineSpec[]> {
+export async function saveRoutine(
+  routine: RoutineSpec,
+): Promise<RoutineSpec[]> {
   return invoke<RoutineSpec[]>("save_routine", { routine });
 }
 
@@ -54,7 +56,10 @@ export async function deleteRoutine(id: string): Promise<RoutineSpec[]> {
   return invoke<RoutineSpec[]>("delete_routine", { id });
 }
 
-export async function setRoutineEnabled(id: string, enabled: boolean): Promise<RoutineSpec[]> {
+export async function setRoutineEnabled(
+  id: string,
+  enabled: boolean,
+): Promise<RoutineSpec[]> {
   return invoke<RoutineSpec[]>("set_routine_enabled", { id, enabled });
 }
 
@@ -62,7 +67,9 @@ export async function runRoutineNow(id: string): Promise<RoutineSpec> {
   return invoke<RoutineSpec>("run_routine_now", { id });
 }
 
-export async function onRoutineRan(cb: (id: string) => void): Promise<UnlistenFn> {
+export async function onRoutineRan(
+  cb: (id: string) => void,
+): Promise<UnlistenFn> {
   return listen<string>("routines:ran", (e) => cb(e.payload));
 }
 
@@ -80,8 +87,13 @@ export interface RoutineRun {
   trigger: string; // "manual" | "scheduled"
 }
 
-export async function listRoutineRuns(routineId?: string): Promise<RoutineRun[]> {
-  return invoke<RoutineRun[]>("list_routine_runs", { routineId: routineId ?? null, limit: null });
+export async function listRoutineRuns(
+  routineId?: string,
+): Promise<RoutineRun[]> {
+  return invoke<RoutineRun[]>("list_routine_runs", {
+    routineId: routineId ?? null,
+    limit: null,
+  });
 }
 
 /**

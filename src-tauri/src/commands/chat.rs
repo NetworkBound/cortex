@@ -53,8 +53,9 @@ pub(crate) fn abort_local_run(run_id: &str) -> bool {
 /// event loop's auto-approve short-circuit) resolve them here first, exactly
 /// mirroring how `stop_run` checks [`LOCAL_RUNS`] before falling through to
 /// the gateway.
-static LOCAL_APPROVALS: Lazy<parking_lot::Mutex<HashMap<String, tokio::sync::oneshot::Sender<String>>>> =
-    Lazy::new(|| parking_lot::Mutex::new(HashMap::new()));
+static LOCAL_APPROVALS: Lazy<
+    parking_lot::Mutex<HashMap<String, tokio::sync::oneshot::Sender<String>>>,
+> = Lazy::new(|| parking_lot::Mutex::new(HashMap::new()));
 
 /// Register a pending in-process approval and get the receiver its decision
 /// will arrive on. The caller owns cleanup on timeout (see the dispatcher).
@@ -403,7 +404,9 @@ fn fetch_url_text(url: &str) -> Option<String> {
             .build()
             .ok()?;
         let resp = client.get(&url).send().await.ok()?;
-        if !resp.status().is_success() { return None }
+        if !resp.status().is_success() {
+            return None;
+        }
         resp.text().await.ok()
     })??;
     let stripped = strip_html(&raw);
@@ -434,14 +437,25 @@ fn strip_html(html: &str) -> String {
         let c = bytes[i] as char;
         if !in_tag && c == '<' {
             let rest = &html[i..].to_ascii_lowercase();
-            if rest.starts_with("<script") { drop_until = Some("</script>"); i += 7; continue; }
-            if rest.starts_with("<style") { drop_until = Some("</style>"); i += 6; continue; }
+            if rest.starts_with("<script") {
+                drop_until = Some("</script>");
+                i += 7;
+                continue;
+            }
+            if rest.starts_with("<style") {
+                drop_until = Some("</style>");
+                i += 6;
+                continue;
+            }
             in_tag = true;
             i += 1;
             continue;
         }
         if in_tag {
-            if c == '>' { in_tag = false; out.push(' '); }
+            if c == '>' {
+                in_tag = false;
+                out.push(' ');
+            }
             i += 1;
             continue;
         }
@@ -449,14 +463,23 @@ fn strip_html(html: &str) -> String {
         i += 1;
     }
     // Cheap entity decode for the common cases.
-    let out = out.replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&#39;", "'");
+    let out = out
+        .replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'");
     // Collapse whitespace runs to a single space, keep paragraph breaks.
     let mut compact = String::with_capacity(out.len());
     let mut last_blank = false;
     for line in out.split('\n') {
         let trimmed = line.trim();
         if trimmed.is_empty() {
-            if !last_blank { compact.push('\n'); last_blank = true; }
+            if !last_blank {
+                compact.push('\n');
+                last_blank = true;
+            }
             continue;
         }
         last_blank = false;
@@ -468,8 +491,12 @@ fn strip_html(html: &str) -> String {
 }
 
 fn short_url(url: &str) -> String {
-    if let Some(rest) = url.strip_prefix("https://") { return rest.chars().take(40).collect(); }
-    if let Some(rest) = url.strip_prefix("http://") { return rest.chars().take(40).collect(); }
+    if let Some(rest) = url.strip_prefix("https://") {
+        return rest.chars().take(40).collect();
+    }
+    if let Some(rest) = url.strip_prefix("http://") {
+        return rest.chars().take(40).collect();
+    }
     url.chars().take(40).collect()
 }
 
@@ -479,10 +506,17 @@ fn short_url(url: &str) -> String {
 /// search-results → injected-context connection is unit-testable; the live
 /// fetch is proven by `websearch::live_ddg_search_*`. Returns
 /// `(attachment, label)`.
-fn format_websearch_attachment(query: &str, results: &[crate::websearch::WebResult]) -> (String, String) {
+fn format_websearch_attachment(
+    query: &str,
+    results: &[crate::websearch::WebResult],
+) -> (String, String) {
     let mut block = String::new();
     for (i, r) in results.iter().enumerate() {
-        let title = if r.title.trim().is_empty() { r.url.clone() } else { r.title.clone() };
+        let title = if r.title.trim().is_empty() {
+            r.url.clone()
+        } else {
+            r.title.clone()
+        };
         block.push_str(&format!("{}. {}\n   {}\n", i + 1, title, r.url));
         let snip = r.snippet.trim();
         if !snip.is_empty() {
@@ -506,19 +540,23 @@ fn run_brain_inline(
     message: &str,
     project_root: Option<&std::path::Path>,
 ) -> Option<Vec<(std::path::PathBuf, String, f32)>> {
-    let payload = futures::executor::block_on(
-        crate::commands::local_brain::local_brain_suggest(
-            message.to_string(),
-            project_root.map(|p| p.display().to_string()),
-        ),
-    )
+    let payload = futures::executor::block_on(crate::commands::local_brain::local_brain_suggest(
+        message.to_string(),
+        project_root.map(|p| p.display().to_string()),
+    ))
     .ok()?;
     let mut out: Vec<(std::path::PathBuf, String, f32)> = Vec::new();
     for s in payload.suggestions.into_iter().take(5) {
         let p = std::path::PathBuf::from(&s.path);
-        let Ok(meta) = std::fs::metadata(&p) else { continue };
-        if meta.len() > 200 * 1024 { continue; }
-        let Ok(content) = std::fs::read_to_string(&p) else { continue };
+        let Ok(meta) = std::fs::metadata(&p) else {
+            continue;
+        };
+        if meta.len() > 200 * 1024 {
+            continue;
+        }
+        let Ok(content) = std::fs::read_to_string(&p) else {
+            continue;
+        };
         out.push((p, content, (meta.len() as f32) / 1024.0));
     }
     Some(out)
@@ -528,9 +566,22 @@ fn run_brain_inline(
 /// control, dependency, and build-output dirs that would swamp the layout with
 /// thousands of irrelevant entries.
 const TREE_SKIP: &[&str] = &[
-    ".git", "node_modules", "target", "dist", "build", ".next", ".turbo",
-    ".cache", "out", "coverage", "__pycache__", "vendor", ".venv", ".idea",
-    ".vscode", ".svelte-kit",
+    ".git",
+    "node_modules",
+    "target",
+    "dist",
+    "build",
+    ".next",
+    ".turbo",
+    ".cache",
+    "out",
+    "coverage",
+    "__pycache__",
+    "vendor",
+    ".venv",
+    ".idea",
+    ".vscode",
+    ".svelte-kit",
 ];
 
 /// Render an indented, ignore-aware directory tree of `root`, descending up to
@@ -543,7 +594,15 @@ fn build_tree(root: &std::path::Path, max_depth: usize, max_entries: usize) -> S
     let mut out = String::new();
     let mut count = 0usize;
     let mut truncated = false;
-    build_tree_inner(root, 0, max_depth, max_entries, &mut out, &mut count, &mut truncated);
+    build_tree_inner(
+        root,
+        0,
+        max_depth,
+        max_entries,
+        &mut out,
+        &mut count,
+        &mut truncated,
+    );
     if out.is_empty() {
         return "(empty)".to_string();
     }
@@ -567,9 +626,13 @@ fn build_tree_inner(
         return;
     }
     let mut entries: Vec<(String, bool)> = Vec::new();
-    let Ok(rd) = std::fs::read_dir(dir) else { return };
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return;
+    };
     for e in rd.flatten() {
-        let Ok(name) = e.file_name().into_string() else { continue };
+        let Ok(name) = e.file_name().into_string() else {
+            continue;
+        };
         if name.starts_with('.') || TREE_SKIP.contains(&name.as_str()) {
             continue;
         }
@@ -611,11 +674,20 @@ fn build_tree_inner(
 /// impossible. Output capped at 50KB to avoid blowing the model's window.
 fn resolve_special_token(token: &str, cwd: Option<&std::path::Path>) -> Option<(String, String)> {
     let Some(cwd) = cwd else { return None };
-    if !cwd.is_dir() { return None }
+    if !cwd.is_dir() {
+        return None;
+    }
     match token {
         "@diff" => {
-            let out = crate::sys::no_window("git").arg("diff").arg("HEAD").current_dir(cwd).output().ok()?;
-            if !out.status.success() { return None; }
+            let out = crate::sys::no_window("git")
+                .arg("diff")
+                .arg("HEAD")
+                .current_dir(cwd)
+                .output()
+                .ok()?;
+            if !out.status.success() {
+                return None;
+            }
             let s = String::from_utf8_lossy(&out.stdout);
             let trimmed: String = s.chars().take(50_000).collect();
             if trimmed.trim().is_empty() {
@@ -625,11 +697,25 @@ fn resolve_special_token(token: &str, cwd: Option<&std::path::Path>) -> Option<(
             }
         }
         "@status" => {
-            let out = crate::sys::no_window("git").arg("status").arg("--short").current_dir(cwd).output().ok()?;
-            if !out.status.success() { return None; }
+            let out = crate::sys::no_window("git")
+                .arg("status")
+                .arg("--short")
+                .current_dir(cwd)
+                .output()
+                .ok()?;
+            if !out.status.success() {
+                return None;
+            }
             let s = String::from_utf8_lossy(&out.stdout);
             let trimmed: String = s.chars().take(10_000).collect();
-            Some(("@status".into(), if trimmed.trim().is_empty() { "(clean tree)".into() } else { trimmed }))
+            Some((
+                "@status".into(),
+                if trimmed.trim().is_empty() {
+                    "(clean tree)".into()
+                } else {
+                    trimmed
+                },
+            ))
         }
         "@repomap" => {
             // Aider-style compressed symbol map of the active project —
@@ -650,11 +736,20 @@ fn resolve_special_token(token: &str, cwd: Option<&std::path::Path>) -> Option<(
             for entry in std::fs::read_dir(cwd).into_iter().flatten().flatten() {
                 let p = entry.path();
                 let name = p.file_name().and_then(|s| s.to_str()).unwrap_or("?");
-                if name.starts_with('.') { continue; }
+                if name.starts_with('.') {
+                    continue;
+                }
                 let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
                 out.push_str(&format!("- {}{}\n", name, if is_dir { "/" } else { "" }));
             }
-            Some(("@cwd".into(), if out.is_empty() { "(empty)".into() } else { out }))
+            Some((
+                "@cwd".into(),
+                if out.is_empty() {
+                    "(empty)".into()
+                } else {
+                    out
+                },
+            ))
         }
         s if s == "@tree" || s.starts_with("@tree:") => {
             // `@tree` / `@tree:N` — Continue-style directory-tree context
@@ -713,10 +808,7 @@ fn resolve_special_token(token: &str, cwd: Option<&std::path::Path>) -> Option<(
             let body = crate::repo_map::find_definition(cwd, name, 16 * 1024)?;
             Some((format!("@def:{name}"), body))
         }
-        s if s.starts_with("@refs:")
-            || s.starts_with("@callers:")
-            || s.starts_with("@uses:") =>
-        {
+        s if s.starts_with("@refs:") || s.starts_with("@callers:") || s.starts_with("@uses:") => {
             // `@refs:<symbol>` (aliases `@callers:`/`@uses:`) — Zed's "Find All
             // References": every place a symbol is *used* across the project,
             // the companion to `@def` (where it's declared). Matching is
@@ -741,30 +833,71 @@ fn resolve_special_token(token: &str, cwd: Option<&std::path::Path>) -> Option<(
                 _ => return None,
             };
             use walkdir::WalkDir;
-            const SKIP: &[&str] = &[".git","node_modules","target","dist","build",".next",".cache","out"];
-            const EXTS: &[&str] = &["rs","ts","tsx","js","jsx","py","md","go","c","h","cpp","hpp","rb","css","html","yaml","yml","toml","sh"];
+            const SKIP: &[&str] = &[
+                ".git",
+                "node_modules",
+                "target",
+                "dist",
+                "build",
+                ".next",
+                ".cache",
+                "out",
+            ];
+            const EXTS: &[&str] = &[
+                "rs", "ts", "tsx", "js", "jsx", "py", "md", "go", "c", "h", "cpp", "hpp", "rb",
+                "css", "html", "yaml", "yml", "toml", "sh",
+            ];
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
             let mut hits: Vec<String> = Vec::new();
-            'outer: for entry in WalkDir::new(cwd).max_depth(6).into_iter().filter_entry(|e| e.file_name().to_str().map(|n| !SKIP.contains(&n)).unwrap_or(true)) {
-                if std::time::Instant::now() > deadline { break }
+            'outer: for entry in WalkDir::new(cwd)
+                .max_depth(6)
+                .into_iter()
+                .filter_entry(|e| {
+                    e.file_name()
+                        .to_str()
+                        .map(|n| !SKIP.contains(&n))
+                        .unwrap_or(true)
+                })
+            {
+                if std::time::Instant::now() > deadline {
+                    break;
+                }
                 let Ok(entry) = entry else { continue };
-                if !entry.file_type().is_file() { continue }
-                let Some(ext) = entry.path().extension().and_then(|e| e.to_str()) else { continue };
-                if !EXTS.contains(&ext) { continue }
-                let Ok(content) = std::fs::read_to_string(entry.path()) else { continue };
-                if content.len() > 200_000 { continue }
+                if !entry.file_type().is_file() {
+                    continue;
+                }
+                let Some(ext) = entry.path().extension().and_then(|e| e.to_str()) else {
+                    continue;
+                };
+                if !EXTS.contains(&ext) {
+                    continue;
+                }
+                let Ok(content) = std::fs::read_to_string(entry.path()) else {
+                    continue;
+                };
+                if content.len() > 200_000 {
+                    continue;
+                }
                 let lower = content.to_lowercase();
-                if !lower.contains(&pattern) { continue }
+                if !lower.contains(&pattern) {
+                    continue;
+                }
                 let rel = entry.path().strip_prefix(cwd).unwrap_or(entry.path());
                 for (i, line) in content.lines().enumerate() {
                     if line.to_lowercase().contains(&pattern) {
                         let snippet: String = line.trim().chars().take(120).collect();
                         hits.push(format!("{}:{}: {}", rel.display(), i + 1, snippet));
-                        if hits.len() >= 50 { break 'outer; }
+                        if hits.len() >= 50 {
+                            break 'outer;
+                        }
                     }
                 }
             }
-            let body = if hits.is_empty() { format!("(no matches for {})", pattern) } else { hits.join("\n") };
+            let body = if hits.is_empty() {
+                format!("(no matches for {})", pattern)
+            } else {
+                hits.join("\n")
+            };
             Some((format!("@grep:{pattern}"), body))
         }
         s if s.starts_with("@blame:") => {
@@ -773,36 +906,54 @@ fn resolve_special_token(token: &str, cwd: Option<&std::path::Path>) -> Option<(
             let rel = s.strip_prefix("@blame:")?;
             // Refuse anything that escapes the cwd (`..`, or an absolute /
             // drive-qualified path that `join` would take verbatim).
-            if rel.contains("..") || std::path::Path::new(rel).is_absolute() || rel.starts_with('/') || rel.starts_with('\\') {
+            if rel.contains("..")
+                || std::path::Path::new(rel).is_absolute()
+                || rel.starts_with('/')
+                || rel.starts_with('\\')
+            {
                 return None;
             }
             let full = cwd.join(rel);
-            if !full.is_file() { return None; }
+            if !full.is_file() {
+                return None;
+            }
             let out = crate::sys::no_window("git")
                 .args(["blame", "--porcelain", "-L", "1,800", "--"])
                 .arg(rel)
                 .current_dir(cwd)
                 .output()
                 .ok()?;
-            if !out.status.success() { return None; }
+            if !out.status.success() {
+                return None;
+            }
             let raw = String::from_utf8_lossy(&out.stdout);
             let mut lines: Vec<String> = Vec::new();
             let mut sha = String::new();
             let mut author = String::new();
             for ln in raw.lines() {
                 if ln.starts_with('\t') {
-                    lines.push(format!("{} {:18} | {}", &sha[..sha.len().min(8)], author.chars().take(18).collect::<String>(), ln.trim_start()));
-                    if lines.len() > 400 { break }
+                    lines.push(format!(
+                        "{} {:18} | {}",
+                        &sha[..sha.len().min(8)],
+                        author.chars().take(18).collect::<String>(),
+                        ln.trim_start()
+                    ));
+                    if lines.len() > 400 {
+                        break;
+                    }
                 } else if ln.starts_with("author ") {
                     author = ln[7..].to_string();
                 } else if let Some(s) = ln.split_whitespace().next() {
-                    if s.len() == 40 && s.chars().all(|c| c.is_ascii_hexdigit()) { sha = s.to_string(); }
+                    if s.len() == 40 && s.chars().all(|c| c.is_ascii_hexdigit()) {
+                        sha = s.to_string();
+                    }
                 }
             }
             return Some((format!("@blame:{rel}"), lines.join("\n")));
         }
         s if s.starts_with("@log:") || s == "@log" => {
-            let n: usize = s.strip_prefix("@log:")
+            let n: usize = s
+                .strip_prefix("@log:")
                 .and_then(|t| t.parse::<usize>().ok())
                 .unwrap_or(20)
                 .clamp(1, 200);
@@ -812,20 +963,46 @@ fn resolve_special_token(token: &str, cwd: Option<&std::path::Path>) -> Option<(
                 .current_dir(cwd)
                 .output()
                 .ok()?;
-            if !out.status.success() { return None; }
+            if !out.status.success() {
+                return None;
+            }
             let s = String::from_utf8_lossy(&out.stdout).into_owned();
-            return Some((format!("@log:{n}"), if s.trim().is_empty() { "(no commits)".into() } else { s }));
+            return Some((
+                format!("@log:{n}"),
+                if s.trim().is_empty() {
+                    "(no commits)".into()
+                } else {
+                    s
+                },
+            ));
         }
         "@env" => {
             let mut out = format!("project_root: {}\n", cwd.display());
-            if let Ok(head) = crate::sys::no_window("git").arg("rev-parse").arg("HEAD").current_dir(cwd).output() {
+            if let Ok(head) = crate::sys::no_window("git")
+                .arg("rev-parse")
+                .arg("HEAD")
+                .current_dir(cwd)
+                .output()
+            {
                 if head.status.success() {
-                    out.push_str(&format!("git_head: {}\n", String::from_utf8_lossy(&head.stdout).trim()));
+                    out.push_str(&format!(
+                        "git_head: {}\n",
+                        String::from_utf8_lossy(&head.stdout).trim()
+                    ));
                 }
             }
-            if let Ok(branch) = crate::sys::no_window("git").arg("symbolic-ref").arg("--short").arg("HEAD").current_dir(cwd).output() {
+            if let Ok(branch) = crate::sys::no_window("git")
+                .arg("symbolic-ref")
+                .arg("--short")
+                .arg("HEAD")
+                .current_dir(cwd)
+                .output()
+            {
                 if branch.status.success() {
-                    out.push_str(&format!("branch: {}\n", String::from_utf8_lossy(&branch.stdout).trim()));
+                    out.push_str(&format!(
+                        "branch: {}\n",
+                        String::from_utf8_lossy(&branch.stdout).trim()
+                    ));
                 }
             }
             Some(("@env".into(), out))
@@ -833,21 +1010,50 @@ fn resolve_special_token(token: &str, cwd: Option<&std::path::Path>) -> Option<(
         s if s.starts_with("@recent:") || s == "@recent" => {
             // Tunable count via `@recent:N`. Plain `@recent` defaults to 8.
             // Clamped to 1..=50 so the model context stays bounded.
-            let n: usize = s.strip_prefix("@recent:")
+            let n: usize = s
+                .strip_prefix("@recent:")
                 .and_then(|t| t.parse::<usize>().ok())
                 .unwrap_or(8)
                 .clamp(1, 50);
             use walkdir::WalkDir;
-            const SKIP: &[&str] = &[".git","node_modules","target","dist","build",".next",".turbo",".cache","out","coverage","__pycache__"];
-            const EXTS: &[&str] = &["rs","ts","tsx","js","jsx","py","md","go","java","c","h","cpp","hpp","rb","css","html","yaml","yml","toml","sh"];
+            const SKIP: &[&str] = &[
+                ".git",
+                "node_modules",
+                "target",
+                "dist",
+                "build",
+                ".next",
+                ".turbo",
+                ".cache",
+                "out",
+                "coverage",
+                "__pycache__",
+            ];
+            const EXTS: &[&str] = &[
+                "rs", "ts", "tsx", "js", "jsx", "py", "md", "go", "java", "c", "h", "cpp", "hpp",
+                "rb", "css", "html", "yaml", "yml", "toml", "sh",
+            ];
             let mut entries: Vec<(std::time::SystemTime, std::path::PathBuf)> = Vec::new();
-            for e in WalkDir::new(cwd).max_depth(5).into_iter().filter_entry(|e| {
-                e.file_name().to_str().map(|s| !SKIP.contains(&s)).unwrap_or(true)
-            }) {
+            for e in WalkDir::new(cwd)
+                .max_depth(5)
+                .into_iter()
+                .filter_entry(|e| {
+                    e.file_name()
+                        .to_str()
+                        .map(|s| !SKIP.contains(&s))
+                        .unwrap_or(true)
+                })
+            {
                 let Ok(e) = e else { continue };
-                if !e.file_type().is_file() { continue }
-                let Some(ext) = e.path().extension().and_then(|x| x.to_str()) else { continue };
-                if !EXTS.contains(&ext) { continue }
+                if !e.file_type().is_file() {
+                    continue;
+                }
+                let Some(ext) = e.path().extension().and_then(|x| x.to_str()) else {
+                    continue;
+                };
+                if !EXTS.contains(&ext) {
+                    continue;
+                }
                 let Ok(m) = e.metadata() else { continue };
                 let Ok(t) = m.modified() else { continue };
                 entries.push((t, e.path().to_path_buf()));
@@ -857,14 +1063,26 @@ fn resolve_special_token(token: &str, cwd: Option<&std::path::Path>) -> Option<(
             let mut out = String::new();
             for (t, p) in &entries {
                 let age = t.elapsed().map(|d| d.as_secs()).unwrap_or(0);
-                let ago = if age < 60 { format!("{}s ago", age) }
-                    else if age < 3600 { format!("{}m ago", age / 60) }
-                    else if age < 86400 { format!("{}h ago", age / 3600) }
-                    else { format!("{}d ago", age / 86400) };
+                let ago = if age < 60 {
+                    format!("{}s ago", age)
+                } else if age < 3600 {
+                    format!("{}m ago", age / 60)
+                } else if age < 86400 {
+                    format!("{}h ago", age / 3600)
+                } else {
+                    format!("{}d ago", age / 86400)
+                };
                 let rel = p.strip_prefix(cwd).unwrap_or(p);
                 out.push_str(&format!("- {} ({})\n", rel.display(), ago));
             }
-            Some(("@recent".into(), if out.is_empty() { "(no recent edits)".into() } else { out }))
+            Some((
+                "@recent".into(),
+                if out.is_empty() {
+                    "(no recent edits)".into()
+                } else {
+                    out
+                },
+            ))
         }
         _ => None,
     }
@@ -928,7 +1146,10 @@ fn resolve_codebase_token(
     }
     let hits = crate::retrieval::retrieve_blended(root, query, n);
     if hits.is_empty() {
-        return Some(("@codebase".to_string(), "(no relevant code found)".to_string()));
+        return Some((
+            "@codebase".to_string(),
+            "(no relevant code found)".to_string(),
+        ));
     }
     let mut body = String::new();
     for h in &hits {
@@ -942,7 +1163,10 @@ fn resolve_codebase_token(
             .chars()
             .take(160)
             .collect();
-        body.push_str(&format!("{} [{}] (score {:.2})\n", h.path, h.source, h.score));
+        body.push_str(&format!(
+            "{} [{}] (score {:.2})\n",
+            h.path, h.source, h.score
+        ));
         if !snippet.is_empty() {
             body.push_str(&format!("  {snippet}\n"));
         }
@@ -986,8 +1210,17 @@ fn doc_query_terms(query: &str) -> Vec<String> {
 fn collect_doc_sections(root: &std::path::Path) -> Vec<DocSection> {
     use walkdir::WalkDir;
     const SKIP: &[&str] = &[
-        ".git", "node_modules", "target", "dist", "build", ".next", ".turbo", ".cache", "out",
-        "coverage", "__pycache__",
+        ".git",
+        "node_modules",
+        "target",
+        "dist",
+        "build",
+        ".next",
+        ".turbo",
+        ".cache",
+        "out",
+        "coverage",
+        "__pycache__",
     ];
     const EXTS: &[&str] = &["md", "mdx", "markdown", "rst", "txt"];
     let mut sections: Vec<DocSection> = Vec::new();
@@ -1281,7 +1514,10 @@ fn slice_lines(content: &str, start: usize, end: usize) -> String {
 /// <file contents>
 /// ```
 /// ````
-fn expand_at_tokens(message: &str, project_root: Option<&std::path::Path>) -> (String, Vec<String>) {
+fn expand_at_tokens(
+    message: &str,
+    project_root: Option<&std::path::Path>,
+) -> (String, Vec<String>) {
     // Order of passes inside this function:
     //   1. `@brain` magic — full-message search for top-N brain hits
     //   2. Implicit path mentions (wave 118+) — Aider-style. Token must
@@ -1302,15 +1538,15 @@ fn expand_at_tokens(message: &str, project_root: Option<&std::path::Path>) -> (S
     // followed by each file's content so the model can see what context
     // was selected for it.
     // `@brain` defaults to top 3; `@brain:N` for N hits (clamped 1..=10).
-    let brain_n: Option<usize> = message
-        .split_whitespace()
-        .find_map(|t| {
-            let t = t.trim_end_matches(|c: char| c == ',' || c == '.' || c == ';' || c == ')');
-            if t == "@brain" { return Some(3); }
-            t.strip_prefix("@brain:")
-                .and_then(|s| s.parse::<usize>().ok())
-                .map(|n| n.clamp(1, 10))
-        });
+    let brain_n: Option<usize> = message.split_whitespace().find_map(|t| {
+        let t = t.trim_end_matches(|c: char| c == ',' || c == '.' || c == ';' || c == ')');
+        if t == "@brain" {
+            return Some(3);
+        }
+        t.strip_prefix("@brain:")
+            .and_then(|s| s.parse::<usize>().ok())
+            .map(|n| n.clamp(1, 10))
+    });
     if let Some(top_n) = brain_n {
         let cleaned: String = message
             .split_whitespace()
@@ -1320,13 +1556,25 @@ fn expand_at_tokens(message: &str, project_root: Option<&std::path::Path>) -> (S
         if let Some(picks) = run_brain_inline(&cleaned, project_root) {
             for (path, content, kb) in picks.into_iter().take(top_n) {
                 let key = path.display().to_string();
-                if !seen.insert(key.clone()) { continue }
-                let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("text").to_lowercase();
+                if !seen.insert(key.clone()) {
+                    continue;
+                }
+                let ext = path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("text")
+                    .to_lowercase();
                 attachments.push(format!(
                     "<!-- attached: @brain/{} ({:.1}KB) -->\n```{}\n{}\n```",
-                    path.display(), kb, ext, content,
+                    path.display(),
+                    kb,
+                    ext,
+                    content,
                 ));
-                let name = path.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| path.display().to_string());
+                let name = path
+                    .file_name()
+                    .map(|s| s.to_string_lossy().to_string())
+                    .unwrap_or_else(|| path.display().to_string());
                 labels.push(format!("@brain/{name}"));
             }
         }
@@ -1341,18 +1589,40 @@ fn expand_at_tokens(message: &str, project_root: Option<&std::path::Path>) -> (S
     let mentioned_start = labels.len();
     if let Some(root) = project_root {
         let mut mentioned_count = 0usize;
-        for raw in message.split(|c: char| c.is_whitespace() || c == '(' || c == '[' || c == '"' || c == '\'' || c == '`') {
-            if mentioned_count >= 3 { break; }
-            if raw.is_empty() || raw.starts_with('@') || raw.starts_with("http://") || raw.starts_with("https://") {
+        for raw in message.split(|c: char| {
+            c.is_whitespace() || c == '(' || c == '[' || c == '"' || c == '\'' || c == '`'
+        }) {
+            if mentioned_count >= 3 {
+                break;
+            }
+            if raw.is_empty()
+                || raw.starts_with('@')
+                || raw.starts_with("http://")
+                || raw.starts_with("https://")
+            {
                 continue;
             }
-            let tok = raw.trim_end_matches(|c: char| c == ',' || c == '.' || c == ';' || c == ')' || c == ']' || c == '"' || c == '\'' || c == '`' || c == ':');
+            let tok = raw.trim_end_matches(|c: char| {
+                c == ','
+                    || c == '.'
+                    || c == ';'
+                    || c == ')'
+                    || c == ']'
+                    || c == '"'
+                    || c == '\''
+                    || c == '`'
+                    || c == ':'
+            });
             // Path-like: must contain a slash (forward OR backslash) and an
             // extension we recognize as code or markdown. Avoid false-positives
             // like domain.com/path. Reject if it starts with `-` (CLI flag),
             // `/` (absolute), or `\\` (UNC/absolute) — `@file:` handles those.
-            if !tok.contains('/') && !tok.contains('\\') { continue; }
-            if tok.starts_with('-') || tok.starts_with('/') || tok.starts_with('\\') { continue; }
+            if !tok.contains('/') && !tok.contains('\\') {
+                continue;
+            }
+            if tok.starts_with('-') || tok.starts_with('/') || tok.starts_with('\\') {
+                continue;
+            }
             // Normalize backslash → forward slash so `candidate.join` works
             // on both WSL and native Windows-style invocations.
             let path_norm = tok.replace('\\', "/");
@@ -1362,22 +1632,25 @@ fn expand_at_tokens(message: &str, project_root: Option<&std::path::Path>) -> (S
             let path_no_line = tok.split(':').next().unwrap_or(tok);
             let lower = path_no_line.to_lowercase();
             let known_ext = [
-                ".rs", ".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".java", ".kt",
-                ".c", ".cc", ".cpp", ".h", ".hpp", ".rb", ".php", ".swift", ".scala",
-                ".md", ".toml", ".yaml", ".yml", ".json", ".css", ".scss", ".html",
-                ".sh", ".sql", ".proto", ".gradle",
+                ".rs", ".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".java", ".kt", ".c", ".cc",
+                ".cpp", ".h", ".hpp", ".rb", ".php", ".swift", ".scala", ".md", ".toml", ".yaml",
+                ".yml", ".json", ".css", ".scss", ".html", ".sh", ".sql", ".proto", ".gradle",
                 // Wave 153 — modern-ecosystem coverage.
-                ".zig", ".dart", ".elm", ".json5", ".lua", ".nix", ".tf", ".mjs", ".cjs",
-                ".astro", ".vue", ".svelte", ".jl", ".ex", ".exs", ".clj", ".hs", ".ml",
+                ".zig", ".dart", ".elm", ".json5", ".lua", ".nix", ".tf", ".mjs", ".cjs", ".astro",
+                ".vue", ".svelte", ".jl", ".ex", ".exs", ".clj", ".hs", ".ml",
             ];
-            if !known_ext.iter().any(|e| lower.ends_with(e)) { continue; }
+            if !known_ext.iter().any(|e| lower.ends_with(e)) {
+                continue;
+            }
             // Strip optional :line / :line:col suffix when resolving. Use
             // the normalized path (forward slashes) for filesystem lookup;
             // keep the original for the label so the user sees what they
             // actually typed.
             let path_only = path_norm.split(':').next().unwrap_or(&path_norm);
             let candidate = root.join(path_only);
-            if !candidate.is_file() { continue; }
+            if !candidate.is_file() {
+                continue;
+            }
             // Respect the file-size cap.
             let too_big = std::fs::metadata(&candidate)
                 .map(|m| m.len() > MAX_FILE_BYTES)
@@ -1395,9 +1668,17 @@ fn expand_at_tokens(message: &str, project_root: Option<&std::path::Path>) -> (S
                 continue;
             }
             let key = format!("mention:{}", candidate.display());
-            if !seen.insert(key) { continue; }
-            let Ok(content) = std::fs::read_to_string(&candidate) else { continue };
-            let ext = candidate.extension().and_then(|e| e.to_str()).unwrap_or("text").to_lowercase();
+            if !seen.insert(key) {
+                continue;
+            }
+            let Ok(content) = std::fs::read_to_string(&candidate) else {
+                continue;
+            };
+            let ext = candidate
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("text")
+                .to_lowercase();
             // Wave 133 — preserve any `:line` or `:line:col` suffix the user
             // typed so the label + attached-block comment carry it (helps the
             // model focus). The actual inlined content is still the whole
@@ -1428,7 +1709,9 @@ fn expand_at_tokens(message: &str, project_root: Option<&std::path::Path>) -> (S
     }
 
     for tok in message.split(|c: char| c.is_whitespace()) {
-        if !tok.starts_with('@') { continue; }
+        if !tok.starts_with('@') {
+            continue;
+        }
         // Special tokens (@diff, @status) — handled by a separate resolver
         // because they don't refer to a path. Strip trailing punctuation
         // so "fix @diff." still triggers.
@@ -1561,10 +1844,10 @@ fn expand_at_tokens(message: &str, project_root: Option<&std::path::Path>) -> (S
             continue;
         }
         if let Some((name, body)) = resolve_special_token(stripped, project_root) {
-            if !seen.insert(name.clone()) { continue; }
-            attachments.push(format!(
-                "<!-- attached: {name} -->\n```diff\n{body}\n```",
-            ));
+            if !seen.insert(name.clone()) {
+                continue;
+            }
+            attachments.push(format!("<!-- attached: {name} -->\n```diff\n{body}\n```",));
             labels.push(name);
             continue;
         }
@@ -1583,15 +1866,21 @@ fn expand_at_tokens(message: &str, project_root: Option<&std::path::Path>) -> (S
             .or_else(|| body.strip_prefix("google:"))
         {
             let query = query.trim();
-            if query.is_empty() { continue; }
+            if query.is_empty() {
+                continue;
+            }
             let key = format!("websearch:{}", query.to_lowercase());
-            if !seen.insert(key.clone()) { continue; }
+            if !seen.insert(key.clone()) {
+                continue;
+            }
             // Cap at 6 results so the block stays a scannable lead-list, not a
             // wall — the user can `@web:<url>` any hit to read it in full.
             let results = block_on_detached(crate::websearch::search(query, 6))
                 .and_then(|r| r.ok())
                 .unwrap_or_default();
-            if results.is_empty() { continue; }
+            if results.is_empty() {
+                continue;
+            }
             let (attachment, label) = format_websearch_attachment(query, &results);
             attachments.push(attachment);
             labels.push(label);
@@ -1600,9 +1889,13 @@ fn expand_at_tokens(message: &str, project_root: Option<&std::path::Path>) -> (S
         // `@web:<url>` — fetch URL, strip HTML, inline as text. Aider's
         // `/web` pattern. Best-effort; blocks the chat send for up to 8s.
         if let Some(url) = body.strip_prefix("web:") {
-            if !url.starts_with("http://") && !url.starts_with("https://") { continue; }
+            if !url.starts_with("http://") && !url.starts_with("https://") {
+                continue;
+            }
             let key = format!("web:{}", url);
-            if !seen.insert(key.clone()) { continue; }
+            if !seen.insert(key.clone()) {
+                continue;
+            }
             if let Some(text) = fetch_url_text(url) {
                 let kb = (text.len() as f32) / 1024.0;
                 attachments.push(format!(
@@ -1618,28 +1911,50 @@ fn expand_at_tokens(message: &str, project_root: Option<&std::path::Path>) -> (S
         // name to `[a-z0-9_-]+` so users can't path-traverse out of the
         // fragments dir.
         if let Some(name) = body.strip_prefix("frag:") {
-            let safe: String = name.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-').collect();
-            if safe.is_empty() { continue; }
-            let Some(home) = crate::paths::home_dir() else { continue };
-            let path = home.join(".cortex").join("fragments").join(format!("{safe}.md"));
-            if !path.is_file() { continue; }
+            let safe: String = name
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+                .collect();
+            if safe.is_empty() {
+                continue;
+            }
+            let Some(home) = crate::paths::home_dir() else {
+                continue;
+            };
+            let path = home
+                .join(".cortex")
+                .join("fragments")
+                .join(format!("{safe}.md"));
+            if !path.is_file() {
+                continue;
+            }
             let key = format!("frag:{safe}");
-            if !seen.insert(key.clone()) { continue; }
-            let Ok(content) = std::fs::read_to_string(&path) else { continue };
+            if !seen.insert(key.clone()) {
+                continue;
+            }
+            let Ok(content) = std::fs::read_to_string(&path) else {
+                continue;
+            };
             attachments.push(format!(
                 "<!-- attached: @frag:{safe} -->\n```md\n{content}\n```",
             ));
             labels.push(format!("@frag:{safe}"));
             continue;
         }
-        let path_str = if let Some(rest) = body.strip_prefix("memory:") { rest }
-            else if let Some(rest) = body.strip_prefix("file:") { rest }
-            else { body };
+        let path_str = if let Some(rest) = body.strip_prefix("memory:") {
+            rest
+        } else if let Some(rest) = body.strip_prefix("file:") {
+            rest
+        } else {
+            body
+        };
         // `@file:/abs/path.rs:L10-L24` — selection mentions from the editor's
         // "add selection to chat" attach ONLY the named lines.
         let (path_str, line_range) = split_line_range(path_str);
         let path = std::path::PathBuf::from(path_str);
-        if !path.is_absolute() { continue; }
+        if !path.is_absolute() {
+            continue;
+        }
         let range_suffix = match line_range {
             Some((a, b)) if a == b => format!(":L{a}"),
             Some((a, b)) => format!(":L{a}-L{b}"),
@@ -1648,11 +1963,21 @@ fn expand_at_tokens(message: &str, project_root: Option<&std::path::Path>) -> (S
         // Key includes the range so two different slices of one file can both
         // attach (a whole-file mention still dedups against itself).
         let key = format!("{}{}", path.display(), range_suffix);
-        if !seen.insert(key.clone()) { continue; }
-        let Ok(meta) = std::fs::metadata(&path) else { continue; };
-        if !meta.is_file() { continue; }
-        if meta.len() > MAX_FILE_BYTES { continue; }
-        let Ok(content) = std::fs::read_to_string(&path) else { continue; };
+        if !seen.insert(key.clone()) {
+            continue;
+        }
+        let Ok(meta) = std::fs::metadata(&path) else {
+            continue;
+        };
+        if !meta.is_file() {
+            continue;
+        }
+        if meta.len() > MAX_FILE_BYTES {
+            continue;
+        }
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            continue;
+        };
         let content = match line_range {
             Some((a, b)) => slice_lines(&content, a, b),
             None => content,
@@ -1660,24 +1985,38 @@ fn expand_at_tokens(message: &str, project_root: Option<&std::path::Path>) -> (S
         // A range entirely past EOF slices to nothing — leave the token
         // unresolved (the model still sees the user's intent) instead of
         // attaching an empty block.
-        if line_range.is_some() && content.is_empty() { continue; }
+        if line_range.is_some() && content.is_empty() {
+            continue;
+        }
         let kb = (content.len() as f32) / 1024.0;
         let ext = path
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("")
             .to_ascii_lowercase();
-        let fence = if ext.is_empty() { "text".to_string() } else { ext };
+        let fence = if ext.is_empty() {
+            "text".to_string()
+        } else {
+            ext
+        };
         attachments.push(format!(
             "<!-- attached: {tok} ({kb:.1}KB) -->\n```{fence}\n{content}\n```",
         ));
         // Use the basename in the label so the toast stays compact;
         // tooltip on the toast can show the full path.
-        let base = path.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or(key.clone());
+        let base = path
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or(key.clone());
         labels.push(format!("{base}{range_suffix}"));
     }
-    if attachments.is_empty() { return (message.to_string(), labels); }
-    (format!("{}\n\n{}", message, attachments.join("\n\n")), labels)
+    if attachments.is_empty() {
+        return (message.to_string(), labels);
+    }
+    (
+        format!("{}\n\n{}", message, attachments.join("\n\n")),
+        labels,
+    )
 }
 
 /// Process-wide last-known mode set from the UI. Used as a fallback when a
@@ -1791,9 +2130,7 @@ fn maybe_block_by_tier(
     project_root: Option<&Path>,
 ) -> Option<String> {
     let verdict = match crate::mcp::chat_tools::split_qualified(name) {
-        Some((_, bare)) => {
-            orchestrator::tier_allows_mcp(tier, &bare, args_json, project_root)
-        }
+        Some((_, bare)) => orchestrator::tier_allows_mcp(tier, &bare, args_json, project_root),
         None => tier_allows(tier, name, args_json, project_root),
     };
     match verdict {
@@ -1890,7 +2227,9 @@ fn command_policy_suppresses_auto_approve(
 /// replaced) specifically so this invariant has a direct unit test without
 /// needing a full Tauri app context — see `tests::untrusted_project_never_
 /// gets_a_trust_matrix` below.
-fn resolve_trust_matrix_for_project(is_trusted: bool) -> Option<crate::commands::trust::TrustMatrix> {
+fn resolve_trust_matrix_for_project(
+    is_trusted: bool,
+) -> Option<crate::commands::trust::TrustMatrix> {
     if is_trusted {
         Some(crate::commands::trust::TrustMatrix::load())
     } else {
@@ -2007,12 +2346,9 @@ impl McpChatGateCtx {
 /// token classification see the same shape they see for built-in tools.
 /// Returns `Some(reason)` to block.
 fn gate_mcp_chat_call(ctx: &McpChatGateCtx, bare_tool: &str, args_json: &str) -> Option<String> {
-    if let Err(reason) = orchestrator::tier_allows_mcp(
-        ctx.tier,
-        bare_tool,
-        args_json,
-        ctx.project_root.as_deref(),
-    ) {
+    if let Err(reason) =
+        orchestrator::tier_allows_mcp(ctx.tier, bare_tool, args_json, ctx.project_root.as_deref())
+    {
         return Some(format!("sandbox: blocked by tier — {reason}"));
     }
     maybe_block_by_command_policy(ctx.command_policy.as_ref(), bare_tool, args_json)
@@ -2244,10 +2580,7 @@ pub async fn chat_send(
         Guardrails::defaults()
     });
     let sandbox_tier = if is_trusted {
-        project_root
-            .as_deref()
-            .map(load_tier)
-            .unwrap_or_default()
+        project_root.as_deref().map(load_tier).unwrap_or_default()
     } else {
         SandboxTier::ReadOnly
     };
@@ -2257,10 +2590,7 @@ pub async fn chat_send(
     // ReadOnly tier above — a malicious repo must not be able to silence the
     // approval prompts.
     let approval_policy = if is_trusted {
-        project_root
-            .as_deref()
-            .map(load_policy)
-            .unwrap_or_default()
+        project_root.as_deref().map(load_policy).unwrap_or_default()
     } else {
         ApprovalPolicy::OnRequest
     };
@@ -2303,8 +2633,7 @@ pub async fn chat_send(
     let auto_approve = std::sync::Arc::new(AutoApproveList::load());
     // Granular trust matrix (~/.cortex/trust-matrix.json), a THIRD
     // auto-approve source alongside the allowlist and approval policy above.
-    let trust_matrix = resolve_trust_matrix_for_project(is_trusted)
-        .map(std::sync::Arc::new);
+    let trust_matrix = resolve_trust_matrix_for_project(is_trusted).map(std::sync::Arc::new);
 
     // SessionStart: fire once per session id, before anything else.
     // Result is observational only — we don't block chat on it.
@@ -2405,8 +2734,7 @@ pub async fn chat_send(
         );
     }
 
-    let effective_message = build_images_envelope(&args.images, &expanded)
-        .unwrap_or(expanded);
+    let effective_message = build_images_envelope(&args.images, &expanded).unwrap_or(expanded);
 
     // Auto mode: when the user picked no model, choose one by task complexity
     // (deterministic, no network). The chosen reason is surfaced on the route
@@ -2434,7 +2762,12 @@ pub async fn chat_send(
             // No explicit per-turn pick. Prefer the configured **chat** role
             // default (Continue.dev) over Auto-selection — it's the project's
             // pinned chat model. Still canonicalized through the alias catalog.
-            match model_roles.chat.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+            match model_roles
+                .chat
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+            {
                 Some(role_model) => {
                     let resolved = orchestrator::aliases::resolve_model(role_model);
                     auto_reason = Some(format!("chat-role default ({resolved})"));
@@ -2519,13 +2852,18 @@ pub async fn chat_send(
                 .try_state::<TracingStore>()
                 .and_then(|store| store.session_spend_usd(&session_id).ok())
                 .unwrap_or(0.0);
-            orchestrator::cost_router::SessionBudget { cap_usd: Some(cap_usd), spent_usd }
+            orchestrator::cost_router::SessionBudget {
+                cap_usd: Some(cap_usd),
+                spent_usd,
+            }
         })
     } else {
         None
     };
     if let Some(budget) = &session_budget {
-        if orchestrator::cost_router::budget_state(budget) == orchestrator::cost_router::BudgetState::Exceeded {
+        if orchestrator::cost_router::budget_state(budget)
+            == orchestrator::cost_router::BudgetState::Exceeded
+        {
             return Err(format!(
                 "session budget exceeded: spent ${:.4} of the ${:.2} cap set for this session — raise or clear the cap in Settings, or start a new session",
                 budget.spent_usd,
@@ -2550,24 +2888,29 @@ pub async fn chat_send(
         // session has a budget cap that's being approached/exceeded, the pick
         // is biased toward the cheaper of two reliable providers (still a
         // no-op when `session_budget` is `None`, above).
-        let outcome_hint = if is_bare_request && orchestrator::cost_router::outcome_routing_enabled() {
-            app.try_state::<TracingStore>().and_then(|store| {
-                let now_ms = chrono::Utc::now().timestamp_millis();
-                let since = now_ms - orchestrator::cost_router::OUTCOME_RECENCY_WINDOW_MS;
-                let rows = store.provider_reliability(Some(since)).unwrap_or_default();
-                let stats = orchestrator::cost_router::outcome_stats_from_reliability(&rows);
-                orchestrator::cost_router::pick_agent_by_outcome_with_budget(
-                    &stats,
-                    &registry,
-                    now_ms,
-                    session_budget.as_ref(),
-                )
-            })
-        } else {
-            None
-        };
-        let decision =
-            orchestrator::route_with_outcome(&req, &registry, args.agent.clone(), outcome_hint.as_ref());
+        let outcome_hint =
+            if is_bare_request && orchestrator::cost_router::outcome_routing_enabled() {
+                app.try_state::<TracingStore>().and_then(|store| {
+                    let now_ms = chrono::Utc::now().timestamp_millis();
+                    let since = now_ms - orchestrator::cost_router::OUTCOME_RECENCY_WINDOW_MS;
+                    let rows = store.provider_reliability(Some(since)).unwrap_or_default();
+                    let stats = orchestrator::cost_router::outcome_stats_from_reliability(&rows);
+                    orchestrator::cost_router::pick_agent_by_outcome_with_budget(
+                        &stats,
+                        &registry,
+                        now_ms,
+                        session_budget.as_ref(),
+                    )
+                })
+            } else {
+                None
+            };
+        let decision = orchestrator::route_with_outcome(
+            &req,
+            &registry,
+            args.agent.clone(),
+            outcome_hint.as_ref(),
+        );
         let picked = decision.agents.clone();
         // When Auto picked a model, append its reason so the UI shows the choice.
         let reason = match &auto_reason {
@@ -2590,13 +2933,19 @@ pub async fn chat_send(
                 reasoning_effort: None,
             };
             let pdec = orchestrator::route(&preq, &registry, None);
-            pdec.agents.into_iter().next().and_then(|id| registry.get(&id))
+            pdec.agents
+                .into_iter()
+                .next()
+                .and_then(|id| registry.get(&id))
         });
         (decision, picked, reason, agents, planner_adapter)
     };
 
     if agents.is_empty() {
-        return Err(format!("no agents available for routing: {}", decision.reason));
+        return Err(format!(
+            "no agents available for routing: {}",
+            decision.reason
+        ));
     }
 
     let _ = app.emit(
@@ -2610,7 +2959,13 @@ pub async fn chat_send(
 
     let trace_id = ulid::Ulid::new().to_string();
     if let Some(store) = app.try_state::<TracingStore>() {
-        let _ = store.record_chat_turn(&trace_id, &session_id, &args.message, &picked, Some(&reason));
+        let _ = store.record_chat_turn(
+            &trace_id,
+            &session_id,
+            &args.message,
+            &picked,
+            Some(&reason),
+        );
     }
 
     let session_for_task = session_id.clone();
@@ -2619,9 +2974,8 @@ pub async fn chat_send(
     // Re-apply the `<images>` envelope to the orchestrator's stripped message
     // so dispatched agents still see attachments after `@`-mentions / kind
     // prefixes have been peeled off.
-    let stripped_with_images =
-        build_images_envelope(&args.images, &decision.stripped_message)
-            .unwrap_or_else(|| decision.stripped_message.clone());
+    let stripped_with_images = build_images_envelope(&args.images, &decision.stripped_message)
+        .unwrap_or_else(|| decision.stripped_message.clone());
 
     // Architect phase 1 (planner). When active, run the planner model to
     // completion — streaming its plan into the editor agent's assistant bubble
@@ -2629,7 +2983,10 @@ pub async fn chat_send(
     // message the editor (phase 2, the normal dispatch below) receives. A
     // missing adapter / empty plan / timeout leaves `dispatched_message`
     // unchanged, degrading cleanly to a single-phase editor run.
-    let stream_agent_id = picked.first().cloned().unwrap_or_else(|| "agent".to_string());
+    let stream_agent_id = picked
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "agent".to_string());
     let mut dispatched_message = stripped_with_images.clone();
     if architect_active {
         if let (Some(planner_id), Some(adapter)) =
@@ -2750,11 +3107,17 @@ pub async fn chat_send(
                 // none, so the frontend tracks the run (enabling Stop) and
                 // untracks it on Done. Gateway-issued ids pass through.
                 let evt = match evt {
-                    AgentEvent::Started { agent_id, run_id: None } => AgentEvent::Started {
+                    AgentEvent::Started {
+                        agent_id,
+                        run_id: None,
+                    } => AgentEvent::Started {
                         agent_id,
                         run_id: Some(local_run_id.clone()),
                     },
-                    AgentEvent::Done { total_tokens, run_id: None } => AgentEvent::Done {
+                    AgentEvent::Done {
+                        total_tokens,
+                        run_id: None,
+                    } => AgentEvent::Done {
                         total_tokens,
                         run_id: Some(local_run_id.clone()),
                     },
@@ -2996,7 +3359,12 @@ pub async fn chat_send(
                             }),
                         );
                     }
-                    AgentEvent::ToolResult { name, ok, summary, duration_ms } => {
+                    AgentEvent::ToolResult {
+                        name,
+                        ok,
+                        summary,
+                        duration_ms,
+                    } => {
                         fire_hook_detached(
                             &hooks_for_agent,
                             hook_events::POST_TOOL_USE,
@@ -3106,7 +3474,10 @@ pub async fn chat_send(
                 };
                 for evt in [
                     AgentEvent::Error { message },
-                    AgentEvent::Done { total_tokens: None, run_id: Some(local_run_id.clone()) },
+                    AgentEvent::Done {
+                        total_tokens: None,
+                        run_id: Some(local_run_id.clone()),
+                    },
                 ] {
                     let payload = serde_json::json!({ "agent_id": agent_id, "event": evt });
                     let _ = app_for_agent.emit(&format!("agent-event:{}", session), payload);
@@ -3201,7 +3572,10 @@ pub async fn stop_run(args: StopRunArgs, state: State<'_, AppState>) -> Result<(
     let cfg = state.config.read().clone();
     let api_key = AppState::get_gateway_api_key().unwrap_or_default();
     let client = crate::gateway::client::GatewayClient::new(cfg.gateway_base_url, api_key);
-    client.stop_run(&args.run_id).await.map_err(|e| e.to_string())?;
+    client
+        .stop_run(&args.run_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -3215,7 +3589,9 @@ pub async fn set_current_mode(mode: String) -> Result<(), String> {
         return Err(format!("invalid mode '{mode}': expected 'plan' or 'act'"));
     }
     let cell = current_mode_cell();
-    let mut g = cell.lock().map_err(|e| format!("mode lock poisoned: {e}"))?;
+    let mut g = cell
+        .lock()
+        .map_err(|e| format!("mode lock poisoned: {e}"))?;
     *g = normalized;
     Ok(())
 }
@@ -3241,16 +3617,25 @@ mod tests {
 
     #[tokio::test]
     async fn abort_local_run_stops_registered_task_and_rejects_unknown_ids() {
-        assert!(!abort_local_run("local-nope"), "unknown id → false (falls through to gateway)");
+        assert!(
+            !abort_local_run("local-nope"),
+            "unknown id → false (falls through to gateway)"
+        );
 
         let task = tokio::spawn(std::future::pending::<()>());
         let flag = Arc::new(AtomicBool::new(false));
         LOCAL_RUNS.lock().insert(
             "local-test-run".to_string(),
-            LocalRun { abort: task.abort_handle(), stopped_by_user: flag.clone() },
+            LocalRun {
+                abort: task.abort_handle(),
+                stopped_by_user: flag.clone(),
+            },
         );
         assert!(abort_local_run("local-test-run"));
-        assert!(flag.load(Ordering::SeqCst), "stop must be attributed to the user");
+        assert!(
+            flag.load(Ordering::SeqCst),
+            "stop must be attributed to the user"
+        );
         assert!(task.await.unwrap_err().is_cancelled());
         LOCAL_RUNS.lock().remove("local-test-run");
     }
@@ -3303,7 +3688,10 @@ mod tests {
     /// ToolResult reports the failure.
     #[tokio::test]
     async fn mcp_dispatch_ask_trust_denial_blocks_execution() {
-        let servers = vec![mcp_cfg("test-mcp-ask-deny", crate::mcp::config::McpTrustLevel::Ask)];
+        let servers = vec![mcp_cfg(
+            "test-mcp-ask-deny",
+            crate::mcp::config::McpTrustLevel::Ask,
+        )];
         let ctx = test_ctx(SandboxTier::DangerFullAccess, "act");
         let (tx, mut rx) = mpsc::channel(64);
         let handle = tokio::spawn(async move {
@@ -3321,7 +3709,12 @@ mod tests {
         let run_id = loop {
             let evt = rx.recv().await.expect("events until the approval request");
             match evt {
-                AgentEvent::ApprovalRequest { run_id, tool, choices, .. } => {
+                AgentEvent::ApprovalRequest {
+                    run_id,
+                    tool,
+                    choices,
+                    ..
+                } => {
                     assert_eq!(tool.as_deref(), Some("mcp__test-mcp-ask-deny__echo"));
                     assert!(choices.contains(&"deny".to_string()));
                     break run_id;
@@ -3463,7 +3856,9 @@ mod tests {
             return;
         }
         let cfg = mock_cfg("test-mcp-chat-exec");
-        crate::mcp::client::connect(&cfg).await.expect("mock connects");
+        crate::mcp::client::connect(&cfg)
+            .await
+            .expect("mock connects");
 
         let ctx = test_ctx(SandboxTier::DangerFullAccess, "act");
         let (tx, mut rx) = mpsc::channel(64);
@@ -3489,7 +3884,12 @@ mod tests {
                     assert_eq!(name, qualified);
                     saw_call = true;
                 }
-                AgentEvent::ToolResult { name, ok, summary, duration_ms } => {
+                AgentEvent::ToolResult {
+                    name,
+                    ok,
+                    summary,
+                    duration_ms,
+                } => {
                     assert_eq!(name, qualified);
                     assert!(ok);
                     assert!(summary.contains("from-chat"));
@@ -3513,7 +3913,9 @@ mod tests {
         }
         let mut cfg = mock_cfg("test-mcp-chat-ask");
         cfg.trust = crate::mcp::config::McpTrustLevel::Ask;
-        crate::mcp::client::connect(&cfg).await.expect("mock connects");
+        crate::mcp::client::connect(&cfg)
+            .await
+            .expect("mock connects");
 
         let ctx = test_ctx(SandboxTier::DangerFullAccess, "act");
         let (tx, mut rx) = mpsc::channel(64);
@@ -3582,16 +3984,19 @@ mod tests {
         async fn health_check(&self) -> bool {
             true
         }
-        async fn run(
-            &self,
-            _req: ChatRequest,
-            tx: mpsc::Sender<AgentEvent>,
-        ) -> anyhow::Result<()> {
+        async fn run(&self, _req: ChatRequest, tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
             for c in &self.chunks {
-                let _ = tx.send(AgentEvent::Token { delta: (*c).to_string() }).await;
+                let _ = tx
+                    .send(AgentEvent::Token {
+                        delta: (*c).to_string(),
+                    })
+                    .await;
             }
             let _ = tx
-                .send(AgentEvent::Done { total_tokens: Some(7), run_id: None })
+                .send(AgentEvent::Done {
+                    total_tokens: Some(7),
+                    run_id: None,
+                })
                 .await;
             Ok(())
         }
@@ -3600,7 +4005,9 @@ mod tests {
     #[tokio::test]
     async fn planner_phase_collects_and_streams_tokens() {
         let adapter: std::sync::Arc<dyn crate::agents::AgentAdapter> =
-            std::sync::Arc::new(PlannerStub { chunks: vec!["1. step\n", "2. step"] });
+            std::sync::Arc::new(PlannerStub {
+                chunks: vec!["1. step\n", "2. step"],
+            });
         let mut streamed = String::new();
         let plan = run_planner_phase(
             adapter,
@@ -3620,7 +4027,9 @@ mod tests {
         // A planner that emits only whitespace → None so the caller falls back
         // to a single-phase editor run.
         let adapter: std::sync::Arc<dyn crate::agents::AgentAdapter> =
-            std::sync::Arc::new(PlannerStub { chunks: vec!["   ", "\n"] });
+            std::sync::Arc::new(PlannerStub {
+                chunks: vec!["   ", "\n"],
+            });
         let plan = run_planner_phase(adapter, "m".into(), "p".into(), None, |_| {}).await;
         assert!(plan.is_none());
     }
@@ -3659,7 +4068,14 @@ mod tests {
     #[test]
     fn plan_mode_blocks_write_tools_and_allows_reads() {
         let g = Guardrails::defaults();
-        for t in ["write_file", "edit_file", "shell_exec", "bash", "patch", "run_command"] {
+        for t in [
+            "write_file",
+            "edit_file",
+            "shell_exec",
+            "bash",
+            "patch",
+            "run_command",
+        ] {
             assert!(maybe_block_tool_call("plan", t, "{}", &g).is_some(), "{t}");
         }
         for t in ["read_file", "list_dir", "search"] {
@@ -3692,15 +4108,13 @@ mod tests {
 
     #[test]
     fn tier_danger_full_access_allows_everything() {
-        assert!(
-            maybe_block_by_tier(
-                SandboxTier::DangerFullAccess,
-                "shell_exec",
-                r#"{"cmd":"rm -rf /tmp"}"#,
-                None
-            )
-            .is_none()
-        );
+        assert!(maybe_block_by_tier(
+            SandboxTier::DangerFullAccess,
+            "shell_exec",
+            r#"{"cmd":"rm -rf /tmp"}"#,
+            None
+        )
+        .is_none());
     }
 
     // --- ApprovalPolicy auto-approve re-gate (deferred HIGH finding) ---------
@@ -3737,7 +4151,9 @@ mod tests {
     fn mcp_approval_requests_are_never_eligible_for_generic_auto_approve() {
         let g = Guardrails::defaults();
         assert!(!eligible_for_generic_auto_approve("mcp__fs__write_file"));
-        assert!(!eligible_for_generic_auto_approve("mcp__weather__get_forecast"));
+        assert!(!eligible_for_generic_auto_approve(
+            "mcp__weather__get_forecast"
+        ));
         // Built-in tool names remain eligible — this fix is MCP-scoped only.
         assert!(eligible_for_generic_auto_approve("write_file"));
 
@@ -4023,15 +4439,31 @@ mod tests {
         std::fs::write(root.join("CLAUDE.md"), "be concise").unwrap();
         let rules_only = super::build_context_prefix(root, "hi");
         assert!(rules_only.contains("<project_rules>") && rules_only.contains("be concise"));
-        assert!(!rules_only.contains("<repo_map>"), "no source yet => no repo-map: {rules_only}");
+        assert!(
+            !rules_only.contains("<repo_map>"),
+            "no source yet => no repo-map: {rules_only}"
+        );
 
         // Add source => both blocks present, repo-map carries a ranked file.
         std::fs::create_dir_all(root.join("src")).unwrap();
-        std::fs::write(root.join("src/lib.rs"), "pub struct Widget {}\npub fn build() {}\n").unwrap();
+        std::fs::write(
+            root.join("src/lib.rs"),
+            "pub struct Widget {}\npub fn build() {}\n",
+        )
+        .unwrap();
         let both = super::build_context_prefix(root, "explain Widget");
-        assert!(both.contains("<project_rules>"), "rules block missing: {both}");
-        assert!(both.contains("<repo_map>"), "repo-map block missing: {both}");
-        assert!(both.contains("src/lib.rs"), "repo-map should list the source file: {both}");
+        assert!(
+            both.contains("<project_rules>"),
+            "rules block missing: {both}"
+        );
+        assert!(
+            both.contains("<repo_map>"),
+            "repo-map block missing: {both}"
+        );
+        assert!(
+            both.contains("src/lib.rs"),
+            "repo-map should list the source file: {both}"
+        );
         // Rules come before the repo-map.
         assert!(both.find("<project_rules>").unwrap() < both.find("<repo_map>").unwrap());
     }
@@ -4047,12 +4479,21 @@ mod tests {
         std::fs::write(root.join("src/lib.rs"), "pub fn token_marker() {}\n").unwrap();
         // Nothing added yet => no <files> block.
         let before = super::build_context_prefix(root, "hi");
-        assert!(!before.contains("<files>"), "no manifest => no files block: {before}");
+        assert!(
+            !before.contains("<files>"),
+            "no manifest => no files block: {before}"
+        );
         // Add the file to the chat manifest.
         crate::commands::manifest::add_paths(root, &["src/lib.rs".into()]).unwrap();
         let after = super::build_context_prefix(root, "hi");
-        assert!(after.contains("<files>"), "manifest file should inject a <files> block: {after}");
-        assert!(after.contains("token_marker"), "block should carry the file's contents: {after}");
+        assert!(
+            after.contains("<files>"),
+            "manifest file should inject a <files> block: {after}"
+        );
+        assert!(
+            after.contains("token_marker"),
+            "block should carry the file's contents: {after}"
+        );
         // Ordering: rules → files → repo-map.
         let r = after.find("<project_rules>").unwrap();
         let f = after.find("<files>").unwrap();
@@ -4077,12 +4518,24 @@ mod tests {
         .unwrap();
         // A message without the trigger word => no <knowledge> block.
         let miss = super::build_context_prefix(root, "what is the weather?");
-        assert!(!miss.contains("<knowledge>"), "untriggered => no knowledge block: {miss}");
-        assert!(miss.contains("<project_rules>"), "rules still present: {miss}");
+        assert!(
+            !miss.contains("<knowledge>"),
+            "untriggered => no knowledge block: {miss}"
+        );
+        assert!(
+            miss.contains("<project_rules>"),
+            "rules still present: {miss}"
+        );
         // A message with the trigger word => the knowledge is injected, after rules.
         let hit = super::build_context_prefix(root, "how do I refund a payment?");
-        assert!(hit.contains("<knowledge>"), "trigger should inject knowledge: {hit}");
-        assert!(hit.contains("idempotency key"), "block carries the microagent body: {hit}");
+        assert!(
+            hit.contains("<knowledge>"),
+            "trigger should inject knowledge: {hit}"
+        );
+        assert!(
+            hit.contains("idempotency key"),
+            "block carries the microagent body: {hit}"
+        );
         let r = hit.find("<project_rules>").unwrap();
         let k = hit.find("<knowledge>").unwrap();
         assert!(r < k, "expected rules < knowledge: {hit}");
@@ -4100,8 +4553,16 @@ mod tests {
 
         let msg = "fix the bug in src/auth.rs please";
         let (out, labels) = expand_at_tokens(msg, Some(dir.path()));
-        assert!(out.contains("// authentication module"), "expanded body missing");
-        assert!(labels.iter().any(|l| l.starts_with("mentioned/src/auth.rs")), "label missing: {labels:?}");
+        assert!(
+            out.contains("// authentication module"),
+            "expanded body missing"
+        );
+        assert!(
+            labels
+                .iter()
+                .any(|l| l.starts_with("mentioned/src/auth.rs")),
+            "label missing: {labels:?}"
+        );
     }
 
     #[test]
@@ -4115,7 +4576,10 @@ mod tests {
 
         let msg = "review src/a.rs and src/b.rs and src/c.rs and src/d.rs";
         let (_out, labels) = expand_at_tokens(msg, Some(dir.path()));
-        let mentions: Vec<_> = labels.iter().filter(|l| l.starts_with("mentioned/")).collect();
+        let mentions: Vec<_> = labels
+            .iter()
+            .filter(|l| l.starts_with("mentioned/"))
+            .collect();
         assert!(mentions.len() <= 3, "too many mentions: {mentions:?}");
     }
 
@@ -4129,7 +4593,10 @@ mod tests {
         // URL should not trigger; explicit @file: stays as the @-handler's job.
         let msg = "compare https://example.com/auth.rs vs @file:/absolute/path";
         let (_out, labels) = expand_at_tokens(msg, Some(dir.path()));
-        assert!(!labels.iter().any(|l| l.contains("example.com")), "URL leaked: {labels:?}");
+        assert!(
+            !labels.iter().any(|l| l.contains("example.com")),
+            "URL leaked: {labels:?}"
+        );
     }
 
     #[test]
@@ -4157,7 +4624,11 @@ mod tests {
                 snippet: "A language empowering everyone.".into(),
             },
             // Empty title falls back to the URL; empty snippet is omitted.
-            WebResult { title: "  ".into(), url: "https://docs.rs/".into(), snippet: "".into() },
+            WebResult {
+                title: "  ".into(),
+                url: "https://docs.rs/".into(),
+                snippet: "".into(),
+            },
         ];
         let (attachment, label) = format_websearch_attachment("rust lang", &results);
         assert!(attachment.contains("@websearch:rust lang (2 results)"));
@@ -4174,8 +4645,14 @@ mod tests {
 
     #[test]
     fn split_line_range_parses_ranges_and_rejects_malformed() {
-        assert_eq!(split_line_range("/a/b.rs:L10-L24"), ("/a/b.rs", Some((10, 24))));
-        assert_eq!(split_line_range("/a/b.rs:L10-24"), ("/a/b.rs", Some((10, 24))));
+        assert_eq!(
+            split_line_range("/a/b.rs:L10-L24"),
+            ("/a/b.rs", Some((10, 24)))
+        );
+        assert_eq!(
+            split_line_range("/a/b.rs:L10-24"),
+            ("/a/b.rs", Some((10, 24)))
+        );
         assert_eq!(split_line_range("/a/b.rs:L7"), ("/a/b.rs", Some((7, 7))));
         // Malformed specs leave the string untouched.
         assert_eq!(split_line_range("/a/b.rs:L0"), ("/a/b.rs:L0", None));
@@ -4204,10 +4681,22 @@ mod tests {
 
         let msg = format!("explain @file:{}:L2-L4 please", f.display());
         let (out, labels) = expand_at_tokens(&msg, None);
-        assert!(out.contains("line2\nline3\nline4"), "sliced body missing:\n{out}");
-        assert!(!out.contains("line1"), "range leaked preceding lines:\n{out}");
-        assert!(!out.contains("line5"), "range leaked following lines:\n{out}");
-        assert!(labels.iter().any(|l| l == "code.rs:L2-L4"), "label missing range: {labels:?}");
+        assert!(
+            out.contains("line2\nline3\nline4"),
+            "sliced body missing:\n{out}"
+        );
+        assert!(
+            !out.contains("line1"),
+            "range leaked preceding lines:\n{out}"
+        );
+        assert!(
+            !out.contains("line5"),
+            "range leaked following lines:\n{out}"
+        );
+        assert!(
+            labels.iter().any(|l| l == "code.rs:L2-L4"),
+            "label missing range: {labels:?}"
+        );
     }
 
     #[test]
@@ -4218,8 +4707,14 @@ mod tests {
 
         let msg = format!("see @file:{}:L10-L20", f.display());
         let (out, labels) = expand_at_tokens(&msg, None);
-        assert!(labels.is_empty(), "past-EOF range should not attach: {labels:?}");
-        assert!(!out.contains("<!-- attached"), "no attachment expected:\n{out}");
+        assert!(
+            labels.is_empty(),
+            "past-EOF range should not attach: {labels:?}"
+        );
+        assert!(
+            !out.contains("<!-- attached"),
+            "no attachment expected:\n{out}"
+        );
     }
 
     #[test]
@@ -4236,9 +4731,15 @@ mod tests {
         );
         let (out, labels) = expand_at_tokens(&msg, None);
         assert_eq!(labels.len(), 3, "labels: {labels:?}");
-        assert!(out.contains("```rs\nalpha\n```"), "L1 slice missing:\n{out}");
+        assert!(
+            out.contains("```rs\nalpha\n```"),
+            "L1 slice missing:\n{out}"
+        );
         assert!(out.contains("```rs\nbeta\n```"), "L2 slice missing:\n{out}");
-        assert!(out.contains("```rs\nalpha\nbeta\n```"), "whole file missing:\n{out}");
+        assert!(
+            out.contains("```rs\nalpha\nbeta\n```"),
+            "whole file missing:\n{out}"
+        );
     }
 
     #[test]
@@ -4289,7 +4790,10 @@ mod tests {
         }
         let capped = build_tree(root, 1, 3);
         assert!(capped.contains("truncated"), "cap not flagged: {capped}");
-        assert_eq!(capped.lines().filter(|l| !l.contains("truncated")).count(), 3);
+        assert_eq!(
+            capped.lines().filter(|l| !l.contains("truncated")).count(),
+            3
+        );
     }
 
     #[test]
@@ -4305,13 +4809,22 @@ mod tests {
         std::fs::write(dir.path().join("src/main.rs"), "fn main() {}").unwrap();
 
         let (out, labels) = expand_at_tokens("explain the layout @tree", Some(dir.path()));
-        assert!(labels.iter().any(|l| l == "@tree"), "missing @tree label: {labels:?}");
-        assert!(out.contains("src/"), "tree body missing from expansion: {out}");
+        assert!(
+            labels.iter().any(|l| l == "@tree"),
+            "missing @tree label: {labels:?}"
+        );
+        assert!(
+            out.contains("src/"),
+            "tree body missing from expansion: {out}"
+        );
         assert!(out.contains("main.rs"), "tree body missing file: {out}");
 
         // `@tree` resolves only when a project root is present (project-scoped).
         let (_o, labels_none) = expand_at_tokens("@tree", None);
-        assert!(!labels_none.iter().any(|l| l == "@tree"), "tree resolved without root");
+        assert!(
+            !labels_none.iter().any(|l| l == "@tree"),
+            "tree resolved without root"
+        );
     }
 
     #[test]
@@ -4330,8 +4843,14 @@ mod tests {
             labels.iter().any(|l| l == "@outline:src/api.rs"),
             "missing @outline label: {labels:?}"
         );
-        assert!(out.contains("src/api.rs · rust"), "outline header missing: {out}");
-        assert!(out.contains("pub fn connect()"), "outline symbol missing: {out}");
+        assert!(
+            out.contains("src/api.rs · rust"),
+            "outline header missing: {out}"
+        );
+        assert!(
+            out.contains("pub fn connect()"),
+            "outline symbol missing: {out}"
+        );
 
         // Project-scoped: no root → token ships verbatim, nothing attached.
         let (_o, labels_none) = expand_at_tokens("@outline:src/api.rs", None);
@@ -4384,7 +4903,10 @@ mod tests {
         // @env — root + HEAD + branch orientation block.
         let (elabel, ebody) = resolve_special_token("@env", Some(root)).expect("@env unresolved");
         assert_eq!(elabel, "@env");
-        assert!(ebody.contains("project_root:"), "@env missing root: {ebody}");
+        assert!(
+            ebody.contains("project_root:"),
+            "@env missing root: {ebody}"
+        );
         assert!(ebody.contains("git_head:"), "@env missing head: {ebody}");
 
         // @blame:<file> — per-line authorship; the seeded author shows up.
@@ -4392,7 +4914,10 @@ mod tests {
             resolve_special_token("@blame:hello.rs", Some(root)).expect("@blame unresolved");
         assert_eq!(blabel, "@blame:hello.rs");
         assert!(bbody.contains("Test"), "@blame missing author: {bbody}");
-        assert!(bbody.contains("fn main()"), "@blame missing source line: {bbody}");
+        assert!(
+            bbody.contains("fn main()"),
+            "@blame missing source line: {bbody}"
+        );
 
         // Path-confinement: a `..` escape is refused.
         assert!(
@@ -4401,8 +4926,14 @@ mod tests {
         );
 
         // Project-scoped: no root → unresolved (never a dead token).
-        assert!(resolve_special_token("@log", None).is_none(), "@log resolved without root");
-        assert!(resolve_special_token("@env", None).is_none(), "@env resolved without root");
+        assert!(
+            resolve_special_token("@log", None).is_none(),
+            "@log resolved without root"
+        );
+        assert!(
+            resolve_special_token("@env", None).is_none(),
+            "@env resolved without root"
+        );
     }
 
     #[test]
@@ -4412,15 +4943,23 @@ mod tests {
         std::fs::write(dir.path().join("src/api.rs"), "pub fn connect() {}\n").unwrap();
         std::fs::write(dir.path().join("src/util.ts"), "export const x = 1;\n").unwrap();
 
-        let (out, labels) =
-            expand_at_tokens("read @folder:src for me", Some(dir.path()));
+        let (out, labels) = expand_at_tokens("read @folder:src for me", Some(dir.path()));
         assert!(
             labels.iter().any(|l| l == "@folder:src"),
             "missing @folder label: {labels:?}"
         );
-        assert!(out.contains("src · 2 files"), "folder header missing: {out}");
-        assert!(out.contains("pub fn connect()"), "api.rs body missing: {out}");
-        assert!(out.contains("export const x"), "util.ts body missing: {out}");
+        assert!(
+            out.contains("src · 2 files"),
+            "folder header missing: {out}"
+        );
+        assert!(
+            out.contains("pub fn connect()"),
+            "api.rs body missing: {out}"
+        );
+        assert!(
+            out.contains("export const x"),
+            "util.ts body missing: {out}"
+        );
 
         // Alias `@dir:` resolves the same way.
         let (_o2, labels_dir) = expand_at_tokens("@dir:src", Some(dir.path()));
@@ -4452,8 +4991,14 @@ mod tests {
             labels.iter().any(|l| l == "@def:connect"),
             "missing @def label: {labels:?}"
         );
-        assert!(out.contains("connect · 1 definition"), "def header missing: {out}");
-        assert!(out.contains("// src/api.rs:2  (fn)"), "def site missing: {out}");
+        assert!(
+            out.contains("connect · 1 definition"),
+            "def header missing: {out}"
+        );
+        assert!(
+            out.contains("// src/api.rs:2  (fn)"),
+            "def site missing: {out}"
+        );
         assert!(out.contains("pub fn connect()"), "def body missing: {out}");
 
         // The `@symbol:` alias resolves through the same arm.
@@ -4480,11 +5025,7 @@ mod tests {
             "pub fn connect() {}\nfn run() { connect(); }\n",
         )
         .unwrap();
-        std::fs::write(
-            dir.path().join("src/main.rs"),
-            "fn boot() { connect(); }\n",
-        )
-        .unwrap();
+        std::fs::write(dir.path().join("src/main.rs"), "fn boot() { connect(); }\n").unwrap();
 
         let (out, labels) = expand_at_tokens("where is @refs:connect used", Some(dir.path()));
         assert!(
@@ -4595,7 +5136,10 @@ mod tests {
         let (out, labels) = expand_at_tokens(msg, Some(dir.path()));
         // @repomap should be attached and the attachment comment should
         // list the personalize term so the model knows what was prioritized.
-        assert!(labels.iter().any(|l| l == "@repomap"), "missing @repomap label: {labels:?}");
+        assert!(
+            labels.iter().any(|l| l == "@repomap"),
+            "missing @repomap label: {labels:?}"
+        );
         assert!(
             out.contains("personalized: processOrder"),
             "personalize comment missing from expansion: {}",
@@ -4664,9 +5208,18 @@ mod tests {
         });
         let (out, labels) = result.unwrap();
 
-        assert!(labels.iter().any(|l| l == "@terminal"), "label missing: {labels:?}");
-        assert!(out.contains("error[E0433]"), "terminal output not inlined: {out}");
-        assert!(out.contains("<!-- attached: @terminal"), "attachment header missing: {out}");
+        assert!(
+            labels.iter().any(|l| l == "@terminal"),
+            "label missing: {labels:?}"
+        );
+        assert!(
+            out.contains("error[E0433]"),
+            "terminal output not inlined: {out}"
+        );
+        assert!(
+            out.contains("<!-- attached: @terminal"),
+            "attachment header missing: {out}"
+        );
     }
 
     #[test]
@@ -4684,9 +5237,8 @@ mod tests {
         .unwrap();
         std::fs::write(src.join("paint.rs"), "pub fn render_pixels() {}\n").unwrap();
 
-        let (name, body) =
-            resolve_codebase_token("@codebase", "fix authenticate_user", dir.path())
-                .expect("resolved");
+        let (name, body) = resolve_codebase_token("@codebase", "fix authenticate_user", dir.path())
+            .expect("resolved");
         assert_eq!(name, "@codebase");
         assert!(
             body.contains("auth.rs"),
@@ -4720,13 +5272,16 @@ mod tests {
 
         // `@codebase:3` clamps the result set — at most 3 hit rows (each hit is
         // one `path [source]` line; snippet lines are indented with two spaces).
-        let (_n, body) = resolve_codebase_token("@codebase:3", "helper", dir.path())
-            .expect("resolved");
+        let (_n, body) =
+            resolve_codebase_token("@codebase:3", "helper", dir.path()).expect("resolved");
         let hit_rows = body
             .lines()
             .filter(|l| !l.starts_with("  ") && !l.trim().is_empty())
             .count();
-        assert!(hit_rows <= 3, "expected ≤3 hit rows, got {hit_rows}: {body}");
+        assert!(
+            hit_rows <= 3,
+            "expected ≤3 hit rows, got {hit_rows}: {body}"
+        );
 
         // A query with no plausible match still resolves (to a placeholder),
         // never None, so the model gets explicit "nothing found" signal.
@@ -4752,11 +5307,22 @@ mod tests {
         )
         .unwrap();
 
-        let (out, labels) =
-            expand_at_tokens("where is process_checkout handled @codebase", Some(dir.path()));
-        assert!(labels.iter().any(|l| l == "@codebase"), "label missing: {labels:?}");
-        assert!(out.contains("<!-- attached: @codebase"), "attachment header missing: {out}");
-        assert!(out.contains("checkout.rs"), "ranked file not inlined: {out}");
+        let (out, labels) = expand_at_tokens(
+            "where is process_checkout handled @codebase",
+            Some(dir.path()),
+        );
+        assert!(
+            labels.iter().any(|l| l == "@codebase"),
+            "label missing: {labels:?}"
+        );
+        assert!(
+            out.contains("<!-- attached: @codebase"),
+            "attachment header missing: {out}"
+        );
+        assert!(
+            out.contains("checkout.rs"),
+            "ranked file not inlined: {out}"
+        );
     }
 
     #[test]
@@ -4779,9 +5345,8 @@ mod tests {
         )
         .unwrap();
 
-        let (name, body) =
-            resolve_docs_token("@docs", "how does authentication work", dir.path())
-                .expect("resolved");
+        let (name, body) = resolve_docs_token("@docs", "how does authentication work", dir.path())
+            .expect("resolved");
         assert_eq!(name, "@docs");
         // The Authentication section's location header is emitted and its prose
         // body is inlined (so the model can actually read the docs).
@@ -4796,7 +5361,10 @@ mod tests {
         // The heading-matching section ranks ahead of the unrelated style file.
         let auth_pos = body.find("#Authentication").unwrap();
         let style_pos = body.find("style.md").unwrap_or(usize::MAX);
-        assert!(auth_pos < style_pos, "authentication should rank first: {body}");
+        assert!(
+            auth_pos < style_pos,
+            "authentication should rank first: {body}"
+        );
 
         // Non-docs tokens, an empty query, and a non-dir root all resolve to None.
         assert!(resolve_docs_token("@codebase", "auth", dir.path()).is_none());
@@ -4818,8 +5386,8 @@ mod tests {
 
         // `@docs:2` clamps to at most 2 injected sections (each section starts
         // with a `## ` location header).
-        let (_n, body) = resolve_docs_token("@docs:2", "widget subsystem", dir.path())
-            .expect("resolved");
+        let (_n, body) =
+            resolve_docs_token("@docs:2", "widget subsystem", dir.path()).expect("resolved");
         let section_headers = body.lines().filter(|l| l.starts_with("## ")).count();
         assert!(
             section_headers <= 2,
@@ -4851,8 +5419,14 @@ mod tests {
 
         let (out, labels) =
             expand_at_tokens("what is the installation process @docs", Some(dir.path()));
-        assert!(labels.iter().any(|l| l == "@docs"), "label missing: {labels:?}");
-        assert!(out.contains("<!-- attached: @docs"), "attachment header missing: {out}");
+        assert!(
+            labels.iter().any(|l| l == "@docs"),
+            "label missing: {labels:?}"
+        );
+        assert!(
+            out.contains("<!-- attached: @docs"),
+            "attachment header missing: {out}"
+        );
         assert!(
             out.contains("README.md#Installation"),
             "ranked doc section not inlined: {out}"
@@ -4893,7 +5467,11 @@ mod tests {
             SandboxTier::WorkspaceWrite,
             SandboxTier::DangerFullAccess,
         ] {
-            assert_eq!(clamp_tier_for_safe_mode(t, true), SandboxTier::ReadOnly, "{t:?}");
+            assert_eq!(
+                clamp_tier_for_safe_mode(t, true),
+                SandboxTier::ReadOnly,
+                "{t:?}"
+            );
         }
         // Approval policy: Never (full-auto) is pulled back to Untrusted;
         // OnRequest (ask everything — the untrusted-project pin) must NOT be
@@ -4927,8 +5505,9 @@ mod tests {
             Some("[[rule]]\npattern = \"rm *\"\naction = \"deny\"\nreason = \"no deletions\"\n"),
             None,
         );
-        let msg = maybe_block_by_command_policy(Some(&p), "shell_exec", r#"{"cmd":"rm -rf build"}"#)
-            .expect("deny must block");
+        let msg =
+            maybe_block_by_command_policy(Some(&p), "shell_exec", r#"{"cmd":"rm -rf build"}"#)
+                .expect("deny must block");
         assert!(msg.contains("safe mode"), "{msg}");
         assert!(msg.contains("rm *"), "{msg}");
         assert!(msg.contains("global"), "{msg}");
@@ -4936,9 +5515,7 @@ mod tests {
         // A non-denied command falls through to the guardrails untouched.
         assert!(maybe_block_by_command_policy(Some(&p), "shell_exec", r#"{"cmd":"ls"}"#).is_none());
         // Non-exec tools are never policy-blocked (tier/guardrails own them).
-        assert!(
-            maybe_block_by_command_policy(Some(&p), "write_file", r#"{"path":"x"}"#).is_none()
-        );
+        assert!(maybe_block_by_command_policy(Some(&p), "write_file", r#"{"path":"x"}"#).is_none());
     }
 
     /// An Allow only skips the *policy* prompt — a High-risk guardrail hit
@@ -4956,7 +5533,10 @@ mod tests {
         // …but the downstream guardrail gate (unchanged) still blocks it.
         let g = Guardrails::defaults();
         let hit = maybe_block_tool_call("act", "shell_exec", payload, &g);
-        assert!(hit.as_ref().is_some_and(|m| m.contains("high risk")), "{hit:?}");
+        assert!(
+            hit.as_ref().is_some_and(|m| m.contains("high risk")),
+            "{hit:?}"
+        );
     }
 
     #[test]

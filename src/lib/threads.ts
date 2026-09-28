@@ -30,12 +30,17 @@ export const GLOBAL_PROJECT_ROOT_KEY = "__cortex_global__";
  * its real root directory; without one we fall back to the global sentinel
  * so persistence still works (no more threads evaporating on restart).
  */
-export function resolveProjectRoot(activeRoot: string | null | undefined): string {
-  if (!activeRoot || typeof activeRoot !== "string") return GLOBAL_PROJECT_ROOT_KEY;
+export function resolveProjectRoot(
+  activeRoot: string | null | undefined,
+): string {
+  if (!activeRoot || typeof activeRoot !== "string")
+    return GLOBAL_PROJECT_ROOT_KEY;
   return activeRoot;
 }
 
-export async function listThreads(projectRoot: string | null): Promise<Thread[]> {
+export async function listThreads(
+  projectRoot: string | null,
+): Promise<Thread[]> {
   if (!projectRoot) return [];
   try {
     return await invoke<Thread[]>("list_threads", { projectRoot });
@@ -45,7 +50,10 @@ export async function listThreads(projectRoot: string | null): Promise<Thread[]>
   }
 }
 
-export async function saveThread(projectRoot: string | null, thread: Thread): Promise<void> {
+export async function saveThread(
+  projectRoot: string | null,
+  thread: Thread,
+): Promise<void> {
   if (!projectRoot) return;
   try {
     await invoke("save_thread", { projectRoot, thread });
@@ -54,7 +62,10 @@ export async function saveThread(projectRoot: string | null, thread: Thread): Pr
   }
 }
 
-export async function deleteThread(projectRoot: string | null, id: string): Promise<void> {
+export async function deleteThread(
+  projectRoot: string | null,
+  id: string,
+): Promise<void> {
   if (!projectRoot) return;
   try {
     await invoke("delete_thread", { projectRoot, id });
@@ -69,7 +80,10 @@ export async function deleteThread(projectRoot: string | null, id: string): Prom
  * `.find()` after a list. Exposed as its own function so the call sites read
  * intentionally and we can specialise the backend later without churn.
  */
-export async function loadThread(projectRoot: string | null, id: string): Promise<Thread | null> {
+export async function loadThread(
+  projectRoot: string | null,
+  id: string,
+): Promise<Thread | null> {
   const all = await listThreads(projectRoot);
   return all.find((t) => t.id === id) ?? null;
 }

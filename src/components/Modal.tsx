@@ -1,9 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useRef, type ReactNode } from "react";
 
 // Shared modal primitive. Promotes the focus-management + Escape-to-close +
 // role="dialog"/aria-modal behavior that DialogHost (lib/dialogs) and the
@@ -96,9 +91,9 @@ export function Modal({
     if (e.key !== "Tab") return;
     const card = cardRef.current;
     if (!card) return;
-    const items = Array.from(card.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-      (el) => el.offsetParent !== null || el === document.activeElement,
-    );
+    const items = Array.from(
+      card.querySelectorAll<HTMLElement>(FOCUSABLE),
+    ).filter((el) => el.offsetParent !== null || el === document.activeElement);
     if (items.length === 0) {
       e.preventDefault();
       card.focus();

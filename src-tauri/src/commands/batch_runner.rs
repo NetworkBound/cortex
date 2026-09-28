@@ -249,14 +249,7 @@ async fn run_item(
                     error: Some(err),
                 }
             } else {
-                emit_progress(
-                    app,
-                    event_name,
-                    index,
-                    "done",
-                    Some(trimmed.clone()),
-                    None,
-                );
+                emit_progress(app, event_name, index, "done", Some(trimmed.clone()), None);
                 BatchItem {
                     index,
                     item: raw_item,
@@ -308,9 +301,7 @@ fn emit_progress(
 fn build_prompt(template: &str, raw_item: &str) -> String {
     let substituted = template.replace("{{item}}", raw_item);
     if let Some(body) = read_file_context(raw_item) {
-        format!(
-            "--- CONTEXT (file `{raw_item}`) ---\n{body}\n--- END CONTEXT ---\n\n{substituted}"
-        )
+        format!("--- CONTEXT (file `{raw_item}`) ---\n{body}\n--- END CONTEXT ---\n\n{substituted}")
     } else {
         substituted
     }

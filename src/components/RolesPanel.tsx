@@ -22,7 +22,9 @@ interface RolesPanelProps {
 /** Mirror of the backend `is_safe_name` check so we fail fast in the UI. */
 function isSafeName(name: string): boolean {
   const t = name.trim();
-  return t.length > 0 && !t.includes("/") && !t.includes("\\") && !t.includes("..");
+  return (
+    t.length > 0 && !t.includes("/") && !t.includes("\\") && !t.includes("..")
+  );
 }
 
 /** Draft form state — strings throughout so the inputs stay controlled. */
@@ -134,7 +136,11 @@ export function RolesPanel({ agents, defaultAgentId }: RolesPanelProps) {
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Apply failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Apply failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   };
 
@@ -177,19 +183,25 @@ export function RolesPanel({ agents, defaultAgentId }: RolesPanelProps) {
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Save failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Save failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (role: Role) => {
-    if (!(await confirmDialog({
-      title: "Delete role?",
-      message: `Delete the "${role.name}" role? This can't be undone.`,
-      confirmLabel: "Delete",
-      danger: true,
-    }))) {
+    if (
+      !(await confirmDialog({
+        title: "Delete role?",
+        message: `Delete the "${role.name}" role? This can't be undone.`,
+        confirmLabel: "Delete",
+        danger: true,
+      }))
+    ) {
       return;
     }
     try {
@@ -198,7 +210,11 @@ export function RolesPanel({ agents, defaultAgentId }: RolesPanelProps) {
       if (draft?.original === role.name) setDraft(null);
       pushToast({ title: "Role deleted", body: role.name, kind: "success" });
     } catch (e) {
-      pushToast({ title: "Delete failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Delete failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   };
 
@@ -320,7 +336,9 @@ export function RolesPanel({ agents, defaultAgentId }: RolesPanelProps) {
             <select
               className="role-agent-select"
               aria-label={`Pick an agent for ${role.name}`}
-              value={selections[role.name] ?? defaultAgentId ?? agents[0]?.id ?? ""}
+              value={
+                selections[role.name] ?? defaultAgentId ?? agents[0]?.id ?? ""
+              }
               onChange={(e) =>
                 setSelections((s) => ({ ...s, [role.name]: e.target.value }))
               }

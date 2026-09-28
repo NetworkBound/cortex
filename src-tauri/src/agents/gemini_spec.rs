@@ -56,8 +56,7 @@ pub static GEMINI_SPEC: CliSpec = CliSpec {
         AgentCapability::LongContext,
     ],
     install_url: "https://github.com/google-gemini/gemini-cli",
-    install_hint:
-        "Install the Gemini CLI (`npm i -g @google/gemini-cli`) and sign in with Google.",
+    install_hint: "Install the Gemini CLI (`npm i -g @google/gemini-cli`) and sign in with Google.",
     tag: "gemini",
     // No headless login subcommand — launch the bare binary so the user can
     // pick "Login with Google".
@@ -70,8 +69,8 @@ pub static GEMINI_SPEC: CliSpec = CliSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agents::adapter::ChatRequest;
     use crate::agents::adapter::AgentAdapter;
+    use crate::agents::adapter::ChatRequest;
     use crate::agents::local_cli::GenericCliAgent;
 
     #[test]

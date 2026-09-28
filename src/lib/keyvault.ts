@@ -32,7 +32,10 @@ export async function vaultList(): Promise<KeyMetadata[]> {
   return invoke<KeyMetadata[]>("vault_list");
 }
 
-export async function vaultGet(provider: string, label: string): Promise<string> {
+export async function vaultGet(
+  provider: string,
+  label: string,
+): Promise<string> {
   return invoke<string>("vault_get", { provider, label });
 }
 
@@ -44,7 +47,10 @@ export async function vaultSet(
   return invoke("vault_set", { provider, label, key });
 }
 
-export async function vaultRemove(provider: string, label: string): Promise<void> {
+export async function vaultRemove(
+  provider: string,
+  label: string,
+): Promise<void> {
   return invoke("vault_remove", { provider, label });
 }
 

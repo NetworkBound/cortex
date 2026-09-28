@@ -86,8 +86,7 @@ export function HunkReview({ diff, onChange, onSelectionChange }: Props) {
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
 
   const totalChangedRows = useMemo(
-    () =>
-      parsed.hunks.reduce((acc, h) => acc + changedRowIndices(h).length, 0),
+    () => parsed.hunks.reduce((acc, h) => acc + changedRowIndices(h).length, 0),
     [parsed.hunks],
   );
 
@@ -292,7 +291,8 @@ function HunkBlock({
       <div className="hunk-head">
         <span className="hunk-tag">hunk {index + 1}</span>
         <code className="hunk-coords">
-          @@ -{hunk.oldStart},{hunk.oldCount} +{hunk.newStart},{hunk.newCount} @@
+          @@ -{hunk.oldStart},{hunk.oldCount} +{hunk.newStart},{hunk.newCount}{" "}
+          @@
         </code>
         <button
           type="button"
@@ -311,11 +311,7 @@ function HunkBlock({
           type="button"
           className={`hunk-toggle is-${state}`}
           onClick={onToggleHunk}
-          title={
-            state === "rejected"
-              ? "Accept this hunk"
-              : "Reject this hunk"
-          }
+          title={state === "rejected" ? "Accept this hunk" : "Reject this hunk"}
         >
           {stateLabel}
         </button>

@@ -49,7 +49,10 @@ export function formatContextWindow(n: number | null): string {
  *   warn — healthy but stale (> 60s), OR no last_check_ms at all
  *   down — `healthy: false`
  */
-export function providerState(p: ProviderInfo, nowMs: number = Date.now()): "ok" | "warn" | "down" {
+export function providerState(
+  p: ProviderInfo,
+  nowMs: number = Date.now(),
+): "ok" | "warn" | "down" {
   if (!p.healthy) return "down";
   if (p.last_check_ms == null) return "warn";
   const ageMs = nowMs - p.last_check_ms;

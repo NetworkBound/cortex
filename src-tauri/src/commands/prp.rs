@@ -62,8 +62,8 @@ pub async fn advance_prp_stage(
 ) -> Result<Prp, String> {
     let root = PathBuf::from(project_root);
     tokio::task::spawn_blocking(move || {
-        let current = get_prp_inner(&root, &name)
-            .ok_or_else(|| format!("PRP '{name}' not found"))?;
+        let current =
+            get_prp_inner(&root, &name).ok_or_else(|| format!("PRP '{name}' not found"))?;
         let next = match stage {
             Some(s) => parse_stage(&s)?,
             None => current
@@ -79,14 +79,10 @@ pub async fn advance_prp_stage(
 }
 
 #[tauri::command]
-pub async fn run_prp_gates(
-    project_root: String,
-    name: String,
-) -> Result<ValidationReport, String> {
+pub async fn run_prp_gates(project_root: String, name: String) -> Result<ValidationReport, String> {
     let root = PathBuf::from(project_root);
     tokio::task::spawn_blocking(move || {
-        let prp = get_prp_inner(&root, &name)
-            .ok_or_else(|| format!("PRP '{name}' not found"))?;
+        let prp = get_prp_inner(&root, &name).ok_or_else(|| format!("PRP '{name}' not found"))?;
         Ok::<ValidationReport, String>(run_gates(&root, &prp))
     })
     .await

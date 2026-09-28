@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { humanizeError } from "@/lib/errors";
 import { timeAgo } from "@/lib/time";
-import { Camera, Sparkles, Plus, SquarePen, Copy, Play, Search } from "lucide-react";
+import {
+  Camera,
+  Sparkles,
+  Plus,
+  SquarePen,
+  Copy,
+  Play,
+  Search,
+} from "lucide-react";
 import { useCortexStore } from "@/state/store";
 import {
   getMemoryEntry,
@@ -77,7 +85,9 @@ function sourceMatchesFilter(row: UnifiedRow, filter: SourceFilter): boolean {
   return true;
 }
 
-export function MemoryExplorer({ autoFocus = true }: { autoFocus?: boolean } = {}) {
+export function MemoryExplorer({
+  autoFocus = true,
+}: { autoFocus?: boolean } = {}) {
   const activeProject = useCortexStore((s) => s.activeProject);
   const [filter, setFilter] = useState<SourceFilter>("all");
   // Whether we've already applied the one-time smart default. We never
@@ -97,7 +107,9 @@ export function MemoryExplorer({ autoFocus = true }: { autoFocus?: boolean } = {
   const [memHits, setMemHits] = useState<MemorySearchHit[]>([]);
   const [chatHits, setChatHits] = useState<ChatSearchHit[]>([]);
   const [selected, setSelected] = useState<UnifiedRow | null>(null);
-  const [detail, setDetail] = useState<MarkdownEntry | ChatTranscript | null>(null);
+  const [detail, setDetail] = useState<MarkdownEntry | ChatTranscript | null>(
+    null,
+  );
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSnapshots, setShowSnapshots] = useState(false);
@@ -299,8 +311,10 @@ export function MemoryExplorer({ autoFocus = true }: { autoFocus?: boolean } = {
       chats: rows.filter((r) => r.kind === "chat").length,
       obsidian: rows.filter((r) => r.sourceKind === "obsidian").length,
       runbooks: rows.filter((r) => r.sourceKind === "runbooks").length,
-      claude: rows.filter((r) => r.sourceKind === "claude_project_memory").length,
-      project: rows.filter((r) => r.sourceKind === "project_instructions").length,
+      claude: rows.filter((r) => r.sourceKind === "claude_project_memory")
+        .length,
+      project: rows.filter((r) => r.sourceKind === "project_instructions")
+        .length,
       global: rows.filter((r) => r.sourceKind === "global_instructions").length,
     };
   }, [rows]);
@@ -336,7 +350,12 @@ export function MemoryExplorer({ autoFocus = true }: { autoFocus?: boolean } = {
     <div className="memex">
       <div className="memex-search">
         <div className="memex-search-field">
-          <Search className="memex-search-icon" size={14} strokeWidth={1.75} aria-hidden="true" />
+          <Search
+            className="memex-search-icon"
+            size={14}
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -344,14 +363,21 @@ export function MemoryExplorer({ autoFocus = true }: { autoFocus?: boolean } = {
             autoFocus={autoFocus}
           />
           {query && (
-            <button className="link-btn memex-clear" onClick={() => setQuery("")}>
+            <button
+              className="link-btn memex-clear"
+              onClick={() => setQuery("")}
+            >
               Clear
             </button>
           )}
         </div>
         <button
           className="link-btn"
-          title={semantic ? "Semantic search (Ollama embeddings) — on" : "Switch to semantic search (rank by meaning)"}
+          title={
+            semantic
+              ? "Semantic search (Ollama embeddings) — on"
+              : "Switch to semantic search (rank by meaning)"
+          }
           aria-pressed={semantic}
           style={{ color: semantic ? "var(--accent)" : undefined }}
           onClick={() => {
@@ -366,7 +392,8 @@ export function MemoryExplorer({ autoFocus = true }: { autoFocus?: boolean } = {
             });
           }}
         >
-          <Sparkles size={14} strokeWidth={1.75} aria-hidden="true" /> {semantic ? "Semantic" : "Lexical"}
+          <Sparkles size={14} strokeWidth={1.75} aria-hidden="true" />{" "}
+          {semantic ? "Semantic" : "Lexical"}
         </button>
         <button
           className="link-btn memex-snapshots-btn"
@@ -376,7 +403,9 @@ export function MemoryExplorer({ autoFocus = true }: { autoFocus?: boolean } = {
           <Camera size={14} strokeWidth={1.75} aria-hidden="true" /> Snapshots
         </button>
       </div>
-      {showSnapshots && <SnapshotsPanel onClose={() => setShowSnapshots(false)} />}
+      {showSnapshots && (
+        <SnapshotsPanel onClose={() => setShowSnapshots(false)} />
+      )}
       {/* Only show the source-filter chips when there's content to filter (or
           the load succeeded). A hard load error must not stack a strip of
           zero-count filters above the error box — that implies browsable
@@ -455,11 +484,15 @@ export function MemoryExplorer({ autoFocus = true }: { autoFocus?: boolean } = {
                 <span className="muted">{timeAgo(row.modified)}</span>
               </div>
               <div className="brain-meta">
-                <span className={`memex-kind kind-${row.kind}`}>{row.kind}</span>
+                <span className={`memex-kind kind-${row.kind}`}>
+                  {row.kind}
+                </span>
                 {" · "}
                 {row.subtitle}
               </div>
-              {row.preview && <div className="brain-preview">{row.preview}</div>}
+              {row.preview && (
+                <div className="brain-preview">{row.preview}</div>
+              )}
             </button>
           ))}
         </div>
@@ -486,7 +519,9 @@ export function MemoryExplorer({ autoFocus = true }: { autoFocus?: boolean } = {
               ×
             </button>
             {loadingDetail && <div className="muted">loading…</div>}
-            {!loadingDetail && detail && <DetailView row={selected} detail={detail} />}
+            {!loadingDetail && detail && (
+              <DetailView row={selected} detail={detail} />
+            )}
           </div>
         )}
       </div>
@@ -514,7 +549,9 @@ function DetailView({
           window.dispatchEvent(
             new CustomEvent("cortex:editor-open", { detail: { path: m.path } }),
           );
-        } catch { /* non-fatal */ }
+        } catch {
+          /* non-fatal */
+        }
       }, 0);
     };
     const copyContent = () => {
@@ -540,7 +577,8 @@ function DetailView({
             <Plus size={14} strokeWidth={1.75} aria-hidden="true" /> Add to chat
           </button>
           <button onClick={openInEditor}>
-            <SquarePen size={14} strokeWidth={1.75} aria-hidden="true" /> Edit in editor
+            <SquarePen size={14} strokeWidth={1.75} aria-hidden="true" /> Edit
+            in editor
           </button>
           <button onClick={copyContent}>
             <Copy size={14} strokeWidth={1.75} aria-hidden="true" /> Copy
@@ -565,7 +603,9 @@ function DetailView({
           },
         }),
       );
-    } catch { /* non-fatal */ }
+    } catch {
+      /* non-fatal */
+    }
   };
   const copyTranscript = () => {
     const md = t.turns
@@ -583,10 +623,12 @@ function DetailView({
       </div>
       <div className="memex-detail-actions">
         <button className="btn-primary" onClick={resumeInChat}>
-          <Play size={14} strokeWidth={1.75} aria-hidden="true" /> Resume in chat
+          <Play size={14} strokeWidth={1.75} aria-hidden="true" /> Resume in
+          chat
         </button>
         <button onClick={copyTranscript}>
-          <Copy size={14} strokeWidth={1.75} aria-hidden="true" /> Copy as markdown
+          <Copy size={14} strokeWidth={1.75} aria-hidden="true" /> Copy as
+          markdown
         </button>
       </div>
       <div className="memex-turns">

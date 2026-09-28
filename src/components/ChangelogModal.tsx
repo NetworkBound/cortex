@@ -81,7 +81,11 @@ export function ChangelogModal({ initialSince, onClose }: ChangelogModalProps) {
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Copy failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Copy failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [result]);
 
@@ -103,7 +107,11 @@ export function ChangelogModal({ initialSince, onClose }: ChangelogModalProps) {
       const written = await saveFileText(target, result.markdown);
       pushToast({ title: "Saved", body: written, kind: "success" });
     } catch (e) {
-      pushToast({ title: "Save failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Save failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [result, project]);
 
@@ -122,7 +130,11 @@ export function ChangelogModal({ initialSince, onClose }: ChangelogModalProps) {
               {project ? project.name : "no active project"}
             </div>
           </div>
-          <button className="changelog-close" onClick={onClose} aria-label="Close">
+          <button
+            className="changelog-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
             ×
           </button>
         </header>
@@ -160,9 +172,9 @@ export function ChangelogModal({ initialSince, onClose }: ChangelogModalProps) {
         <div className="changelog-body">
           {!result && !loading && !error && (
             <div className="changelog-empty">
-              Pick a date range and hit <strong>Generate</strong>. The
-              changelog is grouped by Added / Changed / Fixed / Deprecated /
-              Removed / Security.
+              Pick a date range and hit <strong>Generate</strong>. The changelog
+              is grouped by Added / Changed / Fixed / Deprecated / Removed /
+              Security.
             </div>
           )}
 

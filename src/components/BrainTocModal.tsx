@@ -67,11 +67,15 @@ function filterHeadings(file: TocFile, needle: string) {
 }
 
 export function BrainTocModal({ onClose }: BrainTocModalProps) {
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "ready" | "error">(
+    "loading",
+  );
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<TocResult | null>(null);
   const [needle, setNeedle] = useState("");
-  const [collapsedSources, setCollapsedSources] = useState<Set<string>>(new Set());
+  const [collapsedSources, setCollapsedSources] = useState<Set<string>>(
+    new Set(),
+  );
   const [collapsedFiles, setCollapsedFiles] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -243,7 +247,10 @@ export function BrainTocModal({ onClose }: BrainTocModalProps) {
             {filteredSources.map((src) => {
               const srcCollapsed = collapsedSources.has(src.label);
               return (
-                <li key={`${src.kind}::${src.label}`} className="brain-toc-source">
+                <li
+                  key={`${src.kind}::${src.label}`}
+                  className="brain-toc-source"
+                >
                   <button
                     type="button"
                     className="brain-toc-source-head"
@@ -280,7 +287,10 @@ export function BrainTocModal({ onClose }: BrainTocModalProps) {
                                 onClick={() => toggleFile(file.path)}
                                 aria-expanded={!fileCollapsed}
                               >
-                                <span className="brain-toc-chev" aria-hidden="true">
+                                <span
+                                  className="brain-toc-chev"
+                                  aria-hidden="true"
+                                >
                                   <Chevron open={!fileCollapsed} size={12} />
                                 </span>
                                 <span className="brain-toc-file-title">
@@ -302,12 +312,16 @@ export function BrainTocModal({ onClose }: BrainTocModalProps) {
                                   <li
                                     key={`${file.path}::${h.line}::${i}`}
                                     className={`brain-toc-heading brain-toc-h${h.level}`}
-                                    style={{ paddingLeft: `${(h.level - 1) * 14}px` }}
+                                    style={{
+                                      paddingLeft: `${(h.level - 1) * 14}px`,
+                                    }}
                                   >
                                     <button
                                       type="button"
                                       className="brain-toc-heading-btn"
-                                      onClick={() => openInEditor(file.path, h.line)}
+                                      onClick={() =>
+                                        openInEditor(file.path, h.line)
+                                      }
                                       title={`line ${h.line}`}
                                     >
                                       {h.text}

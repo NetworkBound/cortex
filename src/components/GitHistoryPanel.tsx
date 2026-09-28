@@ -203,17 +203,13 @@ export function GitHistoryPanel() {
                 )}
               </span>
             </button>
-            {expanded === c.hash && (
-              <CommitDetail root={root} hash={c.hash} />
-            )}
+            {expanded === c.hash && <CommitDetail root={root} hash={c.hash} />}
           </div>
         ))}
         {!query && commits.length > 0 && (
           <div className="git-history-more">
             {atEnd ? (
-              <span className="muted git-history-more-end">
-                End of history
-              </span>
+              <span className="muted git-history-more-end">End of history</span>
             ) : (
               <button
                 type="button"
@@ -300,9 +296,7 @@ function CommitDetail({ root, hash }: { root: string; hash: string }) {
           </button>
         ))}
       </div>
-      {selected && (
-        <FileDiff root={root} hash={hash} path={selected} />
-      )}
+      {selected && <FileDiff root={root} hash={hash} path={selected} />}
     </div>
   );
 }
@@ -341,9 +335,7 @@ function FileDiff({
     return <div className="git-commit-detail-error">{error}</div>;
   }
   if (diff === null) {
-    return (
-      <div className="git-file-diff-loading muted">Loading diff…</div>
-    );
+    return <div className="git-file-diff-loading muted">Loading diff…</div>;
   }
 
   const parsed = parseUnifiedDiff(diff);
@@ -360,8 +352,8 @@ function FileDiff({
       {parsed.hunks.map((hunk, hi) => (
         <div key={hi} className="git-file-diff-hunk">
           <div className="git-file-diff-hunk-header">
-            @@ -{hunk.oldStart},{hunk.oldCount} +{hunk.newStart},
-            {hunk.newCount} @@
+            @@ -{hunk.oldStart},{hunk.oldCount} +{hunk.newStart},{hunk.newCount}{" "}
+            @@
           </div>
           {hunk.rows.map((row, ri) => (
             <div key={ri} className={`hunk-row hunk-row-${row.kind}`}>

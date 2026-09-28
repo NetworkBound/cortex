@@ -117,8 +117,12 @@ pub fn list_profiles(project_root: &Path) -> Vec<Profile> {
     let mut out = Vec::new();
     for entry in read.flatten() {
         let path = entry.path();
-        if !path.is_file() { continue; }
-        if path.extension().and_then(|s| s.to_str()) != Some("toml") { continue; }
+        if !path.is_file() {
+            continue;
+        }
+        if path.extension().and_then(|s| s.to_str()) != Some("toml") {
+            continue;
+        }
         let name = path
             .file_stem()
             .and_then(|s| s.to_str())
@@ -178,7 +182,9 @@ fn instructions_file() -> Option<PathBuf> {
 }
 
 fn load_instructions_map() -> HashMap<String, String> {
-    let Some(path) = instructions_file() else { return HashMap::new() };
+    let Some(path) = instructions_file() else {
+        return HashMap::new();
+    };
     let raw = match fs::read_to_string(&path) {
         Ok(s) => s,
         Err(e) => {
@@ -290,7 +296,10 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         write_profile(tmp.path(), "z-last", r#"name = "z-last""#);
         write_profile(tmp.path(), "a-first", r#"name = "a-first""#);
-        let names: Vec<_> = list_profiles(tmp.path()).into_iter().map(|p| p.name).collect();
+        let names: Vec<_> = list_profiles(tmp.path())
+            .into_iter()
+            .map(|p| p.name)
+            .collect();
         assert_eq!(names, vec!["a-first", "z-last"]);
     }
 

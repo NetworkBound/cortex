@@ -90,7 +90,10 @@ export function MemoryStatsPanel({ onClose }: MemoryStatsPanelProps) {
     }
   }, [refresh]);
 
-  const kindRows = useMemo(() => (stats ? groupByKind(stats.sources) : []), [stats]);
+  const kindRows = useMemo(
+    () => (stats ? groupByKind(stats.sources) : []),
+    [stats],
+  );
   const maxKindCount = useMemo(
     () => kindRows.reduce((acc, r) => Math.max(acc, r.count), 0),
     [kindRows],
@@ -107,7 +110,11 @@ export function MemoryStatsPanel({ onClose }: MemoryStatsPanelProps) {
       >
         <header className="memstats-header">
           <h2 id="memstats-title">Memory Bridge Stats</h2>
-          <button className="memstats-close" onClick={onClose} aria-label="Close">
+          <button
+            className="memstats-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
             ×
           </button>
         </header>
@@ -131,12 +138,16 @@ export function MemoryStatsPanel({ onClose }: MemoryStatsPanelProps) {
                 <div className="memstats-total-lbl">files</div>
               </div>
               <div className="memstats-total-card">
-                <div className="memstats-total-num">{formatBytes(stats.total_bytes)}</div>
+                <div className="memstats-total-num">
+                  {formatBytes(stats.total_bytes)}
+                </div>
                 <div className="memstats-total-lbl">total size</div>
               </div>
               <div className="memstats-total-card">
                 <div className="memstats-total-num">
-                  {stats.chroma.exists ? formatBytes(stats.chroma.bytes) : "absent"}
+                  {stats.chroma.exists
+                    ? formatBytes(stats.chroma.bytes)
+                    : "absent"}
                 </div>
                 <div className="memstats-total-lbl">chroma db</div>
               </div>
@@ -147,10 +158,13 @@ export function MemoryStatsPanel({ onClose }: MemoryStatsPanelProps) {
                 <h3>Files by source kind</h3>
                 <ul className="memstats-bars">
                   {kindRows.map((row) => {
-                    const pct = maxKindCount > 0 ? (row.count / maxKindCount) * 100 : 0;
+                    const pct =
+                      maxKindCount > 0 ? (row.count / maxKindCount) * 100 : 0;
                     return (
                       <li key={row.kind} className="memstats-bar-row">
-                        <span className="memstats-bar-label">{kindLabel(row.kind)}</span>
+                        <span className="memstats-bar-label">
+                          {kindLabel(row.kind)}
+                        </span>
                         <span className="memstats-bar-track">
                           <span
                             className="memstats-bar-fill"
@@ -159,7 +173,8 @@ export function MemoryStatsPanel({ onClose }: MemoryStatsPanelProps) {
                           />
                         </span>
                         <span className="memstats-bar-count">
-                          {row.count.toLocaleString()} · {formatBytes(row.bytes)}
+                          {row.count.toLocaleString()} ·{" "}
+                          {formatBytes(row.bytes)}
                         </span>
                       </li>
                     );
@@ -171,7 +186,9 @@ export function MemoryStatsPanel({ onClose }: MemoryStatsPanelProps) {
             <section className="memstats-table-wrap">
               <h3>Sources ({stats.sources.length})</h3>
               {stats.sources.length === 0 ? (
-                <p className="memstats-empty">No memory sources found on disk.</p>
+                <p className="memstats-empty">
+                  No memory sources found on disk.
+                </p>
               ) : (
                 <table className="memstats-table">
                   <thead>
@@ -187,16 +204,23 @@ export function MemoryStatsPanel({ onClose }: MemoryStatsPanelProps) {
                     {stats.sources.map((s) => (
                       <tr key={`${s.label}-${s.root_path}`}>
                         <td>
-                          <span className="memstats-kind">{kindLabel(s.kind)}</span>
+                          <span className="memstats-kind">
+                            {kindLabel(s.kind)}
+                          </span>
                           <span className="memstats-label">{s.label}</span>
                         </td>
                         <td>
                           <code className="memstats-path">{s.root_path}</code>
                         </td>
-                        <td className="memstats-num">{s.file_count.toLocaleString()}</td>
-                        <td className="memstats-num">{formatBytes(s.total_bytes)}</td>
+                        <td className="memstats-num">
+                          {s.file_count.toLocaleString()}
+                        </td>
+                        <td className="memstats-num">
+                          {formatBytes(s.total_bytes)}
+                        </td>
                         <td>
-                          {formatDate(s.oldest_unix_ms)} → {formatDate(s.newest_unix_ms)}
+                          {formatDate(s.oldest_unix_ms)} →{" "}
+                          {formatDate(s.newest_unix_ms)}
                         </td>
                       </tr>
                     ))}
@@ -224,7 +248,11 @@ export function MemoryStatsPanel({ onClose }: MemoryStatsPanelProps) {
         )}
 
         <footer className="memstats-footer">
-          <button className="memstats-secondary" onClick={onClose} disabled={syncing}>
+          <button
+            className="memstats-secondary"
+            onClick={onClose}
+            disabled={syncing}
+          >
             Close
           </button>
           <button

@@ -99,7 +99,8 @@ export default function UltimateView() {
       const ev = (f.event as UltEvent) || ({} as UltEvent);
       applyUltEvent(mutate, ev);
     } else if (f.type === "ultimate_done") {
-      const result = (f.result as { final_output?: string; total_usd?: number }) || {};
+      const result =
+        (f.result as { final_output?: string; total_usd?: number }) || {};
       mutate((r) => ({
         ...r,
         synthesis: r.synthesis ?? result.final_output,
@@ -170,12 +171,17 @@ export default function UltimateView() {
   useWs((f: WsFrameBase) => {
     if (!running) return;
     if (runIdRef.current) return;
-    if (f.type === "ultimate" || f.type === "ultimate_done" || f.type === "ultimate_error") {
+    if (
+      f.type === "ultimate" ||
+      f.type === "ultimate_done" ||
+      f.type === "ultimate_error"
+    ) {
       runIdRef.current = f.run_id as string;
       setRun({ runId: f.run_id as string, goal, subtasks: new Map() });
       armWatchdog();
       // re-deliver this frame
-      if (f.type === "ultimate") applyUltEvent(mutate, (f.event as UltEvent) || ({} as UltEvent));
+      if (f.type === "ultimate")
+        applyUltEvent(mutate, (f.event as UltEvent) || ({} as UltEvent));
     }
   });
 
@@ -200,7 +206,9 @@ export default function UltimateView() {
                 min={1}
                 max={9}
                 value={fanOut}
-                onChange={(e) => setFanOut(Math.max(1, Number(e.target.value) || 1))}
+                onChange={(e) =>
+                  setFanOut(Math.max(1, Number(e.target.value) || 1))
+                }
                 disabled={running}
               />
             </div>
@@ -266,7 +274,10 @@ export default function UltimateView() {
   );
 }
 
-function applyUltEvent(mutate: (fn: (r: RunState) => RunState) => void, ev: UltEvent) {
+function applyUltEvent(
+  mutate: (fn: (r: RunState) => RunState) => void,
+  ev: UltEvent,
+) {
   switch (ev.type) {
     case "plan":
       mutate((r) => ({ ...r, plan: (ev.subtasks as PlannedSubtask[]) || [] }));
@@ -376,17 +387,23 @@ function Timeline({ run }: { run: RunState }) {
 
       {subtasks.map((st) => (
         <div key={st.id} className="card">
-          <div className="card-title">
-            ⚙ {st.id}
+          <div className="card-title">⚙ {st.id}</div>
+          <div className="muted" style={{ fontSize: 13 }}>
+            {st.task}
           </div>
-          <div className="muted" style={{ fontSize: 13 }}>{st.task}</div>
           <div className="model-race">
             {st.models.map((mr) => (
               <span
                 key={mr.model}
                 className={`model-pill ${mr.ok === undefined ? "" : mr.ok ? "done" : "fail"}`}
               >
-                {mr.ok === undefined ? <span className="spin" /> : mr.ok ? "✓" : "✗"}
+                {mr.ok === undefined ? (
+                  <span className="spin" />
+                ) : mr.ok ? (
+                  "✓"
+                ) : (
+                  "✗"
+                )}
                 {mr.model}
               </span>
             ))}
@@ -417,7 +434,9 @@ function Timeline({ run }: { run: RunState }) {
           <div className="card-title">
             ✦ Final synthesis
             {typeof run.cost === "number" && (
-              <span className="badge-soft cost-badge">${run.cost.toFixed(4)}</span>
+              <span className="badge-soft cost-badge">
+                ${run.cost.toFixed(4)}
+              </span>
             )}
             <span className="spacer" style={{ flex: 1 }} />
             <CopyButton text={run.synthesis} />

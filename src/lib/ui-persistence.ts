@@ -47,7 +47,8 @@ export interface PersistedUIState {
 function isActivityTab(value: unknown): value is ActivityTab {
   if (value === null) return true;
   return (
-    typeof value === "string" && (ACTIVITY_TABS as readonly string[]).includes(value)
+    typeof value === "string" &&
+    (ACTIVITY_TABS as readonly string[]).includes(value)
   );
 }
 
@@ -68,7 +69,9 @@ function sanitize(raw: unknown): PersistedUIState | null {
     activityTab: null,
     currentWorktreeId: obj.currentWorktreeId,
     currentWorktreePath: obj.currentWorktreePath,
-    activeProjectRoot: isNullableString(obj.activeProjectRoot) ? obj.activeProjectRoot : null,
+    activeProjectRoot: isNullableString(obj.activeProjectRoot)
+      ? obj.activeProjectRoot
+      : null,
   };
 }
 

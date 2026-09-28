@@ -2,11 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CloudOff, Settings } from "lucide-react";
 import { humanizeError } from "@/lib/errors";
 import { createRoot, type Root } from "react-dom/client";
-import {
-  duckQuestion,
-  saveDuckTranscript,
-  type DuckTurn,
-} from "@/lib/duck";
+import { duckQuestion, saveDuckTranscript, type DuckTurn } from "@/lib/duck";
 import { useGatewayConfigured } from "@/lib/gateway";
 import { useCortexStore } from "@/state/store";
 import { pushToast } from "@/lib/toast";
@@ -133,7 +129,11 @@ export function DuckChat({ initialTopic, onClose }: DuckChatProps) {
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Save failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Save failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setSaving(false);
     }
@@ -174,11 +174,7 @@ export function DuckChat({ initialTopic, onClose }: DuckChatProps) {
             >
               Reset
             </button>
-            <button
-              className="duck-close"
-              onClick={onClose}
-              aria-label="Close"
-            >
+            <button className="duck-close" onClick={onClose} aria-label="Close">
               ×
             </button>
           </div>

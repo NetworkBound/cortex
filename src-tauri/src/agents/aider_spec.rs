@@ -83,8 +83,8 @@ pub static AIDER_SPEC: CliSpec = CliSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agents::adapter::ChatRequest;
     use crate::agents::adapter::AgentAdapter;
+    use crate::agents::adapter::ChatRequest;
     use crate::agents::local_cli::GenericCliAgent;
 
     #[test]

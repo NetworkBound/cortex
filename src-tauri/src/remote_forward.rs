@@ -81,7 +81,9 @@ pub fn run(listen: &str) {
     }
     match &initial {
         Some(u) => tracing::info!("remote_forward: {listen} -> {u} (WSL proxy live)"),
-        None => tracing::warn!("remote_forward: WSL proxy not reachable yet; will resolve per-connection"),
+        None => tracing::warn!(
+            "remote_forward: WSL proxy not reachable yet; will resolve per-connection"
+        ),
     }
 
     for incoming in listener.incoming() {
@@ -89,7 +91,9 @@ pub fn run(listen: &str) {
         thread::spawn(move || {
             // Resolve fresh (cheap cache miss is fine); the WSL IP can change.
             let Some(up) = upstream() else { return };
-            let Ok(server) = TcpStream::connect(&up) else { return };
+            let Ok(server) = TcpStream::connect(&up) else {
+                return;
+            };
             let (mut cr, mut sw) = match (client.try_clone(), server.try_clone()) {
                 (Ok(a), Ok(b)) => (a, b),
                 _ => return,

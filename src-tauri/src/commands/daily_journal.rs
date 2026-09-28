@@ -74,7 +74,12 @@ pub async fn daily_journal(
         .unwrap_or_default()
         .into_iter()
         .filter(|s| s.last_active_ms >= day_start_ms && s.last_active_ms < day_end_ms)
-        .map(|s| format!("- {} ({} runs, {} tokens)", s.session_id, s.runs, s.total_tokens))
+        .map(|s| {
+            format!(
+                "- {} ({} runs, {} tokens)",
+                s.session_id, s.runs, s.total_tokens
+            )
+        })
         .collect();
 
     // 2. Commits made today via `git log --since=<date>`.
@@ -136,8 +141,14 @@ pub async fn daily_journal(
     let req = ChatCompletionRequest {
         model: cfg.gateway_model.clone(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: SYSTEM_PROMPT.into() },
-            ChatMessage { role: "user".into(), content: bundle },
+            ChatMessage {
+                role: "system".into(),
+                content: SYSTEM_PROMPT.into(),
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: bundle,
+            },
         ],
         stream: true,
         temperature: Some(0.3),
@@ -209,8 +220,8 @@ fn resolve_date(raw: Option<&str>) -> Result<String, String> {
 /// timezone so "today" matches the user's wall clock.
 fn day_bounds_ms(date: &str) -> Result<(i64, i64), String> {
     use chrono::{NaiveDate, TimeZone};
-    let nd = NaiveDate::parse_from_str(date, "%Y-%m-%d")
-        .map_err(|e| format!("bad date {date}: {e}"))?;
+    let nd =
+        NaiveDate::parse_from_str(date, "%Y-%m-%d").map_err(|e| format!("bad date {date}: {e}"))?;
     let start_dt = nd
         .and_hms_opt(0, 0, 0)
         .ok_or_else(|| "bad date math".to_string())?;
@@ -405,12 +416,18 @@ pub async fn save_journal(args: SaveJournalArgs) -> Result<SaveJournalResult, St
         sn = args.stats.snapshots,
         pa = args.stats.prp_advances,
     );
-    let body = format!("{frontmatter}# Daily journal — {date}\n\n{}\n", args.markdown.trim());
+    let body = format!(
+        "{frontmatter}# Daily journal — {date}\n\n{}\n",
+        args.markdown.trim()
+    );
     let bytes = body.as_bytes().len();
     fs::write(&written_path, &body)
         .map_err(|e| format!("write {} failed: {e}", written_path.display()))?;
 
-    Ok(SaveJournalResult { written_path, bytes })
+    Ok(SaveJournalResult {
+        written_path,
+        bytes,
+    })
 }
 
 fn brain_dir() -> Option<PathBuf> {

@@ -82,10 +82,7 @@ mod tests {
 
     #[test]
     fn resolve_per_request_wins_over_global() {
-        assert_eq!(
-            resolve(Some("high"), Some("low")).as_deref(),
-            Some("high")
-        );
+        assert_eq!(resolve(Some("high"), Some("low")).as_deref(), Some("high"));
     }
 
     #[test]
@@ -96,10 +93,7 @@ mod tests {
     #[test]
     fn resolve_invalid_override_falls_through_to_global() {
         // a malformed per-request value must not shadow a valid global default
-        assert_eq!(
-            resolve(Some("turbo"), Some("low")).as_deref(),
-            Some("low")
-        );
+        assert_eq!(resolve(Some("turbo"), Some("low")).as_deref(), Some("low"));
         // empty-string override likewise falls through
         assert_eq!(resolve(Some(""), Some("high")).as_deref(), Some("high"));
     }

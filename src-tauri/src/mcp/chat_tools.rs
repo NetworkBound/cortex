@@ -51,7 +51,10 @@ fn sanitized_server_id(id: &str) -> String {
 
 /// Build the qualified chat-facing name for a server's tool.
 pub fn qualified_name(server_id: &str, tool: &str) -> String {
-    format!("{MCP_TOOL_PREFIX}{}__{tool}", sanitized_server_id(server_id))
+    format!(
+        "{MCP_TOOL_PREFIX}{}__{tool}",
+        sanitized_server_id(server_id)
+    )
 }
 
 /// Lenient split of a qualified name into `(server_segment, tool)` without

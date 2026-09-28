@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { humanizeError } from "@/lib/errors";
-import { createWorktree, listWorktrees, removeWorktree, type Worktree } from "@/lib/worktrees";
+import {
+  createWorktree,
+  listWorktrees,
+  removeWorktree,
+  type Worktree,
+} from "@/lib/worktrees";
 import { useCortexStore } from "@/state/store";
 
 interface Props {
@@ -37,7 +42,10 @@ export function WorktreePicker({ open, onClose }: Props) {
     setBusy(true);
     setErr(null);
     try {
-      const wt = await createWorktree(activeProject.root, note.trim() || undefined);
+      const wt = await createWorktree(
+        activeProject.root,
+        note.trim() || undefined,
+      );
       setNote("");
       await refresh();
       setCurrent(wt.id, wt.path);
@@ -76,10 +84,15 @@ export function WorktreePicker({ open, onClose }: Props) {
   if (!open) return null;
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal worktree-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal worktree-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2>Worktrees{activeProject ? ` — ${activeProject.name}` : ""}</h2>
         {!activeProject && (
-          <div className="muted">Pick an active project first to manage worktrees.</div>
+          <div className="muted">
+            Pick an active project first to manage worktrees.
+          </div>
         )}
         {activeProject && (
           <>
@@ -90,17 +103,29 @@ export function WorktreePicker({ open, onClose }: Props) {
               >
                 <div>
                   <strong>main</strong>
-                  <div className="muted">no worktree — uses the project root directly</div>
+                  <div className="muted">
+                    no worktree — uses the project root directly
+                  </div>
                 </div>
               </button>
               {list.map((wt) => (
-                <div key={wt.id} className={`worktree-row ${currentId === wt.id ? "active" : ""}`}>
-                  <button className="worktree-pick" onClick={() => void pick(wt)}>
+                <div
+                  key={wt.id}
+                  className={`worktree-row ${currentId === wt.id ? "active" : ""}`}
+                >
+                  <button
+                    className="worktree-pick"
+                    onClick={() => void pick(wt)}
+                  >
                     <strong>{wt.branch}</strong>
                     <div className="muted" style={{ fontSize: 11 }}>
                       {wt.path}
                     </div>
-                    {wt.notes && <div className="muted" style={{ fontSize: 11 }}>“{wt.notes}”</div>}
+                    {wt.notes && (
+                      <div className="muted" style={{ fontSize: 11 }}>
+                        “{wt.notes}”
+                      </div>
+                    )}
                   </button>
                   <button
                     className="link-btn danger"
@@ -123,7 +148,9 @@ export function WorktreePicker({ open, onClose }: Props) {
               />
             </label>
             <div className="modal-actions">
-              <button onClick={onClose} disabled={busy}>Cancel</button>
+              <button onClick={onClose} disabled={busy}>
+                Cancel
+              </button>
               <button
                 className="btn-primary"
                 onClick={() => void spawn()}

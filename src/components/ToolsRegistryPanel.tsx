@@ -69,12 +69,15 @@ export function ToolsRegistryPanel() {
   const onInvoke = (tool: ToolDef) => setMode({ kind: "invoke", tool });
 
   const onDelete = async (tool: ToolDef) => {
-    if (!(await confirmDialog({
-      title: "Delete tool?",
-      message: `Delete tool "${tool.name}"?`,
-      confirmLabel: "Delete",
-      danger: true,
-    }))) return;
+    if (
+      !(await confirmDialog({
+        title: "Delete tool?",
+        message: `Delete tool "${tool.name}"?`,
+        confirmLabel: "Delete",
+        danger: true,
+      }))
+    )
+      return;
     try {
       await deleteTool(tool.name);
       pushToast({ title: "Tool deleted", body: tool.name, kind: "success" });
@@ -103,7 +106,10 @@ export function ToolsRegistryPanel() {
             + New tool
           </button>
         ) : (
-          <button className="link-btn" onClick={() => setMode({ kind: "list" })}>
+          <button
+            className="link-btn"
+            onClick={() => setMode({ kind: "list" })}
+          >
             ← back
           </button>
         )}
@@ -125,7 +131,9 @@ export function ToolsRegistryPanel() {
         <ToolEditor
           draft={mode.draft}
           original={mode.original}
-          onChange={(d) => setMode({ kind: "editor", draft: d, original: mode.original })}
+          onChange={(d) =>
+            setMode({ kind: "editor", draft: d, original: mode.original })
+          }
           onSaved={onSaved}
           onError={setError}
         />
@@ -171,12 +179,16 @@ function ToolsList(props: {
           <div className="tools-row-main">
             <div className="tools-row-head">
               <strong>{t.name}</strong>
-              <span className={`tools-method tools-method-${t.method.toLowerCase()}`}>
+              <span
+                className={`tools-method tools-method-${t.method.toLowerCase()}`}
+              >
                 {t.method}
               </span>
             </div>
             <code className="tools-row-url">{t.url_template}</code>
-            {t.description && <div className="tools-row-desc">{t.description}</div>}
+            {t.description && (
+              <div className="tools-row-desc">{t.description}</div>
+            )}
           </div>
           <div className="tools-row-actions">
             <button onClick={() => props.onInvoke(t)}>Invoke</button>
@@ -203,7 +215,9 @@ function ToolEditor(props: {
   const { draft, onChange } = props;
   const [busy, setBusy] = useState(false);
   const [testArgs, setTestArgs] = useState<Record<string, string>>({});
-  const [testResult, setTestResult] = useState<ToolInvocationResult | null>(null);
+  const [testResult, setTestResult] = useState<ToolInvocationResult | null>(
+    null,
+  );
 
   const set = <K extends keyof ToolDef>(key: K, value: ToolDef[K]) =>
     onChange({ ...draft, [key]: value });
@@ -273,7 +287,9 @@ function ToolEditor(props: {
             disabled={busy}
           >
             {TOOL_METHODS.map((m) => (
-              <option key={m} value={m}>{m}</option>
+              <option key={m} value={m}>
+                {m}
+              </option>
             ))}
           </select>
         </label>
@@ -401,7 +417,8 @@ function InputsEditor(props: {
       </legend>
       {props.inputs.length === 0 && (
         <div className="muted" style={{ fontSize: 11.5 }}>
-          No inputs — the URL template won't have any <code>{"{param}"}</code> placeholders.
+          No inputs — the URL template won't have any <code>{"{param}"}</code>{" "}
+          placeholders.
         </div>
       )}
       {props.inputs.map((input, idx) => (
@@ -420,7 +437,9 @@ function InputsEditor(props: {
             disabled={props.disabled}
           >
             {INPUT_KINDS.map((k) => (
-              <option key={k} value={k}>{k}</option>
+              <option key={k} value={k}>
+                {k}
+              </option>
             ))}
           </select>
           <label className="tools-required">
@@ -568,7 +587,9 @@ function ToolInvokeForm(props: {
     <div className="tools-invoke">
       <div className="tools-invoke-head">
         <strong>{props.tool.name}</strong>
-        <span className={`tools-method tools-method-${props.tool.method.toLowerCase()}`}>
+        <span
+          className={`tools-method tools-method-${props.tool.method.toLowerCase()}`}
+        >
           {props.tool.method}
         </span>
         <code className="tools-row-url">{props.tool.url_template}</code>
@@ -626,9 +647,13 @@ function InvocationResultView({ result }: { result: ToolInvocationResult }) {
           {` · ${result.latency_ms}ms`}
           {result.truncated && " · truncated"}
         </span>
-        {result.error && <span className="tools-result-err">{result.error}</span>}
+        {result.error && (
+          <span className="tools-result-err">{result.error}</span>
+        )}
       </div>
-      <pre className="tools-result-body">{result.body || "(empty response)"}</pre>
+      <pre className="tools-result-body">
+        {result.body || "(empty response)"}
+      </pre>
     </div>
   );
 }

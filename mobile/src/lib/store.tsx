@@ -41,14 +41,16 @@ const StoreCtx = createContext<Store | null>(null);
 const LS_KEY = "cortex.activeProject";
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [activeProject, setActiveProjectState] = useState<Project | null>(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      return raw ? (JSON.parse(raw) as Project) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [activeProject, setActiveProjectState] = useState<Project | null>(
+    () => {
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        return raw ? (JSON.parse(raw) as Project) : null;
+      } catch {
+        return null;
+      }
+    },
+  );
   const [wsStatus, setWsStatus] = useState<WsStatus>(bus.getStatus());
   const [serverHealth, setServerHealth] = useState<ServerHealth>("unknown");
   const [openSession, setOpenSession] = useState<string | null>(null);
@@ -95,7 +97,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     () => ({
       activeProject,
       setActiveProject,
-      activeProjectRoot: activeProject ? projectPath(activeProject) || undefined : undefined,
+      activeProjectRoot: activeProject
+        ? projectPath(activeProject) || undefined
+        : undefined,
       wsStatus,
       serverHealth,
       openSession,

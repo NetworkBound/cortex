@@ -40,10 +40,14 @@ pub async fn ws_handler(
         .get("x-forwarded-host")
         .and_then(|v| v.to_str().ok());
     if !origin_permitted(origin, host, forwarded_host) {
-        tracing::warn!(origin = origin.unwrap_or(""), "mobile ws: rejected cross-origin upgrade");
+        tracing::warn!(
+            origin = origin.unwrap_or(""),
+            "mobile ws: rejected cross-origin upgrade"
+        );
         return (StatusCode::FORBIDDEN, "origin not allowed").into_response();
     }
-    ws.on_upgrade(move |socket| client(socket, state)).into_response()
+    ws.on_upgrade(move |socket| client(socket, state))
+        .into_response()
 }
 
 /// Decide whether a WebSocket upgrade from `origin` may proceed.
@@ -86,7 +90,10 @@ pub(super) fn origin_permitted(
     let hostname = if authority.starts_with('[') {
         authority
     } else {
-        authority.rsplit_once(':').map(|(h, _)| h).unwrap_or(authority)
+        authority
+            .rsplit_once(':')
+            .map(|(h, _)| h)
+            .unwrap_or(authority)
     };
     hostname.to_ascii_lowercase().ends_with(".ts.net")
 }
@@ -184,9 +191,21 @@ mod tests {
 
     #[test]
     fn foreign_websites_and_null_are_rejected() {
-        assert!(!origin_permitted(Some("https://evil.example"), Some("127.0.0.1:8788"), None));
-        assert!(!origin_permitted(Some("http://127.0.0.1:9999"), Some("127.0.0.1:8788"), None));
-        assert!(!origin_permitted(Some("null"), Some("127.0.0.1:8788"), None));
+        assert!(!origin_permitted(
+            Some("https://evil.example"),
+            Some("127.0.0.1:8788"),
+            None
+        ));
+        assert!(!origin_permitted(
+            Some("http://127.0.0.1:9999"),
+            Some("127.0.0.1:8788"),
+            None
+        ));
+        assert!(!origin_permitted(
+            Some("null"),
+            Some("127.0.0.1:8788"),
+            None
+        ));
         // A lookalike that merely *contains* the host must not pass.
         assert!(!origin_permitted(
             Some("https://cortex.tail1234.ts.net.evil.example"),

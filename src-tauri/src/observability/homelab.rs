@@ -28,7 +28,11 @@ pub struct HealthTarget {
 pub fn configured_targets() -> Vec<HealthTarget> {
     infra_config::health_targets()
         .into_iter()
-        .map(|t| HealthTarget { source: t.source, url: t.url, kind: "http" })
+        .map(|t| HealthTarget {
+            source: t.source,
+            url: t.url,
+            kind: "http",
+        })
         .collect()
 }
 

@@ -48,12 +48,16 @@ pub fn append(entry: AuditEntry) -> anyhow::Result<()> {
 
 pub fn prune_old(retention_days: i64) -> anyhow::Result<()> {
     let dir = audit_dir()?;
-    if !dir.exists() { return Ok(()); }
+    if !dir.exists() {
+        return Ok(());
+    }
     let cutoff = chrono::Utc::now() - chrono::Duration::days(retention_days);
     for entry in std::fs::read_dir(&dir)?.flatten() {
         let name = entry.file_name();
         let name = name.to_string_lossy();
-        if !name.starts_with("audit-") || !name.ends_with(".log") { continue; }
+        if !name.starts_with("audit-") || !name.ends_with(".log") {
+            continue;
+        }
         let date_str = &name["audit-".len()..name.len() - 4];
         let parsed = chrono::NaiveDate::parse_from_str(date_str, "%Y%m%d");
         if let Ok(d) = parsed {

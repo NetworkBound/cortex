@@ -1,9 +1,9 @@
 use crate::app_state::AppState;
+use crate::projects::rules::RuleSummary;
 use crate::projects::{
     discover_projects, ignore_status, list_files, rules, vault_root, CortexIgnoreStatus,
     FileTreeEntry, ProjectMeta,
 };
-use crate::projects::rules::RuleSummary;
 use std::path::PathBuf;
 use tauri::State;
 
@@ -56,9 +56,14 @@ pub async fn set_active_project(path: String, state: State<'_, AppState>) -> Res
 }
 
 #[tauri::command]
-pub async fn project_files(path: String, limit: Option<usize>) -> Result<Vec<FileTreeEntry>, String> {
+pub async fn project_files(
+    path: String,
+    limit: Option<usize>,
+) -> Result<Vec<FileTreeEntry>, String> {
     let p = PathBuf::from(&path);
-    if !p.exists() { return Err(format!("missing: {path}")); }
+    if !p.exists() {
+        return Err(format!("missing: {path}"));
+    }
     Ok(list_files(&p, limit.unwrap_or(500)))
 }
 
@@ -72,7 +77,10 @@ pub async fn list_rules(project_root: String) -> Result<Vec<RuleSummary>, String
     if !root.is_dir() {
         return Err(format!("not a directory: {project_root}"));
     }
-    Ok(rules::load_rules(&root).iter().map(|r| r.summary()).collect())
+    Ok(rules::load_rules(&root)
+        .iter()
+        .map(|r| r.summary())
+        .collect())
 }
 
 /// Returns the merged `.cortexignore` status for `project_root` — surfaced

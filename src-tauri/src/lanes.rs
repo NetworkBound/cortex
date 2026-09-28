@@ -93,7 +93,10 @@ impl LaneStore {
     }
 
     pub fn get(&self, run_id: &str) -> anyhow::Result<Option<LaneRunRecord>> {
-        Ok(self.list(Some(u32::MAX))?.into_iter().find(|r| r.run_id == run_id))
+        Ok(self
+            .list(Some(u32::MAX))?
+            .into_iter()
+            .find(|r| r.run_id == run_id))
     }
 
     /// Fold a status transition into the row. Terminal statuses win: once a
@@ -230,7 +233,8 @@ mod tests {
 
     fn store() -> LaneStore {
         let conn = Connection::open_in_memory().expect("in-mem sqlite");
-        conn.execute_batch(include_str!("observability/schema.sql")).expect("schema");
+        conn.execute_batch(include_str!("observability/schema.sql"))
+            .expect("schema");
         LaneStore::new(Arc::new(Mutex::new(conn)))
     }
 
@@ -289,16 +293,23 @@ mod tests {
         r.detail = Some("running bash…".into());
         s.insert(&r).unwrap();
         assert!(s.update_status("r1", "running", None).unwrap());
-        assert_eq!(s.get("r1").unwrap().unwrap().detail.as_deref(), Some("running bash…"));
+        assert_eq!(
+            s.get("r1").unwrap().unwrap().detail.as_deref(),
+            Some("running bash…")
+        );
     }
 
     #[test]
     fn terminal_status_wins_over_late_events() {
         let s = store();
         s.insert(&rec("r1", "running", 100)).unwrap();
-        assert!(s.update_status("r1", "stopped", Some("stopped from Cortex")).unwrap());
+        assert!(s
+            .update_status("r1", "stopped", Some("stopped from Cortex"))
+            .unwrap());
         // A straggling Status/Done after the stop must not resurrect the lane.
-        assert!(!s.update_status("r1", "running", Some("late status")).unwrap());
+        assert!(!s
+            .update_status("r1", "running", Some("late status"))
+            .unwrap());
         assert!(!s.update_status("r1", "done", Some("late done")).unwrap());
         let row = s.get("r1").unwrap().unwrap();
         assert_eq!(row.status, "stopped");
@@ -327,10 +338,15 @@ mod tests {
     fn set_detail_updates_terminal_rows() {
         let s = store();
         s.insert(&rec("r1", "interrupted", 100)).unwrap();
-        assert!(s.set_detail("r1", "The gateway is no longer streaming this run").unwrap());
+        assert!(s
+            .set_detail("r1", "The gateway is no longer streaming this run")
+            .unwrap());
         let row = s.get("r1").unwrap().unwrap();
         assert_eq!(row.status, "interrupted");
-        assert_eq!(row.detail.as_deref(), Some("The gateway is no longer streaming this run"));
+        assert_eq!(
+            row.detail.as_deref(),
+            Some("The gateway is no longer streaming this run")
+        );
         assert!(!s.set_detail("nope", "x").unwrap());
     }
 
@@ -376,7 +392,10 @@ mod tests {
             RunStreamItem::Raw(serde_json::json!({"event": "weird"})),
             RunStreamItem::Status("  ".into()),
         ] {
-            assert!(lane_transition(&item).is_none(), "{item:?} should not transition");
+            assert!(
+                lane_transition(&item).is_none(),
+                "{item:?} should not transition"
+            );
         }
     }
 
@@ -412,7 +431,9 @@ mod tests {
         // Regression guard for the missing-DDL bug: WorktreeStore has always
         // queried this table; schema.sql must actually declare it.
         let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch(include_str!("observability/schema.sql")).unwrap();
-        conn.prepare("SELECT id FROM worktrees LIMIT 1").expect("worktrees table declared");
+        conn.execute_batch(include_str!("observability/schema.sql"))
+            .unwrap();
+        conn.prepare("SELECT id FROM worktrees LIMIT 1")
+            .expect("worktrees table declared");
     }
 }

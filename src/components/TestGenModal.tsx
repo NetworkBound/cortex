@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { humanizeError } from "@/lib/errors";
 import { createRoot, type Root } from "react-dom/client";
-import { generateTests, type TestFramework, type TestGenResult } from "@/lib/test-gen";
+import {
+  generateTests,
+  type TestFramework,
+  type TestGenResult,
+} from "@/lib/test-gen";
 import { saveFileText } from "@/lib/editor-save";
 import { runTests } from "@/lib/test-runner";
 import { pushToast } from "@/lib/toast";
@@ -101,7 +105,11 @@ export function TestGenModal({
         kind: "success",
       });
     } catch (e) {
-      pushToast({ title: "Copy failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Copy failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [result]);
 
@@ -117,7 +125,11 @@ export function TestGenModal({
       const written = await saveFileText(target.trim(), result.test_code);
       pushToast({ title: "Saved", body: written, kind: "success" });
     } catch (e) {
-      pushToast({ title: "Save failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Save failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }, [result]);
 
@@ -151,7 +163,11 @@ export function TestGenModal({
         kind,
       });
     } catch (e) {
-      pushToast({ title: "Run tests failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Run tests failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     } finally {
       setRunning(false);
     }

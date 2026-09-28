@@ -106,7 +106,10 @@ export async function laneReview(runId: string): Promise<LaneReview> {
 }
 
 /** Merge the lane's review PR ("merge winner"); returns the updated lane row. */
-export async function mergeLaneRun(runId: string, prNumber: number): Promise<LaneRunRecord> {
+export async function mergeLaneRun(
+  runId: string,
+  prNumber: number,
+): Promise<LaneRunRecord> {
   return invoke<LaneRunRecord>("merge_lane_run", { runId, prNumber });
 }
 
@@ -144,7 +147,10 @@ export async function provisionProviderLanes(
   const lanes: ProviderLane[] = [];
   try {
     for (const provider of providers) {
-      const worktree = await createWorktree(projectRoot, `parallel:${provider}`);
+      const worktree = await createWorktree(
+        projectRoot,
+        `parallel:${provider}`,
+      );
       lanes.push({ provider, worktree });
     }
     return lanes;

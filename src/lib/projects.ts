@@ -28,7 +28,10 @@ export async function setActiveProject(path: string): Promise<void> {
   return invoke("set_active_project", { path });
 }
 
-export async function projectFiles(path: string, limit = 500): Promise<FileTreeEntry[]> {
+export async function projectFiles(
+  path: string,
+  limit = 500,
+): Promise<FileTreeEntry[]> {
   return invoke<FileTreeEntry[]>("project_files", { path, limit });
 }
 

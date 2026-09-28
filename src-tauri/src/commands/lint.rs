@@ -378,7 +378,10 @@ mod tests {
     fn write_then_load_round_trips() {
         let td = TempDir::new().unwrap();
         write_lint_command(td.path(), "cargo clippy").unwrap();
-        assert_eq!(load_lint_command(td.path()).as_deref(), Some("cargo clippy"));
+        assert_eq!(
+            load_lint_command(td.path()).as_deref(),
+            Some("cargo clippy")
+        );
     }
 
     #[test]
@@ -422,7 +425,10 @@ mod tests {
         );
         // Even with a Cargo.toml also present, the project's own lint script wins.
         write(td.path(), "Cargo.toml", "[package]\nname=\"x\"\n");
-        assert_eq!(detect_lint_command(td.path()).as_deref(), Some("npm run lint"));
+        assert_eq!(
+            detect_lint_command(td.path()).as_deref(),
+            Some("npm run lint")
+        );
     }
 
     #[test]
@@ -463,7 +469,10 @@ mod tests {
     fn detect_ruff_via_dedicated_file_and_pyproject() {
         let td = TempDir::new().unwrap();
         write(td.path(), "ruff.toml", "line-length = 100\n");
-        assert_eq!(detect_lint_command(td.path()).as_deref(), Some("ruff check ."));
+        assert_eq!(
+            detect_lint_command(td.path()).as_deref(),
+            Some("ruff check .")
+        );
 
         let td2 = TempDir::new().unwrap();
         write(
@@ -471,7 +480,10 @@ mod tests {
             "pyproject.toml",
             "[tool.ruff]\nline-length = 100\n",
         );
-        assert_eq!(detect_lint_command(td2.path()).as_deref(), Some("ruff check ."));
+        assert_eq!(
+            detect_lint_command(td2.path()).as_deref(),
+            Some("ruff check .")
+        );
 
         // pyproject without a [tool.ruff] table does not match Ruff.
         let td3 = TempDir::new().unwrap();
@@ -490,7 +502,10 @@ mod tests {
 
         let td2 = TempDir::new().unwrap();
         write(td2.path(), "go.mod", "module x\n");
-        assert_eq!(detect_lint_command(td2.path()).as_deref(), Some("go vet ./..."));
+        assert_eq!(
+            detect_lint_command(td2.path()).as_deref(),
+            Some("go vet ./...")
+        );
     }
 
     #[test]
@@ -526,10 +541,12 @@ mod tests {
     async fn runs_inside_the_project_root() {
         let td = TempDir::new().unwrap();
         std::fs::write(td.path().join("marker.txt"), "i-am-here").unwrap();
-        let cmd = if cfg!(windows) { "type marker.txt" } else { "cat marker.txt" };
-        let r = run_in_dir(cmd, false, td.path(), 5_000)
-            .await
-            .unwrap();
+        let cmd = if cfg!(windows) {
+            "type marker.txt"
+        } else {
+            "cat marker.txt"
+        };
+        let r = run_in_dir(cmd, false, td.path(), 5_000).await.unwrap();
         assert!(r.clean, "stderr={}", r.stderr);
         assert!(r.stdout.contains("i-am-here"));
     }
@@ -546,15 +563,23 @@ mod tests {
         };
         let r = run_in_dir(cmd, false, td.path(), 10_000).await.unwrap();
         assert!(r.truncated, "expected the long output to be clipped");
-        assert!(r.stdout.contains("line-1 marker"), "head must keep the first line");
-        assert!(!r.stdout.contains("line-5000 marker"), "tail should be dropped");
+        assert!(
+            r.stdout.contains("line-1 marker"),
+            "head must keep the first line"
+        );
+        assert!(
+            !r.stdout.contains("line-5000 marker"),
+            "tail should be dropped"
+        );
         assert!(r.stdout.len() <= MAX_OUTPUT_BYTES);
     }
 
     #[tokio::test]
     async fn empty_command_rejected() {
         let td = TempDir::new().unwrap();
-        let err = run_in_dir("   ", false, td.path(), 5_000).await.unwrap_err();
+        let err = run_in_dir("   ", false, td.path(), 5_000)
+            .await
+            .unwrap_err();
         assert!(err.contains("empty"));
     }
 
@@ -562,7 +587,11 @@ mod tests {
     async fn timeout_kills_and_reports() {
         let td = TempDir::new().unwrap();
         // `ping -n` is the portable cmd.exe stand-in for `sleep`.
-        let cmd = if cfg!(windows) { "ping -n 6 127.0.0.1 >nul" } else { "sleep 5" };
+        let cmd = if cfg!(windows) {
+            "ping -n 6 127.0.0.1 >nul"
+        } else {
+            "sleep 5"
+        };
         let r = run_in_dir(cmd, false, td.path(), 200).await.unwrap();
         assert!(r.timed_out);
         assert!(!r.clean);
@@ -572,9 +601,7 @@ mod tests {
     #[tokio::test]
     async fn run_lint_errors_when_nothing_detectable() {
         let td = TempDir::new().unwrap();
-        let err = run_lint(td.path().display().to_string())
-            .await
-            .unwrap_err();
+        let err = run_lint(td.path().display().to_string()).await.unwrap_err();
         assert!(err.contains("no linter detected"));
     }
 

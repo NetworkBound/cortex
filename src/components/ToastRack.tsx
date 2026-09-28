@@ -15,7 +15,13 @@ export function ToastRack() {
   );
 }
 
-function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
+function ToastCard({
+  toast,
+  onDismiss,
+}: {
+  toast: Toast;
+  onDismiss: () => void;
+}) {
   const [paused, setPaused] = useState(false);
   const remainingRef = useRef<number>(toast.ttlMs);
   const startedAtRef = useRef<number>(Date.now());
@@ -53,7 +59,9 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
   return (
     <div
       className={`toast toast-${toast.kind}`}
-      role={toast.kind === "error" || toast.kind === "warning" ? "alert" : "status"}
+      role={
+        toast.kind === "error" || toast.kind === "warning" ? "alert" : "status"
+      }
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >

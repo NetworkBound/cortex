@@ -37,10 +37,7 @@ fn validate_egress_url(raw: &str) -> Result<(), String> {
     };
 
     // Authority ends at the first '/', '?' or '#'.
-    let authority = rest
-        .split(['/', '?', '#'])
-        .next()
-        .unwrap_or(rest);
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or(rest);
     if authority.is_empty() {
         return Err("url has no host".into());
     }
@@ -61,7 +58,10 @@ fn validate_egress_url(raw: &str) -> Result<(), String> {
         let mut parts = host_port.rsplitn(2, ':');
         let maybe_port = parts.next();
         match parts.next() {
-            Some(h) => (h.to_string(), maybe_port.and_then(|s| s.parse::<u16>().ok())),
+            Some(h) => (
+                h.to_string(),
+                maybe_port.and_then(|s| s.parse::<u16>().ok()),
+            ),
             None => (host_port.to_string(), None),
         }
     };
@@ -174,7 +174,9 @@ pub struct Webhook {
     pub enabled: bool,
 }
 
-fn default_true() -> bool { true }
+fn default_true() -> bool {
+    true
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebhookInput {
@@ -219,16 +221,14 @@ pub fn load_all() -> Result<Vec<Webhook>, String> {
     if bytes.is_empty() {
         return Ok(Vec::new());
     }
-    serde_json::from_slice::<Vec<Webhook>>(&bytes)
-        .map_err(|e| format!("parse webhooks: {e}"))
+    serde_json::from_slice::<Vec<Webhook>>(&bytes).map_err(|e| format!("parse webhooks: {e}"))
 }
 
 /// Atomic write via temp+rename — never leave a partial file on crash.
 fn save_all(items: &[Webhook]) -> Result<(), String> {
     let path = webhooks_path()?;
     let tmp = path.with_extension("json.tmp");
-    let body = serde_json::to_vec_pretty(items)
-        .map_err(|e| format!("encode webhooks: {e}"))?;
+    let body = serde_json::to_vec_pretty(items).map_err(|e| format!("encode webhooks: {e}"))?;
     fs::write(&tmp, &body).map_err(|e| format!("write tmp: {e}"))?;
     fs::rename(&tmp, &path).map_err(|e| format!("rename: {e}"))?;
     Ok(())
@@ -310,7 +310,10 @@ pub fn fire(event: &str, payload: &serde_json::Value) -> u32 {
         }
     };
     let mut fired = 0u32;
-    for hook in items.iter().filter(|w| w.enabled && w.events.iter().any(|e| e == event)) {
+    for hook in items
+        .iter()
+        .filter(|w| w.enabled && w.events.iter().any(|e| e == event))
+    {
         let body = serde_json::json!({
             "event": event,
             "ts": chrono::Utc::now().timestamp_millis(),
@@ -321,7 +324,10 @@ pub fn fire(event: &str, payload: &serde_json::Value) -> u32 {
         if !res.ok {
             tracing::warn!(
                 "webhook {} ({}) failed: status={:?} err={:?}",
-                hook.label, hook.id, res.status, res.error
+                hook.label,
+                hook.id,
+                res.status,
+                res.error
             );
         }
         fired += 1;
@@ -349,12 +355,14 @@ async fn post_async(hook: &Webhook, body: &serde_json::Value, started: Instant) 
         .build()
     {
         Ok(c) => c,
-        Err(e) => return TestResult {
-            ok: false,
-            status: None,
-            latency_ms: started.elapsed().as_millis() as u64,
-            error: Some(format!("client: {e}")),
-        },
+        Err(e) => {
+            return TestResult {
+                ok: false,
+                status: None,
+                latency_ms: started.elapsed().as_millis() as u64,
+                error: Some(format!("client: {e}")),
+            }
+        }
     };
 
     let mut req = client.post(&hook.url).json(body);
@@ -405,12 +413,14 @@ fn post_blocking(hook: &Webhook, body: &serde_json::Value) -> TestResult {
                 .build()
             {
                 Ok(rt) => rt,
-                Err(e) => return TestResult {
-                    ok: false,
-                    status: None,
-                    latency_ms: started.elapsed().as_millis() as u64,
-                    error: Some(format!("runtime: {e}")),
-                },
+                Err(e) => {
+                    return TestResult {
+                        ok: false,
+                        status: None,
+                        latency_ms: started.elapsed().as_millis() as u64,
+                        error: Some(format!("runtime: {e}")),
+                    }
+                }
             };
             rt.block_on(post_async(&hook, &body, started))
         });
@@ -469,7 +479,8 @@ mod tests {
 
     #[test]
     fn webhook_default_enabled_is_true() {
-        let raw = r#"{"id":"a","label":"x","url":"https://example.com","events":["task.complete"]}"#;
+        let raw =
+            r#"{"id":"a","label":"x","url":"https://example.com","events":["task.complete"]}"#;
         let w: Webhook = serde_json::from_str(raw).unwrap();
         assert!(w.enabled);
         assert!(w.headers.is_empty());

@@ -33,7 +33,10 @@ function loadSelection(): IDEFormatId[] {
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) return ["cursor", "windsurf"];
     const known = new Set(IDE_FORMATS.map((f) => f.id));
-    return arr.filter((x): x is IDEFormatId => typeof x === "string" && known.has(x as IDEFormatId));
+    return arr.filter(
+      (x): x is IDEFormatId =>
+        typeof x === "string" && known.has(x as IDEFormatId),
+    );
   } catch {
     return ["cursor", "windsurf"];
   }
@@ -49,7 +52,9 @@ function saveSelection(sel: IDEFormatId[]) {
 
 export function IDEExportModal({ onClose }: IDEExportModalProps) {
   const activeProject = useCortexStore((s) => s.activeProject);
-  const [selected, setSelected] = useState<IDEFormatId[]>(() => loadSelection());
+  const [selected, setSelected] = useState<IDEFormatId[]>(() =>
+    loadSelection(),
+  );
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ExportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +70,9 @@ export function IDEExportModal({ onClose }: IDEExportModalProps) {
 
   const toggle = useCallback((id: IDEFormatId) => {
     setSelected((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      const next = prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : [...prev, id];
       saveSelection(next);
       return next;
     });
@@ -109,15 +116,19 @@ export function IDEExportModal({ onClose }: IDEExportModalProps) {
       >
         <header className="ide-export-header">
           <h2 id="ide-export-title">Export IDE Configs</h2>
-          <button className="ide-export-close" onClick={onClose} aria-label="Close">
+          <button
+            className="ide-export-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
             ×
           </button>
         </header>
         <p className="ide-export-summary">
           {activeProject ? (
             <>
-              Generates rule files from <code>CLAUDE.md</code> + <code>AGENTS.md</code> +{" "}
-              <code>.cortex/rules/*.md</code> for{" "}
+              Generates rule files from <code>CLAUDE.md</code> +{" "}
+              <code>AGENTS.md</code> + <code>.cortex/rules/*.md</code> for{" "}
               <strong>{activeProject.name}</strong>.
             </>
           ) : (
@@ -173,7 +184,11 @@ export function IDEExportModal({ onClose }: IDEExportModalProps) {
         )}
 
         <footer className="ide-export-footer">
-          <button className="ide-export-secondary" onClick={onClose} disabled={busy}>
+          <button
+            className="ide-export-secondary"
+            onClick={onClose}
+            disabled={busy}
+          >
             Close
           </button>
           <button

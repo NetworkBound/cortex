@@ -51,7 +51,11 @@ pub async fn add_auto_approve(
         pattern: pattern.trim().to_string(),
         profile: profile.and_then(|p| {
             let t = p.trim().to_string();
-            if t.is_empty() { None } else { Some(t) }
+            if t.is_empty() {
+                None
+            } else {
+                Some(t)
+            }
         }),
     };
     AutoApproveList::add(entry).map_err(|e| e.to_string())

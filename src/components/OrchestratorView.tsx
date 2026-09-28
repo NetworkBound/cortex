@@ -27,7 +27,9 @@ import { listRoles, type Role } from "@/lib/roles";
  */
 function openTranscript(sessionId: string) {
   window.dispatchEvent(
-    new CustomEvent("cortex:chat-replay", { detail: { session_id: sessionId } }),
+    new CustomEvent("cortex:chat-replay", {
+      detail: { session_id: sessionId },
+    }),
   );
   useCortexStore.getState().setActivityTab(null);
 }
@@ -106,12 +108,15 @@ export function OrchestratorView() {
 
   const handleDelete = useCallback(
     async (id: string) => {
-      if (!(await confirmDialog({
-        title: "Delete team?",
-        message: "The team will be deleted. Worker history is not preserved.",
-        confirmLabel: "Delete",
-        danger: true,
-      }))) return;
+      if (
+        !(await confirmDialog({
+          title: "Delete team?",
+          message: "The team will be deleted. Worker history is not preserved.",
+          confirmLabel: "Delete",
+          danger: true,
+        }))
+      )
+        return;
       try {
         await deleteTeam(id);
         await refresh();
@@ -164,7 +169,9 @@ export function OrchestratorView() {
           onAssign={() => setAssignTeam(selected)}
         />
       ) : !error ? (
-        <div className="orch-placeholder muted">Select or create a team to begin.</div>
+        <div className="orch-placeholder muted">
+          Select or create a team to begin.
+        </div>
       ) : null}
 
       {assignTeam ? (
@@ -226,7 +233,9 @@ function TeamGrid({
             className="orch-delete-btn"
             onClick={onDelete}
             disabled={running}
-            title={running ? "Wait for the run to finish first." : "Delete this team"}
+            title={
+              running ? "Wait for the run to finish first." : "Delete this team"
+            }
           >
             Delete
           </button>
@@ -234,7 +243,9 @@ function TeamGrid({
       </div>
       <div className="orch-worker-grid">
         {team.workers.length === 0 ? (
-          <div className="muted orch-empty">No workers — add some when you create the next team.</div>
+          <div className="muted orch-empty">
+            No workers — add some when you create the next team.
+          </div>
         ) : (
           team.workers.map((w) => <WorkerCard key={w.agent_id} worker={w} />)
         )}
@@ -245,7 +256,8 @@ function TeamGrid({
 
 /** Map the team-level run lifecycle onto the existing worker pill palette. */
 function runPillClass(runStatus: string): string {
-  if (runStatus === "planning" || runStatus === "running") return "orch-pill-working";
+  if (runStatus === "planning" || runStatus === "running")
+    return "orch-pill-working";
   if (runStatus === "done") return "orch-pill-done";
   return "orch-pill-error";
 }
@@ -274,7 +286,9 @@ function ManagerCard({ team }: { team: Team }) {
       <div className="orch-card-meta">
         <span>{team.manager_role}</span>
         <span>·</span>
-        <span>{team.workers.length} worker{team.workers.length === 1 ? "" : "s"}</span>
+        <span>
+          {team.workers.length} worker{team.workers.length === 1 ? "" : "s"}
+        </span>
         <span>·</span>
         <span>created {timeAgo(team.created_unix_ms)}</span>
         {team.last_run_unix_ms ? (
@@ -333,7 +347,10 @@ function VerdictCard({ verdict }: { verdict: NonNullable<Team["verdict"]> }) {
         <span className="orch-verdict-badge">
           {verdict.pass ? "✓ Goal met" : "✗ Goal not met"}
         </span>
-        <span className="orch-verdict-score" title="Synthesizer confidence in the merged result">
+        <span
+          className="orch-verdict-score"
+          title="Synthesizer confidence in the merged result"
+        >
           {verdict.score}/100
         </span>
       </div>
@@ -341,9 +358,13 @@ function VerdictCard({ verdict }: { verdict: NonNullable<Team["verdict"]> }) {
         <ul className="orch-verdict-checks">
           {checks.map((c, i) => (
             <li key={i} className={c.pass ? "ok" : "bad"}>
-              <span className="orch-verdict-check-mark">{c.pass ? "✓" : "✗"}</span>
+              <span className="orch-verdict-check-mark">
+                {c.pass ? "✓" : "✗"}
+              </span>
               <span className="orch-verdict-check-name">{c.name}</span>
-              {c.note ? <span className="orch-verdict-check-note">{c.note}</span> : null}
+              {c.note ? (
+                <span className="orch-verdict-check-note">{c.note}</span>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -371,11 +392,17 @@ function BudgetGauge({ team }: { team: Team }) {
       <div className="orch-budget-head">
         <span className="orch-budget-label">Budget</span>
         <span className="orch-budget-figures">
-          <span className="orch-budget-projected" title="Projected spend for the latest run (token estimate × model price)">
+          <span
+            className="orch-budget-projected"
+            title="Projected spend for the latest run (token estimate × model price)"
+          >
             {hasRun ? formatUsd(projected) : "—"}
           </span>
           <span className="orch-budget-sep">/</span>
-          <span className="orch-budget-cap" title="Soft spend ceiling for this team">
+          <span
+            className="orch-budget-cap"
+            title="Soft spend ceiling for this team"
+          >
             {formatUsd(budget)}
           </span>
         </span>
@@ -387,7 +414,10 @@ function BudgetGauge({ team }: { team: Team }) {
         />
       </div>
       {over ? (
-        <div className="orch-budget-warn" title="The run's projected spend exceeded the soft budget — runs are never blocked, this is a heads-up only">
+        <div
+          className="orch-budget-warn"
+          title="The run's projected spend exceeded the soft budget — runs are never blocked, this is a heads-up only"
+        >
           Projected spend exceeds budget by {formatUsd(projected - budget)}.
         </div>
       ) : null}
@@ -427,10 +457,15 @@ function WorkerCard({ worker }: { worker: Worker }) {
         </div>
       ) : null}
       {worker.effective_model ? (
-        <div className="orch-worker-route" title="Model this worker was dispatched on (cost-aware routing)">
+        <div
+          className="orch-worker-route"
+          title="Model this worker was dispatched on (cost-aware routing)"
+        >
           <span className="orch-route-model">{worker.effective_model}</span>
           {worker.projected_usd != null ? (
-            <span className="orch-route-cost">{formatUsd(worker.projected_usd)}</span>
+            <span className="orch-route-cost">
+              {formatUsd(worker.projected_usd)}
+            </span>
           ) : null}
         </div>
       ) : null}
@@ -439,7 +474,9 @@ function WorkerCard({ worker }: { worker: Worker }) {
         <span>·</span>
         <span>last {timeAgo(worker.last_event_unix_ms)}</span>
         <span>·</span>
-        <span>{worker.message_count} msg{worker.message_count === 1 ? "" : "s"}</span>
+        <span>
+          {worker.message_count} msg{worker.message_count === 1 ? "" : "s"}
+        </span>
         {worker.session_id ? (
           <button
             className="orch-transcript-btn"
@@ -503,7 +540,8 @@ function AssignGoalModal({ team, onClose, onStarted }: AssignGoalModalProps) {
   }, [onClose]);
 
   const budgetInvalid =
-    budget.trim().length > 0 && !(Number(budget) >= 0 && Number.isFinite(Number(budget)));
+    budget.trim().length > 0 &&
+    !(Number(budget) >= 0 && Number.isFinite(Number(budget)));
   const canSubmit = !submitting && goal.trim().length > 0 && !budgetInvalid;
 
   const handleSubmit = async () => {
@@ -545,7 +583,9 @@ function AssignGoalModal({ team, onClose, onStarted }: AssignGoalModalProps) {
       >
         <div className="orch-modal-head">
           <strong>Assign goal — {team.name}</strong>
-          <button className="link-btn" onClick={onClose}>×</button>
+          <button className="link-btn" onClick={onClose}>
+            ×
+          </button>
         </div>
         <div className="orch-modal-body">
           <label className="orch-field">
@@ -588,7 +628,9 @@ function AssignGoalModal({ team, onClose, onStarted }: AssignGoalModalProps) {
               spellCheck={false}
             />
             {budgetInvalid ? (
-              <span className="orch-field-warn">Enter a non-negative dollar amount.</span>
+              <span className="orch-field-warn">
+                Enter a non-negative dollar amount.
+              </span>
             ) : null}
           </label>
           <div className="muted orch-assign-hint">
@@ -596,7 +638,12 @@ function AssignGoalModal({ team, onClose, onStarted }: AssignGoalModalProps) {
             worker, then all {team.workers.length} worker
             {team.workers.length === 1 ? "" : "s"} execute
             {team.workers.length === 1 ? "s" : ""} through{" "}
-            {selectedModel ? <code>{selectedModel}</code> : "your default model"}.
+            {selectedModel ? (
+              <code>{selectedModel}</code>
+            ) : (
+              "your default model"
+            )}
+            .
             {repo.trim()
               ? " Code-tagged tasks edit the repo in their own gateway worktree lane — track them in the Lanes tab."
               : " Without a repo, code tasks are answered as text."}{" "}
@@ -605,7 +652,11 @@ function AssignGoalModal({ team, onClose, onStarted }: AssignGoalModalProps) {
           {error ? <div className="orch-error">{error}</div> : null}
         </div>
         <div className="orch-modal-foot">
-          <button className="orch-cancel-btn" onClick={onClose} disabled={submitting}>
+          <button
+            className="orch-cancel-btn"
+            onClick={onClose}
+            disabled={submitting}
+          >
             Cancel
           </button>
           <button
@@ -627,10 +678,16 @@ interface CreateTeamModalProps {
   onCreated: (id: string) => void | Promise<void>;
 }
 
-function CreateTeamModal({ existingNames, onClose, onCreated }: CreateTeamModalProps) {
+function CreateTeamModal({
+  existingNames,
+  onClose,
+  onCreated,
+}: CreateTeamModalProps) {
   const [name, setName] = useState("");
   const [managerRole, setManagerRole] = useState("");
-  const [workerSelection, setWorkerSelection] = useState<Set<string>>(new Set());
+  const [workerSelection, setWorkerSelection] = useState<Set<string>>(
+    new Set(),
+  );
   const [roles, setRoles] = useState<Role[]>([]);
   const [budget, setBudget] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -644,8 +701,10 @@ function CreateTeamModal({ existingNames, onClose, onCreated }: CreateTeamModalP
         setRoles(rs);
         // Seed sensible defaults so the picker isn't a blank slate.
         const archy =
-          rs.find((r) => /architect|orchestrator|manager/i.test(r.name))?.name ??
-          rs[0]?.name ?? "";
+          rs.find((r) => /architect|orchestrator|manager/i.test(r.name))
+            ?.name ??
+          rs[0]?.name ??
+          "";
         setManagerRole(archy);
       })
       .catch((e) => {
@@ -676,7 +735,8 @@ function CreateTeamModal({ existingNames, onClose, onCreated }: CreateTeamModalP
   };
 
   const budgetInvalid =
-    budget.trim().length > 0 && !(Number(budget) >= 0 && Number.isFinite(Number(budget)));
+    budget.trim().length > 0 &&
+    !(Number(budget) >= 0 && Number.isFinite(Number(budget)));
   const canSubmit =
     !submitting &&
     name.trim().length > 0 &&
@@ -713,7 +773,9 @@ function CreateTeamModal({ existingNames, onClose, onCreated }: CreateTeamModalP
       >
         <div className="orch-modal-head">
           <strong>New team</strong>
-          <button className="link-btn" onClick={onClose}>×</button>
+          <button className="link-btn" onClick={onClose}>
+            ×
+          </button>
         </div>
         <div className="orch-modal-body">
           <label className="orch-field">
@@ -726,7 +788,9 @@ function CreateTeamModal({ existingNames, onClose, onCreated }: CreateTeamModalP
               placeholder="checkout-refactor"
             />
             {existingNames.has(name.trim()) && name.trim().length > 0 ? (
-              <span className="orch-field-warn">A team with that name already exists.</span>
+              <span className="orch-field-warn">
+                A team with that name already exists.
+              </span>
             ) : null}
           </label>
 
@@ -736,9 +800,13 @@ function CreateTeamModal({ existingNames, onClose, onCreated }: CreateTeamModalP
               value={managerRole}
               onChange={(e) => setManagerRole(e.target.value)}
             >
-              {roles.length === 0 ? <option value="">(no roles available)</option> : null}
+              {roles.length === 0 ? (
+                <option value="">(no roles available)</option>
+              ) : null}
               {roles.map((r) => (
-                <option key={r.name} value={r.name}>{r.name}</option>
+                <option key={r.name} value={r.name}>
+                  {r.name}
+                </option>
               ))}
             </select>
           </label>
@@ -746,7 +814,9 @@ function CreateTeamModal({ existingNames, onClose, onCreated }: CreateTeamModalP
           <fieldset className="orch-field">
             <legend>Worker roles</legend>
             {roles.length === 0 ? (
-              <div className="muted">No roles defined yet — manage them under Roles.</div>
+              <div className="muted">
+                No roles defined yet — manage them under Roles.
+              </div>
             ) : (
               <div className="orch-checklist">
                 {roles.map((r) => (
@@ -758,7 +828,9 @@ function CreateTeamModal({ existingNames, onClose, onCreated }: CreateTeamModalP
                     />
                     <span>{r.name}</span>
                     {r.description ? (
-                      <span className="muted orch-check-desc">{r.description}</span>
+                      <span className="muted orch-check-desc">
+                        {r.description}
+                      </span>
                     ) : null}
                   </label>
                 ))}
@@ -782,14 +854,20 @@ function CreateTeamModal({ existingNames, onClose, onCreated }: CreateTeamModalP
               spellCheck={false}
             />
             {budgetInvalid ? (
-              <span className="orch-field-warn">Enter a non-negative dollar amount.</span>
+              <span className="orch-field-warn">
+                Enter a non-negative dollar amount.
+              </span>
             ) : null}
           </label>
 
           {error ? <div className="orch-error">{error}</div> : null}
         </div>
         <div className="orch-modal-foot">
-          <button className="orch-cancel-btn" onClick={onClose} disabled={submitting}>
+          <button
+            className="orch-cancel-btn"
+            onClick={onClose}
+            disabled={submitting}
+          >
             Cancel
           </button>
           <button

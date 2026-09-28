@@ -101,14 +101,19 @@ pub async fn resolve_conflicts(
             continue;
         }
 
-        let client =
-            GatewayClient::new(cfg.gateway_base_url.clone(), api_key.clone());
+        let client = GatewayClient::new(cfg.gateway_base_url.clone(), api_key.clone());
 
         let req = ChatCompletionRequest {
             model: cfg.gateway_model.clone(),
             messages: vec![
-                ChatMessage { role: "system".into(), content: SYSTEM_PROMPT.into() },
-                ChatMessage { role: "user".into(), content: build_user_prompt(&rel, &before) },
+                ChatMessage {
+                    role: "system".into(),
+                    content: SYSTEM_PROMPT.into(),
+                },
+                ChatMessage {
+                    role: "user".into(),
+                    content: build_user_prompt(&rel, &before),
+                },
             ],
             stream: true,
             temperature: Some(0.1),
@@ -118,7 +123,9 @@ pub async fn resolve_conflicts(
             Ok(raw) => {
                 let after = sanitize(&raw);
                 if after.trim().is_empty() {
-                    report.errors.push(format!("{rel}: The gateway returned empty body"));
+                    report
+                        .errors
+                        .push(format!("{rel}: The gateway returned empty body"));
                     continue;
                 }
                 let (side, confidence) = score_resolution(&before, &after);
@@ -170,9 +177,7 @@ async fn run_with_timeout(
 }
 
 fn build_user_prompt(rel_path: &str, body: &str) -> String {
-    format!(
-        "Path: {rel_path}\n--- BEGIN CONFLICTED FILE ---\n{body}\n--- END CONFLICTED FILE ---",
-    )
+    format!("Path: {rel_path}\n--- BEGIN CONFLICTED FILE ---\n{body}\n--- END CONFLICTED FILE ---",)
 }
 
 /// Find files with unresolved merge conflicts. `git ls-files -u` prints
@@ -252,8 +257,12 @@ fn score_resolution(before: &str, after: &str) -> (String, f64) {
     }
     let (ours, theirs) = extract_sides(before);
     let after_t = after.trim();
-    let in_ours = ours.iter().any(|seg| !seg.is_empty() && after_t.contains(seg));
-    let in_theirs = theirs.iter().any(|seg| !seg.is_empty() && after_t.contains(seg));
+    let in_ours = ours
+        .iter()
+        .any(|seg| !seg.is_empty() && after_t.contains(seg));
+    let in_theirs = theirs
+        .iter()
+        .any(|seg| !seg.is_empty() && after_t.contains(seg));
     let side = match (in_ours, in_theirs) {
         (true, false) => "ours",
         (false, true) => "theirs",
@@ -288,14 +297,18 @@ fn extract_sides(body: &str) -> (Vec<String>, Vec<String>) {
             Some(i) => &after_start[i + 1..],
             None => break,
         };
-        let Some(mid) = after_marker.find("=======") else { break };
+        let Some(mid) = after_marker.find("=======") else {
+            break;
+        };
         let ours_block = &after_marker[..mid];
         let after_mid = &after_marker[mid..];
         let after_mid_nl = match after_mid.find('\n') {
             Some(i) => &after_mid[i + 1..],
             None => break,
         };
-        let Some(end) = after_mid_nl.find(">>>>>>>") else { break };
+        let Some(end) = after_mid_nl.find(">>>>>>>") else {
+            break;
+        };
         let theirs_block = &after_mid_nl[..end];
         ours.push(ours_block.trim().to_string());
         theirs.push(theirs_block.trim().to_string());
@@ -352,7 +365,8 @@ fn run_git_add(root: &Path, path: &str) -> Result<(), String> {
 mod tests {
     use super::*;
 
-    const SAMPLE_CONFLICT: &str = "before\n<<<<<<< HEAD\nfoo_ours\n=======\nfoo_theirs\n>>>>>>> branch\nafter\n";
+    const SAMPLE_CONFLICT: &str =
+        "before\n<<<<<<< HEAD\nfoo_ours\n=======\nfoo_theirs\n>>>>>>> branch\nafter\n";
 
     #[test]
     fn has_markers_detects_conflict() {

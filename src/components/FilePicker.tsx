@@ -65,27 +65,35 @@ export function FilePicker({ open, query, onPick, onClose }: Props) {
     let cancelled = false;
     const root = active?.root ?? null;
     fetchVocab(activeKind, effectiveQuery, root)
-      .then((res) => { if (!cancelled) setEntries(res); })
-      .catch(() => { if (!cancelled) setEntries([]); });
-    return () => { cancelled = true; };
+      .then((res) => {
+        if (!cancelled) setEntries(res);
+      })
+      .catch(() => {
+        if (!cancelled) setEntries([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, activeKind, effectiveQuery, active]);
 
   // Reset selection when entries change.
-  useEffect(() => { setIdx(0); }, [activeKind, effectiveQuery, open]);
+  useEffect(() => {
+    setIdx(0);
+  }, [activeKind, effectiveQuery, open]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); }
-      else if (e.key === "ArrowDown") {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      } else if (e.key === "ArrowDown") {
         e.preventDefault();
         setIdx((i) => Math.min(i + 1, Math.max(entries.length - 1, 0)));
-      }
-      else if (e.key === "ArrowUp") {
+      } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setIdx((i) => Math.max(i - 1, 0));
-      }
-      else if (e.key === "Enter" || e.key === "Tab") {
+      } else if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
         const entry = entries[idx];
         if (entry) onPick(entry.value);
@@ -98,7 +106,8 @@ export function FilePicker({ open, query, onPick, onClose }: Props) {
   // Keep the keyboard-selected row visible as arrow keys move past the edges.
   useEffect(() => {
     if (!open) return;
-    const activeLi = containerRef.current?.querySelector<HTMLLIElement>("li.active");
+    const activeLi =
+      containerRef.current?.querySelector<HTMLLIElement>("li.active");
     activeLi?.scrollIntoView({ block: "nearest" });
   }, [idx, open]);
 
@@ -120,7 +129,10 @@ export function FilePicker({ open, query, onPick, onClose }: Props) {
             role="tab"
             aria-selected={activeKind === k.kind}
             className={`file-picker-chip ${activeKind === k.kind ? "active" : ""}`}
-            onMouseDown={(e) => { e.preventDefault(); setManualKind(k.kind); }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setManualKind(k.kind);
+            }}
             title={k.hint}
           >
             <VocabIcon kind={k.kind} size={13} />
@@ -135,9 +147,7 @@ export function FilePicker({ open, query, onPick, onClose }: Props) {
         </span>
       </div>
       <ul>
-        {entries.length === 0 && (
-          <li className="muted">{emptyMsg}</li>
-        )}
+        {entries.length === 0 && <li className="muted">{emptyMsg}</li>}
         {entries.map((entry, i) => (
           <li
             key={`${entry.kind}:${entry.value}:${i}`}
@@ -145,7 +155,9 @@ export function FilePicker({ open, query, onPick, onClose }: Props) {
             onMouseEnter={() => setIdx(i)}
             onClick={() => onPick(entry.value)}
           >
-            <span className="file-picker-icon"><VocabIcon kind={entry.kind} /></span>
+            <span className="file-picker-icon">
+              <VocabIcon kind={entry.kind} />
+            </span>
             <span className="file-picker-label">{entry.label}</span>
             {entry.preview && (
               <span className="file-picker-preview muted">{entry.preview}</span>

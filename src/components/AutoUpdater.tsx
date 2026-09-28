@@ -1,8 +1,5 @@
 import { useEffect, useRef } from "react";
-import {
-  applyReleaseUpdate,
-  checkReleaseUpdate,
-} from "@/lib/self-update";
+import { applyReleaseUpdate, checkReleaseUpdate } from "@/lib/self-update";
 import { pushToast } from "@/lib/toast";
 
 /**
@@ -39,7 +36,10 @@ export function AutoUpdater() {
         ) {
           return;
         }
-        const res = await applyReleaseUpdate(info.download_url, info.latest_key);
+        const res = await applyReleaseUpdate(
+          info.download_url,
+          info.latest_key,
+        );
         if (cancelled || res !== "applied") return;
         pushToast({
           title: `Cortex updated${info.tag ? ` to ${info.tag}` : ""}`,

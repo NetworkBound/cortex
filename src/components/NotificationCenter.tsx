@@ -123,7 +123,11 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
             >
               Mark all read
             </button>
-            <button className="notif-close" onClick={onClose} aria-label="Close">
+            <button
+              className="notif-close"
+              onClick={onClose}
+              aria-label="Close"
+            >
               ×
             </button>
           </div>
@@ -171,7 +175,9 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
                   </span>
                   <span className="notif-source">{n.source}</span>
                   <span className="notif-message">{n.message}</span>
-                  <span className="notif-ts">{timeAgo(n.ts, { absoluteAfterDays: 30 })}</span>
+                  <span className="notif-ts">
+                    {timeAgo(n.ts, { absoluteAfterDays: 30 })}
+                  </span>
                 </button>
               );
             })
@@ -180,7 +186,8 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
 
         <footer className="notif-footer">
           <span className="notif-status">
-            {visible.length} shown · {notifications.length} total · auto-refresh 5s
+            {visible.length} shown · {notifications.length} total · auto-refresh
+            5s
           </span>
         </footer>
       </div>

@@ -66,7 +66,8 @@ pub async fn save_focus_chain(session_id: String, items: Vec<FocusTask>) -> Resu
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(|e| format!("mkdir failed: {e}"))?;
         }
-        let json = serde_json::to_vec_pretty(&items).map_err(|e| format!("serialize failed: {e}"))?;
+        let json =
+            serde_json::to_vec_pretty(&items).map_err(|e| format!("serialize failed: {e}"))?;
         fs::write(&path, json).map_err(|e| format!("write failed: {e}"))?;
         Ok::<(), String>(())
     })
@@ -134,7 +135,9 @@ impl FocusChainScanner {
         let mut result = None;
         loop {
             let rest = &self.buf[self.pos..];
-            let Some(open_at) = find_fence_open(rest) else { break };
+            let Some(open_at) = find_fence_open(rest) else {
+                break;
+            };
             // End of the opening fence line (it's guaranteed newline-terminated
             // by find_fence_open).
             let body_start = match rest[open_at..].find('\n') {
@@ -215,9 +218,13 @@ fn parse_focus_block(body: &str) -> Vec<FocusTask> {
     let mut items = Vec::new();
     for line in body.lines() {
         let t = line.trim();
-        let t = t.strip_prefix("- ").or_else(|| t.strip_prefix("* ")).unwrap_or(t);
+        let t = t
+            .strip_prefix("- ")
+            .or_else(|| t.strip_prefix("* "))
+            .unwrap_or(t);
         let t = t.trim_start();
-        let (done, rest) = if let Some(r) = t.strip_prefix("[x]").or_else(|| t.strip_prefix("[X]")) {
+        let (done, rest) = if let Some(r) = t.strip_prefix("[x]").or_else(|| t.strip_prefix("[X]"))
+        {
             (true, r)
         } else if let Some(r) = t.strip_prefix("[ ]") {
             (false, r)
@@ -261,14 +268,19 @@ mod tests {
         let out = s
             .feed("Intro.\n\n```focus-chain\n- [x] read code\n- [ ] write fix\n```\nTail.")
             .expect("block should close");
-        assert_eq!(titles(&out), vec![("read code", true), ("write fix", false)]);
+        assert_eq!(
+            titles(&out),
+            vec![("read code", true), ("write fix", false)]
+        );
     }
 
     #[test]
     fn scanner_block_split_across_feeds() {
         let mut s = FocusChainScanner::new();
         assert!(s.feed("Working.\n\n```focus-").is_none());
-        assert!(s.feed("chain\n- [x] step one\n- [ ] step two\n``").is_none());
+        assert!(s
+            .feed("chain\n- [x] step one\n- [ ] step two\n``")
+            .is_none());
         let out = s.feed("`\nDone.").expect("close fence completes the block");
         assert_eq!(titles(&out), vec![("step one", true), ("step two", false)]);
     }
@@ -278,7 +290,9 @@ mod tests {
         let mut s = FocusChainScanner::new();
         let first = s.feed("```focus-chain\n- [ ] a\n```\n").unwrap();
         assert_eq!(titles(&first), vec![("a", false)]);
-        let second = s.feed("text\n```focus-chain\n- [x] a\n- [x] b\n```\n").unwrap();
+        let second = s
+            .feed("text\n```focus-chain\n- [x] a\n- [x] b\n```\n")
+            .unwrap();
         assert_eq!(titles(&second), vec![("a", true), ("b", true)]);
     }
 
@@ -310,7 +324,9 @@ mod tests {
     #[test]
     fn scanner_skips_empty_block() {
         let mut s = FocusChainScanner::new();
-        assert!(s.feed("```focus-chain\nno checklist lines here\n```\n").is_none());
+        assert!(s
+            .feed("```focus-chain\nno checklist lines here\n```\n")
+            .is_none());
     }
 
     #[test]
@@ -319,8 +335,15 @@ mod tests {
             "- [x] dash done\n* [ ] star pending\n[X] bare caps\nnot a task\n- [ ]   \n",
         );
         assert_eq!(
-            items.iter().map(|t| (t.title.as_str(), t.done)).collect::<Vec<_>>(),
-            vec![("dash done", true), ("star pending", false), ("bare caps", true)]
+            items
+                .iter()
+                .map(|t| (t.title.as_str(), t.done))
+                .collect::<Vec<_>>(),
+            vec![
+                ("dash done", true),
+                ("star pending", false),
+                ("bare caps", true)
+            ]
         );
     }
 

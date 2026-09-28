@@ -44,7 +44,12 @@ export function configuredManifestUrl(): string | null {
 
 /** A host on this machine or a private LAN (RFC1918 / link-local). */
 function isPrivateOrLoopback(hostname: string): boolean {
-  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") return true;
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1"
+  )
+    return true;
   const m = hostname.match(/^(\d+)\.(\d+)\.\d+\.\d+$/);
   if (!m) return false;
   const a = Number(m[1]);
@@ -71,7 +76,8 @@ function assertSecureManifestUrl(manifestUrl: string): void {
     throw new Error(`Invalid update manifest URL: ${manifestUrl}`);
   }
   if (parsed.protocol === "https:") return;
-  if (parsed.protocol === "http:" && isPrivateOrLoopback(parsed.hostname)) return;
+  if (parsed.protocol === "http:" && isPrivateOrLoopback(parsed.hostname))
+    return;
   throw new Error(
     `Refusing to fetch update info over insecure transport (${parsed.protocol}//). ` +
       `Use https:// or a private-LAN/loopback host.`,

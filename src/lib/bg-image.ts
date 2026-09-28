@@ -17,7 +17,9 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import type { ActiveThemeState } from "./themes-custom";
 
 /** Convert the persisted absolute path into an asset URL the webview can load. */
-export function bgImageAssetUrl(path: string | null | undefined): string | null {
+export function bgImageAssetUrl(
+  path: string | null | undefined,
+): string | null {
   if (!path) return null;
   try {
     return convertFileSrc(path);

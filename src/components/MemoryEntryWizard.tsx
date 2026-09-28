@@ -32,22 +32,26 @@ const TYPES: TypeOption[] = [
   {
     id: "user",
     label: "User",
-    description: "Personal preferences or facts about the user (tone, defaults, identity).",
+    description:
+      "Personal preferences or facts about the user (tone, defaults, identity).",
   },
   {
     id: "feedback",
     label: "Feedback",
-    description: "A lesson from a mistake — why it happened and how to apply the fix next time.",
+    description:
+      "A lesson from a mistake — why it happened and how to apply the fix next time.",
   },
   {
     id: "project",
     label: "Project",
-    description: "Context about a specific project (paths, ports, conventions, gotchas).",
+    description:
+      "Context about a specific project (paths, ports, conventions, gotchas).",
   },
   {
     id: "reference",
     label: "Reference",
-    description: "Standing reference material (infra topology, schemas, naming conventions).",
+    description:
+      "Standing reference material (infra topology, schemas, naming conventions).",
   },
 ];
 
@@ -73,10 +77,22 @@ function projectKey(root: string): string {
   return root.replace(/[:/\\]/g, "-");
 }
 
-function buildFrontmatter(slug: string, description: string, type: MemoryEntryType): string {
+function buildFrontmatter(
+  slug: string,
+  description: string,
+  type: MemoryEntryType,
+): string {
   // Description is single-line — sanitise newlines so YAML stays valid.
   const desc = description.replace(/\s+/g, " ").trim();
-  return ["---", `name: ${slug}`, `description: ${desc}`, "metadata:", `  type: ${type}`, "---", ""].join("\n");
+  return [
+    "---",
+    `name: ${slug}`,
+    `description: ${desc}`,
+    "metadata:",
+    `  type: ${type}`,
+    "---",
+    "",
+  ].join("\n");
 }
 
 /** Body stub for the structured types. Plain types just get the user's body. */
@@ -87,7 +103,10 @@ function defaultBody(type: MemoryEntryType): string {
   return "";
 }
 
-export function MemoryEntryWizard({ onClose, initialTitle }: MemoryEntryWizardProps) {
+export function MemoryEntryWizard({
+  onClose,
+  initialTitle,
+}: MemoryEntryWizardProps) {
   const activeProject = useCortexStore((s) => s.activeProject);
   const [type, setType] = useState<MemoryEntryType>("project");
   const [title, setTitle] = useState(initialTitle ?? "");
@@ -136,7 +155,9 @@ export function MemoryEntryWizard({ onClose, initialTitle }: MemoryEntryWizardPr
       return;
     }
     if (!description.trim()) {
-      setError("Description is required — it becomes the frontmatter `description:`.");
+      setError(
+        "Description is required — it becomes the frontmatter `description:`.",
+      );
       return;
     }
     setBusy(true);
@@ -152,7 +173,10 @@ export function MemoryEntryWizard({ onClose, initialTitle }: MemoryEntryWizardPr
         "memory",
         `${type}_${slug}.md`,
       );
-      const content = buildFrontmatter(slug, description, type) + body.replace(/\s+$/, "") + "\n";
+      const content =
+        buildFrontmatter(slug, description, type) +
+        body.replace(/\s+$/, "") +
+        "\n";
       await invoke<void>("create_memory_entry", { path: absPath, content });
       pushToast({
         title: "Memory entry created",
@@ -186,7 +210,8 @@ export function MemoryEntryWizard({ onClose, initialTitle }: MemoryEntryWizardPr
 
         <p className="memwiz-summary">
           Creates an auto-memory markdown file with the canonical frontmatter.
-          You&rsquo;ll still need to add a pointer to <code>MEMORY.md</code> by hand.
+          You&rsquo;ll still need to add a pointer to <code>MEMORY.md</code> by
+          hand.
         </p>
 
         <fieldset className="memwiz-types">
@@ -260,7 +285,11 @@ export function MemoryEntryWizard({ onClose, initialTitle }: MemoryEntryWizardPr
         {error && <div className="memwiz-error">{error}</div>}
 
         <footer className="memwiz-footer">
-          <button className="memwiz-secondary" onClick={onClose} disabled={busy}>
+          <button
+            className="memwiz-secondary"
+            onClick={onClose}
+            disabled={busy}
+          >
             Cancel
           </button>
           <button
@@ -297,5 +326,7 @@ export function openMemoryEntryWizard(initialTitle?: string): void {
     root.unmount();
     if (container.parentNode) container.parentNode.removeChild(container);
   };
-  root.render(<MemoryEntryWizard onClose={close} initialTitle={initialTitle} />);
+  root.render(
+    <MemoryEntryWizard onClose={close} initialTitle={initialTitle} />,
+  );
 }

@@ -58,7 +58,11 @@ pub fn spawn_provider_loop(app: tauri::AppHandle, provider: String, store: Traci
         loop {
             tokio::time::sleep(interval).await;
             // Stop if the provider was disabled while we slept.
-            if !super::config::load().get(&provider).map(|c| c.enabled).unwrap_or(false) {
+            if !super::config::load()
+                .get(&provider)
+                .map(|c| c.enabled)
+                .unwrap_or(false)
+            {
                 tracing::info!("history_sync: provider {provider} disabled — stopping loop");
                 if let Ok(mut running) = loops_running().lock() {
                     running.remove(&provider);

@@ -196,9 +196,7 @@ fn windows_service_running() -> bool {
         .stderr(Stdio::null())
         .output();
     match out {
-        Ok(out) if out.status.success() => {
-            String::from_utf8_lossy(&out.stdout).contains("RUNNING")
-        }
+        Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout).contains("RUNNING"),
         _ => false,
     }
 }
@@ -256,7 +254,10 @@ fn system_status() -> Option<TsStatus> {
     let ip = me
         .get("TailscaleIPs")
         .and_then(|a| a.as_array())
-        .and_then(|a| a.iter().find_map(|x| x.as_str().filter(|s| s.contains('.'))))
+        .and_then(|a| {
+            a.iter()
+                .find_map(|x| x.as_str().filter(|s| s.contains('.')))
+        })
         .unwrap_or_default()
         .to_string();
     let dnsname = me
@@ -379,16 +380,18 @@ fn default_socks() -> String {
 
 impl Default for TsConfig {
     fn default() -> Self {
-        Self { enabled: false, socks_addr: default_socks(), external_socks: None }
+        Self {
+            enabled: false,
+            socks_addr: default_socks(),
+            external_socks: None,
+        }
     }
 }
 
 /// Set (or clear, with `None`/blank) the external SOCKS5 proxy and persist it.
 /// Updates the process-global state so new reqwest clients pick it up.
 pub fn set_external_socks(addr: Option<String>) -> anyhow::Result<()> {
-    let normalized = addr
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
+    let normalized = addr.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
     *shared().external_socks.write() = normalized.clone();
     let mut cfg = load_config();
     cfg.external_socks = normalized;
@@ -397,7 +400,9 @@ pub fn set_external_socks(addr: Option<String>) -> anyhow::Result<()> {
 
 /// Load persisted settings, ignoring a missing/malformed file.
 pub fn load_config() -> TsConfig {
-    let Some(path) = config_path() else { return TsConfig::default() };
+    let Some(path) = config_path() else {
+        return TsConfig::default();
+    };
     std::fs::read_to_string(&path)
         .ok()
         .and_then(|raw| serde_json::from_str(&raw).ok())
@@ -433,7 +438,10 @@ mod tests {
 
     #[test]
     fn status_serializes_with_state_tag() {
-        let v = serde_json::to_value(TsStatus::NeedsLogin { url: "https://x".into() }).unwrap();
+        let v = serde_json::to_value(TsStatus::NeedsLogin {
+            url: "https://x".into(),
+        })
+        .unwrap();
         assert_eq!(v.get("state").and_then(|s| s.as_str()), Some("needs_login"));
         assert_eq!(v.get("url").and_then(|s| s.as_str()), Some("https://x"));
 

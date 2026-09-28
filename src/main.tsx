@@ -38,7 +38,9 @@ function render() {
   // (e.g. a load failure), so the app can't get stuck invisible.
   requestAnimationFrame(() =>
     requestAnimationFrame(() => {
-      void getCurrentWindow().show().catch(() => {});
+      void getCurrentWindow()
+        .show()
+        .catch(() => {});
     }),
   );
 }

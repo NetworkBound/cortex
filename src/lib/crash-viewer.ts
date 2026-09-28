@@ -64,7 +64,9 @@ export function toDetails(row: CrashRow): CrashDetails {
     version: row.build_hash,
     os: detectOs(),
     last_user_message:
-      typeof extra.last_user_message === "string" ? extra.last_user_message : null,
+      typeof extra.last_user_message === "string"
+        ? extra.last_user_message
+        : null,
   };
 }
 
@@ -103,7 +105,9 @@ export type CrashKindFilter = (typeof KIND_FILTERS)[number]["id"];
 /** Dispatch the chat-replay event consumed by ChatPane. */
 export function dispatchReplay(message: string): void {
   if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent("cortex:chat-replay", { detail: { message } }));
+  window.dispatchEvent(
+    new CustomEvent("cortex:chat-replay", { detail: { message } }),
+  );
 }
 
 /**

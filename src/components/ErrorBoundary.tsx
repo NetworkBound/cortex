@@ -22,7 +22,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   override componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error("[ErrorBoundary]", this.props.label ?? "app", error, info.componentStack);
+    console.error(
+      "[ErrorBoundary]",
+      this.props.label ?? "app",
+      error,
+      info.componentStack,
+    );
   }
 
   private reset = () => this.setState({ error: null });
@@ -36,14 +41,21 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <div className="error-boundary-card">
           <div className="error-boundary-icon">⚠</div>
           <div className="error-boundary-title">
-            {this.props.label ? `${this.props.label} hit an error` : "Something broke"}
+            {this.props.label
+              ? `${this.props.label} hit an error`
+              : "Something broke"}
           </div>
-          <div className="error-boundary-msg">{error.message || "Unexpected error"}</div>
+          <div className="error-boundary-msg">
+            {error.message || "Unexpected error"}
+          </div>
           <div className="error-boundary-actions">
             <button className="error-boundary-btn primary" onClick={this.reset}>
               Try again
             </button>
-            <button className="error-boundary-btn" onClick={() => window.location.reload()}>
+            <button
+              className="error-boundary-btn"
+              onClick={() => window.location.reload()}
+            >
               Reload app
             </button>
           </div>

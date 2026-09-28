@@ -46,8 +46,18 @@ export interface PromptDialogArgs {
 }
 
 export type DialogRequest =
-  | { id: string; kind: "confirm"; args: ConfirmDialogArgs; resolve: (v: boolean) => void }
-  | { id: string; kind: "prompt"; args: PromptDialogArgs; resolve: (v: string | null) => void };
+  | {
+      id: string;
+      kind: "confirm";
+      args: ConfirmDialogArgs;
+      resolve: (v: boolean) => void;
+    }
+  | {
+      id: string;
+      kind: "prompt";
+      args: PromptDialogArgs;
+      resolve: (v: string | null) => void;
+    };
 
 interface DialogState {
   /** FIFO — DialogHost renders queue[0]; sequential awaits queue naturally. */

@@ -42,8 +42,7 @@ fn qwen_args(ctx: &LaunchCtx) -> Vec<String> {
 pub static QWEN_SPEC: CliSpec = CliSpec {
     id: "qwen-cli",
     label: "Qwen Code (CLI)",
-    description:
-        "Local Qwen Code CLI (`qwen -p`) spawned directly — your Qwen/provider login.",
+    description: "Local Qwen Code CLI (`qwen -p`) spawned directly — your Qwen/provider login.",
     bin_names: QWEN_NAMES,
     extra_dirs: QWEN_EXTRA_DIRS,
     headless_args: qwen_args,

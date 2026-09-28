@@ -17,8 +17,8 @@ export function SettingsThemeTab() {
         <h3>Appearance</h3>
         <p className="settings-section-hint">
           Pick a theme or drop in a background image. Custom themes live in
-          <code> ~/.cortex/themes/</code> — duplicate a preset and edit the
-          JSON to roll your own.
+          <code> ~/.cortex/themes/</code> — duplicate a preset and edit the JSON
+          to roll your own.
         </p>
       </div>
       <ThemePicker />

@@ -96,8 +96,8 @@ pub async fn e2e_write_snapshot(payload: serde_json::Value) -> Result<String, St
             "app_version": env!("CARGO_PKG_VERSION"),
             "snapshot": payload,
         });
-        let json = serde_json::to_vec_pretty(&envelope)
-            .map_err(|e| format!("serialize failed: {e}"))?;
+        let json =
+            serde_json::to_vec_pretty(&envelope).map_err(|e| format!("serialize failed: {e}"))?;
 
         // Atomic: write to a temp sibling then rename, so a polling reader never
         // observes a half-written file.
@@ -381,7 +381,9 @@ pub async fn e2e_cleanup_history_fixture(root: String) -> Result<(), String> {
                 .canonicalize()
                 .map_err(|e| format!("cannot resolve {root}: {e}"))?;
             if !canon.starts_with(&dir_canon) {
-                return Err(format!("refusing to remove path outside fixtures dir: {root}"));
+                return Err(format!(
+                    "refusing to remove path outside fixtures dir: {root}"
+                ));
             }
             fs::remove_dir_all(&canon).map_err(|e| format!("remove failed: {e}"))?;
         }

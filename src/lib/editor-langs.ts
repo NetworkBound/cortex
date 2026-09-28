@@ -12,40 +12,64 @@ type LangFactory = () => Promise<Extension>;
 /** Lowercase extension (no leading dot) → factory. */
 const EXT_TO_LANG: Record<string, LangFactory> = {
   // JavaScript / TypeScript / JSX / TSX
-  js:    async () => (await import("@codemirror/lang-javascript")).javascript({ jsx: false, typescript: false }),
-  mjs:   async () => (await import("@codemirror/lang-javascript")).javascript({ jsx: false, typescript: false }),
-  cjs:   async () => (await import("@codemirror/lang-javascript")).javascript({ jsx: false, typescript: false }),
-  jsx:   async () => (await import("@codemirror/lang-javascript")).javascript({ jsx: true,  typescript: false }),
-  ts:    async () => (await import("@codemirror/lang-javascript")).javascript({ jsx: false, typescript: true }),
-  tsx:   async () => (await import("@codemirror/lang-javascript")).javascript({ jsx: true,  typescript: true }),
+  js: async () =>
+    (await import("@codemirror/lang-javascript")).javascript({
+      jsx: false,
+      typescript: false,
+    }),
+  mjs: async () =>
+    (await import("@codemirror/lang-javascript")).javascript({
+      jsx: false,
+      typescript: false,
+    }),
+  cjs: async () =>
+    (await import("@codemirror/lang-javascript")).javascript({
+      jsx: false,
+      typescript: false,
+    }),
+  jsx: async () =>
+    (await import("@codemirror/lang-javascript")).javascript({
+      jsx: true,
+      typescript: false,
+    }),
+  ts: async () =>
+    (await import("@codemirror/lang-javascript")).javascript({
+      jsx: false,
+      typescript: true,
+    }),
+  tsx: async () =>
+    (await import("@codemirror/lang-javascript")).javascript({
+      jsx: true,
+      typescript: true,
+    }),
 
   // Rust
-  rs:    async () => (await import("@codemirror/lang-rust")).rust(),
+  rs: async () => (await import("@codemirror/lang-rust")).rust(),
 
   // Python
-  py:    async () => (await import("@codemirror/lang-python")).python(),
-  pyi:   async () => (await import("@codemirror/lang-python")).python(),
+  py: async () => (await import("@codemirror/lang-python")).python(),
+  pyi: async () => (await import("@codemirror/lang-python")).python(),
 
   // CSS-ish
-  css:   async () => (await import("@codemirror/lang-css")).css(),
-  scss:  async () => (await import("@codemirror/lang-css")).css(),
-  sass:  async () => (await import("@codemirror/lang-css")).css(),
-  less:  async () => (await import("@codemirror/lang-css")).css(),
+  css: async () => (await import("@codemirror/lang-css")).css(),
+  scss: async () => (await import("@codemirror/lang-css")).css(),
+  sass: async () => (await import("@codemirror/lang-css")).css(),
+  less: async () => (await import("@codemirror/lang-css")).css(),
 
   // HTML / XML-ish
-  html:  async () => (await import("@codemirror/lang-html")).html(),
-  htm:   async () => (await import("@codemirror/lang-html")).html(),
-  xml:   async () => (await import("@codemirror/lang-html")).html(),
-  svg:   async () => (await import("@codemirror/lang-html")).html(),
+  html: async () => (await import("@codemirror/lang-html")).html(),
+  htm: async () => (await import("@codemirror/lang-html")).html(),
+  xml: async () => (await import("@codemirror/lang-html")).html(),
+  svg: async () => (await import("@codemirror/lang-html")).html(),
 
   // JSON
-  json:  async () => (await import("@codemirror/lang-json")).json(),
+  json: async () => (await import("@codemirror/lang-json")).json(),
   jsonc: async () => (await import("@codemirror/lang-json")).json(),
 
   // Markdown
-  md:       async () => (await import("@codemirror/lang-markdown")).markdown(),
+  md: async () => (await import("@codemirror/lang-markdown")).markdown(),
   markdown: async () => (await import("@codemirror/lang-markdown")).markdown(),
-  mdx:      async () => (await import("@codemirror/lang-markdown")).markdown(),
+  mdx: async () => (await import("@codemirror/lang-markdown")).markdown(),
 };
 
 /** Returns the lowercase extension of `path`, or `""` if it has none. */
@@ -77,26 +101,42 @@ export function languageLabel(path: string): string {
   switch (extOf(path)) {
     case "js":
     case "mjs":
-    case "cjs":  return "JavaScript";
-    case "jsx":  return "JSX";
-    case "ts":   return "TypeScript";
-    case "tsx":  return "TSX";
-    case "rs":   return "Rust";
+    case "cjs":
+      return "JavaScript";
+    case "jsx":
+      return "JSX";
+    case "ts":
+      return "TypeScript";
+    case "tsx":
+      return "TSX";
+    case "rs":
+      return "Rust";
     case "py":
-    case "pyi":  return "Python";
-    case "css":  return "CSS";
-    case "scss": return "SCSS";
-    case "sass": return "Sass";
-    case "less": return "Less";
+    case "pyi":
+      return "Python";
+    case "css":
+      return "CSS";
+    case "scss":
+      return "SCSS";
+    case "sass":
+      return "Sass";
+    case "less":
+      return "Less";
     case "html":
-    case "htm":  return "HTML";
-    case "xml":  return "XML";
-    case "svg":  return "SVG";
+    case "htm":
+      return "HTML";
+    case "xml":
+      return "XML";
+    case "svg":
+      return "SVG";
     case "json":
-    case "jsonc":return "JSON";
+    case "jsonc":
+      return "JSON";
     case "md":
     case "markdown":
-    case "mdx":  return "Markdown";
-    default:     return "Plain text";
+    case "mdx":
+      return "Markdown";
+    default:
+      return "Plain text";
   }
 }

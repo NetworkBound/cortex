@@ -15,7 +15,11 @@ import {
   type IssuePrResult,
   type IssueRef,
 } from "@/lib/issues";
-import { listLaneRuns, listProviders, type LaneRunRecord } from "@/lib/multi-provider";
+import {
+  listLaneRuns,
+  listProviders,
+  type LaneRunRecord,
+} from "@/lib/multi-provider";
 
 /** Triage-list badge copy for the auto-classification heuristic (007 full
  *  scope) — a hint, so it reads that way rather than as a verdict. */
@@ -67,8 +71,12 @@ export function IssuesPanel() {
   const [dispatchError, setDispatchError] = useState<string | null>(null);
 
   /** Lanes dispatched from THIS panel this session: run_id → the issue. */
-  const [issueLanes, setIssueLanes] = useState<{ runId: string; issue: IssueRef }[]>([]);
-  const [laneRows, setLaneRows] = useState<Map<string, LaneRunRecord>>(new Map());
+  const [issueLanes, setIssueLanes] = useState<
+    { runId: string; issue: IssueRef }[]
+  >([]);
+  const [laneRows, setLaneRows] = useState<Map<string, LaneRunRecord>>(
+    new Map(),
+  );
 
   // ── approval-gated PR ─────────────────────────────────────────────────────
   const [previewing, setPreviewing] = useState<string | null>(null);
@@ -129,7 +137,9 @@ export function IssuesPanel() {
     setImportError(null);
     const src = parseSlug(source);
     if (!src) {
-      setImportError("Enter the repo as owner/repo (e.g. octocat/hello-world).");
+      setImportError(
+        "Enter the repo as owner/repo (e.g. octocat/hello-world).",
+      );
       return;
     }
     try {
@@ -139,7 +149,12 @@ export function IssuesPanel() {
     }
     setImporting(true);
     try {
-      const list = await importIssues(forge, src.owner, src.repo, baseUrl || undefined);
+      const list = await importIssues(
+        forge,
+        src.owner,
+        src.repo,
+        baseUrl || undefined,
+      );
       if (mounted.current) setIssues(list);
     } catch (e) {
       if (mounted.current) setImportError(humanizeError(e));
@@ -169,7 +184,10 @@ export function IssuesPanel() {
       const ref = toIssueRef(issue, baseUrl || undefined);
       const record = await runIssueInLane(proj.owner, proj.repo, provider, ref);
       if (mounted.current) {
-        setIssueLanes((prev) => [{ runId: record.run_id, issue: ref }, ...prev]);
+        setIssueLanes((prev) => [
+          { runId: record.run_id, issue: ref },
+          ...prev,
+        ]);
         setArmed(null);
       }
       await refreshLanes();
@@ -251,7 +269,11 @@ export function IssuesPanel() {
           aria-label="Source repo"
           style={{ flex: 1 }}
         />
-        <button onClick={() => void doImport()} disabled={importing} className="btn-primary">
+        <button
+          onClick={() => void doImport()}
+          disabled={importing}
+          className="btn-primary"
+        >
           {importing ? "Importing…" : "Import issues"}
         </button>
       </div>
@@ -274,19 +296,26 @@ export function IssuesPanel() {
             read-only: it never writes to the tracker.
           </p>
         )}
-        {importing && issues === null && <p className="lanes-hint">Importing issues…</p>}
+        {importing && issues === null && (
+          <p className="lanes-hint">Importing issues…</p>
+        )}
         {issues !== null && issues.length === 0 && (
           <p className="lanes-hint">No open issues in that repo. Nice.</p>
         )}
         {issues?.map((issue) => (
-          <div key={`${issue.forge}-${issue.owner}-${issue.repo}-${issue.number}`} className="lanes-card">
+          <div
+            key={`${issue.forge}-${issue.owner}-${issue.repo}-${issue.number}`}
+            className="lanes-card"
+          >
             <div className="lanes-card-head">
               <strong className="lanes-card-provider">#{issue.number}</strong>
               <span className="lanes-card-meta">
                 {issue.author ? `${issue.author} · ` : ""}
                 {issueAge(issue.updated_at)}
               </span>
-              <span className={`status-pill lanes-status-${issue.state === "open" || issue.state === "opened" ? "running" : "done"}`}>
+              <span
+                className={`status-pill lanes-status-${issue.state === "open" || issue.state === "opened" ? "running" : "done"}`}
+              >
                 {issue.state}
               </span>
               {ISSUE_KIND_LABEL[issue.kind] && (
@@ -303,7 +332,12 @@ export function IssuesPanel() {
               <div className="lanes-card-meta">{issue.labels.join(" · ")}</div>
             )}
             <div className="lanes-card-actions">
-              <a className="btn-ghost lanes-card-btn" href={issue.url} target="_blank" rel="noreferrer">
+              <a
+                className="btn-ghost lanes-card-btn"
+                href={issue.url}
+                target="_blank"
+                rel="noreferrer"
+              >
                 Open on {issue.forge} ↗
               </a>
               <button
@@ -329,17 +363,24 @@ export function IssuesPanel() {
                 </label>
                 <div className="lanes-label lanes-label-row">Provider</div>
                 <div className="lanes-chip-row">
-                  {providersLoading && <span className="lanes-hint">Loading providers…</span>}
+                  {providersLoading && (
+                    <span className="lanes-hint">Loading providers…</span>
+                  )}
                   {!providersLoading && providers.length === 0 && (
                     <span className="lanes-hint">
-                      No providers available — connect a Cortex Gateway to run issue lanes.
+                      No providers available — connect a Cortex Gateway to run
+                      issue lanes.
                     </span>
                   )}
                   {providers.map((p) => (
                     <button
                       key={p}
                       onClick={() => setProvider(p)}
-                      className={provider === p ? "lanes-chip lanes-chip-on" : "lanes-chip"}
+                      className={
+                        provider === p
+                          ? "lanes-chip lanes-chip-on"
+                          : "lanes-chip"
+                      }
                     >
                       {p}
                     </button>
@@ -351,10 +392,14 @@ export function IssuesPanel() {
                     onClick={() => void dispatchIssue(issue)}
                     disabled={dispatching || !provider}
                   >
-                    {dispatching ? "Dispatching…" : `Run issue #${issue.number} in a lane`}
+                    {dispatching
+                      ? "Dispatching…"
+                      : `Run issue #${issue.number} in a lane`}
                   </button>
                 </div>
-                {dispatchError && <div className="lanes-error">{dispatchError}</div>}
+                {dispatchError && (
+                  <div className="lanes-error">{dispatchError}</div>
+                )}
               </div>
             )}
           </div>
@@ -362,7 +407,9 @@ export function IssuesPanel() {
       </div>
 
       <div className="lanes-list">
-        <div className="lanes-label lanes-label-row">Issue lanes (this session)</div>
+        <div className="lanes-label lanes-label-row">
+          Issue lanes (this session)
+        </div>
         {issueLanes.length === 0 && (
           <p className="lanes-hint">
             Lanes dispatched from an issue land here (and in the Lanes tab).
@@ -372,22 +419,35 @@ export function IssuesPanel() {
         )}
         {issueLanes.map(({ runId, issue }) => {
           const row = laneRows.get(runId);
-          const settled = row != null && row.status !== "running" && row.branch != null;
+          const settled =
+            row != null && row.status !== "running" && row.branch != null;
           return (
             <div key={runId} className="lanes-card">
               <div className="lanes-card-head">
-                <strong className="lanes-card-provider">{row?.provider ?? "lane"}</strong>
+                <strong className="lanes-card-provider">
+                  {row?.provider ?? "lane"}
+                </strong>
                 <span className="lanes-card-meta">
                   issue #{issue.number} · {issue.owner}/{issue.repo}
                 </span>
-                <span className={`status-pill lanes-status-${row?.status ?? "running"}`}>
+                <span
+                  className={`status-pill lanes-status-${row?.status ?? "running"}`}
+                >
                   {row?.status ?? "…"}
                 </span>
               </div>
               <div className="lanes-card-task">{issue.title}</div>
-              {row?.branch && <code className="lanes-card-branch">branch {row.branch}</code>}
+              {row?.branch && (
+                <code className="lanes-card-branch">branch {row.branch}</code>
+              )}
               {row?.detail && (
-                <div className={row.status === "error" ? "lanes-card-detail lanes-error" : "lanes-card-detail"}>
+                <div
+                  className={
+                    row.status === "error"
+                      ? "lanes-card-detail lanes-error"
+                      : "lanes-card-detail"
+                  }
+                >
                   {row.detail}
                 </div>
               )}
@@ -420,10 +480,15 @@ export function IssuesPanel() {
 
       {draft && (
         <div className="modal-backdrop" onClick={closeModal}>
-          <div className="modal lanes-review-modal" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal lanes-review-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h2>{draft.title}</h2>
             <div className="lanes-review-meta">
-              <code className="lanes-card-branch">head {draft.head_branch}</code>
+              <code className="lanes-card-branch">
+                head {draft.head_branch}
+              </code>
             </div>
             {prResult ? (
               <div className="lanes-review-note lanes-review-note-ok">
@@ -453,7 +518,11 @@ export function IssuesPanel() {
                 {prResult ? "Close" : "Cancel (no writes)"}
               </button>
               {!prResult && (
-                <button className="btn-primary" onClick={() => void approve()} disabled={approving}>
+                <button
+                  className="btn-primary"
+                  onClick={() => void approve()}
+                  disabled={approving}
+                >
                   {approving ? "Opening PR…" : "Approve & open PR"}
                 </button>
               )}

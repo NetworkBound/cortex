@@ -262,11 +262,7 @@ mod tests {
         ))
         .unwrap();
         assert!(path.ends_with("hooks.json"));
-        let res = tauri::async_runtime::block_on(read_config_file(
-            target,
-            Some(project),
-        ))
-        .unwrap();
+        let res = tauri::async_runtime::block_on(read_config_file(target, Some(project))).unwrap();
         assert!(res.exists);
         assert_eq!(res.body, body);
         assert!(!res.read_only);
@@ -306,11 +302,9 @@ mod tests {
         ))
         .unwrap();
         assert!(path.ends_with("danger.toml"));
-        let res = tauri::async_runtime::block_on(read_config_file(
-            target.clone(),
-            Some(project.clone()),
-        ))
-        .unwrap();
+        let res =
+            tauri::async_runtime::block_on(read_config_file(target.clone(), Some(project.clone())))
+                .unwrap();
         assert!(res.exists);
         assert_eq!(res.body, body);
         assert!(!res.read_only);
@@ -332,11 +326,7 @@ mod tests {
             scope: ConfigScope::Project,
             rel_path: "absent.json".into(),
         };
-        let res = tauri::async_runtime::block_on(read_config_file(
-            target,
-            Some(project),
-        ))
-        .unwrap();
+        let res = tauri::async_runtime::block_on(read_config_file(target, Some(project))).unwrap();
         assert!(!res.exists);
         assert_eq!(res.body, "");
     }

@@ -14,10 +14,28 @@ static SECRET_RE: Lazy<Regex> = Lazy::new(|| {
 /// on substrings so e.g. `api_key`, `auth_token`, `user_email` are caught.
 fn is_sensitive_key(key: &str) -> bool {
     const NEEDLES: &[&str] = &[
-        "message", "content", "prompt", "body", "args", "result", "password",
-        "passwd", "secret", "token", "api_key", "apikey", "authorization",
-        "auth", "credential", "private_key", "session", "cookie", "ssn",
-        "email", "phone", "address",
+        "message",
+        "content",
+        "prompt",
+        "body",
+        "args",
+        "result",
+        "password",
+        "passwd",
+        "secret",
+        "token",
+        "api_key",
+        "apikey",
+        "authorization",
+        "auth",
+        "credential",
+        "private_key",
+        "session",
+        "cookie",
+        "ssn",
+        "email",
+        "phone",
+        "address",
     ];
     NEEDLES.iter().any(|needle| key.contains(needle))
 }

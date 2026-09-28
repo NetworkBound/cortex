@@ -59,8 +59,7 @@ pub async fn generate_tests(
         return Err(format!("not a file: {path}"));
     }
 
-    let raw = fs::read_to_string(&p)
-        .map_err(|e| format!("read {} failed: {e}", p.display()))?;
+    let raw = fs::read_to_string(&p).map_err(|e| format!("read {} failed: {e}", p.display()))?;
 
     let language = detect_language(&p);
     let resolved_fn = function_name
@@ -94,8 +93,14 @@ pub async fn generate_tests(
     let req = ChatCompletionRequest {
         model: cfg.gateway_model.clone(),
         messages: vec![
-            ChatMessage { role: "system".into(), content: system_prompt },
-            ChatMessage { role: "user".into(), content: user_prompt },
+            ChatMessage {
+                role: "system".into(),
+                content: system_prompt,
+            },
+            ChatMessage {
+                role: "user".into(),
+                content: user_prompt,
+            },
         ],
         stream: true,
         temperature: Some(0.2),
@@ -197,7 +202,9 @@ fn resolve_framework(
     }
     match language {
         "Rust" => Ok("cargo".into()),
-        "TypeScript" | "JavaScript" => Ok(detect_node_framework(file_path).unwrap_or("vitest".into())),
+        "TypeScript" | "JavaScript" => {
+            Ok(detect_node_framework(file_path).unwrap_or("vitest".into()))
+        }
         "Python" => Ok("pytest".into()),
         _ => Err(format!("framework not supported for {language}")),
     }
@@ -276,7 +283,11 @@ fn suggest_test_path(file_path: &Path, language: &str, framework: &str) -> PathB
         }
         "TypeScript" | "JavaScript" => {
             let ext = if matches!(framework, "jest" | "vitest" | "mocha") {
-                if matches!(language, "TypeScript") { "ts" } else { "js" }
+                if matches!(language, "TypeScript") {
+                    "ts"
+                } else {
+                    "js"
+                }
             } else {
                 "ts"
             };
@@ -313,10 +324,12 @@ fn suggest_test_path(file_path: &Path, language: &str, framework: &str) -> PathB
 fn extract_function(source: &str, language: &str, name: &str) -> Option<String> {
     match language {
         "Rust" => extract_braced(source, &format!("fn {name}"), '{', '}'),
-        "TypeScript" | "JavaScript" => extract_braced(source, &format!("function {name}"), '{', '}')
-            .or_else(|| extract_braced(source, &format!("const {name}"), '{', '}'))
-            .or_else(|| extract_braced(source, &format!("export function {name}"), '{', '}'))
-            .or_else(|| extract_braced(source, &format!("{name} ="), '{', '}')),
+        "TypeScript" | "JavaScript" => {
+            extract_braced(source, &format!("function {name}"), '{', '}')
+                .or_else(|| extract_braced(source, &format!("const {name}"), '{', '}'))
+                .or_else(|| extract_braced(source, &format!("export function {name}"), '{', '}'))
+                .or_else(|| extract_braced(source, &format!("{name} ="), '{', '}'))
+        }
         "Python" => extract_python_def(source, name),
         _ => None,
     }
@@ -331,9 +344,7 @@ fn find_at_word_boundary(source: &str, needle: &str) -> Option<usize> {
     let mut from = 0;
     while let Some(rel) = source[from..].find(needle) {
         let start = from + rel;
-        let next = source[start + needle.len()..]
-            .chars()
-            .next();
+        let next = source[start + needle.len()..].chars().next();
         match next {
             Some(c) if c.is_alphanumeric() || c == '_' => {
                 // False match inside a longer identifier; keep looking.
@@ -520,10 +531,7 @@ mod tests {
     fn suggest_path_rust_with_src() {
         let p = Path::new("/repo/mycrate/src/lib.rs");
         let out = suggest_test_path(p, "Rust", "cargo");
-        assert_eq!(
-            out,
-            PathBuf::from("/repo/mycrate/tests/lib_gen_test.rs")
-        );
+        assert_eq!(out, PathBuf::from("/repo/mycrate/tests/lib_gen_test.rs"));
     }
 
     #[test]

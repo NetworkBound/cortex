@@ -119,7 +119,11 @@ export function ArenaPane() {
     }
     const text = prompt.trim();
     if (!text) {
-      pushToast({ title: "Empty prompt", body: "Type something to send.", kind: "warning" });
+      pushToast({
+        title: "Empty prompt",
+        body: "Type something to send.",
+        kind: "warning",
+      });
       return;
     }
     setSending(true);
@@ -150,68 +154,83 @@ export function ArenaPane() {
 
   async function handleVote(winner: string) {
     if (!run) return;
-    const losers = run.models.filter((m) => m.model !== winner && !m.error).map((m) => m.model);
+    const losers = run.models
+      .filter((m) => m.model !== winner && !m.error)
+      .map((m) => m.model);
     try {
       const update = await arenaVote(run.run_id, winner, losers);
       setLeaderboard(update.ratings);
       setVoted(true);
-      pushToast({ title: "Vote recorded", body: `${winner} wins this round.`, kind: "success" });
+      pushToast({
+        title: "Vote recorded",
+        body: `${winner} wins this round.`,
+        kind: "success",
+      });
     } catch (e) {
-      pushToast({ title: "Vote failed", body: humanizeError(e), kind: "error" });
+      pushToast({
+        title: "Vote failed",
+        body: humanizeError(e),
+        kind: "error",
+      });
     }
   }
 
   function handleSkipVote() {
     setVoted(true);
-    pushToast({ title: "Vote skipped", body: "No ELO update applied.", kind: "info" });
+    pushToast({
+      title: "Vote skipped",
+      body: "No ELO update applied.",
+      kind: "info",
+    });
   }
 
   return (
     <div className="arena-pane">
       <div className="arena-layout">
         <div className="arena-main">
-        {error && <div className="arena-error">{error}</div>}
-        {!modelsLoading && availableModels.length === 0 && !error ? (
-          <ArenaNoModels
-            singleModel={false}
-            onCookbook={() => setActivityTab("cookbook")}
-            onSettings={() => setShowSettings(true)}
+          {error && <div className="arena-error">{error}</div>}
+          {!modelsLoading && availableModels.length === 0 && !error ? (
+            <ArenaNoModels
+              singleModel={false}
+              onCookbook={() => setActivityTab("cookbook")}
+              onSettings={() => setShowSettings(true)}
+            />
+          ) : !modelsLoading && availableModels.length === 1 ? (
+            <ArenaNoModels
+              singleModel
+              onCookbook={() => setActivityTab("cookbook")}
+              onSettings={() => setShowSettings(true)}
+            />
+          ) : null}
+          <ModelPicker
+            available={availableModels}
+            selected={selected}
+            onToggle={toggleModel}
+            loading={modelsLoading}
           />
-        ) : !modelsLoading && availableModels.length === 1 ? (
-          <ArenaNoModels
-            singleModel
-            onCookbook={() => setActivityTab("cookbook")}
-            onSettings={() => setShowSettings(true)}
-          />
-        ) : null}
-        <ModelPicker
-          available={availableModels}
-          selected={selected}
-          onToggle={toggleModel}
-          loading={modelsLoading}
-        />
-        <PromptBar
-          prompt={prompt}
-          onChange={setPrompt}
-          onSend={handleSend}
-          sending={sending}
-          canSend={selected.length >= MIN_MODELS}
-        />
-        {run && (
-          <ArenaGrid
-            run={run}
+          <PromptBar
+            prompt={prompt}
+            onChange={setPrompt}
+            onSend={handleSend}
             sending={sending}
-            allFinished={allFinished}
-            voted={voted}
-            onVote={handleVote}
-            onSkip={handleSkipVote}
+            canSend={selected.length >= MIN_MODELS}
           />
-        )}
-        {!run && !sending && !error && availableModels.length > 0 && (
-          <div className="arena-empty muted">
-            Pick {MIN_MODELS}-{MAX_MODELS} models, type a prompt, and hit Compare to start a duel.
-          </div>
-        )}
+          {run && (
+            <ArenaGrid
+              run={run}
+              sending={sending}
+              allFinished={allFinished}
+              voted={voted}
+              onVote={handleVote}
+              onSkip={handleSkipVote}
+            />
+          )}
+          {!run && !sending && !error && availableModels.length > 0 && (
+            <div className="arena-empty muted">
+              Pick {MIN_MODELS}-{MAX_MODELS} models, type a prompt, and hit
+              Compare to start a duel.
+            </div>
+          )}
         </div>
         <Leaderboard ratings={leaderboard} />
       </div>
@@ -244,11 +263,19 @@ function ArenaNoModels({
         </span>
       </div>
       <div className="arena-gateway-actions">
-        <button type="button" className="arena-gateway-btn" onClick={onCookbook}>
+        <button
+          type="button"
+          className="arena-gateway-btn"
+          onClick={onCookbook}
+        >
           <Download size={13} strokeWidth={1.9} aria-hidden="true" />
           Cookbook
         </button>
-        <button type="button" className="arena-gateway-btn" onClick={onSettings}>
+        <button
+          type="button"
+          className="arena-gateway-btn"
+          onClick={onSettings}
+        >
           <Settings size={13} strokeWidth={1.9} aria-hidden="true" />
           Settings
         </button>
@@ -272,7 +299,8 @@ function ModelPicker({
     // Only advertise "loading" while the fetch is genuinely in flight — once it
     // settles (success-but-empty or a surfaced load error) drop the spinner copy
     // so it never stacks under the error box.
-    if (loading) return <div className="arena-picker muted">Loading models…</div>;
+    if (loading)
+      return <div className="arena-picker muted">Loading models…</div>;
     return null;
   }
   return (
@@ -363,7 +391,10 @@ function ArenaGrid({
   const cols = Math.min(n, 4);
   return (
     <div className="arena-grid-wrap">
-      <div className="arena-grid" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+      <div
+        className="arena-grid"
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      >
         {run.models.map((turn) => (
           <ArenaColumn
             key={turn.model}
@@ -403,7 +434,10 @@ function ArenaColumn({
       <div className="arena-col-head">
         <strong className="arena-col-model">{turn.model}</strong>
         {turn.adapter && (
-          <span className="arena-col-adapter" title={`served by ${turn.adapter}`}>
+          <span
+            className="arena-col-adapter"
+            title={`served by ${turn.adapter}`}
+          >
             {adapterLabel(turn.adapter)}
           </span>
         )}
@@ -439,7 +473,9 @@ function Leaderboard({ ratings }: { ratings: ModelRating[] }) {
         <Trophy size={13} strokeWidth={1.75} aria-hidden="true" /> Leaderboard
       </div>
       {ratings.length === 0 ? (
-        <div className="muted" style={{ padding: 8 }}>No votes yet.</div>
+        <div className="muted" style={{ padding: 8 }}>
+          No votes yet.
+        </div>
       ) : (
         <table className="arena-leaderboard-table">
           <thead>
@@ -454,7 +490,9 @@ function Leaderboard({ ratings }: { ratings: ModelRating[] }) {
             {ratings.map((r, i) => (
               <tr key={r.model}>
                 <td className="muted">{i + 1}</td>
-                <td className="arena-lb-model" title={r.model}>{r.model}</td>
+                <td className="arena-lb-model" title={r.model}>
+                  {r.model}
+                </td>
                 <td>{Math.round(r.rating)}</td>
                 <td className="muted">{formatRecord(r)}</td>
               </tr>

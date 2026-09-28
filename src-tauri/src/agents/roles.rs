@@ -83,7 +83,9 @@ fn parse_role(raw: &str, fallback_name: &str) -> anyhow::Result<Role> {
 /// List every role under `~/.cortex/roles/*.yaml`, sorted by name. Malformed
 /// files are skipped (with a debug log) — one bad file shouldn't hide the rest.
 pub fn list_roles() -> Vec<Role> {
-    let Some(dir) = roles_dir() else { return Vec::new() };
+    let Some(dir) = roles_dir() else {
+        return Vec::new();
+    };
     let read = match fs::read_dir(&dir) {
         Ok(r) => r,
         Err(e) => {
@@ -208,7 +210,11 @@ fn default_roles() -> Vec<Role> {
         Role {
             name: "code-reviewer".into(),
             description: Some("Reviews PRs for security, style, correctness".into()),
-            tools: Some(vec!["read_file".into(), "ripgrep".into(), "git_diff".into()]),
+            tools: Some(vec![
+                "read_file".into(),
+                "ripgrep".into(),
+                "git_diff".into(),
+            ]),
             model: Some("claude-opus-4-7".into()),
             system_prompt: Some(
                 "You are a senior code reviewer. Focus on:\n\
@@ -242,7 +248,11 @@ fn default_roles() -> Vec<Role> {
         Role {
             name: "security-auditor".into(),
             description: Some("Hunts for injection, auth, and secret-leak bugs".into()),
-            tools: Some(vec!["read_file".into(), "ripgrep".into(), "git_diff".into()]),
+            tools: Some(vec![
+                "read_file".into(),
+                "ripgrep".into(),
+                "git_diff".into(),
+            ]),
             model: Some("claude-opus-4-7".into()),
             system_prompt: Some(
                 "You audit for security issues. Look hard for:\n\

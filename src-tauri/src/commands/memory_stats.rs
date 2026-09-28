@@ -60,7 +60,9 @@ pub async fn sync_memory() -> Result<SyncReport, String> {
     // Reuse the existing import command so we don't drift from its dedupe
     // behaviour. `import_claude_mem` is async and returns its own Result.
     match import_claude_mem().await {
-        Ok(ImportSummary { imported, skipped, .. }) => Ok(SyncReport {
+        Ok(ImportSummary {
+            imported, skipped, ..
+        }) => Ok(SyncReport {
             imported,
             skipped,
             errors: Vec::new(),
@@ -104,13 +106,21 @@ fn stats_for_source(src: &MemorySource) -> SourceStats {
     let mut newest: Option<i64> = None;
 
     for path in &files {
-        let Ok(meta) = fs::metadata(path) else { continue };
+        let Ok(meta) = fs::metadata(path) else {
+            continue;
+        };
         total_bytes = total_bytes.saturating_add(meta.len());
         if let Ok(modified) = meta.modified() {
             if let Ok(dur) = modified.duration_since(UNIX_EPOCH) {
                 let ms = dur.as_millis() as i64;
-                oldest = Some(match oldest { Some(o) => o.min(ms), None => ms });
-                newest = Some(match newest { Some(n) => n.max(ms), None => ms });
+                oldest = Some(match oldest {
+                    Some(o) => o.min(ms),
+                    None => ms,
+                });
+                newest = Some(match newest {
+                    Some(n) => n.max(ms),
+                    None => ms,
+                });
             }
         }
     }
@@ -127,10 +137,18 @@ fn stats_for_source(src: &MemorySource) -> SourceStats {
 }
 
 fn chroma_state() -> ChromaState {
-    let Some(home) = dirs::home_dir() else { return ChromaState::default() };
-    let path: &Path = &home.join(".claude-mem").join("chroma").join("chroma.sqlite3");
+    let Some(home) = dirs::home_dir() else {
+        return ChromaState::default();
+    };
+    let path: &Path = &home
+        .join(".claude-mem")
+        .join("chroma")
+        .join("chroma.sqlite3");
     match fs::metadata(path) {
-        Ok(meta) if meta.is_file() => ChromaState { exists: true, bytes: meta.len() },
+        Ok(meta) if meta.is_file() => ChromaState {
+            exists: true,
+            bytes: meta.len(),
+        },
         _ => ChromaState::default(),
     }
 }

@@ -110,11 +110,7 @@ export function DedupePanel({ onClose }: DedupePanelProps) {
               disabled={busy}
             />
           </label>
-          <button
-            className="dedupe-primary"
-            onClick={onScan}
-            disabled={busy}
-          >
+          <button className="dedupe-primary" onClick={onScan} disabled={busy}>
             {busy ? "Scanning…" : "Scan"}
           </button>
         </div>
@@ -130,7 +126,10 @@ export function DedupePanel({ onClose }: DedupePanelProps) {
         {pairs && pairs.length > 0 && (
           <ul className="dedupe-list">
             {pairs.map((pair, idx) => (
-              <li key={`${pair.file_a}-${pair.file_b}-${idx}`} className="dedupe-pair">
+              <li
+                key={`${pair.file_a}-${pair.file_b}-${idx}`}
+                className="dedupe-pair"
+              >
                 <div className="dedupe-pair-head">
                   <span className="dedupe-score">
                     {(pair.similarity * 100).toFixed(0)}%
@@ -171,7 +170,11 @@ export function DedupePanel({ onClose }: DedupePanelProps) {
         )}
 
         <footer className="dedupe-footer">
-          <button className="dedupe-secondary" onClick={onClose} disabled={busy}>
+          <button
+            className="dedupe-secondary"
+            onClick={onClose}
+            disabled={busy}
+          >
             Close
           </button>
         </footer>

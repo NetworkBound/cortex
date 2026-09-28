@@ -122,13 +122,12 @@ impl AgentAdapter for AnthropicDirectAgent {
         Self::api_key().is_some()
     }
 
-    async fn run(
-        &self,
-        req: ChatRequest,
-        tx: mpsc::Sender<AgentEvent>,
-    ) -> anyhow::Result<()> {
+    async fn run(&self, req: ChatRequest, tx: mpsc::Sender<AgentEvent>) -> anyhow::Result<()> {
         let _ = tx
-            .send(AgentEvent::Started { agent_id: AGENT_ID.into(), run_id: None })
+            .send(AgentEvent::Started {
+                agent_id: AGENT_ID.into(),
+                run_id: None,
+            })
             .await;
 
         let Some(api_key) = Self::api_key() else {
@@ -139,7 +138,12 @@ impl AgentAdapter for AnthropicDirectAgent {
                             .into(),
                 })
                 .await;
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             return Ok(());
         };
 
@@ -188,7 +192,12 @@ impl AgentAdapter for AnthropicDirectAgent {
                         message: format!("anthropic request failed: {e} (check your network)"),
                     })
                     .await;
-                let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+                let _ = tx
+                    .send(AgentEvent::Done {
+                        total_tokens: None,
+                        run_id: None,
+                    })
+                    .await;
                 return Ok(());
             }
         };
@@ -209,7 +218,12 @@ impl AgentAdapter for AnthropicDirectAgent {
                     message: format!("anthropic returned {status}: {detail}{hint}"),
                 })
                 .await;
-            let _ = tx.send(AgentEvent::Done { total_tokens: None, run_id: None }).await;
+            let _ = tx
+                .send(AgentEvent::Done {
+                    total_tokens: None,
+                    run_id: None,
+                })
+                .await;
             return Ok(());
         }
 
@@ -221,7 +235,9 @@ impl AgentAdapter for AnthropicDirectAgent {
                 Ok(e) => e,
                 Err(e) => {
                     let _ = tx
-                        .send(AgentEvent::Error { message: format!("anthropic stream error: {e}") })
+                        .send(AgentEvent::Error {
+                            message: format!("anthropic stream error: {e}"),
+                        })
                         .await;
                     break;
                 }
@@ -238,7 +254,12 @@ impl AgentAdapter for AnthropicDirectAgent {
             }
         }
 
-        let _ = tx.send(AgentEvent::Done { total_tokens, run_id: None }).await;
+        let _ = tx
+            .send(AgentEvent::Done {
+                total_tokens,
+                run_id: None,
+            })
+            .await;
         Ok(())
     }
 }
@@ -302,20 +323,21 @@ mod tests {
     fn parses_text_delta() {
         let data =
             r#"{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hi"}}"#;
-        assert_eq!(parse_anthropic_event(data), Some((Some("Hi".to_string()), None)));
+        assert_eq!(
+            parse_anthropic_event(data),
+            Some((Some("Hi".to_string()), None))
+        );
     }
 
     #[test]
     fn ignores_non_text_block_delta() {
-        let data =
-            r#"{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{"}}"#;
+        let data = r#"{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{"}}"#;
         assert_eq!(parse_anthropic_event(data), None);
     }
 
     #[test]
     fn reads_output_tokens_from_message_delta() {
-        let data =
-            r#"{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":42}}"#;
+        let data = r#"{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":42}}"#;
         assert_eq!(parse_anthropic_event(data), Some((None, Some(42))));
     }
 
@@ -347,7 +369,11 @@ mod tests {
     }
 
     fn turn(role: &str, content: &str) -> ChatTurn {
-        ChatTurn { role: role.into(), content: content.into(), agent: None }
+        ChatTurn {
+            role: role.into(),
+            content: content.into(),
+            agent: None,
+        }
     }
 
     #[test]

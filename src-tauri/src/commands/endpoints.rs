@@ -28,7 +28,11 @@ fn normalize_base_url(raw: &str) -> Result<String, String> {
         return Err("endpoint URL is missing a host".into());
     }
     // Ensure the OpenAI `/v1` segment is present (append if the user omitted it).
-    Ok(if t.contains("/v1") { t.to_string() } else { format!("{t}/v1") })
+    Ok(if t.contains("/v1") {
+        t.to_string()
+    } else {
+        format!("{t}/v1")
+    })
 }
 
 /// List all configured Model Fabric endpoints (keys are NOT included).
@@ -57,8 +61,12 @@ pub async fn save_endpoint(
     }
     let base_url = normalize_base_url(&base_url)?;
     // Prefer an explicit id (edit), else derive from the label (create).
-    let id = normalize_id(id.as_deref().filter(|s| !s.trim().is_empty()).unwrap_or(&label))
-        .ok_or_else(|| "could not derive a valid id from the label".to_string())?;
+    let id = normalize_id(
+        id.as_deref()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or(&label),
+    )
+    .ok_or_else(|| "could not derive a valid id from the label".to_string())?;
     let kind = match kind.as_deref() {
         Some("remote") => "remote",
         _ => "local",
@@ -66,7 +74,13 @@ pub async fn save_endpoint(
     .to_string();
     let enabled = enabled.unwrap_or(true);
 
-    let cfg = EndpointCfg { id: id.clone(), label, base_url, kind, enabled };
+    let cfg = EndpointCfg {
+        id: id.clone(),
+        label,
+        base_url,
+        kind,
+        enabled,
+    };
 
     // Persist config (upsert on id).
     let mut list = load_endpoints();
@@ -78,7 +92,10 @@ pub async fn save_endpoint(
     save_endpoints(&list).map_err(|e| e.to_string())?;
 
     // Store the key in the vault if provided (await OUTSIDE the registry guard).
-    if let Some(key) = api_key.map(|k| k.trim().to_string()).filter(|k| !k.is_empty()) {
+    if let Some(key) = api_key
+        .map(|k| k.trim().to_string())
+        .filter(|k| !k.is_empty())
+    {
         keyvault::vault_set(cfg.id.clone(), VAULT_KEY_LABEL.to_string(), key).await?;
     }
 
@@ -145,9 +162,18 @@ mod tests {
 
     #[test]
     fn normalize_base_url_requires_scheme_and_host_and_adds_v1() {
-        assert_eq!(normalize_base_url("http://192.168.1.5:8000").unwrap(), "http://192.168.1.5:8000/v1");
-        assert_eq!(normalize_base_url("http://host:8000/v1/").unwrap(), "http://host:8000/v1");
-        assert_eq!(normalize_base_url("https://api.example.com/v1").unwrap(), "https://api.example.com/v1");
+        assert_eq!(
+            normalize_base_url("http://192.168.1.5:8000").unwrap(),
+            "http://192.168.1.5:8000/v1"
+        );
+        assert_eq!(
+            normalize_base_url("http://host:8000/v1/").unwrap(),
+            "http://host:8000/v1"
+        );
+        assert_eq!(
+            normalize_base_url("https://api.example.com/v1").unwrap(),
+            "https://api.example.com/v1"
+        );
         assert!(normalize_base_url("ftp://x").is_err());
         assert!(normalize_base_url("http://").is_err());
         assert!(normalize_base_url("not a url").is_err());

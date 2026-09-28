@@ -185,7 +185,10 @@ export async function deleteTeam(id: string): Promise<void> {
 export { timeAgo } from "@/lib/time";
 
 /** Short truncate for the per-card task line — keeps cards uniform height. */
-export function truncateTask(task: string | null | undefined, max = 90): string {
+export function truncateTask(
+  task: string | null | undefined,
+  max = 90,
+): string {
   if (!task) return "—";
   const t = task.trim();
   if (t.length <= max) return t;
@@ -227,6 +230,11 @@ export function budgetStatus(
 ): BudgetStatus | null {
   if (budget == null) return null;
   const projected = spent ?? 0;
-  const ratio = budget > 0 ? Math.min(1, Math.max(0, projected / budget)) : projected > 0 ? 1 : 0;
+  const ratio =
+    budget > 0
+      ? Math.min(1, Math.max(0, projected / budget))
+      : projected > 0
+        ? 1
+        : 0;
   return { budget, projected, ratio, over: projected > budget };
 }

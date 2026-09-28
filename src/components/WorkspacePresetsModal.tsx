@@ -110,7 +110,9 @@ export function WorkspacePresetsModal({ onClose }: WorkspacePresetsModalProps) {
           ? `applied: ${report.applied.join(", ")}`
           : "nothing applied";
       const skippedSummary =
-        report.skipped.length > 0 ? ` · skipped: ${report.skipped.join(", ")}` : "";
+        report.skipped.length > 0
+          ? ` · skipped: ${report.skipped.join(", ")}`
+          : "";
       pushToast({
         title: `Preset '${preset.name}' applied`,
         body: `${appliedSummary}${skippedSummary}`,
@@ -123,34 +125,40 @@ export function WorkspacePresetsModal({ onClose }: WorkspacePresetsModalProps) {
     }
   }, []);
 
-  const onDelete = useCallback(async (preset: WorkspacePreset) => {
-    if (
-      !(await confirmDialog({
-        title: "Delete preset?",
-        message: `'${preset.name}' will be deleted.`,
-        confirmLabel: "Delete",
-        danger: true,
-      }))
-    )
-      return;
-    setBusyName(preset.name);
-    setError(null);
-    try {
-      const ok = await deleteWorkspacePreset(preset.name);
-      if (!ok) {
-        setError(`Delete of '${preset.name}' failed.`);
+  const onDelete = useCallback(
+    async (preset: WorkspacePreset) => {
+      if (
+        !(await confirmDialog({
+          title: "Delete preset?",
+          message: `'${preset.name}' will be deleted.`,
+          confirmLabel: "Delete",
+          danger: true,
+        }))
+      )
         return;
+      setBusyName(preset.name);
+      setError(null);
+      try {
+        const ok = await deleteWorkspacePreset(preset.name);
+        if (!ok) {
+          setError(`Delete of '${preset.name}' failed.`);
+          return;
+        }
+        pushToast({ title: "Preset deleted", body: preset.name, kind: "info" });
+        await refresh();
+      } catch (e) {
+        setError(humanizeError(e));
+      } finally {
+        setBusyName(null);
       }
-      pushToast({ title: "Preset deleted", body: preset.name, kind: "info" });
-      await refresh();
-    } catch (e) {
-      setError(humanizeError(e));
-    } finally {
-      setBusyName(null);
-    }
-  }, [refresh]);
+    },
+    [refresh],
+  );
 
-  const empty = useMemo(() => presets !== null && presets.length === 0, [presets]);
+  const empty = useMemo(
+    () => presets !== null && presets.length === 0,
+    [presets],
+  );
 
   return (
     <div className="wsp-backdrop" onMouseDown={onClose}>
@@ -190,8 +198,8 @@ export function WorkspacePresetsModal({ onClose }: WorkspacePresetsModalProps) {
 
         {empty && (
           <div className="wsp-empty">
-            No presets yet. Click <strong>Save current as preset</strong> to capture
-            the current layout.
+            No presets yet. Click <strong>Save current as preset</strong> to
+            capture the current layout.
           </div>
         )}
 
@@ -204,7 +212,9 @@ export function WorkspacePresetsModal({ onClose }: WorkspacePresetsModalProps) {
                   <div className="wsp-row-head">
                     <div className="wsp-row-title">
                       <strong>{p.name}</strong>
-                      <span className="wsp-row-age">{timeAgo(p.created_unix_ms, { coarse: true })}</span>
+                      <span className="wsp-row-age">
+                        {timeAgo(p.created_unix_ms, { coarse: true })}
+                      </span>
                     </div>
                     <div className="wsp-row-actions">
                       <button
@@ -231,7 +241,10 @@ export function WorkspacePresetsModal({ onClose }: WorkspacePresetsModalProps) {
                     <Badge label="mode" value={p.state.mode} />
                     <Badge label="sandbox" value={p.state.sandbox_tier} />
                     <Badge label="theme" value={p.state.theme} />
-                    <Badge label="model" value={p.state.gateway_model ?? p.state.hermes_model} />
+                    <Badge
+                      label="model"
+                      value={p.state.gateway_model ?? p.state.hermes_model}
+                    />
                     <Badge label="right" value={p.state.right_tab} />
                   </div>
                 </li>
@@ -241,7 +254,11 @@ export function WorkspacePresetsModal({ onClose }: WorkspacePresetsModalProps) {
         )}
 
         <footer className="wsp-footer">
-          <button className="wsp-secondary" onClick={onClose} disabled={busyName !== null}>
+          <button
+            className="wsp-secondary"
+            onClick={onClose}
+            disabled={busyName !== null}
+          >
             Close
           </button>
         </footer>

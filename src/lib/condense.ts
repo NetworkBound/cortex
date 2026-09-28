@@ -66,13 +66,19 @@ export interface PerformCondenseOptions {
  * Returns `true` when a condense ran, `false` when there was nothing to fold
  * (≤ `keepRecent` turns) — the caller decides whether to surface a skip.
  */
-export async function performCondense(opts: PerformCondenseOptions): Promise<boolean> {
+export async function performCondense(
+  opts: PerformCondenseOptions,
+): Promise<boolean> {
   const store = useCortexStore;
   const messages = store.getState().messages;
   const cutoff = messages.length - opts.keepRecent;
   if (cutoff <= 0) return false;
   const older = messages.slice(0, cutoff);
-  opts.notify("Condensing…", `Summarizing ${older.length} earlier turns.`, "info");
+  opts.notify(
+    "Condensing…",
+    `Summarizing ${older.length} earlier turns.`,
+    "info",
+  );
 
   let summary: Message;
   try {
@@ -88,7 +94,11 @@ export async function performCondense(opts: PerformCondenseOptions): Promise<boo
       content: `📚 **Condensed ${res.folded} earlier turns** (via ${res.model})\n\n${res.summary}`,
       tools: [],
     };
-    opts.notify("Conversation condensed", `${res.folded} turns folded into a summary.`, "success");
+    opts.notify(
+      "Conversation condensed",
+      `${res.folded} turns folded into a summary.`,
+      "success",
+    );
   } catch (e) {
     // Graceful degrade: the model was unavailable / timed out — keep the cheap
     // heuristic summary so a condense never loses the user their compaction.
