@@ -492,8 +492,7 @@ async fn llm_complete(
     }
 }
 
-fn gateway_cfg(app: &tauri::AppHandle) -> (String, String, String) {
-    let state = app.state::<AppState>();
+fn gateway_cfg(state: &AppState) -> (String, String, String) {
     let cfg = state.config.read();
     (
         cfg.gateway_base_url.clone(),
@@ -516,8 +515,7 @@ struct RunTarget {
 
 /// Pick the execution path for `target` from the live app state (gateway URL,
 /// registry descriptors). Surfaces [`NO_RUNNER_HINT`] when there is none.
-fn decide_dispatch(app: &tauri::AppHandle, target: &RunTarget) -> Result<Dispatch, String> {
-    let state = app.state::<AppState>();
+fn decide_dispatch(state: &AppState, target: &RunTarget) -> Result<Dispatch, String> {
     let gateway_configured = !state.config.read().gateway_base_url.trim().is_empty();
     let local = pick_local_agent(&state.registry.read().list_descriptors());
     choose_dispatch(
@@ -538,7 +536,8 @@ fn trace_session_id(routine_id: &str) -> String {
 /// bookkeeping `chat.rs`/`issues.rs` do, so the run shows up in Run Replay
 /// and the token/reliability dashboards. Recording is best-effort.
 async fn local_complete(
-    app: &tauri::AppHandle,
+    state: &AppState,
+    store: &TracingStore,
     agent: &str,
     target: &RunTarget,
     routine_id: &str,
@@ -559,7 +558,7 @@ async fn local_complete(
 
     // Registry id first; anything else is treated as a model slug and routed
     // exactly like the composer's model picker would route it.
-    let registry = app.state::<AppState>().registry.clone();
+    let registry = state.registry.clone();
     let by_id = registry.read().get(agent).map(|a| (a, agent.to_string()));
     let (adapter, agent_id, model) = match by_id {
         Some((a, id)) => (a, id, None),
@@ -574,7 +573,6 @@ async fn local_complete(
         target.name, target.prompt
     );
 
-    let store = app.state::<TracingStore>();
     let session_id = trace_session_id(routine_id);
     let reason = format!("routine `{}` ({})", target.name, agent);
     let _ = store.record_chat_turn(
@@ -620,8 +618,13 @@ async fn local_complete(
 /// That way a concurrent edit or delete during the (multi-second) run isn't
 /// clobbered. Both the read and the write sections take `STORE_LOCK`; neither
 /// spans the `.await`.
-async fn run_and_record(
-    app: &tauri::AppHandle,
+///
+/// Takes the app state + trace store directly (no Tauri handle) so the
+/// mobile server's `POST /api/v2/routines/:id/run` and the headless
+/// `cortex-serve` binary run routines through this exact path.
+pub async fn run_and_record(
+    state: &AppState,
+    store: &TracingStore,
     id: &str,
     trigger: &str,
 ) -> Result<(RoutineSpec, RoutineRun), String> {
@@ -647,13 +650,15 @@ async fn run_and_record(
         .flatten()
     {
         Some(fake) => fake,
-        None => match decide_dispatch(app, &target) {
+        None => match decide_dispatch(state, &target) {
             Err(e) => Err(e),
-            Ok(Dispatch::Local(agent)) => local_complete(app, &agent, &target, id, &run_id)
-                .await
-                .map(|(text, _agent_id)| text),
+            Ok(Dispatch::Local(agent)) => {
+                local_complete(state, store, &agent, &target, id, &run_id)
+                    .await
+                    .map(|(text, _agent_id)| text)
+            }
             Ok(Dispatch::Gateway) => {
-                let (base, key, model) = gateway_cfg(app);
+                let (base, key, model) = gateway_cfg(state);
                 llm_complete(
                     &base,
                     &key,
@@ -679,8 +684,8 @@ async fn run_and_record(
     };
 
     let _g = store_guard();
-    let mut store = load_store();
-    let r = store
+    let mut routines = load_store();
+    let r = routines
         .routines
         .iter_mut()
         .find(|r| r.id == id)
@@ -702,7 +707,7 @@ async fn run_and_record(
         }
     }
     let mut updated = r.clone();
-    save_store(&store)?;
+    save_store(&routines)?;
     updated.next_run_unix_ms = next_run_ms(&updated, now);
 
     // History is best-effort relative to the spec update: a failed log write
@@ -719,14 +724,27 @@ async fn run_and_record(
 /// outcome out — `routines:ran` (legacy panel refresh), `routines:run-recorded`
 /// (full record; feeds the NotificationCenter from any tab), and an OS desktop
 /// notification when a scheduled run fails (see [`should_desktop_notify`]).
-async fn execute_routine(
+pub async fn execute_routine(
     app: &tauri::AppHandle,
     id: &str,
     trigger: &str,
 ) -> Result<RoutineSpec, String> {
-    let (spec, run) = run_and_record(app, id, trigger).await?;
+    let (state, store) = {
+        let state = app.state::<AppState>().inner().clone();
+        let store = app.state::<TracingStore>().inner().clone();
+        (state, store)
+    };
+    let (spec, run) = run_and_record(&state, &store, id, trigger).await?;
     let _ = app.emit("routines:ran", &id);
     let _ = app.emit("routines:run-recorded", &run);
+    notify_run_outcome(&run);
+    Ok(spec)
+}
+
+/// Desktop + phone-push notifications for a finished run. Split from
+/// [`execute_routine`] so a run triggered without a Tauri handle (mobile API,
+/// headless) reports failures the same way.
+pub fn notify_run_outcome(run: &RoutineRun) {
     if should_desktop_notify(&run.status, &run.trigger) {
         // Best-effort: a missing notification daemon must not fail the run.
         let _ = crate::commands::notify::fire(
@@ -740,7 +758,6 @@ async fn execute_routine(
             &run.error,
         );
     }
-    Ok(spec)
 }
 
 /// Background scheduler — spawned once at app setup. Ticks every 30s and runs

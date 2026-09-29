@@ -1,4 +1,5 @@
 import type { CapacitorConfig } from "@capacitor/cli";
+import { KeyboardResize } from "@capacitor/keyboard";
 
 // Cortex native shell. The web app is the mobile SPA in ../ (Vite → ../dist);
 // this package only wraps it. Native projects (android/, ios/) are generated in
@@ -38,7 +39,7 @@ const config: CapacitorConfig = {
     Keyboard: {
       // Resize the WebView itself (not just the body) so the composer stays
       // above the keyboard on iOS; Android handles this via adjustResize.
-      resize: "native",
+      resize: KeyboardResize.Native,
       resizeOnFullScreen: true,
     },
     StatusBar: {

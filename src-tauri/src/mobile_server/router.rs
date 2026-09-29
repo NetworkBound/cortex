@@ -1,7 +1,8 @@
 //! axum `Router` for the mobile server. Mirrors [`crate::agui::server::router`]:
 //! typed routes with `.with_state(...)`, a CORS layer, plus the mobile-specific
 //! WebSocket route, identity middleware, response compression, and a single SPA
-//! fallback (`ServeDir` + `ServeFile`).
+//! fallback (`ServeDir` + `ServeFile`). The contract's `/api/v2/*` surface is
+//! nested from [`super::v2`] with its own bearer gate.
 
 use std::path::PathBuf;
 
@@ -15,13 +16,17 @@ use tower_http::{
     services::{ServeDir, ServeFile},
 };
 
-use super::{handlers, mcp, state::MobileState, ws};
+use super::{handlers, mcp, state::MobileState, v2, ws};
 
 /// Origins permitted cross-origin access to the mobile API. Any real website is
 /// rejected by the browser's CORS check (blocking drive-by exfiltration). The
 /// bundled SPA is served same-origin so it needs no entry. Mirrors
 /// `agui::server::allowed_origins`. Non-browser clients (native app, CLI) aren't
 /// subject to CORS at all; the loopback bind remains the primary defense.
+///
+/// `capacitor://localhost` (iOS) and `https://localhost` (Android) are the
+/// Capacitor shell origins of the native mobile app; they can only do anything
+/// with a paired device's bearer token.
 pub(super) const MOBILE_ALLOWED_ORIGINS: &[&str] = &[
     "tauri://localhost",
     "https://tauri.localhost",
@@ -29,6 +34,8 @@ pub(super) const MOBILE_ALLOWED_ORIGINS: &[&str] = &[
     "http://127.0.0.1:1420",
     "http://localhost:8788",
     "http://127.0.0.1:8788",
+    "capacitor://localhost",
+    "https://localhost",
 ];
 
 fn mobile_allowed_origins() -> Vec<axum::http::HeaderValue> {
@@ -88,6 +95,8 @@ pub fn build_router(state: MobileState) -> Router {
         .route("/api/approvals/:id", post(handlers::resolve_approval))
         .route("/api/import/file", post(handlers::import_file))
         .route("/api/import/pull", post(handlers::import_pull))
+        // The mobile contract surface (bearer-gated for non-local peers).
+        .nest("/api/v2", v2::routes())
         // MCP Streamable HTTP endpoint for external agents. Does its own
         // bearer-token + Origin gating (see `mcp.rs`); 404 while disabled.
         .route("/mcp", post(mcp::handle))

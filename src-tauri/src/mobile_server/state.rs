@@ -7,7 +7,10 @@ use serde::Serialize;
 use tokio::sync::broadcast;
 
 use crate::app_state::AppState;
+use crate::commands::chat::ChatSink;
 use crate::observability::tracing_store::TracingStore;
+
+use super::events::V2Hub;
 
 /// Capacity of the broadcast channel that fans streaming events out to every
 /// connected WebSocket. Generous because a single chat run produces token
@@ -111,16 +114,28 @@ pub struct MobileState {
     /// Pending approvals keyed by approval id, populated as chat runs surface
     /// `ApprovalRequest`s and drained when resolved.
     pub approvals: Arc<Mutex<Vec<PendingApproval>>>,
+    /// The v2 (contract) event hub: live runs, approvals, WS frames.
+    pub v2: Arc<V2Hub>,
+    /// The desktop app handle when the server runs inside the Tauri app
+    /// (`None` under headless `cortex-serve`). Lets phone-originated chat
+    /// runs also stream into the desktop UI, and phone-triggered routine runs
+    /// fire the desktop's panel refresh + notifications.
+    pub desktop: Option<tauri::AppHandle>,
 }
 
 impl MobileState {
     pub fn new(app: AppState, store: TracingStore) -> Self {
         let (events, _rx) = broadcast::channel(BROADCAST_CAPACITY);
+        super::threads::ensure_schema(&store);
+        let v2 = V2Hub::new(store.clone());
+        v2.install_tap();
         Self {
             app,
             store,
             events,
             approvals: Arc::new(Mutex::new(Vec::new())),
+            v2,
+            desktop: super::desktop_handle(),
         }
     }
 
@@ -129,5 +144,16 @@ impl MobileState {
     /// client is still valid (the client may connect mid-run).
     pub fn publish(&self, ev: MobileEvent) {
         let _ = self.events.send(ev);
+    }
+
+    /// Where a chat run started from the mobile API sends its events: the
+    /// desktop window when there is one (its `try_state` store is the same
+    /// store), else headless with our store. Either way the run reaches the
+    /// v2 hub through the global tap.
+    pub fn chat_sink(&self) -> ChatSink {
+        match &self.desktop {
+            Some(app) => ChatSink::tauri(app.clone()),
+            None => ChatSink::headless(self.store.clone()),
+        }
     }
 }

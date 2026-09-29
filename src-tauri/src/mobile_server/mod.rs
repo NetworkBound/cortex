@@ -24,7 +24,10 @@
 //!
 //! # Security model
 //!
-//! The server performs no real authentication itself. It is meant to sit behind
+//! The `/api/v2/*` contract surface and `/ws` are gated by a bearer token
+//! for every non-local peer (paired phones — see `pairing.rs`); loopback,
+//! unforwarded callers stay open. The legacy `/api/*` routes below perform
+//! no authentication themselves. It is meant to sit behind
 //! `tailscale serve`, which terminates TLS and injects a `Tailscale-User-Login`
 //! header identifying the authenticated tailnet user. The [`auth`] middleware
 //! reads that header and attaches it as the request identity when present, but
@@ -47,19 +50,28 @@
 //! - `POST /api/ultimate`           → run the ultimate agent; streams over `/ws`
 //! - `GET  /api/approvals`          → pending approvals
 //! - `POST /api/approvals/{id}`     → resolve an approval
+//! - `/api/v2/*`                    → the mobile contract (threads, runs, projects,
+//!                                   routines, models, settings, push; `v2.rs`)
 //! - `GET  /ws`                     → WebSocket fan-out of streaming events
 //! - `POST /mcp`                    → MCP server (bearer-token gated, off by default; `mcp.rs`)
 //! - everything else                → the mobile SPA (`ServeDir` + SPA fallback)
 
 pub mod auth;
+pub mod events;
 pub mod mcp;
+pub mod pairing;
 pub mod state;
+pub mod threads;
+pub mod v2;
+pub mod webpush;
 pub mod ws;
 
 mod handlers;
 mod router;
 
 use std::net::SocketAddr;
+
+use once_cell::sync::OnceCell;
 
 use crate::app_state::AppState;
 use crate::observability::tracing_store::TracingStore;
@@ -70,6 +82,22 @@ pub use state::{MobileEvent, MobileState};
 /// Default loopback port for the mobile server. Overridable via
 /// `CORTEX_MOBILE_PORT`.
 pub const DEFAULT_PORT: u16 = 8788;
+
+/// The desktop app handle, when this server runs inside the Tauri app. Set
+/// from `lib.rs` before [`spawn`]; never set under headless `cortex-serve`.
+static DESKTOP: OnceCell<tauri::AppHandle> = OnceCell::new();
+
+/// Register the desktop app handle (first call wins). Lets phone-originated
+/// chat runs stream into the desktop UI too, and phone-triggered routine runs
+/// go through the desktop's notify path.
+pub fn set_desktop_handle(app: tauri::AppHandle) {
+    let _ = DESKTOP.set(app);
+}
+
+/// The registered desktop handle, if any.
+pub fn desktop_handle() -> Option<tauri::AppHandle> {
+    DESKTOP.get().cloned()
+}
 
 /// Resolve the bind address: `127.0.0.1:<CORTEX_MOBILE_PORT|8788>`.
 pub fn resolve_bind() -> SocketAddr {
@@ -96,7 +124,14 @@ pub async fn spawn(app: AppState, store: TracingStore) -> anyhow::Result<SocketA
     let bound = listener.local_addr().unwrap_or(addr);
 
     tokio::spawn(async move {
-        if let Err(e) = axum::serve(listener, router.into_make_service()).await {
+        // `with_connect_info` so the v2 bearer gate can tell loopback peers
+        // from tailnet/LAN ones (see `pairing::is_local_peer`).
+        if let Err(e) = axum::serve(
+            listener,
+            router.into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await
+        {
             tracing::error!(error = %e, "mobile server exited with error");
         }
     });
@@ -117,6 +152,10 @@ pub async fn serve_blocking(app: AppState, store: TracingStore) -> anyhow::Resul
     let bound = listener.local_addr().unwrap_or(addr);
     tracing::info!(addr = %bound, "mobile server (headless) listening");
 
-    axum::serve(listener, router.into_make_service()).await?;
+    axum::serve(
+        listener,
+        router.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
     Ok(())
 }
