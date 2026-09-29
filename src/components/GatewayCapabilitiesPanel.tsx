@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { humanizeError } from "@/lib/errors";
+import { visibleInterval } from "@/lib/scheduling";
 import { timeAgo } from "@/lib/time";
 import { PanelLoading } from "./Skeleton";
 import {
@@ -42,10 +43,10 @@ export function GatewayCapabilitiesPanel() {
       }
     })();
     void tick();
-    const id = setInterval(tick, REFRESH_MS);
+    const stop = visibleInterval(tick, REFRESH_MS);
     return () => {
       mounted = false;
-      clearInterval(id);
+      stop();
     };
   }, []);
 

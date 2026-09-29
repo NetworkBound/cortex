@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { confirmDialog } from "@/lib/dialogs";
 import { humanizeError } from "@/lib/errors";
+import { visibleInterval } from "@/lib/scheduling";
 import { pushToast } from "@/lib/toast";
 import { useCortexStore } from "@/state/store";
 import { PanelLoading } from "./Skeleton";
@@ -86,7 +87,7 @@ export function OrchestratorView() {
     // 5s auto-refresh — cheap (single JSON read per team file). Stops when the
     // component unmounts so we don't pin a background tick after the user
     // closes the orchestrator tab.
-    const id = setInterval(() => {
+    const stop = visibleInterval(() => {
       void refresh();
     }, 5000);
     // The team runner emits `teams:updated` after every persisted transition
@@ -96,7 +97,7 @@ export function OrchestratorView() {
       void refresh();
     });
     return () => {
-      clearInterval(id);
+      stop();
       void unlisten.then((off) => off());
     };
   }, [refresh]);

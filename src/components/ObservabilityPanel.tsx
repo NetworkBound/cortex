@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { visibleInterval } from "@/lib/scheduling";
 import {
   recentTraces,
   homelabHealth,
@@ -51,10 +52,10 @@ export function ObservabilityPanel() {
       }
     };
     void tick();
-    const id = setInterval(tick, 5_000);
+    const stop = visibleInterval(tick, 5_000);
     return () => {
       mounted = false;
-      clearInterval(id);
+      stop();
     };
   }, []);
 

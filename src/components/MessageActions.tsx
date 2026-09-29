@@ -22,7 +22,9 @@ export interface MessageActionsProps {
  * visibility is driven entirely by CSS (`.msg:hover .message-actions`).
  */
 export function MessageActions({ message, onRegenerate }: MessageActionsProps) {
-  const messages = useCortexStore((s) => s.messages);
+  // The transcript is read on demand inside the handlers via `getState()`.
+  // Subscribing to `s.messages` here would re-render every row's toolbar on
+  // each streamed token and defeat the memo on ChatPane's MessageView.
   const activeProject = useCortexStore((s) => s.activeProject);
   const sessionId = useCortexStore((s) => s.sessionId);
   const resumeSession = useCortexStore((s) => s.resumeSession);
@@ -43,6 +45,7 @@ export function MessageActions({ message, onRegenerate }: MessageActionsProps) {
 
   const handleRegenerate = () => {
     if (message.role !== "assistant") return;
+    const messages = useCortexStore.getState().messages;
     const idx = messages.findIndex((m) => m.id === message.id);
     if (idx < 0) return;
     // Walk back to the nearest user message preceding this assistant turn.
@@ -67,6 +70,7 @@ export function MessageActions({ message, onRegenerate }: MessageActionsProps) {
   };
 
   const handleBranch = async () => {
+    const messages = useCortexStore.getState().messages;
     const idx = messages.findIndex((m) => m.id === message.id);
     if (idx < 0) return;
     const slice = messages

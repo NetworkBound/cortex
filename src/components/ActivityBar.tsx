@@ -7,7 +7,7 @@ import {
 } from "@/lib/activity-icons";
 import { ACTIVITY_RAIL, type ActivityTabMeta } from "@/lib/activity-tabs";
 import { Chevron } from "@/lib/chevron";
-import { archTab, useArchTabOpen } from "./ArchitectureView";
+import { archTab, useArchTabOpen } from "@/lib/arch-tab";
 import { SidebarResizer } from "./SidebarResizer";
 import "../styles/activity-bar.css";
 

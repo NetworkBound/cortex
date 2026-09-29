@@ -19,6 +19,7 @@ import {
 
 import { useCortexStore, type FocusChainTask } from "@/state/store";
 import { humanizeError } from "@/lib/errors";
+import { visibleInterval } from "@/lib/scheduling";
 import { truncate } from "@/lib/format";
 import { pushToast } from "@/lib/toast";
 import {
@@ -108,10 +109,10 @@ export function TodayDashboard() {
       setAllDown(results.every((r) => r.status === "rejected"));
     };
     void tick();
-    const id = setInterval(tick, 30_000);
+    const stop = visibleInterval(tick, 30_000);
     return () => {
       mounted = false;
-      clearInterval(id);
+      stop();
     };
   }, [activeProject]);
 

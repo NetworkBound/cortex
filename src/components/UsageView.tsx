@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { TriangleAlert } from "lucide-react";
 import { PanelLoading } from "./Skeleton";
 import { humanizeError } from "@/lib/errors";
+import { visibleInterval } from "@/lib/scheduling";
 import { timeAgo } from "@/lib/time";
 import {
   gatewayStatus,
@@ -44,10 +45,10 @@ export function UsageView() {
       }
     };
     void tick();
-    const id = setInterval(tick, 8_000);
+    const stop = visibleInterval(tick, 8_000);
     return () => {
       mounted = false;
-      clearInterval(id);
+      stop();
     };
   }, []);
 
@@ -65,10 +66,10 @@ export function UsageView() {
       }
     };
     void tick();
-    const id = setInterval(tick, 60_000);
+    const stop = visibleInterval(tick, 60_000);
     return () => {
       mounted = false;
-      clearInterval(id);
+      stop();
     };
   }, []);
 

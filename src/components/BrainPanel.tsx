@@ -10,6 +10,7 @@ import {
   type StaleNote,
 } from "@/lib/brain";
 import { timeAgo } from "@/lib/time";
+import { visibleInterval } from "@/lib/scheduling";
 import { openProjectByPath } from "@/lib/open-project";
 import { pushToast } from "@/lib/toast";
 import { humanizeError } from "@/lib/errors";
@@ -88,10 +89,10 @@ export function BrainPanel() {
       }
     };
     void tick();
-    const id = setInterval(tick, 8_000);
+    const stop = visibleInterval(tick, 8_000);
     return () => {
       mounted = false;
-      clearInterval(id);
+      stop();
     };
   }, []);
 

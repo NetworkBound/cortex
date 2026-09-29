@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, RefreshCw, SquarePen } from "lucide-react";
 import { checkAgentHealth, listAgents } from "@/lib/cortex-bridge";
 import { humanizeError } from "@/lib/errors";
+import { visibleInterval } from "@/lib/scheduling";
 import { useCortexStore } from "@/state/store";
 import { AgentInstructionsEditor } from "./AgentInstructionsEditor";
 import { RolesPanel } from "./RolesPanel";
@@ -96,10 +97,10 @@ export function AgentSidebar() {
   useEffect(() => {
     mountedRef.current = true;
     void refresh();
-    const t = setInterval(() => void refresh(), 30_000);
+    const stop = visibleInterval(() => void refresh(), 30_000);
     return () => {
       mountedRef.current = false;
-      clearInterval(t);
+      stop();
     };
   }, [refresh]);
 

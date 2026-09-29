@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { confirmDialog } from "@/lib/dialogs";
 import { humanizeError } from "@/lib/errors";
+import { visibleInterval } from "@/lib/scheduling";
 import { useCortexStore } from "@/state/store";
 import {
   gitCommit,
@@ -65,8 +66,7 @@ export function SourceControlPanel() {
     void refresh();
     setSelected(null); // switching projects invalidates any open diff
     if (!root) return;
-    const id = setInterval(refresh, 5_000);
-    return () => clearInterval(id);
+    return visibleInterval(refresh, 5_000);
   }, [refresh, root]);
 
   // If the inspected file leaves its section (staged, discarded, committed…),

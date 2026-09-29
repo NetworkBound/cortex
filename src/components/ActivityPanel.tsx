@@ -1,48 +1,11 @@
 import { AgentSidebar } from "./AgentSidebar";
 import { PanelLoading } from "./Skeleton";
-import { ArchitectureView, archTab, useArchTabOpen } from "./ArchitectureView";
-import { ArenaPane } from "./ArenaPane";
-import { BookmarksPanel } from "./BookmarksPanel";
-import { BrainPanel } from "./BrainPanel";
-import { ChannelsPanel } from "./ChannelsPanel";
-import { CheckpointsView } from "./CheckpointsView";
-import { CookbookPanel } from "./CookbookPanel";
-import { DepGraphPanel } from "./DepGraphPanel";
-import { EvalPanel } from "./EvalPanel";
-import { FocusChain } from "./FocusChain";
-import { GitHistoryPanel } from "./GitHistoryPanel";
-import { HelpPanel } from "./HelpPanel";
-import { GatewayCapabilitiesPanel } from "./GatewayCapabilitiesPanel";
-import { IssuesPanel } from "./IssuesPanel";
-import { KnowledgeGraph } from "./KnowledgeGraph";
-import { VaultManager } from "./VaultManager";
-import { MemoryExplorer } from "./MemoryExplorer";
-import { MultiProviderPane } from "./MultiProviderPane";
-import { ObservabilityPanel } from "./ObservabilityPanel";
-import { OrchestratorView } from "./OrchestratorView";
-import { UltimateChat } from "./UltimateChat";
-import { PRPPanel } from "./PRPPanel";
-import { ProjectGraph } from "./ProjectGraph";
-import { ProjectMetricsPanel } from "./ProjectMetricsPanel";
+import { archTab, useArchTabOpen } from "@/lib/arch-tab";
 import { ProjectSidebar } from "./ProjectSidebar";
-import { ResearchPanel } from "./ResearchPanel";
-import { RoutinesPanel } from "./RoutinesPanel";
-import { SearchPanel } from "./SearchPanel";
-import { SetupPanel } from "./SetupPanel";
-import { SkillsPanel } from "./SkillsPanel";
-import { SnippetsPanel } from "./SnippetsPanel";
-import { WorkflowsPanel } from "./WorkflowsPanel";
-import { SourceControlPanel } from "./SourceControlPanel";
-import { TerminalPane } from "./TerminalPane";
-import { ThreadsList } from "./ThreadsList";
-import { TodayDashboard } from "./TodayDashboard";
-import { ToolsRegistryPanel } from "./ToolsRegistryPanel";
-import { TrustMatrix } from "./TrustMatrix";
-import { UsageView } from "./UsageView";
-import { WebPreviewPane } from "./WebPreviewPane";
 import { useCortexStore } from "@/state/store";
 import { ActivityIcon, ARCHITECTURE_ICON } from "@/lib/activity-icons";
 import { tabTitle } from "@/lib/activity-tabs";
+import { visibleInterval } from "@/lib/scheduling";
 import { timeAgo } from "@/lib/time";
 import {
   brainSnapshot,
@@ -65,15 +28,147 @@ import {
 } from "react";
 import type { ActivityTab, Message } from "@/state/store";
 
-// Code-split the two CodeMirror-backed panels out of the main bundle. They're
-// the heaviest static dependency (the editor view/search/lang stack) yet are
-// only mounted when their tab is active, so the editor chunk need only load on
-// first open. Named exports, so map them to a default for React.lazy.
+// Every panel below is code-split out of the startup bundle. None of them is
+// on screen at first paint (the panel column starts closed, and "projects"
+// renders the always-mounted ProjectSidebar), so each chunk loads on the
+// first visit of its tab. Named exports, so map them to a default for
+// React.lazy. The two CodeMirror-backed panels and the xterm-backed terminal
+// are the heaviest; the rest are split so ~45k lines of panel code stop
+// being parsed before the shell can paint.
+const ArchitectureView = lazy(() =>
+  import("./ArchitectureView").then((m) => ({ default: m.ArchitectureView })),
+);
+const ArenaPane = lazy(() =>
+  import("./ArenaPane").then((m) => ({ default: m.ArenaPane })),
+);
+const BookmarksPanel = lazy(() =>
+  import("./BookmarksPanel").then((m) => ({ default: m.BookmarksPanel })),
+);
+const BrainPanel = lazy(() =>
+  import("./BrainPanel").then((m) => ({ default: m.BrainPanel })),
+);
+const ChannelsPanel = lazy(() =>
+  import("./ChannelsPanel").then((m) => ({ default: m.ChannelsPanel })),
+);
+const CheckpointsView = lazy(() =>
+  import("./CheckpointsView").then((m) => ({ default: m.CheckpointsView })),
+);
+const CookbookPanel = lazy(() =>
+  import("./CookbookPanel").then((m) => ({ default: m.CookbookPanel })),
+);
+const DepGraphPanel = lazy(() =>
+  import("./DepGraphPanel").then((m) => ({ default: m.DepGraphPanel })),
+);
 const EditorPane = lazy(() =>
   import("./EditorPane").then((m) => ({ default: m.EditorPane })),
 );
+const EvalPanel = lazy(() =>
+  import("./EvalPanel").then((m) => ({ default: m.EvalPanel })),
+);
+const FocusChain = lazy(() =>
+  import("./FocusChain").then((m) => ({ default: m.FocusChain })),
+);
+const GatewayCapabilitiesPanel = lazy(() =>
+  import("./GatewayCapabilitiesPanel").then((m) => ({
+    default: m.GatewayCapabilitiesPanel,
+  })),
+);
+const GitHistoryPanel = lazy(() =>
+  import("./GitHistoryPanel").then((m) => ({ default: m.GitHistoryPanel })),
+);
+const HelpPanel = lazy(() =>
+  import("./HelpPanel").then((m) => ({ default: m.HelpPanel })),
+);
+const IssuesPanel = lazy(() =>
+  import("./IssuesPanel").then((m) => ({ default: m.IssuesPanel })),
+);
+const KnowledgeGraph = lazy(() =>
+  import("./KnowledgeGraph").then((m) => ({ default: m.KnowledgeGraph })),
+);
+const MemoryExplorer = lazy(() =>
+  import("./MemoryExplorer").then((m) => ({ default: m.MemoryExplorer })),
+);
 const MultiBuffer = lazy(() =>
   import("./MultiBuffer").then((m) => ({ default: m.MultiBuffer })),
+);
+const MultiProviderPane = lazy(() =>
+  import("./MultiProviderPane").then((m) => ({
+    default: m.MultiProviderPane,
+  })),
+);
+const ObservabilityPanel = lazy(() =>
+  import("./ObservabilityPanel").then((m) => ({
+    default: m.ObservabilityPanel,
+  })),
+);
+const OrchestratorView = lazy(() =>
+  import("./OrchestratorView").then((m) => ({ default: m.OrchestratorView })),
+);
+const PRPPanel = lazy(() =>
+  import("./PRPPanel").then((m) => ({ default: m.PRPPanel })),
+);
+const ProjectGraph = lazy(() =>
+  import("./ProjectGraph").then((m) => ({ default: m.ProjectGraph })),
+);
+const ProjectMetricsPanel = lazy(() =>
+  import("./ProjectMetricsPanel").then((m) => ({
+    default: m.ProjectMetricsPanel,
+  })),
+);
+const ResearchPanel = lazy(() =>
+  import("./ResearchPanel").then((m) => ({ default: m.ResearchPanel })),
+);
+const RoutinesPanel = lazy(() =>
+  import("./RoutinesPanel").then((m) => ({ default: m.RoutinesPanel })),
+);
+const SearchPanel = lazy(() =>
+  import("./SearchPanel").then((m) => ({ default: m.SearchPanel })),
+);
+const SetupPanel = lazy(() =>
+  import("./SetupPanel").then((m) => ({ default: m.SetupPanel })),
+);
+const SkillsPanel = lazy(() =>
+  import("./SkillsPanel").then((m) => ({ default: m.SkillsPanel })),
+);
+const SnippetsPanel = lazy(() =>
+  import("./SnippetsPanel").then((m) => ({ default: m.SnippetsPanel })),
+);
+const SourceControlPanel = lazy(() =>
+  import("./SourceControlPanel").then((m) => ({
+    default: m.SourceControlPanel,
+  })),
+);
+const TerminalPane = lazy(() =>
+  import("./TerminalPane").then((m) => ({ default: m.TerminalPane })),
+);
+const ThreadsList = lazy(() =>
+  import("./ThreadsList").then((m) => ({ default: m.ThreadsList })),
+);
+const TodayDashboard = lazy(() =>
+  import("./TodayDashboard").then((m) => ({ default: m.TodayDashboard })),
+);
+const ToolsRegistryPanel = lazy(() =>
+  import("./ToolsRegistryPanel").then((m) => ({
+    default: m.ToolsRegistryPanel,
+  })),
+);
+const TrustMatrix = lazy(() =>
+  import("./TrustMatrix").then((m) => ({ default: m.TrustMatrix })),
+);
+const UltimateChat = lazy(() =>
+  import("./UltimateChat").then((m) => ({ default: m.UltimateChat })),
+);
+const UsageView = lazy(() =>
+  import("./UsageView").then((m) => ({ default: m.UsageView })),
+);
+const VaultManager = lazy(() =>
+  import("./VaultManager").then((m) => ({ default: m.VaultManager })),
+);
+const WebPreviewPane = lazy(() =>
+  import("./WebPreviewPane").then((m) => ({ default: m.WebPreviewPane })),
+);
+const WorkflowsPanel = lazy(() =>
+  import("./WorkflowsPanel").then((m) => ({ default: m.WorkflowsPanel })),
 );
 
 // Tabs that hold live, unrecoverable work: an open PTY, unsaved CodeMirror
@@ -185,50 +280,57 @@ export function ActivityPanel() {
         )}
         {visited.has("terminal") && (
           <KeepAlive active={showTab === "terminal"}>
-            <TerminalPane />
+            <Suspense fallback={<PanelLoading />}>
+              <TerminalPane />
+            </Suspense>
           </KeepAlive>
         )}
-        {archOpen && <ArchitectureView />}
-        {showTab === "today" && <TodayDashboard />}
-        {showTab === "brain" && <BrainPanel />}
-        {showTab === "memory" && <MemoryExplorer />}
-        {showTab === "sessions" && <SessionsList />}
-        {showTab === "projects" && <ProjectSidebar />}
-        {showTab === "graph" && <ProjectGraph />}
-        {showTab === "agents" && <AgentSidebar />}
-        {showTab === "usage" && <UsageView />}
-        {showTab === "observability" && <ObservabilityPanel />}
-        {showTab === "checkpoints" && <CheckpointsView />}
-        {showTab === "threads" && <ThreadsList />}
-        {showTab === "focus" && <FocusChain />}
-        {showTab === "trust" && <TrustMatrix />}
-        {showTab === "skills" && <SkillsPanel />}
-        {showTab === "prp" && <PRPPanel />}
-        {showTab === "git" && <GitHistoryPanel />}
-        {showTab === "source-control" && <SourceControlPanel />}
-        {showTab === "preview" && <WebPreviewPane />}
-        {showTab === "orchestrator" && <OrchestratorView />}
-        {showTab === "ultimate" && <UltimateChat />}
-        {showTab === "tools" && <ToolsRegistryPanel />}
-        {showTab === "snippets" && <SnippetsPanel />}
-        {showTab === "workflows" && <WorkflowsPanel />}
-        {showTab === "help" && <HelpPanel />}
-        {showTab === "search" && <SearchPanel />}
-        {showTab === "gateway" && <GatewayCapabilitiesPanel />}
-        {showTab === "knowledge-graph" && <KnowledgeGraph />}
-        {showTab === "vault" && <VaultManager />}
-        {showTab === "dep-graph" && <DepGraphPanel />}
-        {showTab === "metrics" && <ProjectMetricsPanel />}
-        {showTab === "bookmarks" && <BookmarksPanel />}
-        {showTab === "arena" && <ArenaPane />}
-        {showTab === "channels" && <ChannelsPanel />}
-        {showTab === "lanes" && <MultiProviderPane />}
-        {showTab === "issues" && <IssuesPanel />}
-        {showTab === "cookbook" && <CookbookPanel />}
-        {showTab === "research" && <ResearchPanel />}
-        {showTab === "routines" && <RoutinesPanel />}
-        {showTab === "eval" && <EvalPanel />}
-        {showTab === "setup" && <SetupPanel />}
+        {/* Conditional-mount panels. One Suspense boundary is enough: only one
+            of these renders at a time, so the skeleton stands in for exactly
+            the panel being fetched and never hides a keep-alive pane above. */}
+        <Suspense fallback={<PanelLoading />}>
+          {archOpen && <ArchitectureView />}
+          {showTab === "today" && <TodayDashboard />}
+          {showTab === "brain" && <BrainPanel />}
+          {showTab === "memory" && <MemoryExplorer />}
+          {showTab === "sessions" && <SessionsList />}
+          {showTab === "projects" && <ProjectSidebar />}
+          {showTab === "graph" && <ProjectGraph />}
+          {showTab === "agents" && <AgentSidebar />}
+          {showTab === "usage" && <UsageView />}
+          {showTab === "observability" && <ObservabilityPanel />}
+          {showTab === "checkpoints" && <CheckpointsView />}
+          {showTab === "threads" && <ThreadsList />}
+          {showTab === "focus" && <FocusChain />}
+          {showTab === "trust" && <TrustMatrix />}
+          {showTab === "skills" && <SkillsPanel />}
+          {showTab === "prp" && <PRPPanel />}
+          {showTab === "git" && <GitHistoryPanel />}
+          {showTab === "source-control" && <SourceControlPanel />}
+          {showTab === "preview" && <WebPreviewPane />}
+          {showTab === "orchestrator" && <OrchestratorView />}
+          {showTab === "ultimate" && <UltimateChat />}
+          {showTab === "tools" && <ToolsRegistryPanel />}
+          {showTab === "snippets" && <SnippetsPanel />}
+          {showTab === "workflows" && <WorkflowsPanel />}
+          {showTab === "help" && <HelpPanel />}
+          {showTab === "search" && <SearchPanel />}
+          {showTab === "gateway" && <GatewayCapabilitiesPanel />}
+          {showTab === "knowledge-graph" && <KnowledgeGraph />}
+          {showTab === "vault" && <VaultManager />}
+          {showTab === "dep-graph" && <DepGraphPanel />}
+          {showTab === "metrics" && <ProjectMetricsPanel />}
+          {showTab === "bookmarks" && <BookmarksPanel />}
+          {showTab === "arena" && <ArenaPane />}
+          {showTab === "channels" && <ChannelsPanel />}
+          {showTab === "lanes" && <MultiProviderPane />}
+          {showTab === "issues" && <IssuesPanel />}
+          {showTab === "cookbook" && <CookbookPanel />}
+          {showTab === "research" && <ResearchPanel />}
+          {showTab === "routines" && <RoutinesPanel />}
+          {showTab === "eval" && <EvalPanel />}
+          {showTab === "setup" && <SetupPanel />}
+        </Suspense>
       </div>
     </div>
   );
@@ -282,10 +384,10 @@ function SessionsList() {
       }
     };
     void tick();
-    const id = setInterval(tick, 8_000);
+    const stop = visibleInterval(tick, 8_000);
     return () => {
       mounted = false;
-      clearInterval(id);
+      stop();
     };
   }, []);
 

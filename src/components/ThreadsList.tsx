@@ -55,7 +55,6 @@ function flushActiveThread(projectRoot: string) {
 export function ThreadsList() {
   const threads = useCortexStore((s) => s.threads);
   const activeThreadId = useCortexStore((s) => s.activeThreadId);
-  const messages = useCortexStore((s) => s.messages);
   const activeProject = useCortexStore((s) => s.activeProject);
   const setThreads = useCortexStore((s) => s.setThreads);
   const newThread = useCortexStore((s) => s.newThread);
@@ -113,9 +112,10 @@ export function ThreadsList() {
     };
     const id = setInterval(tick, AUTOSAVE_INTERVAL_MS);
     return () => clearInterval(id);
-    // `messages` is in the deps so the effect re-runs when the active thread
-    // streams, but the interval itself remains the rate-limiter.
-  }, [projectRoot, activeThreadId, messages]);
+    // `tick` reads the store directly, so the transcript is deliberately NOT a
+    // dep: re-arming the interval on every streamed token would postpone the
+    // save until the stream went quiet (and re-render this list per token).
+  }, [projectRoot, activeThreadId]);
 
   // Flush the active thread when the window goes away so the autosave
   // interval can't drop the final seconds of a conversation. Best-effort:

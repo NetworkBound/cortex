@@ -87,7 +87,6 @@ export function shouldAutoCondense(i: AutoCondenseInputs): boolean {
  * itself large — we only ever re-evaluate against genuinely new turns.
  */
 export function useAutoCondense(): void {
-  const messages = useCortexStore((s) => s.messages);
   const enabled = useCortexStore((s) => s.autoCondenseEnabled);
   const thresholdPct = useCortexStore((s) => s.autoCondenseThreshold);
   const model = useCortexStore((s) => s.selectedModel);
@@ -97,37 +96,51 @@ export function useAutoCondense(): void {
   // grow past this before considering another fold.
   const lastCountRef = useRef(0);
 
+  // The transcript changes on every streamed token. Watching it through a
+  // store selector here would re-render the component that mounts this hook
+  // (App — the root of the whole shell) once per token, so instead we observe
+  // the store directly and re-evaluate outside React's render cycle.
   useEffect(() => {
-    if (busyRef.current) return;
-    // Only re-evaluate once the conversation has grown since the last auto-fold
-    // (prevents re-folding the same summary + kept window in a loop).
-    if (messages.length <= lastCountRef.current) return;
+    // Disabled (the default) → don't even walk the transcript per token.
+    if (!enabled) return;
 
-    const limit = contextLimitForModel(model);
-    const tokens = estimateContextTokens(messages);
-    const decision = shouldAutoCondense({
-      enabled,
-      busy: false,
-      tokens,
-      limit,
-      thresholdPct,
-      messageCount: messages.length,
-      keepRecent: KEEP_RECENT,
-    });
-    if (!decision) return;
+    const evaluate = (messages: Message[]) => {
+      if (busyRef.current) return;
+      // Only re-evaluate once the conversation has grown since the last
+      // auto-fold (prevents re-folding the same summary + kept window in a loop).
+      if (messages.length <= lastCountRef.current) return;
 
-    busyRef.current = true;
-    void performCondense({
-      model,
-      keepRecent: KEEP_RECENT,
-      notify: (title, body, kind) => pushToast({ title, body, kind }),
-    })
-      .catch(() => {
-        // performCondense already degrades to the heuristic + toasts; swallow.
-      })
-      .finally(() => {
-        lastCountRef.current = useCortexStore.getState().messages.length;
-        busyRef.current = false;
+      const limit = contextLimitForModel(model);
+      const tokens = estimateContextTokens(messages);
+      const decision = shouldAutoCondense({
+        enabled,
+        busy: false,
+        tokens,
+        limit,
+        thresholdPct,
+        messageCount: messages.length,
+        keepRecent: KEEP_RECENT,
       });
-  }, [messages, enabled, thresholdPct, model]);
+      if (!decision) return;
+
+      busyRef.current = true;
+      void performCondense({
+        model,
+        keepRecent: KEEP_RECENT,
+        notify: (title, body, kind) => pushToast({ title, body, kind }),
+      })
+        .catch(() => {
+          // performCondense already degrades to the heuristic + toasts; swallow.
+        })
+        .finally(() => {
+          lastCountRef.current = useCortexStore.getState().messages.length;
+          busyRef.current = false;
+        });
+    };
+
+    evaluate(useCortexStore.getState().messages);
+    return useCortexStore.subscribe((state, prev) => {
+      if (state.messages !== prev.messages) evaluate(state.messages);
+    });
+  }, [enabled, thresholdPct, model]);
 }

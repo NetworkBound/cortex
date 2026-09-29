@@ -23,6 +23,7 @@ import {
 import { bootstrapProjectSession, loadSessionMessages } from "@/lib/sessions";
 import { PanelLoading } from "./Skeleton";
 import { setActiveProject } from "@/lib/projects";
+import { visibleInterval } from "@/lib/scheduling";
 import { openInEditor } from "@/lib/editor";
 import { truncate } from "@/lib/format";
 import { basename } from "@/lib/path";
@@ -270,10 +271,10 @@ export function ProjectGraph() {
       }
     };
     void tick();
-    const id = setInterval(tick, 30_000);
+    const stop = visibleInterval(tick, 30_000);
     return () => {
       mounted = false;
-      clearInterval(id);
+      stop();
     };
   }, []);
 

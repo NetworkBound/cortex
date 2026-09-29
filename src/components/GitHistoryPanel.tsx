@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { humanizeError } from "@/lib/errors";
+import { visibleInterval } from "@/lib/scheduling";
 import { useCortexStore } from "@/state/store";
 import {
   gitCommitFileDiff,
@@ -87,10 +88,10 @@ export function GitHistoryPanel() {
       }
     };
     void load();
-    const id = setInterval(load, 15_000);
+    const stop = visibleInterval(load, 15_000);
     return () => {
       cancelled = true;
-      clearInterval(id);
+      stop();
     };
   }, [root]);
 

@@ -11,6 +11,7 @@
  * pref keys are covered automatically with no whitelist to maintain.
  */
 import { invoke } from "@tauri-apps/api/core";
+import { runWhenIdle, visibleInterval } from "@/lib/scheduling";
 
 const PREFIX = "cortex.";
 
@@ -84,8 +85,12 @@ async function mirror(): Promise<void> {
  * tab-hide, and on unload. Returns a cleanup fn.
  */
 export function attachPrefMirror(): () => void {
-  void mirror();
-  const id = setInterval(() => void mirror(), 10_000);
+  // The boot mirror is a write of what `restorePrefsAtBoot` just read back;
+  // it can wait until the shell has painted. The 10s timer goes quiet while
+  // the window is hidden — the visibilitychange handler below already flushes
+  // on hide, so nothing is lost and a backgrounded app stops writing to disk.
+  const cancelFirst = runWhenIdle(() => void mirror(), 2_000);
+  const stop = visibleInterval(() => void mirror(), 10_000);
   const onVisibility = () => {
     if (document.visibilityState === "hidden") void mirror();
   };
@@ -93,7 +98,8 @@ export function attachPrefMirror(): () => void {
   document.addEventListener("visibilitychange", onVisibility);
   window.addEventListener("beforeunload", onUnload);
   return () => {
-    clearInterval(id);
+    cancelFirst();
+    stop();
     document.removeEventListener("visibilitychange", onVisibility);
     window.removeEventListener("beforeunload", onUnload);
   };

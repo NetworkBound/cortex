@@ -11,6 +11,7 @@ import {
 import { subscribeMonitorLines, type MonitorLinePayload } from "@/lib/monitors";
 import { truncate } from "@/lib/format";
 import { basename } from "@/lib/path";
+import { visibleInterval } from "@/lib/scheduling";
 import {
   subscribeRepoWatcher,
   type RepoWatcherEvent,
@@ -115,8 +116,8 @@ const state: {
   subscribers: number;
   /** Tauri event unsubscribers — populated on first activation. */
   unlisteners: UnlistenFn[];
-  /** Pull-refresh interval handle. */
-  pullTimer: number | null;
+  /** Stops the pull-refresh interval (see `visibleInterval`). */
+  pullTimer: (() => void) | null;
   /** Reactive listeners for `useNotifications`. */
   listeners: Set<Listener>;
 } = {
@@ -211,12 +212,12 @@ export function activateNotificationCenter(): () => void {
   if (state.subscribers === 1) {
     void startStreams();
     void pullAll();
-    state.pullTimer = window.setInterval(() => void pullAll(), REFRESH_MS);
+    state.pullTimer = visibleInterval(() => void pullAll(), REFRESH_MS);
   }
   return () => {
     state.subscribers = Math.max(0, state.subscribers - 1);
     if (state.subscribers === 0 && state.pullTimer !== null) {
-      window.clearInterval(state.pullTimer);
+      state.pullTimer();
       state.pullTimer = null;
     }
     // We intentionally keep the Tauri listeners + the in-memory log around

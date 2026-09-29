@@ -379,12 +379,19 @@ export async function loadAllThemes(): Promise<Theme[]> {
 }
 
 export async function getActiveThemeState(): Promise<ActiveThemeState> {
-  try {
-    return await invoke<ActiveThemeState>("get_active_theme");
-  } catch {
-    return { active: "", bg_image_path: null };
-  }
+  // Coalesce concurrent callers onto one IPC round trip — at boot both
+  // useThemeBoot and SurfaceLayer ask for this in the same frame. Only the
+  // in-flight promise is shared; once it settles the next call hits the
+  // backend again, so a theme change is never served stale.
+  if (activeThemeInFlight) return activeThemeInFlight;
+  activeThemeInFlight = invoke<ActiveThemeState>("get_active_theme")
+    .catch((): ActiveThemeState => ({ active: "", bg_image_path: null }))
+    .finally(() => {
+      activeThemeInFlight = null;
+    });
+  return activeThemeInFlight;
 }
+let activeThemeInFlight: Promise<ActiveThemeState> | null = null;
 
 export async function setActiveThemeName(
   name: string,

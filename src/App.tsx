@@ -1,26 +1,25 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { ActivityBar } from "./components/ActivityBar";
 import { AutoUpdater } from "./components/AutoUpdater";
 import { ActivityPanel } from "./components/ActivityPanel";
-import { useArchTabOpen } from "./components/ArchitectureView";
 import { TrustBanner } from "./components/TrustBanner";
-import { AgentSidebar } from "./components/AgentSidebar";
 import { ChatHistorySidebar } from "./components/ChatHistorySidebar";
 import { ChatPane } from "./components/ChatPane";
 import { CommandPalette } from "./components/CommandPalette";
 import { OnboardingTour } from "./components/OnboardingTour";
-import { OnboardingWizard } from "./components/OnboardingWizard";
 import { ProjectSidebar } from "./components/ProjectSidebar";
-import { SessionPicker } from "./components/SessionPicker";
 import { SidebarResizer } from "./components/SidebarResizer";
-import { SettingsModal } from "./components/SettingsModal";
 import { ShortcutsModal } from "./components/ShortcutsModal";
 import { SurfaceLayer } from "./components/SurfaceLayer";
+import { PanelLoading } from "./components/Skeleton";
 import { ToastRack } from "./components/ToastRack";
 import { DialogHost } from "./components/DialogHost";
-import { CheckpointReviewHost } from "./components/CheckpointReviewHost";
+import { preloadMarkdownView } from "./components/MarkdownView";
+import { useArchTabOpen } from "./lib/arch-tab";
+import { useCheckpointReviewStore } from "./lib/checkpoint-review";
 import { DEFAULT_KEYMAP, matchCombo } from "./lib/keymap";
 import { subscribeMonitorLines } from "./lib/monitors";
+import { runWhenIdle } from "./lib/scheduling";
 import { useThemeBoot } from "./lib/use-theme-boot";
 import { useE2EProbe } from "./lib/e2e-probe";
 import { useAutoCondense } from "./lib/auto-condense";
@@ -34,6 +33,59 @@ import { activateNotificationCenter } from "./lib/notification-center";
 import { initJobStore } from "./state/jobs";
 import { initRoutineNotifications } from "./lib/routines";
 
+// Off-first-paint surfaces, code-split out of the startup bundle. Each is
+// rendered through <MountOnceOpened>, which fetches the chunk the first time
+// its open flag flips on and then keeps the component mounted for the rest of
+// the session — exactly the lifetime it had when imported statically (all of
+// them render `null` while closed and keep their local state across
+// open/close), minus the parse cost at boot.
+const SettingsModal = lazy(() =>
+  import("./components/SettingsModal").then((m) => ({
+    default: m.SettingsModal,
+  })),
+);
+const SessionPicker = lazy(() =>
+  import("./components/SessionPicker").then((m) => ({
+    default: m.SessionPicker,
+  })),
+);
+const CheckpointReviewHost = lazy(() =>
+  import("./components/CheckpointReviewHost").then((m) => ({
+    default: m.CheckpointReviewHost,
+  })),
+);
+const OnboardingWizard = lazy(() =>
+  import("./components/OnboardingWizard").then((m) => ({
+    default: m.OnboardingWizard,
+  })),
+);
+const AgentSidebar = lazy(() =>
+  import("./components/AgentSidebar").then((m) => ({
+    default: m.AgentSidebar,
+  })),
+);
+
+/**
+ * Renders nothing until `open` is first true, then mounts `children` inside a
+ * Suspense boundary and never unmounts them again. Lazy modals get their chunk
+ * on first open while keeping the "always mounted, renders null when closed"
+ * behaviour they were written for (closed-state effects, retained local state).
+ */
+function MountOnceOpened({
+  open,
+  fallback = null,
+  children,
+}: {
+  open: boolean;
+  fallback?: ReactNode;
+  children: ReactNode;
+}) {
+  const [visited, setVisited] = useState(open);
+  if (open && !visited) setVisited(true);
+  if (!open && !visited) return null;
+  return <Suspense fallback={fallback}>{children}</Suspense>;
+}
+
 type RightTab = "agent" | "chats";
 
 export function App() {
@@ -46,6 +98,10 @@ export function App() {
   const activeProject = useCortexStore((s) => s.activeProject);
   const archOpen = useArchTabOpen();
   const setActivityTab = useCortexStore((s) => s.setActivityTab);
+  const showSettings = useCortexStore((s) => s.showSettings);
+  const showSessionPickerFlag = useCortexStore((s) => s.showSessionPicker);
+  const onboardingComplete = useCortexStore((s) => s.onboardingComplete);
+  const checkpointReviewOpen = useCheckpointReviewStore((s) => !!s.active);
   const [rightTab, setRightTab] = useState<RightTab>("chats");
   const [showShortcuts, setShowShortcuts] = useState(false);
 
@@ -236,9 +292,25 @@ export function App() {
       void stopRepoWatcher(root).catch(() => {});
     };
   }, [activeProject]);
-  useEffect(() => activateNotificationCenter(), []);
-  useEffect(() => initJobStore(), []);
-  useEffect(() => initRoutineNotifications(), []);
+  // Non-critical boot work — notification streams + inbox pulls, in-flight
+  // job adoption, routine toasts — runs once the browser is idle after the
+  // first frames have painted. Nothing here is visible on the initial screen,
+  // and each pull is a backend round trip we'd otherwise pay before paint.
+  useEffect(() => {
+    let deactivate: (() => void) | undefined;
+    const cancel = runWhenIdle(() => {
+      deactivate = activateNotificationCenter();
+      initJobStore();
+      initRoutineNotifications();
+    }, 1_500);
+    return () => {
+      cancel();
+      deactivate?.();
+    };
+  }, []);
+  // Warm the markdown renderer chunk (react-markdown + highlight.js) right
+  // after first paint so it's resident before the first message renders.
+  useEffect(() => runWhenIdle(() => void preloadMarkdownView(), 300), []);
 
   return (
     <div className="cortex-shell">
@@ -276,23 +348,42 @@ export function App() {
             </div>
             <div className="right-tab-body">
               {rightTab === "chats" && <ChatHistorySidebar />}
-              {rightTab === "agent" && <AgentSidebar />}
+              {rightTab === "agent" && (
+                <Suspense fallback={<PanelLoading />}>
+                  <AgentSidebar />
+                </Suspense>
+              )}
             </div>
           </div>
         </div>
       </SurfaceLayer>
-      <SettingsModal />
+      <MountOnceOpened open={showSettings}>
+        <SettingsModal />
+      </MountOnceOpened>
       <ShortcutsModal
         open={showShortcuts}
         onClose={() => setShowShortcuts(false)}
       />
-      <SessionPicker />
+      <MountOnceOpened open={showSessionPickerFlag}>
+        <SessionPicker />
+      </MountOnceOpened>
       <CommandPalette />
       <ToastRack />
       <DialogHost />
-      <CheckpointReviewHost />
+      <MountOnceOpened open={checkpointReviewOpen}>
+        <CheckpointReviewHost />
+      </MountOnceOpened>
       <AutoUpdater />
-      <OnboardingWizard />
+      {/* First-run only: the wizard's backdrop stands in while its chunk loads
+          so a fresh install never sees the bare shell flash underneath. */}
+      <MountOnceOpened
+        open={!onboardingComplete}
+        fallback={
+          <div className="modal-backdrop onboarding-wizard" aria-busy="true" />
+        }
+      >
+        <OnboardingWizard />
+      </MountOnceOpened>
       <OnboardingGate />
     </div>
   );
