@@ -1,78 +1,59 @@
-# Cortex Mobile
+# Cortex mobile client
 
-A Claude-app-like mobile web client for Cortex. Mobile-first, installable PWA,
-dark amber-on-black theme matching the desktop app.
+The phone client for Cortex: a React + Vite single-page app served by the
+desktop's embedded server (`src-tauri/src/mobile_server`) and wrapped by the
+Capacitor shell in `native/` for the Android APK and iOS builds. Architecture,
+pairing, install and push are documented in [docs/MOBILE.md](../docs/MOBILE.md).
 
-## How it's served
+## Layout
 
-This is its **own** pnpm package (not linked to the repo root). The Cortex
-embedded server (`src-tauri/src/mobile_server/`) serves the built SPA from
-`mobile/dist` **at the same origin as the API**. So:
-
-- All fetches are **relative** (`/api/...`).
-- The WebSocket is `new WebSocket(\`ws(s)://\${location.host}/ws\`)`.
-
-Because the SPA and API share an origin, there is no CORS/base-URL config in
-production — `vite.config.ts` sets `base: './'` so the built asset URLs are
-relative and survive being served from any mount point.
-
-> **A build step is required before serving.** The server resolves `mobile/dist`
-> at runtime (`router.rs::mobile_dist_dir`, overridable via `CORTEX_MOBILE_DIST`).
-> `dist` is gitignored — run `pnpm build` (in release/CI) before the server can
-> serve the app. If `dist` is missing, the API and WS keep working; only the
-> static SPA 404s.
+```
+src/
+  main.tsx, App.tsx        boot → pair | unreachable | ready; tabs; push prompt
+  lib/api.ts               every /api/v2 endpoint with legacy /api/* fallbacks
+  lib/ws.ts                one WebSocket: auth, subscribe, backoff, resync
+  lib/store.tsx            connection state, capabilities, project, theme, badge
+  lib/nav.ts               hash router (#/chats, #/threads/:id, #/inbox, …)
+  lib/push.ts              service worker + VAPID subscription
+  lib/session.ts           server URL + bearer token, pairing-link parsing
+  lib/demo.ts              in-memory server for the demo mode
+  views/                   Pair, Chats, Thread, Inbox, Projects, Runs, More
+  components/              Shell, Composer, ToolCard, ApprovalCard, Gauge, ui
+public/manifest.webmanifest, public/sw.js
+```
 
 ## Build
 
 ```sh
-cd mobile
-pnpm install
-pnpm build      # tsc -b && vite build  →  mobile/dist
+pnpm build:mobile     # from the repo root → mobile/dist (bundled as a Tauri resource)
 ```
 
-## Dev against a live Cortex
+`dist/` is git-ignored. `tauri dev` and `tauri build` run this step; CI runs it
+before `cargo` so the resource exists.
 
-`pnpm dev` runs Vite's dev server. Point it at a running Cortex with
-`VITE_API_BASE` — Vite then proxies both `/api` and `/ws` (WebSocket upgrade
-included) to that origin, so the SPA keeps using same-origin relative paths:
+## Dev against a running Cortex
 
 ```sh
-# headless server default is loopback :5000 on the box running it
-VITE_API_BASE=http://localhost:8788 pnpm dev
-# then open the printed http://<lan-ip>:5173 on your phone
+cd mobile
+VITE_API_BASE=http://localhost:8788 pnpm dev   # proxies /api and /ws
 ```
 
-Without `VITE_API_BASE` the dev server has no API to talk to (all calls 404) —
-useful only for pure layout work.
+Open the printed LAN URL on the phone. Requests from a non-loopback address
+need a paired token, so pair from **Settings → Mobile** on the desktop first,
+or open the demo from the pairing screen for layout work with no server.
 
-## API contract
+## Modes
 
-Same-origin endpoints consumed (see `src/lib/api.ts`):
+Boot probes `GET /api/v2/capabilities`:
 
-- `GET /api/health` → `{ ok, version }`
-- `GET /api/projects` → project objects (`name`, `root`, `group`, …; rendered defensively)
-- `GET /api/models` → `string[]`
-- `POST /api/chat` → `202 { run_id, session_id }`, output streams over WS
-- `POST /api/ultimate` → `200 { run_id, result }`, progress also streams over WS
-- `GET /api/approvals` / `POST /api/approvals/{id}`
-- `GET /ws` → one shared WebSocket; frames routed by `run_id` (see `src/lib/ws.ts`)
+- 200 → v2 mode; features come from `capabilities.features`.
+- 404 → legacy mode against an older Cortex (`/api/sessions`, `/api/chat`);
+  runs, routines, git and devices show a "needs a newer Cortex" state.
+- 401 → pairing screen. Any later 401 returns there.
 
-## Screens
+## Native shell
 
-- **Chat** — model picker, streaming markdown replies, tool-call chips.
-- **Ultimate** — goal + fan-out + lead model; live timeline (plan → models
-  racing per subtask → merge → synthesis → cost).
-- **Projects** — tap to set the active `project_root` used by Chat + Ultimate.
-- **Inbox** — pending approvals; Approve/Reject (no optimistic UI — a row only
-  clears after the request succeeds). Polls every 4s and reacts to WS frames.
-
-## Known rough edges
-
-- The ultimate `run_id` is only returned when the (blocking) POST resolves. To
-  show the live timeline we pin onto the first incoming `ultimate*` WS frame's
-  `run_id` while a run is in flight. With multiple concurrent ultimate runs from
-  different clients this could mis-attribute early frames; for a single-user
-  phone client it's fine.
-- Approvals: resolving a pending approval (`POST /api/approvals/{id}`) re-injects
-  the decision into the in-flight run — the server POSTs it to the gateway keyed
-  by run id (mirrors the desktop `approve_run`), so the paused run resumes.
+The web app never imports Capacitor. `native/bridge.ts` installs
+`window.CortexNative` (haptics, QR scan, secure storage, deep links, share)
+before the bundle runs; every member is optional and feature-detected. Deep
+links arrive as a `cortex:deeplink` event carrying the URL.

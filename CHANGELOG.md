@@ -3,6 +3,52 @@
 All notable changes to Cortex are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.5.0] — 2026-09-29
+
+Cortex on your phone. Android and iPhone get the full workflow (chat, approvals,
+projects, diffs, checkpoints, routines, replay, usage) against the desktop or a
+headless `cortex-serve`, over Tailscale or the LAN, for free: an APK on the
+releases page and an installable web app for iPhone. See docs/MOBILE.md.
+
+### Added
+- Mobile client rebuilt (`mobile/`): chat-first with streaming markdown,
+  tool cards, a sticky approval dock with Approve/Deny/Remember and risk
+  badges, an inbox of what needs you, thread list with rename/delete,
+  projects with git status and per-file diffs, hold-to-restore checkpoints,
+  routines (create, edit, run now, history), quota rings and the
+  reliability card, run timelines, model and plan-mode defaults, devices,
+  light/dark themes, a demo mode, an offline outbox and a resync after
+  reconnect. Hash routes, pull-to-refresh, safe-area insets, haptics.
+- Pairing: Settings → Mobile shows a QR and a 6-digit code (10 minutes,
+  single use). Paired phones hold a per-device bearer token, stored hashed
+  in `~/.cortex/mobile-devices.json`, listable and revocable from Settings.
+  Requests that are not from the local machine (Tailscale Serve and
+  reverse proxies included) need the token; the WebSocket takes it as a
+  query parameter or a first frame.
+- `/api/v2`: capabilities, threads shared with the desktop message store,
+  send through the same chat pipeline as the desktop (routing, hooks,
+  tracing, failover, push, 16 ms token coalescing), runs and timelines
+  from the tracing store, approvals, projects with discover/add, git
+  status and diff (200 KB cap), checkpoints with a confirm header on
+  restore, reliability, usage, routines, models, mobile settings and push
+  status. Phone runs stream into the desktop window too.
+- Web Push without a third party: RFC 8291 encryption and RFC 8292 VAPID
+  built on the crates already in the tree, key kept in the vault, egress
+  limited to the browser vendors' push services. Fires on approval needed,
+  run finished, run failed and quota above 90 %, each with a link that
+  opens the right screen.
+- Native shell (`mobile/native`, Capacitor 8): `cortex://` deep links,
+  camera QR pairing, haptics, secure storage, Android back handling. The
+  Mobile workflow builds a sideloadable APK on every push and attaches it
+  to tagged releases; the iOS job proves the Xcode project compiles and
+  ships to TestFlight when signing secrets exist.
+- Desktop Settings → Mobile lists paired devices with revoke.
+
+### Fixed
+- Thread pagination returned the cursor of the first row that did not fit
+  instead of the last row that did, so the second page skipped a thread.
+- Repo-relative path checks refused `/abs` on Linux but not on Windows.
+
 ## [3.4.0] — 2026-09-29
 
 Speed and daily-driver polish. Everything below is verified by the E2E job,

@@ -1,7 +1,7 @@
 {
   "name": "cortex-native",
   "private": true,
-  "version": "3.4.0",
+  "version": "3.5.0",
   "description": "Capacitor shell around the Cortex mobile web app (mobile/). No lockfile on purpose: CI runs a plain `npm install` here.",
   "type": "module",
   "scripts": {

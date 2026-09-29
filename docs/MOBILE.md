@@ -98,6 +98,10 @@ with the SDK debug key, which is enough to sideload:
 2. Allow "install unknown apps" for your browser/file manager when prompted.
 3. Open Cortex, pair.
 
+For automatic updates install [Obtainium](https://github.com/ImranR98/Obtainium)
+and add `https://github.com/NetworkBound/cortex`; it watches the releases page
+and installs new APKs as they appear.
+
 Debug-key APKs from different machines/CI runs all use the same well-known key,
 so updates install over each other. A Play-store-signed release APK is built
 when these repository secrets exist:
@@ -109,14 +113,37 @@ when these repository secrets exist:
 | `ANDROID_KEY_ALIAS`         | key alias                                                  |
 | `ANDROID_KEY_PASSWORD`      | key password (optional; defaults to the keystore password) |
 
-### iOS (TestFlight)
+### iOS (free: installable web app)
 
-Apple does not allow sideloading, so the iOS path is TestFlight. Without
-secrets the workflow only proves the Xcode project compiles (simulator build,
-uploaded as `Cortex-<version>-ios-simulator.app.zip`; drag it onto a booted
-Simulator to try it). With these secrets the same job archives, signs, exports
-an `.ipa` and uploads it to App Store Connect, where it shows up in TestFlight
-a few minutes later:
+Apple does not allow sideloading, and a native build needs the paid developer
+program to leave a Mac. The free path is the same client installed as a Home
+Screen web app, which on iOS 16.4+ gets full screen, an icon, Web Push and
+the app badge:
+
+1. On the desktop, expose the mobile server over HTTPS with Tailscale:
+   `tailscale serve --bg 8788` (free Personal plan; Tailscale issues the
+   Let's Encrypt certificate for `https://<machine>.<tailnet>.ts.net`).
+   Install Tailscale on the phone and sign in to the same tailnet.
+2. Open **Settings → Mobile** on the desktop and scan the QR with the iPhone
+   camera, or open `https://<machine>.<tailnet>.ts.net/#/pair?code=<digits>`
+   in Safari. Enter the 6-digit code if asked.
+3. In Safari tap **Share → Add to Home Screen → Add**, then open Cortex from
+   the Home Screen and allow notifications when prompted. Cortex remembers
+   the pairing token per installed app.
+
+Notifications arrive through Apple's Web Push service; the server sends them
+directly (RFC 8291/8292, VAPID key kept in the vault), so there is no third
+party in the path. Safari in a tab does not receive Web Push; the Home Screen
+install does.
+
+### iOS (TestFlight, optional)
+
+With an Apple Developer Program membership the **Mobile** workflow also ships
+the Capacitor build. Without secrets it only proves the Xcode project compiles
+(simulator build, uploaded as `Cortex-<version>-ios-simulator.app.zip`; drag it
+onto a booted Simulator to try it). With these secrets the same job archives,
+signs, exports an `.ipa` and uploads it to App Store Connect, where it shows up
+in TestFlight a few minutes later:
 
 | Secret                                                     | Value                                                        |
 | ---------------------------------------------------------- | ------------------------------------------------------------ |
@@ -128,7 +155,7 @@ a few minutes later:
 
 The bundle id `com.networkbound.cortex` must exist in the developer portal
 first. `MARKETING_VERSION` is the Cortex version; `CURRENT_PROJECT_VERSION`
-(build number) is derived from it (`3.4.0 → 30400`) so every release uploads
+(build number) is derived from it (`3.5.0 → 30500`) so every release uploads
 a higher build.
 
 ## Deep links
@@ -139,48 +166,33 @@ The app registers the `cortex://` scheme on both platforms:
 | ---------------------------- | ------------------------------------------------------------- |
 | `cortex://pair?url=…&code=…` | Start pairing with that server (what the desktop QR encodes). |
 | `cortex://inbox`             | Open the approvals inbox.                                     |
-| `cortex://thread/<id>`       | Open a thread.                                                |
+| `cortex://threads/<id>`      | Open a thread.                                                |
+| `cortex://approvals/<id>`    | Open one approval.                                            |
 
 Cold-start links come from `getLaunchUrl()`, links while running from
 `onDeepLink` / the `cortex:deeplink` event. Both platforms treat custom schemes
 as unverified, so any app can register `cortex://`; never put a bearer token in
 a link — the pairing code is one-time and expires.
 
-## Push via ntfy
+## Push
 
-There is no APNs/FCM push in this version. The desktop's existing ntfy/Gotify
-notifier (**Settings → Notifications**) reaches the phone through the ntfy app
-instead: an approval request or finished run posts a message whose click URL
-opens Cortex. Configure the click URL as `cortex://inbox` so it opens the
-native app; the default `https://<tailnet-host>/#inbox` opens the PWA in the
-browser. `GET /api/v2/push/status` tells the app what is configured so it can
-show the right hint.
+Two paths, both free and both sent by the desktop itself:
+
+- **Web Push** (installed web app on iPhone or Android, Chrome/Firefox/Safari):
+  the app subscribes through its service worker; the server encrypts each
+  message (RFC 8291) and signs it (RFC 8292 VAPID) and posts it straight to
+  the browser vendor's push service. Egress is limited to those services.
+  Events: approval needed, run finished, run failed, quota above 90 %. Tapping
+  opens the approval, thread or inbox.
+- **ntfy / Gotify** (**Settings → Notifications**): the existing notifier, for
+  the native Android build or any phone with the ntfy app. Its click URL opens
+  the web client; `GET /api/v2/push/status` tells the app what is configured.
 
 ## Limitations
 
-- **No native push.** Approval prompts arrive over the WebSocket while the app
-  is open, or via ntfy otherwise. Background wake-ups are a later step (they
-  need a push provider and a server component to relay).
-- **Plain-http on LAN / tailnet.** Android's network security config permits
-  cleartext for every host and iOS ATS has `NSAllowsArbitraryLoads`, because
-  the typical target is `http://100.x.y.z:8788` and neither platform can
-  express "private ranges only". Consequence: a bearer token sent to a plain
-  `http://` server is readable by anyone on the same network. Prefer
-  `tailscale serve` (TLS, and Tailscale already encrypts node-to-node traffic,
-  so even plain http over a 100.x address is WireGuard-wrapped); avoid public
-  Wi-Fi with an `http://192.168…` server.
-- **Token storage** is Preferences, not the keychain (see above).
-- **Service worker on iOS:** WKWebView with the `capacitor://` scheme has no
-  service worker, so the PWA's offline shell caching is inert there. The app
-  bundle is local anyway.
-- **QR on Android** uses the Google code-scanner module (downloaded once via
-  Play Services; the manifest hints it at install time). Phones without Play
-  Services fall back to taking a photo and decoding with the WebView's
-  `BarcodeDetector`; if that is missing too, type the URL and code by hand.
-- **Cross-origin:** the native app's origin is `capacitor://localhost` (iOS) /
-  `https://localhost` (Android), not the server's. The server's CORS and
-  WebSocket origin allow-list must include both (`mobile_server/router.rs`
-  `MOBILE_ALLOWED_ORIGINS`).
+- **No APNs/FCM in the native builds.** The Capacitor apps get approval
+  prompts over the WebSocket while open, or via ntfy; Web Push covers the
+  installed web app. A native push relay is a later step.
 
 ## Local development
 
