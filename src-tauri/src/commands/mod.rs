@@ -84,6 +84,7 @@ pub mod monitors;
 pub mod multi_provider;
 pub mod notify;
 pub mod observability;
+pub mod open_external;
 pub mod preview;
 pub mod profiles;
 pub mod project_doc;

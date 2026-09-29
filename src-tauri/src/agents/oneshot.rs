@@ -57,7 +57,20 @@ pub async fn collect_completion(
     model: Option<String>,
     prompt: String,
 ) -> Result<String, String> {
-    let req = request(model.as_deref(), &prompt);
+    collect_completion_in(adapter, model, prompt, None).await
+}
+
+/// [`collect_completion`] with a working directory: `project_root` is passed
+/// on the request so CLI adapters run with that cwd (their file tools and
+/// git see the right tree). Routines use this to run "in project X".
+pub async fn collect_completion_in(
+    adapter: Arc<dyn AgentAdapter>,
+    model: Option<String>,
+    prompt: String,
+    project_root: Option<std::path::PathBuf>,
+) -> Result<String, String> {
+    let mut req = request(model.as_deref(), &prompt);
+    req.project_root = project_root;
     let (tx, mut rx) = mpsc::channel::<AgentEvent>(64);
     // Spawned (not `tokio::join!`ed) so a fatal mid-stream condition can
     // abort the adapter instead of awaiting a run that may never finish.
