@@ -18,6 +18,8 @@ import { preloadMarkdownView } from "./components/MarkdownView";
 import { useArchTabOpen } from "./lib/arch-tab";
 import { useCheckpointReviewStore } from "./lib/checkpoint-review";
 import { DEFAULT_KEYMAP, matchCombo } from "./lib/keymap";
+import { isCtrlShiftCombo, isEditableTarget } from "./lib/keymap";
+import { GLOBAL_KEYMAP_ACTIONS } from "./lib/palette-index";
 import { subscribeMonitorLines } from "./lib/monitors";
 import { runWhenIdle } from "./lib/scheduling";
 import { useThemeBoot } from "./lib/use-theme-boot";
@@ -250,6 +252,28 @@ export function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [currentMode, setCurrentMode, setShowSessionPicker, setActivityTab]);
+
+  // Global bindings for the DEFAULT_KEYMAP ids no component owns itself
+  // (Ctrl+N new chat, Ctrl+P quick open, Ctrl+T cycle theme, Ctrl+Shift+C
+  // compact, Ctrl+Shift+N new window, Ctrl+Shift+A jump to approval). The
+  // palette, Settings and the cycle-mode / shortcuts / resume handlers above
+  // bind their own ids, so GLOBAL_KEYMAP_ACTIONS (lib/palette-index) only
+  // lists the rest — one table, no double binding. Single-modifier combos are
+  // skipped while typing in an editable field; Ctrl+Shift chords fire anywhere.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      for (const b of DEFAULT_KEYMAP) {
+        const action = GLOBAL_KEYMAP_ACTIONS[b.id];
+        if (!action || !matchCombo(e, b.combo)) continue;
+        if (isEditableTarget(e) && !isCtrlShiftCombo(b.combo)) return;
+        e.preventDefault();
+        action();
+        return;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Ctrl+Tab / Ctrl+Shift+Tab → cycle through ActivityPanel tabs in the
   // declared order from `state/store.ts`. Skips `null` (the "no tab"

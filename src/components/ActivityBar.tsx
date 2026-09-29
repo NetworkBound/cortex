@@ -8,6 +8,7 @@ import {
 import { ACTIVITY_RAIL, type ActivityTabMeta } from "@/lib/activity-tabs";
 import { Chevron } from "@/lib/chevron";
 import { archTab, useArchTabOpen } from "@/lib/arch-tab";
+import { usePendingApprovalCount } from "@/lib/attention";
 import { SidebarResizer } from "./SidebarResizer";
 import "../styles/activity-bar.css";
 
@@ -30,6 +31,10 @@ export function ActivityBar() {
   const setActive = useCortexStore((s) => s.setActivityTab);
   const setShowSettings = useCortexStore((s) => s.setShowSettings);
   const archOpen = useArchTabOpen();
+  // Pending approvals across EVERY thread — surfaced as an amber count pill on
+  // the Threads pill so a run paused in a background thread can't sit unseen.
+  // Primitive selector: the rail only re-renders when the count changes.
+  const pendingApprovals = usePendingApprovalCount();
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try {
@@ -108,18 +113,28 @@ export function ActivityBar() {
   }
 
   function renderItem(it: ActivityTabMeta) {
+    const badge = it.id === "threads" ? pendingApprovals : 0;
+    const badgeTitle =
+      badge > 0
+        ? `${it.label} — ${badge} approval${badge === 1 ? "" : "s"} waiting`
+        : it.label;
     return (
       <button
         key={it.id}
-        className={`activity-icon activity-tab-pill ${active === it.id ? "active" : ""}`}
+        className={`activity-icon activity-tab-pill ${active === it.id ? "active" : ""}${badge > 0 ? " has-attention" : ""}`}
         onClick={() => pick(it.id)}
-        title={it.label}
-        aria-label={it.label}
+        title={badgeTitle}
+        aria-label={badgeTitle}
       >
         <span className="activity-glyph icon" aria-hidden="true">
           <ActivityIcon tab={it.id} />
         </span>
         <span className="activity-label label">{it.label}</span>
+        {badge > 0 && (
+          <span className="activity-attn-pill" aria-hidden="true">
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
       </button>
     );
   }

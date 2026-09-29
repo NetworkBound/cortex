@@ -27,6 +27,7 @@ interface NotificationCenterProps {
 
 const FILTERS: { id: NotifFilter; label: string }[] = [
   { id: "all", label: "All" },
+  { id: "approval", label: "Approvals" },
   { id: "errors", label: "Errors" },
   { id: "warnings", label: "Warnings" },
   { id: "job", label: "Jobs" },
@@ -91,6 +92,7 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
       repo: 0,
       crash: 0,
       issue: 0,
+      approval: 0,
     };
     for (const n of notifications) {
       if (n.severity === "error") c.errors += 1;
@@ -134,8 +136,9 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
         </header>
 
         <p className="notif-summary">
-          Aggregated inbox — finished jobs, crashes, issues, audit, monitors,
-          config + repo changes. Click a row to jump to its viewer.
+          Aggregated inbox — pending approvals, finished jobs, crashes, issues,
+          audit, monitors, config + repo changes. Click a row to jump to its
+          viewer.
         </p>
 
         <section className="notif-filters">

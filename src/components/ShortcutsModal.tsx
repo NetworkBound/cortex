@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { comboParts, DEFAULT_KEYMAP } from "@/lib/keymap";
 import { COMMANDS } from "@/lib/slash-commands";
 import { Button } from "./Button";
 
@@ -8,14 +9,12 @@ interface Props {
   onClose: () => void;
 }
 
-const SHORTCUTS: { combo: string[]; label: string }[] = [
-  { combo: ["Ctrl", "K"], label: "Open command palette" },
-  { combo: ["Ctrl", "R"], label: "Resume a chat session" },
-  { combo: ["Ctrl", "N"], label: "Start a new chat session" },
-  { combo: ["Ctrl", "?"], label: "Open this shortcuts cheat sheet" },
-  { combo: ["Ctrl", "Shift", "F"], label: "Focus memory search (right panel)" },
-  { combo: ["Ctrl", "M"], label: "Toggle Plan ↔ Act mode" },
-  { combo: ["Ctrl", "Enter"], label: "Send the current message" },
+/**
+ * Gestures that aren't key combos (so they can't live in DEFAULT_KEYMAP).
+ * Everything with a modifier chord is rendered from the keymap itself, so the
+ * cheat sheet can't list a shortcut that nothing binds.
+ */
+const GESTURES: { combo: string[]; label: string }[] = [
   {
     combo: ["@"],
     label:
@@ -53,6 +52,20 @@ export function ShortcutsModal({ open, onClose }: Props) {
   }, [open, onClose]);
 
   if (!open) return null;
+  // Platform-correct tokens (Ctrl on Windows/Linux, ⌘ on macOS), straight
+  // from DEFAULT_KEYMAP so this list and the bindings share one source.
+  const shortcuts = [
+    ...DEFAULT_KEYMAP.map((b) => ({
+      key: b.id,
+      combo: comboParts(b.combo),
+      label: b.description,
+    })),
+    ...GESTURES.map((g) => ({
+      key: g.combo.join("+"),
+      combo: g.combo,
+      label: g.label,
+    })),
+  ];
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
@@ -61,8 +74,8 @@ export function ShortcutsModal({ open, onClose }: Props) {
       >
         <h2>Keyboard shortcuts</h2>
         <ul className="shortcuts-list">
-          {SHORTCUTS.map((s) => (
-            <li key={s.combo.join("+")}>
+          {shortcuts.map((s) => (
+            <li key={s.key}>
               <div className="shortcut-combo">
                 {s.combo.map((k, i) => (
                   <kbd key={i}>{k}</kbd>

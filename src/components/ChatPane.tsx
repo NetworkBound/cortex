@@ -52,6 +52,7 @@ import { ComposerImages } from "./chat/ComposerImages";
 import { CompareChips } from "./chat/CompareChips";
 import { SmartPasteMenu, type SmartPasteState } from "./chat/SmartPasteMenu";
 import { contextIntentCount } from "./chat/attachment-tokens";
+import { addProjectViaDialog } from "@/lib/add-project";
 
 // Cap pulled thread messages to keep model context lean.
 const THREAD_MSG_CAP = 50;
@@ -1437,7 +1438,18 @@ export function ChatPane() {
     <div className="chat-pane">
       <div className="chat-header">
         <div className="chat-header-left">
-          <strong>{activeProject ? activeProject.name : "No project"}</strong>
+          {activeProject ? (
+            <strong>{activeProject.name}</strong>
+          ) : (
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => void addProjectViaDialog()}
+              title="Add a project folder"
+            >
+              No project — add one
+            </button>
+          )}
           <AgentsDocChip />
           {lastRoutingReason && (
             <span className="chat-routing">{lastRoutingReason}</span>

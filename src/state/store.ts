@@ -190,6 +190,11 @@ interface CortexState {
    *  (e.g. the Issues pipeline's "Open Run Replay" link) deep-link into a
    *  specific recorded run without the panels being composed together. */
   replayFocusSpanId: string | null;
+  /** Message id the transcript should scroll to and highlight on its next
+   *  render (consume-once: `MessageRow` clears it after focusing). Set by
+   *  `lib/attention.ts` when the user jumps to a pending approval from the
+   *  rail badge, the Today card, the notification inbox or the palette. */
+  attentionFocusMessageId: string | null;
   showComposer: boolean;
   composerEdits: ComposerEdit[];
   showSessionPicker: boolean;
@@ -319,6 +324,13 @@ interface CortexState {
   setActivityTab: (t: ActivityTab) => void;
   /** Set (or clear) the run Run Replay should focus on next time it mounts. */
   setReplayFocusSpanId: (id: string | null) => void;
+  /** Set (or clear) the message the transcript should jump to next render. */
+  setAttentionFocusMessageId: (id: string | null) => void;
+  /** Drop one tracked run id from a SPECIFIC thread (not necessarily the
+   *  active one). Used by the Today "Needs attention" Stop button, which can
+   *  stop a run in a background thread whose `done` event nobody is
+   *  subscribed to. Mirrors onto `runningRunIds` when that thread is active. */
+  untrackRunIdInThread: (threadId: string, runId: string) => void;
   setShowComposer: (b: boolean) => void;
   addComposerEdit: (
     e: Omit<ComposerEdit, "id" | "ts" | "status"> &
@@ -399,6 +411,7 @@ export const useCortexStore = create<CortexState>((set, get) => ({
   expandedReasonings: new Set<string>(),
   activityTab: null,
   replayFocusSpanId: null,
+  attentionFocusMessageId: null,
   showComposer: false,
   composerEdits: [],
   showSessionPicker: false,
@@ -814,6 +827,23 @@ export const useCortexStore = create<CortexState>((set, get) => ({
     }),
   setActivityTab: (t) => set({ activityTab: t }),
   setReplayFocusSpanId: (id) => set({ replayFocusSpanId: id }),
+  setAttentionFocusMessageId: (id) => set({ attentionFocusMessageId: id }),
+  untrackRunIdInThread: (threadId, runId) =>
+    set((s) => {
+      const idx = s.threads.findIndex((t) => t.id === threadId);
+      if (idx < 0) return {};
+      const t = s.threads[idx];
+      if (!t.runningRunIds.includes(runId)) return {};
+      const next = {
+        ...t,
+        runningRunIds: t.runningRunIds.filter((r) => r !== runId),
+      };
+      const threads = s.threads.slice();
+      threads[idx] = next;
+      return threadId === s.activeThreadId
+        ? { threads, runningRunIds: next.runningRunIds }
+        : { threads };
+    }),
   setShowComposer: (b) => set({ showComposer: b }),
   addComposerEdit: (e) =>
     set((s) => ({

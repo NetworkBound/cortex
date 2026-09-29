@@ -20885,3 +20885,290 @@ li.session-picker-error {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* Command palette v2 (CommandPalette.tsx / lib/palette-index.ts)
+   ----------------------------------------------------------------
+   Prefix-mode legend + key hints under the list, and the brief highlight a
+   Settings deep link paints on the card it scrolled to. */
+.palette-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-1) var(--space-3) 0;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+.palette-footer kbd {
+  margin-right: var(--space-1);
+}
+.palette-footer-spacer {
+  flex: 1;
+}
+@keyframes palette-reveal-pulse {
+  0% {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+.palette-reveal {
+  border-radius: var(--radius);
+  animation: palette-reveal-pulse 1.5s var(--ease-out) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .palette-reveal {
+    animation: none;
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+}
+
+/* ── Needs attention (lib/attention.ts) ─────────────────────────────────────
+ * Amber = "a run is paused for you". Shared by the rail badge, the thread
+ * row dot, the Today card and the finished-run footer. */
+.toast-action {
+  align-self: flex-start;
+  margin-top: var(--space-1);
+  padding: var(--space-0_5) var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+.toast-action:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+.toast-warning .toast-action:hover {
+  border-color: var(--warning);
+}
+
+.activity-tab-pill.has-attention {
+  position: relative;
+}
+.activity-attn-pill {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--warning);
+  color: var(--warning-fg);
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.activity-bar.collapsed .activity-attn-pill {
+  top: 2px;
+  right: 2px;
+}
+
+.thread-row-attn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--warning);
+  color: var(--warning-fg);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+.thread-row-running {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: attn-pulse 1.4s ease-in-out infinite;
+}
+@keyframes attn-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Jump-to-message highlight (MessageRow useAttentionFocus). */
+.msg:focus {
+  outline: none;
+}
+.msg.attn-flash {
+  animation: attn-flash 1.6s var(--ease-out) 1;
+  border-radius: var(--radius);
+}
+@keyframes attn-flash {
+  0% {
+    box-shadow: 0 0 0 2px var(--warning);
+    background: var(--warning-soft);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    background: transparent;
+  }
+}
+
+/* Today → "Needs attention" card. */
+.today-card--wide {
+  grid-column: 1 / -1;
+  min-height: 0;
+}
+.today-attn--live {
+  border-color: var(--warning-border);
+}
+.today-attn-counts {
+  margin-left: auto;
+  display: inline-flex;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+}
+.today-attn-count--approval {
+  color: var(--warning);
+  font-weight: var(--weight-semibold);
+}
+.today-attn-count--fail {
+  color: var(--danger);
+}
+.today-attn-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+.today-attn-label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 var(--space-2) var(--space-1);
+}
+.today-attn-row {
+  gap: var(--space-2);
+}
+.today-attn-row:disabled {
+  cursor: default;
+}
+.today-attn-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warning);
+}
+.today-attn-dot--running {
+  background: var(--success);
+  animation: attn-pulse 1.4s ease-in-out infinite;
+}
+.today-attn-dot--fail {
+  background: var(--danger);
+}
+.today-attn-link {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+}
+.today-attn-link:hover {
+  color: var(--accent);
+}
+.today-stop-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-0_5) var(--space-2);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+.today-stop-btn:hover:not(:disabled) {
+  background: var(--danger);
+  color: var(--danger-fg);
+}
+.today-stop-btn:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+/* Finished-run footer under the latest completed assistant turn. */
+.run-card {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+}
+.run-card--errors {
+  border-color: var(--warning-border);
+}
+.run-card-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.run-card-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  flex: 0 0 auto;
+}
+.run-card--errors .run-card-dot {
+  background: var(--warning);
+}
+.run-card-actions {
+  display: inline-flex;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+}
+.run-card-actions .action-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: var(--text-xs);
+  line-height: 1;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.run-card-actions .action-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+  border-color: var(--border);
+}

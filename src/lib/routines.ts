@@ -26,6 +26,18 @@ export interface RoutineSpec {
   last_status: string;
   last_output: string;
   last_error: string;
+  /** Registry id of the adapter to run through (`claude-cli`, `codex-cli`,
+   *  …). `null` = auto: the Cortex Gateway when configured, else the first
+   *  available local agent. */
+  agent_id?: string | null;
+  /** Working directory for CLI adapters (a project root). */
+  project_root?: string | null;
+  /** Daily wall-clock time `"HH:MM"` (24h, local). Takes precedence over
+   *  `interval_minutes` — send `interval_minutes: 0` alongside it. */
+  daily_at?: string | null;
+  /** Output-only: unix ms of the next scheduled run (`null` = manual-only or
+   *  disabled). Recomputed by the backend on every list. */
+  next_run_unix_ms?: number | null;
 }
 
 export function emptyRoutine(): RoutineSpec {
@@ -39,7 +51,27 @@ export function emptyRoutine(): RoutineSpec {
     last_status: "",
     last_output: "",
     last_error: "",
+    agent_id: null,
+    project_root: null,
+    daily_at: null,
+    next_run_unix_ms: null,
   };
+}
+
+/** Human "in 5m" / "in 2h 10m" / "due now" for a future unix-ms instant. */
+export function timeUntil(ts: number | null | undefined): string {
+  if (!ts) return "";
+  const s = Math.round((ts - Date.now()) / 1000);
+  if (s <= 30) return "due now";
+  if (s < 3600) return `in ${Math.max(1, Math.round(s / 60))}m`;
+  if (s < 86400) {
+    const h = Math.floor(s / 3600);
+    const m = Math.round((s % 3600) / 60);
+    return m > 0 ? `in ${h}h ${m}m` : `in ${h}h`;
+  }
+  const d = Math.floor(s / 86400);
+  const h = Math.round((s % 86400) / 3600);
+  return h > 0 ? `in ${d}d ${h}h` : `in ${d}d`;
 }
 
 export async function listRoutines(): Promise<RoutineSpec[]> {

@@ -33,6 +33,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { confirmDialog } from "@/lib/dialogs";
 import { timeAgo } from "@/lib/time";
 import { useCortexStore } from "@/state/store";
+import { approvalCountByThread, useAttention } from "@/lib/attention";
 import {
   deleteThread as deleteThreadIpc,
   deriveThreadTitle,
@@ -177,6 +178,15 @@ export function ThreadsList() {
     [threads],
   );
 
+  // Per-thread pending-approval counts (amber dot on the row). Derived from
+  // the same `threads` array this list already subscribes to, so no extra
+  // re-renders.
+  const { approvals } = useAttention();
+  const approvalsByThread = useMemo(
+    () => approvalCountByThread(approvals),
+    [approvals],
+  );
+
   return (
     <div className="threads-list">
       <div className="threads-list-head">
@@ -205,6 +215,7 @@ export function ThreadsList() {
             key={t.id}
             thread={t}
             active={t.id === activeThreadId}
+            pendingApprovals={approvalsByThread.get(t.id) ?? 0}
             onSwitch={() => handleSwitch(t.id)}
             onDelete={() => void handleDelete(t.id)}
             onRename={(title) => handleRename(t.id, title)}
@@ -218,12 +229,15 @@ export function ThreadsList() {
 function ThreadRow({
   thread,
   active,
+  pendingApprovals,
   onSwitch,
   onDelete,
   onRename,
 }: {
   thread: Thread;
   active: boolean;
+  /** Tool calls in this thread paused for the user (amber dot when > 0). */
+  pendingApprovals: number;
   onSwitch: () => void;
   onDelete: () => void;
   onRename: (title: string) => void;
@@ -280,6 +294,22 @@ function ThreadRow({
           <div className="thread-row-title">{title}</div>
           <div className="thread-row-meta">
             <span className="muted">{timeAgo(thread.lastTs)}</span>
+            {thread.runningRunIds.length > 0 && (
+              <span
+                className="thread-row-running"
+                title="A run is in progress"
+                aria-label="running"
+              />
+            )}
+            {pendingApprovals > 0 && (
+              <span
+                className="thread-row-attn"
+                title={`${pendingApprovals} approval${pendingApprovals === 1 ? "" : "s"} waiting`}
+                aria-label={`${pendingApprovals} approvals waiting`}
+              >
+                {pendingApprovals}
+              </span>
+            )}
             <span className="thread-row-badge">{count}</span>
           </div>
         </button>

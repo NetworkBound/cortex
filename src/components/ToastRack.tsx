@@ -68,6 +68,18 @@ function ToastCard({
       <div className="toast-body">
         <div className="toast-title">{toast.title}</div>
         {toast.body && <div className="toast-text">{toast.body}</div>}
+        {toast.action && (
+          <button
+            type="button"
+            className="toast-action"
+            onClick={() => {
+              toast.action?.onClick();
+              onDismiss();
+            }}
+          >
+            {toast.action.label}
+          </button>
+        )}
       </div>
       <button
         type="button"

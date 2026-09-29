@@ -1,6 +1,7 @@
 import type { ReactNode, RefObject } from "react";
 import type { Message, QueuedMessage } from "@/state/store";
 import { MessageRow } from "./MessageRow";
+import { latestFinishedRunMessageId } from "./run-summary";
 
 /** A type-ahead submission parked while a turn streams (dimmed, cancellable). */
 function QueuedMessageRow({
@@ -70,6 +71,8 @@ export function MessageList({
   onScroll,
   empty,
 }: MessageListProps) {
+  // The one turn that gets the "Done — …" footer (FinishedRunCard).
+  const runCardId = latestFinishedRunMessageId(messages);
   return (
     <div
       className="chat-messages"
@@ -93,6 +96,7 @@ export function MessageList({
             setApproval={setApproval}
             onRegenerate={onRegenerate}
             continuesAuthor={continuesAuthor}
+            showRunCard={m.id === runCardId}
           />
         );
       })}

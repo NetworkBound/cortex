@@ -23,11 +23,26 @@
  */
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { Folder } from "lucide-react";
+import {
+  Copy,
+  ExternalLink,
+  Folder,
+  FolderOpen,
+  SquareTerminal,
+} from "lucide-react";
 import { projectFiles, type FileTreeEntry } from "@/lib/projects";
 import { humanizeError } from "@/lib/errors";
 import { FileIcon, DirIcon } from "@/lib/file-icons";
+import {
+  copyPath,
+  describeOpenError,
+  openInEditor,
+  openTerminalHere,
+  revealInFileManager,
+} from "@/lib/open-external";
+import { pushToast } from "@/lib/toast";
 import { useCortexStore } from "@/state/store";
+import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 
 interface FileExplorerProps {
   /** Active project root path; null when no project is selected. */
@@ -88,8 +103,89 @@ export function emitComposerInsert(value: string): void {
   }
 }
 
+/** Right-click menu for one entry (or the project root itself). Every action
+ *  goes through lib/open-external; a backend without those commands reads as
+ *  "not available in this build" instead of a raw IPC error. Paths are passed
+ *  verbatim — Windows entries keep their backslashes. */
+function entryMenuItems(target: {
+  path: string;
+  isDir: boolean;
+}): ContextMenuItem[] {
+  const fail =
+    (title: string) =>
+    (e: unknown): void => {
+      pushToast({ title, body: describeOpenError(e), kind: "error" });
+    };
+  return [
+    {
+      id: "editor",
+      label: target.isDir ? "Open folder in editor" : "Open in editor",
+      icon: <ExternalLink size={13} strokeWidth={1.75} />,
+      onSelect: () =>
+        openInEditor(target.path)
+          .then(() => undefined)
+          .catch(fail("Couldn't open editor")),
+    },
+    {
+      id: "reveal",
+      label: "Reveal in file manager",
+      icon: <FolderOpen size={13} strokeWidth={1.75} />,
+      onSelect: () =>
+        revealInFileManager(target.path).catch(fail("Couldn't reveal")),
+    },
+    {
+      id: "terminal",
+      label: "Open terminal here",
+      icon: <SquareTerminal size={13} strokeWidth={1.75} />,
+      onSelect: () =>
+        openTerminalHere(target.path)
+          .then(() => undefined)
+          .catch(fail("Couldn't open terminal")),
+    },
+    {
+      id: "copy",
+      label: "Copy path",
+      icon: <Copy size={13} strokeWidth={1.75} />,
+      separatorBefore: true,
+      onSelect: () =>
+        copyPath(target.path)
+          .then(() => {
+            pushToast({
+              title: "Path copied",
+              body: target.path,
+              kind: "success",
+            });
+          })
+          .catch(fail("Couldn't copy path")),
+    },
+  ];
+}
+
+interface MenuState {
+  x: number;
+  y: number;
+  label: string;
+  items: ContextMenuItem[];
+}
+
 export function FileExplorer({ root, projectName }: FileExplorerProps) {
   const [files, setFiles] = useState<FileTreeEntry[]>([]);
+  const [menu, setMenu] = useState<MenuState | null>(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
+
+  const openMenu = (
+    e: React.MouseEvent,
+    target: { path: string; isDir: boolean; name: string },
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenu({
+      x: e.clientX,
+      y: e.clientY,
+      label: target.name,
+      items: entryMenuItems(target),
+    });
+  };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -266,6 +362,9 @@ export function FileExplorer({ root, projectName }: FileExplorerProps) {
         ref={scrollerRef}
         className="file-explorer-scroller"
         onScroll={onScroll}
+        onContextMenu={(e) =>
+          openMenu(e, { path: root, isDir: true, name: projectName ?? root })
+        }
       >
         {visible.length === 0 && !loading && (
           <div className="file-explorer-no-matches">
@@ -296,6 +395,13 @@ export function FileExplorer({ root, projectName }: FileExplorerProps) {
                     className={`file-explorer-row ${f.is_dir ? "dir" : "file"}`}
                     style={{ height: ROW_HEIGHT }}
                     onClick={() => onPick(f)}
+                    onContextMenu={(e) =>
+                      openMenu(e, {
+                        path: f.path,
+                        isDir: f.is_dir,
+                        name: f.name,
+                      })
+                    }
                     title={title}
                   >
                     <span className="file-explorer-glyph" aria-hidden>
@@ -318,6 +424,15 @@ export function FileExplorer({ root, projectName }: FileExplorerProps) {
           </div>
         )}
       </div>
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          items={menu.items}
+          label={menu.label}
+          onClose={closeMenu}
+        />
+      )}
     </div>
   );
 }

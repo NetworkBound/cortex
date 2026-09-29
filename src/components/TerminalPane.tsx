@@ -3,9 +3,23 @@
 // Mounts a single xterm.js Terminal, opens a backend PTY on mount, wires
 // bidirectional bytes, and tears it down on unmount. v1 is intentionally
 // scope-limited to one terminal session — no tabs, no buffer persistence.
+//
+// Working directory: `terminal_open` has no cwd parameter (the PTY always
+// starts in $HOME), so when a project is active the pane sends the shell one
+// `cd` line right after it opens — the same trick IDE terminals use — and the
+// toolbar offers "cd project" to jump back plus "Terminal here" to pop an
+// external terminal window in the project root (lib/open-external).
 
 import { useEffect, useRef, useState } from "react";
+import { SquareTerminal } from "lucide-react";
 import { humanizeError } from "@/lib/errors";
+import {
+  describeOpenError,
+  openTerminalHere,
+  shellCdLine,
+} from "@/lib/open-external";
+import { pushToast } from "@/lib/toast";
+import { useCortexStore } from "@/state/store";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { Terminal, type ITheme } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -20,6 +34,7 @@ import {
   writeTerminal,
 } from "@/lib/terminal";
 import { THEME_CHANGED_EVENT } from "@/lib/theme-engine";
+import "../styles/terminal-pane.css";
 
 /** Build the xterm theme from the active app theme's CSS custom properties.
  *
@@ -56,6 +71,8 @@ function xtermThemeFromTokens(): ITheme {
 
 export function TerminalPane() {
   const hostRef = useRef<HTMLDivElement>(null);
+  const projectRoot = useCortexStore((s) => s.activeProject?.root ?? null);
+  const [cwdLabel, setCwdLabel] = useState<string | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const idRef = useRef<string | null>(null);
@@ -129,6 +146,16 @@ export function TerminalPane() {
           });
         });
         setStatus("ready");
+
+        // Start in the active project (see the module comment). Read the
+        // store imperatively: this effect runs once on mount by design and
+        // must not re-run (and re-spawn the shell) when the project changes.
+        const root = useCortexStore.getState().activeProject?.root;
+        if (root) {
+          void writeTerminal(handle.id, shellCdLine(root))
+            .then(() => setCwdLabel(root))
+            .catch(() => {});
+        }
       } catch (e) {
         setStatus("error");
         setError(humanizeError(e));
@@ -178,8 +205,81 @@ export function TerminalPane() {
     };
   }, []);
 
+  /** "cd project": type a cd into the live shell for the current project. */
+  function cdToProject() {
+    const id = idRef.current;
+    if (!id || !projectRoot) return;
+    void writeTerminal(id, shellCdLine(projectRoot))
+      .then(() => {
+        setCwdLabel(projectRoot);
+        termRef.current?.focus();
+      })
+      .catch((e) =>
+        pushToast({
+          title: "Couldn't change directory",
+          body: humanizeError(e),
+          kind: "error",
+        }),
+      );
+  }
+
+  /** "Terminal here": an external terminal window in the project root. */
+  function externalTerminal() {
+    if (!projectRoot) return;
+    openTerminalHere(projectRoot)
+      .then((program) =>
+        pushToast({
+          title: "Terminal opened",
+          body: `${program} · ${projectRoot}`,
+          kind: "success",
+        }),
+      )
+      .catch((e) =>
+        pushToast({
+          title: "Couldn't open terminal",
+          body: describeOpenError(e),
+          kind: "error",
+        }),
+      );
+  }
+
   return (
     <div className="terminal-pane">
+      <div className="terminal-pane-toolbar">
+        <span
+          className="terminal-pane-cwd"
+          title={cwdLabel ?? projectRoot ?? "home directory"}
+        >
+          {cwdLabel ?? projectRoot ?? "~"}
+        </span>
+        <button
+          type="button"
+          className="btn-ghost terminal-pane-tool"
+          onClick={cdToProject}
+          disabled={!projectRoot || status !== "ready"}
+          title={
+            projectRoot
+              ? `cd into ${projectRoot}`
+              : "Pick an active project first"
+          }
+        >
+          cd project
+        </button>
+        <button
+          type="button"
+          className="btn-ghost terminal-pane-tool"
+          onClick={externalTerminal}
+          disabled={!projectRoot}
+          title={
+            projectRoot
+              ? `Open a system terminal window in ${projectRoot}`
+              : "Pick an active project first"
+          }
+        >
+          <SquareTerminal size={13} strokeWidth={1.75} aria-hidden="true" />{" "}
+          Terminal here
+        </button>
+      </div>
       <div className="terminal-pane-host" ref={hostRef} />
       {status === "booting" && (
         <div className="terminal-pane-status muted">starting shell…</div>

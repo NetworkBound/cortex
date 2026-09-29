@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { BookText, GitBranch } from "lucide-react";
+import { BookText, FolderPlus, GitBranch } from "lucide-react";
+import { addProjectViaDialog } from "@/lib/add-project";
 import { openCodeProject } from "@/lib/open-project";
 import {
   cortexignoreStatus,
@@ -29,6 +30,19 @@ export function ProjectSidebar() {
   const setActive = useCortexStore((s) => s.setActiveProject);
   const [worktreesOpen, setWorktreesOpen] = useState(false);
   const [ignore, setIgnore] = useState<CortexIgnoreStatus | null>(null);
+  const [adding, setAdding] = useState(false);
+
+  /** Header "+" and the empty-state button: native folder picker → register
+   *  → activate (lib/add-project). Errors toast from the lib. */
+  async function addProject() {
+    if (adding) return;
+    setAdding(true);
+    try {
+      await addProjectViaDialog();
+    } finally {
+      setAdding(false);
+    }
+  }
 
   // `.cortexignore` chip next to the project name. Best-effort: a missing or
   // unreadable root just hides the chip.
@@ -149,15 +163,34 @@ export function ProjectSidebar() {
       <div className="sidebar-section-head">
         <h2>Projects</h2>
         <span className="sidebar-count">{projects.length}</span>
+        <button
+          type="button"
+          className="sidebar-action-btn sidebar-add-project"
+          onClick={() => void addProject()}
+          disabled={adding}
+          title="Add a project folder (any git repository)"
+          aria-label="Add a project folder"
+        >
+          <FolderPlus size={13} strokeWidth={1.75} aria-hidden="true" />
+        </button>
       </div>
       {projects.length === 0 && (
         <div className="sidebar-empty">
           <div className="sidebar-empty-icon">∅</div>
           <div className="sidebar-empty-title">No projects yet</div>
+          <button
+            type="button"
+            className="btn-primary sidebar-empty-action"
+            onClick={() => void addProject()}
+            disabled={adding}
+          >
+            <FolderPlus size={14} strokeWidth={1.75} aria-hidden="true" />{" "}
+            {adding ? "Opening…" : "Add a project folder"}
+          </button>
           <div className="sidebar-empty-sub">
-            Drop a folder into <code>~/projects/</code> (or set{" "}
-            <code>CORTEX_PROJECTS_ROOT</code>), or add a project note under{" "}
-            <code>30-Projects/</code> in your vault — Cortex surfaces both here.
+            Pick any git repository. Cortex also surfaces folders under{" "}
+            <code>~/projects/</code> (or <code>CORTEX_PROJECTS_ROOT</code>) and
+            project notes under <code>30-Projects/</code> in your vault.
           </div>
         </div>
       )}

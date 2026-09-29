@@ -1,0 +1,31 @@
+/* TerminalPane toolbar: current working directory + "cd project" /
+   "Terminal here" actions (see components/TerminalPane.tsx). */
+
+.terminal-pane-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+  font-size: var(--text-xs);
+}
+
+.terminal-pane-cwd {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-muted);
+}
+
+.terminal-pane-tool {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  padding: var(--space-0_5) var(--space-2);
+}

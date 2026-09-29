@@ -11,13 +11,22 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Target,
   BarChart3,
-  ListChecks,
   ClipboardList,
   MessagesSquare,
   Bug,
+  AlertTriangle,
+  Square,
 } from "lucide-react";
 
 import { useCortexStore, type FocusChainTask } from "@/state/store";
+import {
+  focusApproval,
+  stopThreadRuns,
+  useAttention,
+  type ApprovalRef,
+  type RecentFailure,
+  type RunningThread,
+} from "@/lib/attention";
 import { humanizeError } from "@/lib/errors";
 import { visibleInterval } from "@/lib/scheduling";
 import { truncate } from "@/lib/format";
@@ -70,8 +79,9 @@ const FIRST_RUN_KEY = "cortex.todayDashboard.firstRunDone";
 
 export function TodayDashboard() {
   const focusChain = useCortexStore((s) => s.focusChain);
-  const runningRunIds = useCortexStore((s) => s.runningRunIds);
   const activeProject = useCortexStore((s) => s.activeProject);
+  // Approvals waiting, runs in flight (every thread) and recent failures.
+  const attention = useAttention();
   const resume = useCortexStore((s) => s.resumeSession);
 
   const [snap, setSnap] = useState<BrainSnapshot | null>(null);
@@ -184,6 +194,12 @@ export function TodayDashboard() {
       )}
 
       <div className="today-grid">
+        <AttentionCard
+          approvals={attention.approvals}
+          running={attention.running}
+          failures={attention.failedRecent}
+        />
+
         <Card
           title="Focus chain"
           icon={<Target size={15} strokeWidth={1.75} />}
@@ -191,19 +207,6 @@ export function TodayDashboard() {
         >
           {openFocus.map((t) => (
             <FocusRow key={t.id} task={t} />
-          ))}
-        </Card>
-
-        <Card
-          title="Active workflows"
-          icon={<ListChecks size={15} strokeWidth={1.75} />}
-          empty={runningRunIds.length === 0 ? "No active workflows." : null}
-        >
-          {runningRunIds.slice(0, 5).map((rid) => (
-            <div key={rid} className="today-row">
-              <span className="today-row-title mono">{rid.slice(-12)}</span>
-              <span className="muted">running</span>
-            </div>
           ))}
         </Card>
 
@@ -303,6 +306,176 @@ function Card({
       </div>
       <div className="today-card-body">
         {empty ? <div className="muted today-empty">{empty}</div> : children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * "Needs attention" — the cockpit's top card, full width. Three sections that
+ * collapse to one calm line when there is nothing to do:
+ *   - approvals: tool calls paused for the user (click → jump to the prompt)
+ *   - running:   threads with in-flight runs, with a Stop button
+ *   - failures:  recent error turns + failed background jobs
+ * The "Active workflows" card this replaces listed bare run ids; these rows
+ * carry the thread title, so the user can tell WHICH agent is asking.
+ */
+function AttentionCard({
+  approvals,
+  running,
+  failures,
+}: {
+  approvals: ApprovalRef[];
+  running: RunningThread[];
+  failures: RecentFailure[];
+}) {
+  const [stopping, setStopping] = useState<string | null>(null);
+  const quiet =
+    approvals.length === 0 && running.length === 0 && failures.length === 0;
+
+  const stop = async (threadId: string) => {
+    setStopping(threadId);
+    try {
+      await stopThreadRuns(threadId);
+    } finally {
+      setStopping(null);
+    }
+  };
+
+  const jumpToThread = (threadId: string, messageId: string | null) => {
+    if (messageId) {
+      void focusApproval({ threadId, messageId });
+      return;
+    }
+    const st = useCortexStore.getState();
+    if (st.activeThreadId !== threadId) st.switchThread(threadId);
+  };
+
+  return (
+    <div
+      className={`today-card today-card--wide today-attn${quiet ? "" : " today-attn--live"}`}
+    >
+      <div className="today-card-head">
+        <span className="today-card-icon" aria-hidden="true">
+          <AlertTriangle size={15} strokeWidth={1.75} />
+        </span>
+        <span className="today-card-title">Needs attention</span>
+        {!quiet && (
+          <span className="today-attn-counts muted">
+            {approvals.length > 0 && (
+              <span className="today-attn-count today-attn-count--approval">
+                {approvals.length} approval{approvals.length === 1 ? "" : "s"}
+              </span>
+            )}
+            {running.length > 0 && (
+              <span className="today-attn-count">{running.length} running</span>
+            )}
+            {failures.length > 0 && (
+              <span className="today-attn-count today-attn-count--fail">
+                {failures.length} failed
+              </span>
+            )}
+          </span>
+        )}
+      </div>
+      <div className="today-card-body">
+        {quiet ? (
+          <div className="muted today-empty">
+            Nothing needs you right now — no approvals waiting, no runs in
+            flight, no recent failures.
+          </div>
+        ) : (
+          <div className="today-attn-sections">
+            {approvals.length > 0 && (
+              <section className="today-attn-section">
+                <div className="today-attn-label">Waiting for you</div>
+                {approvals.slice(0, 6).map((a) => (
+                  <button
+                    key={a.approvalId}
+                    className="today-row clickable today-attn-row"
+                    onClick={() =>
+                      void focusApproval({
+                        threadId: a.threadId,
+                        messageId: a.messageId,
+                      })
+                    }
+                    title={a.preview ?? undefined}
+                  >
+                    <span className="today-attn-dot" aria-hidden="true" />
+                    <span className="today-row-title">
+                      <strong>{a.tool ?? "tool call"}</strong>
+                      <span className="muted"> · {a.threadTitle}</span>
+                    </span>
+                    <span className="muted">{timeAgo(a.ts)}</span>
+                  </button>
+                ))}
+              </section>
+            )}
+            {running.length > 0 && (
+              <section className="today-attn-section">
+                <div className="today-attn-label">Running</div>
+                {running.slice(0, 6).map((r) => (
+                  <div key={r.threadId} className="today-row today-attn-row">
+                    <span
+                      className="today-attn-dot today-attn-dot--running"
+                      aria-hidden="true"
+                    />
+                    <button
+                      className="today-row-title today-attn-link"
+                      onClick={() => jumpToThread(r.threadId, null)}
+                      title="Open this thread"
+                    >
+                      {r.threadTitle}
+                      {r.agent && <span className="muted"> · {r.agent}</span>}
+                    </button>
+                    <span className="muted">{timeAgo(r.since)}</span>
+                    <button
+                      className="today-stop-btn"
+                      onClick={() => void stop(r.threadId)}
+                      disabled={stopping === r.threadId}
+                      title={`Stop ${r.runIds.length} run${r.runIds.length === 1 ? "" : "s"} in this thread`}
+                      aria-label="Stop run"
+                    >
+                      <Square size={11} strokeWidth={2.5} aria-hidden="true" />
+                      {stopping === r.threadId ? "Stopping…" : "Stop"}
+                    </button>
+                  </div>
+                ))}
+              </section>
+            )}
+            {failures.length > 0 && (
+              <section className="today-attn-section">
+                <div className="today-attn-label">Recent failures</div>
+                {failures.map((f) => (
+                  <button
+                    key={f.id}
+                    className={`today-row today-attn-row${f.threadId ? " clickable" : ""}`}
+                    onClick={() =>
+                      f.threadId && jumpToThread(f.threadId, f.messageId)
+                    }
+                    disabled={!f.threadId}
+                    title={f.detail ?? undefined}
+                  >
+                    <span
+                      className="today-attn-dot today-attn-dot--fail"
+                      aria-hidden="true"
+                    />
+                    <span className="today-row-title">
+                      {truncate(f.label, 50)}
+                      {f.detail && (
+                        <span className="muted">
+                          {" "}
+                          · {truncate(f.detail, 60)}
+                        </span>
+                      )}
+                    </span>
+                    <span className="muted">{timeAgo(f.ts)}</span>
+                  </button>
+                ))}
+              </section>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

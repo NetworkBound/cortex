@@ -321,3 +321,18 @@
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+
+/* Agent / project / cadence pickers share `.routines-cadence`; the daily time
+   input sits inline after the cadence select. */
+.routines-time {
+  width: auto;
+  padding: var(--space-0_5) var(--space-1);
+  font-size: var(--text-xs);
+}
+
+/* "next in 2h" tag on a scheduled row. */
+.routines-next {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}

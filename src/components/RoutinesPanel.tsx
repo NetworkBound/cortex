@@ -1,9 +1,11 @@
 /**
  * Scheduled agents ("Routines") panel.
  *
- * Create a routine (a name + a task prompt + a cadence) and the backend
- * scheduler runs it on that interval through the Cortex Gateway, recording
- * each run into a persistent per-run history. Routines can be enabled/
+ * Create a routine (a name + a task prompt + a cadence, optionally pinned to
+ * an agent and a project) and the backend scheduler runs it on that interval
+ * — or daily at a wall-clock time — through the chosen agent (a local CLI
+ * with the project as cwd, or the Cortex Gateway), recording each run into a
+ * persistent per-run history. Routines can be enabled/
  * disabled, run on demand, and deleted. Each routine's history is browsable
  * inline — every run shows status, trigger, duration and output, and can be
  * reopened as a chat session ("Open as chat") to continue the conversation.
@@ -14,7 +16,7 @@
  * whole point is that runs stay visible when this panel is closed.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Play,
   Trash2,
@@ -22,7 +24,14 @@ import {
   Clock,
   History,
   MessageSquare,
+  Bot,
+  FolderGit2,
 } from "lucide-react";
+import {
+  getGatewayConfig,
+  listAgents,
+  type AgentDescriptor,
+} from "@/lib/cortex-bridge";
 import { humanizeError } from "@/lib/errors";
 import { timeAgo } from "@/lib/time";
 import { pushToast } from "@/lib/toast";
@@ -38,10 +47,15 @@ import {
   listRoutineRuns,
   routineRunAsSession,
   emptyRoutine,
+  timeUntil,
   type RoutineSpec,
   type RoutineRun,
 } from "@/lib/routines";
 import "../styles/routines.css";
+
+/** `minutes: DAILY_AT` is the sentinel for the "Daily at HH:MM" cadence, which
+ *  the backend expresses as `daily_at` + `interval_minutes: 0`. */
+const DAILY_AT = -1;
 
 const CADENCES: { minutes: number; label: string }[] = [
   { minutes: 0, label: "Manual only" },
@@ -49,11 +63,41 @@ const CADENCES: { minutes: number; label: string }[] = [
   { minutes: 30, label: "Every 30 min" },
   { minutes: 60, label: "Hourly" },
   { minutes: 360, label: "Every 6 hours" },
-  { minutes: 1440, label: "Daily" },
+  { minutes: 1440, label: "Every 24 hours" },
+  { minutes: DAILY_AT, label: "Daily at…" },
 ];
 
-function cadenceLabel(min: number): string {
+function cadenceLabel(r: Pick<RoutineSpec, "interval_minutes" | "daily_at">) {
+  if (r.daily_at) return `Daily at ${r.daily_at}`;
+  const min = r.interval_minutes;
   return CADENCES.find((c) => c.minutes === min)?.label ?? `Every ${min} min`;
+}
+
+/** The cadence `<select>` value for a draft: the sentinel when a daily time is
+ *  set, else the interval. */
+function cadenceValue(r: RoutineSpec): number {
+  return r.daily_at != null ? DAILY_AT : r.interval_minutes;
+}
+
+/** Registry ids that mean "the gateway" (mirrors `GATEWAY_IDS` in
+ *  routines.rs) plus the CI stub — neither is a pickable local agent. */
+const HIDDEN_AGENT_IDS = new Set(["gateway-remote", "gateway", "e2e-fake"]);
+
+/** Local agents a routine can be pinned to. */
+function pickableAgents(agents: AgentDescriptor[]): AgentDescriptor[] {
+  return agents.filter((a) => !HIDDEN_AGENT_IDS.has(a.id));
+}
+
+/** Short label for the agent chip on a routine row. */
+function agentLabel(id: string | null | undefined, agents: AgentDescriptor[]) {
+  if (!id) return null;
+  return agents.find((a) => a.id === id)?.label ?? id;
+}
+
+/** Last path segment, for the project chip (Windows or POSIX separators). */
+function baseName(p: string): string {
+  const parts = p.replace(/[\\/]+$/, "").split(/[\\/]/);
+  return parts[parts.length - 1] || p;
 }
 
 const ago = (ms: number): string => timeAgo(ms, { empty: "never" });
@@ -196,6 +240,51 @@ export function RoutinesPanel() {
   // backend" so a down backend doesn't masquerade as a fresh install.
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  // Runner availability drives the agent picker and the "nowhere to run"
+  // hint. null = probe still in flight (never blocks Save on its own).
+  const [agents, setAgents] = useState<AgentDescriptor[]>([]);
+  const [gatewayConfigured, setGatewayConfigured] = useState<boolean | null>(
+    null,
+  );
+  const projects = useCortexStore((s) => s.projects);
+  const codeProjects = useMemo(
+    () => projects.filter((p) => p.kind === "code"),
+    [projects],
+  );
+  const localAgents = useMemo(() => pickableAgents(agents), [agents]);
+  const hasLocalRunner = localAgents.some((a) => a.available);
+  // Only when both probes came back negative — a slow probe reads as "unknown",
+  // not "missing", so the hint never flashes on a healthy install.
+  const noRunner = gatewayConfigured === false && !hasLocalRunner && loaded;
+  // A pinned agent that isn't runnable right now (e.g. CLI not signed in).
+  const draftAgentDown =
+    draft.agent_id != null &&
+    localAgents.some((a) => a.id === draft.agent_id && !a.available);
+  // "Daily at" needs a time; Save waits for one.
+  const dailyMissing =
+    cadenceValue(draft) === DAILY_AT &&
+    !/^\d{2}:\d{2}$/.test(draft.daily_at ?? "");
+
+  useEffect(() => {
+    let live = true;
+    listAgents()
+      .then((a) => {
+        if (live) setAgents(a);
+      })
+      .catch(() => {
+        /* registry unavailable — picker shows Auto only */
+      });
+    getGatewayConfig()
+      .then((cfg) => {
+        if (live) setGatewayConfigured(cfg.base_url.trim().length > 0);
+      })
+      .catch(() => {
+        if (live) setGatewayConfigured(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const reload = useCallback(async () => {
     try {
@@ -232,7 +321,13 @@ export function RoutinesPanel() {
 
   const onSave = useCallback(async () => {
     try {
-      setRoutines(await saveRoutine(draft));
+      // "Daily at" is `daily_at` + interval 0 on the wire; any other cadence
+      // clears the daily time so the two never compete.
+      const spec: RoutineSpec =
+        draft.daily_at != null
+          ? { ...draft, interval_minutes: 0 }
+          : { ...draft, daily_at: null };
+      setRoutines(await saveRoutine(spec));
       setDraft(emptyRoutine());
       setShowForm(false);
     } catch (e) {
@@ -310,16 +405,67 @@ export function RoutinesPanel() {
             onChange={(e) => setDraft({ ...draft, prompt: e.target.value })}
           />
           <div className="routines-form-row">
+            <label className="routines-cadence" title="Which agent runs it">
+              <Bot size={13} strokeWidth={1.75} aria-hidden="true" />
+              <select
+                value={draft.agent_id ?? ""}
+                onChange={(e) =>
+                  setDraft({ ...draft, agent_id: e.target.value || null })
+                }
+                aria-label="Agent"
+              >
+                <option value="">
+                  {gatewayConfigured
+                    ? "Auto (Cortex Gateway)"
+                    : "Auto (first local agent)"}
+                </option>
+                {localAgents.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
+                    {a.available ? "" : " (unavailable)"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label
+              className="routines-cadence"
+              title="Project the agent works in (its working directory)"
+            >
+              <FolderGit2 size={13} strokeWidth={1.75} aria-hidden="true" />
+              <select
+                value={draft.project_root ?? ""}
+                onChange={(e) =>
+                  setDraft({ ...draft, project_root: e.target.value || null })
+                }
+                aria-label="Project"
+              >
+                <option value="">No project</option>
+                {codeProjects.map((p) => (
+                  <option key={p.root} value={p.root}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="routines-form-row">
             <label className="routines-cadence">
               <Clock size={13} strokeWidth={1.75} aria-hidden="true" />
               <select
-                value={draft.interval_minutes}
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    interval_minutes: Number(e.target.value),
-                  })
-                }
+                value={cadenceValue(draft)}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setDraft(
+                    v === DAILY_AT
+                      ? {
+                          ...draft,
+                          interval_minutes: 0,
+                          daily_at: draft.daily_at || "09:00",
+                        }
+                      : { ...draft, interval_minutes: v, daily_at: null },
+                  );
+                }}
+                aria-label="Cadence"
               >
                 {CADENCES.map((c) => (
                   <option key={c.minutes} value={c.minutes}>
@@ -327,6 +473,18 @@ export function RoutinesPanel() {
                   </option>
                 ))}
               </select>
+              {draft.daily_at != null && (
+                <input
+                  type="time"
+                  className="routines-input routines-time"
+                  value={draft.daily_at}
+                  onChange={(e) =>
+                    setDraft({ ...draft, daily_at: e.target.value })
+                  }
+                  aria-label="Daily run time (local)"
+                  required
+                />
+              )}
             </label>
             <label className="routines-enabled-check">
               <input
@@ -338,10 +496,35 @@ export function RoutinesPanel() {
               />
               enabled
             </label>
-            <button className="routines-save-btn" onClick={() => void onSave()}>
+            <button
+              className="routines-save-btn"
+              onClick={() => void onSave()}
+              disabled={noRunner || dailyMissing}
+              title={
+                noRunner
+                  ? "Nowhere to run — configure a gateway or install an agent CLI"
+                  : dailyMissing
+                    ? "Pick a time of day"
+                    : undefined
+              }
+            >
               Save
             </button>
           </div>
+          {noRunner && (
+            <p className="routines-hint routines-error" role="alert">
+              This routine would have nowhere to run: no Cortex Gateway URL is
+              configured and no local agent CLI (Claude Code, Codex, Gemini, …)
+              is available. Set a gateway in Settings → Connections or install
+              and sign in to an agent CLI in Settings → Providers.
+            </p>
+          )}
+          {!noRunner && draftAgentDown && (
+            <p className="routines-hint">
+              That agent is installed but not runnable right now (not signed
+              in?). The routine will save, but runs will fail until it is.
+            </p>
+          )}
         </div>
       )}
 
@@ -367,9 +550,34 @@ export function RoutinesPanel() {
             >
               <div className="routines-row-head">
                 <span className="routines-name">{r.name}</span>
-                <span className="routines-cadence-tag">
-                  {cadenceLabel(r.interval_minutes)}
-                </span>
+                <span className="routines-cadence-tag">{cadenceLabel(r)}</span>
+                {agentLabel(r.agent_id, agents) && (
+                  <span
+                    className="routines-cadence-tag"
+                    title="Runs through this agent"
+                  >
+                    <Bot size={11} strokeWidth={1.75} aria-hidden="true" />{" "}
+                    {agentLabel(r.agent_id, agents)}
+                  </span>
+                )}
+                {r.project_root && (
+                  <span className="routines-cadence-tag" title={r.project_root}>
+                    <FolderGit2
+                      size={11}
+                      strokeWidth={1.75}
+                      aria-hidden="true"
+                    />{" "}
+                    {baseName(r.project_root)}
+                  </span>
+                )}
+                {r.enabled && r.next_run_unix_ms != null && (
+                  <span
+                    className="routines-next"
+                    title={`Next run ${new Date(r.next_run_unix_ms).toLocaleString()}`}
+                  >
+                    next {timeUntil(r.next_run_unix_ms)}
+                  </span>
+                )}
                 {r.last_status && (
                   <span
                     className={`routines-status routines-status-${r.last_status}`}

@@ -26,3 +26,15 @@ export const ALL_SECTIONS: SectionDef[] = [
   ...UPDATES_SECTIONS,
   ...ADVANCED_SECTIONS,
 ];
+
+/** Searchable metadata for every section (no render functions) — what the
+ *  command palette indexes for "Settings › Tab › Heading" deep links. */
+export interface SettingsSectionMeta {
+  tab: SectionDef["tab"];
+  heading: string;
+  text: string;
+}
+
+export const SETTINGS_SECTION_INDEX: SettingsSectionMeta[] = ALL_SECTIONS.map(
+  ({ tab, heading, text }) => ({ tab, heading, text }),
+);

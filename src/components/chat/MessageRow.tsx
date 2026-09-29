@@ -1,6 +1,6 @@
-import { memo, useMemo, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { AlertTriangle, Paperclip } from "lucide-react";
-import type { Message, ToolEvent } from "@/state/store";
+import { useCortexStore, type Message, type ToolEvent } from "@/state/store";
 import { extractPlan } from "@/lib/plan";
 import { MarkdownView } from "../MarkdownView";
 import { MessageActions } from "../MessageActions";
@@ -9,7 +9,46 @@ import { ToolCallCard } from "../ToolCallCard";
 import { ApprovalPrompt } from "../ApprovalPrompt";
 import { PlanCard } from "../PlanCard";
 import { ThinkingIndicator } from "./ThinkingIndicator";
+import { FinishedRunCard } from "./FinishedRunCard";
 import { attachmentChips } from "./attachment-tokens";
+
+/** How long the "jumped here" highlight stays on a focused message. */
+const ATTENTION_FLASH_MS = 1600;
+
+// "Needs attention" jump target. `lib/attention.ts` sets
+// `attentionFocusMessageId` after switching threads; the matching row scrolls
+// itself into view, takes focus (so Tab lands on the approval buttons) and
+// clears the request — consume-once, like `replayFocusSpanId`.
+function useAttentionFocus(messageId: string) {
+  const ref = useRef<HTMLDivElement>(null);
+  const requested = useCortexStore(
+    (s) => s.attentionFocusMessageId === messageId,
+  );
+  useEffect(() => {
+    if (!requested) return;
+    let flashTimer: number | null = null;
+    // Next frame: a just-switched thread needs one paint before its rows
+    // have layout to scroll to.
+    const raf = requestAnimationFrame(() => {
+      const el = ref.current;
+      if (el) {
+        el.scrollIntoView({ block: "center", inline: "nearest" });
+        el.focus({ preventScroll: true });
+        el.classList.add("attn-flash");
+        flashTimer = window.setTimeout(
+          () => el.classList.remove("attn-flash"),
+          ATTENTION_FLASH_MS,
+        );
+      }
+      useCortexStore.getState().setAttentionFocusMessageId(null);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      if (flashTimer !== null) window.clearTimeout(flashTimer);
+    };
+  }, [requested]);
+  return ref;
+}
 
 // Render one run of assistant/user text: a PlanCard when it's a well-formed
 // plan (Cline / Aider plan mode), otherwise markdown for the assistant and
@@ -100,6 +139,9 @@ export interface MessageRowProps {
   // we suppress the repeated role label and tighten the gap — the message
   // grouping every mature chat UI uses (Claude.ai / ChatGPT / Slack / Linear).
   continuesAuthor?: boolean;
+  /** True for the latest completed assistant turn with a run id — renders the
+   *  "Done — n edits · Diff · Review · Replay" footer (FinishedRunCard). */
+  showRunCard?: boolean;
 }
 
 // Memoized: with stable setApproval/onRegenerate props, only the message whose
@@ -110,7 +152,9 @@ export const MessageRow = memo(function MessageRow({
   setApproval,
   onRegenerate,
   continuesAuthor = false,
+  showRunCard = false,
 }: MessageRowProps) {
+  const rootRef = useAttentionFocus(m.id);
   // @-token chips for user messages so users can see at a glance what context
   // was attached on each turn. The persisted content is the ORIGINAL
   // (pre-expansion) typed message, so we re-parse the same patterns the
@@ -122,6 +166,10 @@ export const MessageRow = memo(function MessageRow({
   const isError = m.role === "error";
   return (
     <div
+      ref={rootRef}
+      // Focusable only programmatically (attention jump) — not in Tab order.
+      tabIndex={-1}
+      data-message-id={m.id}
       className={`msg msg-${m.role}${continuesAuthor ? " msg-cont" : ""}`}
       role={isError ? "alert" : undefined}
     >
@@ -170,10 +218,15 @@ export const MessageRow = memo(function MessageRow({
       )}
       {renderTimeline(m)}
       {m.approval && (
-        <ApprovalPrompt
-          approval={m.approval}
-          onResolved={() => setApproval(m.id, null)}
-        />
+        <div className="approval-anchor" data-approval-message={m.id}>
+          <ApprovalPrompt
+            approval={m.approval}
+            onResolved={() => setApproval(m.id, null)}
+          />
+        </div>
+      )}
+      {showRunCard && !m.pending && !m.approval && (
+        <FinishedRunCard message={m} />
       )}
       <MessageActions message={m} onRegenerate={onRegenerate} />
     </div>

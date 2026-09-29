@@ -43,7 +43,90 @@ export const DEFAULT_KEYMAP: KeymapBinding[] = [
   },
   { id: "settings", combo: "Ctrl+,", description: "Open settings" },
   { id: "cycle-mode", combo: "Ctrl+M", description: "Toggle Plan / Act mode" },
+  {
+    id: "focus-approval",
+    combo: "Ctrl+Shift+A",
+    description: "Jump to the oldest pending approval",
+  },
+  { id: "resume", combo: "Ctrl+R", description: "Resume a chat session" },
+  {
+    id: "memory-search",
+    combo: "Ctrl+Shift+F",
+    description: "Focus memory search",
+  },
+  {
+    id: "cycle-tab",
+    combo: "Ctrl+Tab",
+    description: "Cycle activity panels (Shift reverses)",
+  },
 ];
+
+/** Combo string for a binding id, or `fallback` when the id is unknown. */
+export function comboFor(id: string, fallback = ""): string {
+  return DEFAULT_KEYMAP.find((b) => b.id === id)?.combo ?? fallback;
+}
+
+/**
+ * True when the keystroke landed in an editable field (input, textarea,
+ * contentEditable). Global single-modifier shortcuts skip those so a literal
+ * keystroke still reaches the composer; Ctrl+Shift chords are safe to honor
+ * everywhere because no editable field consumes them for text entry.
+ */
+export function isEditableTarget(e: KeyboardEvent): boolean {
+  const target = e.target as HTMLElement | null;
+  const tag = target?.tagName?.toLowerCase();
+  return (
+    tag === "input" ||
+    tag === "textarea" ||
+    tag === "select" ||
+    !!target?.isContentEditable
+  );
+}
+
+/** True when `combo` requires both Ctrl (or Cmd) and Shift. */
+export function isCtrlShiftCombo(combo: string): boolean {
+  const c = parseCombo(combo);
+  return (c.ctrl || c.meta) && c.shift;
+}
+
+const KEY_LABELS: Record<string, string> = {
+  enter: "Enter",
+  escape: "Esc",
+  space: "Space",
+  tab: "Tab",
+  delete: "Del",
+  backspace: "Backspace",
+  arrowup: "↑",
+  arrowdown: "↓",
+  arrowleft: "←",
+  arrowright: "→",
+};
+
+/**
+ * Split a combo into display tokens for the platform the app runs on:
+ * `"Ctrl+Shift+A"` → `["Ctrl", "Shift", "A"]` on Windows/Linux and
+ * `["⌘", "⇧", "A"]` on macOS (where {@link matchCombo} accepts Cmd for Ctrl).
+ */
+export function comboParts(combo: string): string[] {
+  const c = parseCombo(combo);
+  const mac = isMac();
+  const out: string[] = [];
+  if (c.ctrl || c.meta) out.push(mac ? "⌘" : "Ctrl");
+  if (c.alt) out.push(mac ? "⌥" : "Alt");
+  if (c.shift) out.push(mac ? "⇧" : "Shift");
+  if (c.key) {
+    out.push(
+      KEY_LABELS[c.key] ?? (c.key.length === 1 ? c.key.toUpperCase() : c.key),
+    );
+  }
+  return out;
+}
+
+/** One-line, platform-correct hint text: `"Ctrl+K"` or `"⌘K"`. */
+export function formatCombo(combo: string): string {
+  const parts = comboParts(combo);
+  return isMac() ? parts.join("") : parts.join("+");
+}
 
 interface ParsedCombo {
   ctrl: boolean;
@@ -102,7 +185,7 @@ function parseCombo(combo: string): ParsedCombo {
  * rather than Ctrl, so we alias the two there — but only there. Falls back to
  * `false` in non-browser/test contexts where `navigator` is unavailable.
  */
-function isMac(): boolean {
+export function isMac(): boolean {
   if (typeof navigator === "undefined") return false;
   const platform =
     (navigator as Navigator & { userAgentData?: { platform?: string } })

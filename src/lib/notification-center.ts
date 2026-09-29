@@ -44,7 +44,26 @@ export type NotifSource =
   | "monitor"
   | "config"
   | "repo"
-  | "job";
+  | "job"
+  | "approval";
+
+/**
+ * A tool call paused for the user's decision. Recorded by `lib/attention.ts`
+ * (which watches the store for new `Message.approval` entries across every
+ * thread) and removed again when the approval resolves, so the inbox lists
+ * exactly the approvals that are still waiting. `ref` on the derived
+ * notification carries the message id; clicking deep-links to the thread.
+ */
+export interface ApprovalEventRow {
+  /** `PendingApproval.id` — stable per request. */
+  id: string;
+  ts: number;
+  threadId: string;
+  messageId: string;
+  agent: string;
+  tool: string | null;
+  preview: string | null;
+}
 
 /**
  * Completion/failure record for a long-running or background job (Cookbook
@@ -110,6 +129,7 @@ const state: {
   config: ConfigChangedEvent[];
   repo: RepoWatcherEvent[];
   jobs: JobEventRow[];
+  approvals: ApprovalEventRow[];
   /** Read-status set keyed by Notification.id. */
   read: Set<string>;
   /** Live subscriber count for pull-refresh gating. */
@@ -128,6 +148,7 @@ const state: {
   config: [],
   repo: [],
   jobs: [],
+  approvals: [],
   read: new Set<string>(),
   subscribers: 0,
   unlisteners: [],
@@ -244,6 +265,26 @@ export function recordJobEvent(
   notify();
 }
 
+/** Record a pending approval so it shows under the "Approvals" chip. No-op
+ *  when that approval id is already listed (the store watcher can re-see an
+ *  approval after a thread hydrate). */
+export function recordApprovalEvent(row: ApprovalEventRow): void {
+  if (state.approvals.some((a) => a.id === row.id)) return;
+  pushBounded(state.approvals, row);
+  notify();
+}
+
+/** Drop a pending approval once it has been answered (or its thread went
+ *  away). Also clears its read-mark so the id can't leak memory. */
+export function clearApprovalEvent(approvalId: string): void {
+  const before = state.approvals.length;
+  state.approvals = state.approvals.filter((a) => a.id !== approvalId);
+  if (state.approvals.length !== before) {
+    state.read.delete(`approval:${approvalId}`);
+    notify();
+  }
+}
+
 /** Current notification list, outside React. Used by the E2E probe. */
 export function getNotificationsSnapshot(): Notification[] {
   return getSnapshot();
@@ -353,6 +394,18 @@ function buildAll(): Notification[] {
       ref: j.kind,
     });
   }
+  for (const a of state.approvals) {
+    const tool = a.tool ?? "tool call";
+    out.push({
+      id: `approval:${a.id}`,
+      ts: a.ts,
+      severity: "warning",
+      source: "approval",
+      message: `Approval needed: ${tool}${a.preview ? ` — ${truncate(a.preview, 120)}` : ""}`,
+      detail: `${a.agent} is paused until you approve or deny.`,
+      ref: a.messageId,
+    });
+  }
 
   // Newest first; deterministic tie-break on id so React keys stay stable.
   out.sort((a, b) => b.ts - a.ts || a.id.localeCompare(b.id));
@@ -452,6 +505,17 @@ export async function openNotification(n: Notification): Promise<void> {
                 ? "routines"
                 : "cookbook";
         useCortexStore.getState().setActivityTab(tab);
+        return;
+      }
+      case "approval": {
+        // Jump to the thread + message that is waiting on the user.
+        const row = state.approvals.find((a) => `approval:${a.id}` === n.id);
+        if (!row) return;
+        const { focusApproval } = await import("@/lib/attention");
+        await focusApproval({
+          threadId: row.threadId,
+          messageId: row.messageId,
+        });
         return;
       }
     }

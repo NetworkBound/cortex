@@ -2,6 +2,13 @@ import { create } from "zustand";
 
 export type ToastKind = "info" | "success" | "error" | "warning";
 
+/** Optional inline action button rendered on the card ("Open", "Undo"…).
+ *  Clicking it runs `onClick` and dismisses the toast. */
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface Toast {
   id: string;
   title: string;
@@ -9,6 +16,7 @@ export interface Toast {
   kind: ToastKind;
   ttlMs: number;
   createdAt: number;
+  action?: ToastAction;
 }
 
 export interface PushToastArgs {
@@ -16,6 +24,7 @@ export interface PushToastArgs {
   body?: string;
   kind?: ToastKind;
   ttlMs?: number;
+  action?: ToastAction;
 }
 
 interface ToastState {
@@ -29,7 +38,7 @@ const DEFAULT_TTL_MS = 4000;
 
 export const useToastStore = create<ToastState>((set, get) => ({
   toasts: [],
-  pushToast: ({ title, body, kind, ttlMs }) => {
+  pushToast: ({ title, body, kind, ttlMs, action }) => {
     const resolvedKind = kind ?? DEFAULT_KIND;
     // Dedup: a repeatedly-firing source (e.g. the connectivity poller while
     // the gateway is offline) would otherwise stack dozens of identical
@@ -47,6 +56,7 @@ export const useToastStore = create<ToastState>((set, get) => ({
       kind: resolvedKind,
       ttlMs: ttlMs ?? DEFAULT_TTL_MS,
       createdAt: Date.now(),
+      action,
     };
     set((s) => ({ toasts: [...s.toasts, toast] }));
     return id;

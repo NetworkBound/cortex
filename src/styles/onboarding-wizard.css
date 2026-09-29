@@ -1,0 +1,46 @@
+/* OnboardingWizard additions (the base wizard chrome lives in global.css):
+   the inline theme toggle, the "Pick a project" card and the CLI list. */
+
+.onboarding-subhead {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--text-muted);
+  margin: var(--space-2) 0 var(--space-1);
+}
+
+/* Theme moved from a full step to one compact row under the mode choice. */
+.onboarding-theme-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+.onboarding-theme-inline select {
+  flex: 0 1 220px;
+  min-width: 0;
+}
+
+.onboarding-project-pick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+}
+.onboarding-pick-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.onboarding-pick-error {
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}
+
+.onboarding-cli-list {
+  margin-bottom: var(--space-2);
+}
