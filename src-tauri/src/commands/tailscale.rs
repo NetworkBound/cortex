@@ -139,18 +139,47 @@ pub async fn ts_wsl_stop() -> Result<(), String> {
 }
 
 /// A phone-pairing payload for the Tailscale-fronted mobile server: the
-/// reachable URL plus a QR-code SVG the Settings panel renders so a phone on
-/// the tailnet can scan instead of typing the URL.
+/// reachable URL, a one-time 6-digit pairing code (10 min, single use — see
+/// `mobile_server::pairing`) and a QR-code SVG the Settings panel renders so
+/// a phone on the tailnet can scan instead of typing.
 #[derive(Debug, serde::Serialize)]
 pub struct MobilePairing {
     /// `https://<magicdns-name>/` — the tailnet-authenticated mobile entry point.
     pub url: String,
-    /// Inline SVG of the QR encoding `url` (theme-neutral: currentColor-ready
+    /// The one-time pairing code the phone POSTs to `/api/v2/pair`.
+    pub code: String,
+    /// Unix ms when `code` stops being accepted.
+    pub expires_ms: i64,
+    /// `cortex://pair?url=<url>&code=<code>` — what the QR encodes; the
+    /// native app registers the `cortex://` scheme.
+    pub pair_uri: String,
+    /// `<url>#/pair?code=<code>` — the same pairing as an HTTPS link, for the
+    /// installed PWA (and App/Universal Links once they exist).
+    pub pair_url_https: String,
+    /// Inline SVG of the QR encoding `pair_uri` (theme-neutral: currentColor-ready
     /// black modules on transparent, sized by the caller's container).
     pub qr_svg: String,
 }
 
-/// Derive the mobile pairing URL from live Tailscale status and render its QR.
+/// Every paired phone, for the Settings → Mobile devices list.
+#[tauri::command]
+pub async fn mobile_devices_list() -> Result<Vec<crate::mobile_server::pairing::DeviceView>, String>
+{
+    Ok(crate::mobile_server::pairing::list_devices())
+}
+
+/// Revoke a paired phone's token (its next request gets 401). Errors when
+/// the id is unknown so the UI can refresh a stale list.
+#[tauri::command]
+pub async fn mobile_device_revoke(id: String) -> Result<(), String> {
+    match crate::mobile_server::pairing::revoke_device(&id)? {
+        true => Ok(()),
+        false => Err(format!("no paired device with id {id}")),
+    }
+}
+
+/// Derive the mobile pairing URL from live Tailscale status, mint a one-time
+/// pairing code and render the QR.
 ///
 /// Only meaningful once the node is `Connected` (MagicDNS name assigned and
 /// `tailscale serve` fronting the loopback mobile server on 443). Any other
@@ -169,15 +198,40 @@ pub async fn ts_mobile_pairing() -> Result<MobilePairing, String> {
             return Err("Enable Tailscale and wait for it to connect before pairing a device.".into())
         }
     };
-    Ok(build_mobile_pairing(&dnsname))
+    let code = crate::mobile_server::pairing::mint_code();
+    Ok(build_mobile_pairing(&dnsname, &code.code, code.expires_ms))
 }
 
 /// Pure builder — URL shaping + QR-SVG render — split out so it is unit-testable
 /// without a live tailnet.
-fn build_mobile_pairing(dnsname: &str) -> MobilePairing {
+fn build_mobile_pairing(dnsname: &str, code: &str, expires_ms: i64) -> MobilePairing {
     let url = format!("https://{}/", dnsname.trim().trim_end_matches('/'));
-    let qr_svg = render_qr_svg(&url);
-    MobilePairing { url, qr_svg }
+    let pair_uri = pair_uri(&url, code);
+    let pair_url_https = format!("{url}#/pair?code={code}");
+    let qr_svg = render_qr_svg(&pair_uri);
+    MobilePairing {
+        url,
+        code: code.to_string(),
+        expires_ms,
+        pair_uri,
+        pair_url_https,
+        qr_svg,
+    }
+}
+
+/// `cortex://pair?url=<percent-encoded base>&code=<6 digits>` (the contract's
+/// QR payload). Only `url` needs escaping; the code is digits.
+pub fn pair_uri(base_url: &str, code: &str) -> String {
+    let mut enc = String::with_capacity(base_url.len() * 3);
+    for b in base_url.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
+                enc.push(b as char)
+            }
+            _ => enc.push_str(&format!("%{b:02X}")),
+        }
+    }
+    format!("cortex://pair?url={enc}&code={code}")
 }
 
 /// Encode `data` as a QR code and return a standalone SVG string. On the
@@ -206,19 +260,29 @@ mod tests {
 
     #[test]
     fn pairing_url_is_https_magicdns_root() {
-        let p = build_mobile_pairing("cortex.tail1234.ts.net");
+        let p = build_mobile_pairing("cortex.tail1234.ts.net", "123456", 42);
         assert_eq!(p.url, "https://cortex.tail1234.ts.net/");
+        assert_eq!(p.code, "123456");
+        assert_eq!(p.expires_ms, 42);
+        assert_eq!(
+            p.pair_uri,
+            "cortex://pair?url=https%3A%2F%2Fcortex.tail1234.ts.net%2F&code=123456"
+        );
+        assert_eq!(
+            p.pair_url_https,
+            "https://cortex.tail1234.ts.net/#/pair?code=123456"
+        );
     }
 
     #[test]
     fn pairing_url_normalizes_trailing_slash() {
-        let p = build_mobile_pairing("cortex.tail1234.ts.net/");
+        let p = build_mobile_pairing("cortex.tail1234.ts.net/", "000000", 0);
         assert_eq!(p.url, "https://cortex.tail1234.ts.net/");
     }
 
     #[test]
     fn qr_svg_is_nonempty_svg_encoding_the_url() {
-        let p = build_mobile_pairing("cortex.tail1234.ts.net");
+        let p = build_mobile_pairing("cortex.tail1234.ts.net", "654321", 0);
         assert!(p.qr_svg.starts_with("<?xml") || p.qr_svg.starts_with("<svg"));
         assert!(p.qr_svg.contains("<svg"));
         // A real QR of a ~30-char URL is substantial, never the 1x1 placeholder.

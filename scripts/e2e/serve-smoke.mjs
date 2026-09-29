@@ -17,6 +17,12 @@
 //   - WS  /ws Origin == Host     → 101 (same-origin SPA)
 //   - WS  /ws Origin evil.example→ 403 (cross-site WebSocket hijack blocked)
 //   - POST /mcp                  → 404 (MCP server is off by default)
+//   - /api/v2 (mobile contract)  → pair with the preset CORTEX_E2E_PAIR_CODE,
+//                                  then /capabilities, /threads, /models with
+//                                  the token; a bogus token and a missing one
+//                                  get 401 (CORTEX_E2E_FORCE_AUTH=1 makes
+//                                  loopback require auth too); a wrong pairing
+//                                  code is 401; /devices lists + revokes.
 //   - response times (warm)      → index.html, /v1/models, /api/sessions each
 //                                  answer in < E2E_BUDGET_HTTP_MS (500 ms;
 //                                  median of 3) — WARN only, FAIL with
@@ -67,6 +73,9 @@ const REQUEST_TIMEOUT_MS = 60_000;
 // Warm response-time budget per endpoint (median of TIMING_SAMPLES).
 const HTTP_BUDGET_MS = budgetFromEnv("E2E_BUDGET_HTTP_MS", 500);
 const TIMING_SAMPLES = 3;
+// Preset pairing code the server accepts while CORTEX_E2E=1 (see
+// mobile_server/pairing.rs). Six digits, like a real one.
+const E2E_PAIR_CODE = process.env.CORTEX_E2E_PAIR_CODE ?? "424242";
 
 const checks = [];
 function check(name, ok, detail = "") {
@@ -243,6 +252,11 @@ async function main() {
     ...homeEnv,
     CORTEX_MOBILE_PORT: String(port),
     CORTEX_MOBILE_DIST: dist,
+    // Mobile v2 contract checks: arm E2E so the preset pairing code is
+    // accepted, and make loopback require a bearer so the gate is exercised.
+    CORTEX_E2E: "1",
+    CORTEX_E2E_PAIR_CODE: E2E_PAIR_CODE,
+    CORTEX_E2E_FORCE_AUTH: "1",
     RUST_LOG: process.env.RUST_LOG ?? "info",
     RUST_BACKTRACE: process.env.RUST_BACKTRACE ?? "1",
   };
@@ -425,6 +439,9 @@ async function main() {
       `status=${mcp.res.status} body=${mcp.text.slice(0, 80)}`,
     );
 
+    // ── Mobile v2 contract ────────────────────────────────────────────
+    await v2Checks(base);
+
     // The server must still be alive after all of that.
     const again = await get(base, "/api/health");
     check("server still healthy", again.res.status === 200 && !srv.exited);
@@ -451,6 +468,219 @@ async function main() {
     log(`all ${checks.length} checks passed`);
   }
   return finish(srv, home);
+}
+
+/** Parse JSON leniently; `null` when the body isn't JSON. */
+function parseJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Mobile v2 contract checks (see scratchpad mobile-contract.md). The server
+ * was started with CORTEX_E2E_FORCE_AUTH=1, so even loopback must present a
+ * paired device's bearer token — which lets us assert the 401 paths on
+ * 127.0.0.1 where a "remote" peer can't be simulated.
+ */
+async function v2Checks(base) {
+  // Unauthenticated → 401 with the JSON error envelope.
+  const noAuth = await get(base, "/api/v2/capabilities");
+  const noAuthJson = parseJson(noAuth.text);
+  check(
+    "GET /api/v2/capabilities without token is 401",
+    noAuth.res.status === 401 && noAuthJson?.error?.code === "unauthorized",
+    `status=${noAuth.res.status} body=${noAuth.text.slice(0, 100)}`,
+  );
+
+  // Bogus token → 401 too.
+  const bogus = await get(base, "/api/v2/capabilities", {
+    headers: { authorization: "Bearer not-a-paired-device" },
+  });
+  check(
+    "GET /api/v2/capabilities with bogus token is 401",
+    bogus.res.status === 401 &&
+      parseJson(bogus.text)?.error?.code === "unauthorized",
+    `status=${bogus.res.status}`,
+  );
+
+  // Wrong pairing code → 401.
+  const badPair = await get(base, "/api/v2/pair", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ code: "000001", device_name: "e2e" }),
+  });
+  check(
+    "POST /api/v2/pair with a wrong code is 401",
+    badPair.res.status === 401,
+    `status=${badPair.res.status} body=${badPair.text.slice(0, 100)}`,
+  );
+
+  // Pair with the preset code.
+  const pair = await get(base, "/api/v2/pair", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ code: E2E_PAIR_CODE, device_name: "E2E phone" }),
+  });
+  const pairJson = parseJson(pair.text);
+  const token = pairJson?.token;
+  check(
+    "POST /api/v2/pair with the preset code returns a token",
+    pair.res.status === 200 &&
+      typeof token === "string" &&
+      token.length >= 32 &&
+      typeof pairJson?.device_id === "string" &&
+      typeof pairJson?.server_version === "string",
+    `status=${pair.res.status} keys=${Object.keys(pairJson ?? {}).join(",")}`,
+  );
+  if (!token) return;
+  const auth = { authorization: `Bearer ${token}` };
+
+  const caps = await get(base, "/api/v2/capabilities", { headers: auth });
+  const capsJson = parseJson(caps.text);
+  check(
+    "GET /api/v2/capabilities with token",
+    caps.res.status === 200 &&
+      typeof capsJson?.server_version === "string" &&
+      Array.isArray(capsJson?.features) &&
+      capsJson.features.includes("threads") &&
+      Array.isArray(capsJson?.local_agents) &&
+      typeof capsJson?.gateway === "boolean" &&
+      capsJson?.device?.id === pairJson.device_id,
+    `status=${caps.res.status} features=${capsJson?.features?.length ?? "?"}`,
+  );
+
+  const threads = await get(base, "/api/v2/threads", { headers: auth });
+  const threadsJson = parseJson(threads.text);
+  check(
+    "GET /api/v2/threads with token",
+    threads.res.status === 200 && Array.isArray(threadsJson?.threads),
+    `status=${threads.res.status} body=${threads.text.slice(0, 100)}`,
+  );
+
+  // Create, rename, list, delete a thread (server-side persistence).
+  const created = await get(base, "/api/v2/threads", {
+    method: "POST",
+    headers: { ...auth, "content-type": "application/json" },
+    body: JSON.stringify({ title: "E2E thread" }),
+  });
+  const createdJson = parseJson(created.text);
+  check(
+    "POST /api/v2/threads creates a thread",
+    created.res.status === 200 &&
+      typeof createdJson?.id === "string" &&
+      createdJson?.title === "E2E thread",
+    `status=${created.res.status} body=${created.text.slice(0, 120)}`,
+  );
+  if (createdJson?.id) {
+    const renamed = await get(base, `/api/v2/threads/${createdJson.id}`, {
+      method: "PATCH",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ title: "E2E renamed" }),
+    });
+    check(
+      "PATCH /api/v2/threads/:id renames",
+      renamed.res.status === 200 &&
+        parseJson(renamed.text)?.title === "E2E renamed",
+      `status=${renamed.res.status}`,
+    );
+    const listed = parseJson(
+      (await get(base, "/api/v2/threads", { headers: auth })).text,
+    );
+    check(
+      "GET /api/v2/threads lists the new thread",
+      Array.isArray(listed?.threads) &&
+        listed.threads.some((t) => t.id === createdJson.id),
+    );
+    const msgs = await get(base, `/api/v2/threads/${createdJson.id}/messages`, {
+      headers: auth,
+    });
+    check(
+      "GET /api/v2/threads/:id/messages (empty thread)",
+      msgs.res.status === 200 &&
+        Array.isArray(parseJson(msgs.text)?.messages) &&
+        parseJson(msgs.text).messages.length === 0,
+      `status=${msgs.res.status}`,
+    );
+    const deleted = await get(base, `/api/v2/threads/${createdJson.id}`, {
+      method: "DELETE",
+      headers: auth,
+    });
+    check(
+      "DELETE /api/v2/threads/:id",
+      deleted.res.status === 200,
+      `status=${deleted.res.status}`,
+    );
+    const gone = await get(base, `/api/v2/threads/${createdJson.id}/messages`, {
+      headers: auth,
+    });
+    check(
+      "deleted thread is 404",
+      gone.res.status === 404 &&
+        parseJson(gone.text)?.error?.code === "not_found",
+      `status=${gone.res.status}`,
+    );
+  }
+
+  const models = await get(base, "/api/v2/models", { headers: auth });
+  const modelsJson = parseJson(models.text);
+  check(
+    "GET /api/v2/models with token",
+    models.res.status === 200 &&
+      Array.isArray(modelsJson?.models) &&
+      modelsJson.models.every(
+        (m) =>
+          typeof m.id === "string" &&
+          typeof m.provider === "string" &&
+          Array.isArray(m.capabilities) &&
+          typeof m.local === "boolean" &&
+          ["free", "low", "mid", "high"].includes(m.cost_tier),
+      ),
+    `status=${models.res.status} models=${modelsJson?.models?.length ?? "?"}`,
+  );
+
+  for (const p of [
+    "/api/v2/runs",
+    "/api/v2/approvals",
+    "/api/v2/projects",
+    "/api/v2/routines",
+    "/api/v2/reliability?range=7d",
+    "/api/v2/settings/mobile",
+    "/api/v2/push/status",
+  ]) {
+    const r = await get(base, p, { headers: auth });
+    check(
+      `GET ${p} with token`,
+      r.res.status === 200 && parseJson(r.text) !== null,
+      `status=${r.res.status} body=${r.text.slice(0, 80)}`,
+    );
+  }
+
+  // Devices: the paired phone is listed; revoking it kills the token.
+  const devices = await get(base, "/api/v2/devices", { headers: auth });
+  const devicesJson = parseJson(devices.text);
+  check(
+    "GET /api/v2/devices lists the paired device",
+    devices.res.status === 200 &&
+      Array.isArray(devicesJson?.devices) &&
+      devicesJson.devices.some((d) => d.id === pairJson.device_id) &&
+      devicesJson.devices.every((d) => !("token_sha256" in d)),
+    `status=${devices.res.status}`,
+  );
+  const revoked = await get(base, `/api/v2/devices/${pairJson.device_id}`, {
+    method: "DELETE",
+    headers: auth,
+  });
+  const afterRevoke = await get(base, "/api/v2/capabilities", {
+    headers: auth,
+  });
+  check(
+    "DELETE /api/v2/devices/:id revokes the token",
+    revoked.res.status === 200 && afterRevoke.res.status === 401,
+    `revoke=${revoked.res.status} then capabilities=${afterRevoke.res.status}`,
+  );
 }
 
 async function finish(srv, home) {

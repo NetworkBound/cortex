@@ -763,6 +763,8 @@ fn run_tauri(state: AppState, tracing_store: TracingStore, gateway_candidates: V
             commands::tailscale::ts_wsl_status,
             commands::tailscale::ts_wsl_stop,
             commands::tailscale::ts_mobile_pairing,
+            commands::tailscale::mobile_devices_list,
+            commands::tailscale::mobile_device_revoke,
         ]))
         .setup(move |app| {
             tracing::info!("cortex started");
@@ -839,6 +841,8 @@ fn run_tauri(state: AppState, tracing_store: TracingStore, gateway_candidates: V
                 use tauri::Manager;
                 let app_state = app.state::<AppState>().inner().clone();
                 let store = app.state::<TracingStore>().inner().clone();
+                // Phone-originated chat runs stream into the desktop UI too.
+                crate::mobile_server::set_desktop_handle(app.handle().clone());
                 tauri::async_runtime::spawn(async move {
                     if let Err(e) = crate::mobile_server::spawn(app_state, store).await {
                         tracing::warn!("mobile server failed to start: {e:#}");

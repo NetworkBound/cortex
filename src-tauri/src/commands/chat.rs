@@ -294,11 +294,77 @@ fn build_images_envelope(images: &[String], message: &str) -> Option<String> {
 /// dependency). Generous because reasoning models can be slow to draft a plan.
 const PLANNER_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 
+/// Where a chat run's UI-facing events go. The desktop wraps the Tauri
+/// [`tauri::AppHandle`] (events become `agent-event:<session>` Tauri events,
+/// the trace store comes from managed state); the mobile server and the
+/// headless `cortex-serve` binary supply the store directly and have no
+/// window. Every emit ALSO reaches the process-wide tap installed with
+/// [`set_event_tap`], which is how the mobile server mirrors desktop-initiated
+/// runs to paired phones (and phone-initiated runs back to the desktop when it
+/// wraps the app handle). Cheap to clone: two `Arc`-backed handles.
+#[derive(Clone)]
+pub struct ChatSink {
+    app: Option<tauri::AppHandle>,
+    store: Option<TracingStore>,
+}
+
+/// Process-wide observer of every [`ChatSink::emit`]: `(event_name, payload)`.
+/// Set once (first `set` wins); absent → emits only reach the Tauri window.
+static EVENT_TAP: OnceCell<Arc<dyn Fn(&str, &serde_json::Value) + Send + Sync>> = OnceCell::new();
+
+/// Install the global chat-event tap (see [`ChatSink`]). Later calls are
+/// ignored so a second server instance can't hijack the first one's stream.
+pub fn set_event_tap(tap: Arc<dyn Fn(&str, &serde_json::Value) + Send + Sync>) {
+    let _ = EVENT_TAP.set(tap);
+}
+
+impl ChatSink {
+    /// Desktop: emit to the webview, trace store from managed state.
+    pub fn tauri(app: tauri::AppHandle) -> Self {
+        Self {
+            app: Some(app),
+            store: None,
+        }
+    }
+
+    /// Headless / mobile server: no window, explicit trace store.
+    pub fn headless(store: TracingStore) -> Self {
+        Self {
+            app: None,
+            store: Some(store),
+        }
+    }
+
+    /// Emit `payload` under `event` (`agent-event:<session>`). Same signature
+    /// shape as `tauri::Emitter::emit` so the pipeline body is unchanged.
+    pub fn emit(&self, event: &str, payload: serde_json::Value) -> Result<(), String> {
+        if let Some(tap) = EVENT_TAP.get() {
+            tap(event, &payload);
+        }
+        match &self.app {
+            Some(app) => app.emit(event, payload).map_err(|e| e.to_string()),
+            None => Ok(()),
+        }
+    }
+
+    /// The trace store this run records into, if any (mirrors the old
+    /// `app.try_state::<TracingStore>()` — `None` only when the desktop app
+    /// hasn't managed one yet).
+    pub fn store(&self) -> Option<TracingStore> {
+        if let Some(s) = &self.store {
+            return Some(s.clone());
+        }
+        self.app
+            .as_ref()
+            .and_then(|a| a.try_state::<TracingStore>().map(|s| s.inner().clone()))
+    }
+}
+
 /// Emit a synthetic `token` agent-event to the chat UI under `agent_id`. Used
 /// to stream the architect planner's output (and its phase header/separator)
 /// into the same assistant bubble the editor phase will continue, so a turn
 /// reads as one continuous "plan, then edits" message.
-fn emit_chat_token(app: &tauri::AppHandle, session: &str, agent_id: &str, delta: &str) {
+fn emit_chat_token(app: &ChatSink, session: &str, agent_id: &str, delta: &str) {
     let payload = serde_json::json!({
         "agent_id": agent_id,
         "event": { "type": "token", "delta": delta },
@@ -2553,6 +2619,19 @@ pub async fn chat_send(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<ChatSendResult, String> {
+    chat_send_with(args, ChatSink::tauri(app), state.inner().clone()).await
+}
+
+/// The desktop chat pipeline behind [`chat_send`] — routing, hooks, trust /
+/// sandbox / safe-mode gates, tracing, failover, phone push — detached from
+/// the Tauri command boundary so the mobile server (`mobile_server::v2`) and
+/// the headless `cortex-serve` binary drive the exact same path. `app` decides
+/// where the streamed events go (see [`ChatSink`]).
+pub async fn chat_send_with(
+    args: ChatSendArgs,
+    app: ChatSink,
+    state: AppState,
+) -> Result<ChatSendResult, String> {
     let session_id = args.session_id.clone();
     let project_root = args.project_root.as_ref().map(PathBuf::from);
     let mode = args
@@ -2854,7 +2933,7 @@ pub async fn chat_send(
     let session_budget = if is_bare_request {
         orchestrator::cost_router::session_budget_cap(&session_id).map(|cap_usd| {
             let spent_usd = app
-                .try_state::<TracingStore>()
+                .store()
                 .and_then(|store| store.session_spend_usd(&session_id).ok())
                 .unwrap_or(0.0);
             orchestrator::cost_router::SessionBudget {
@@ -2900,7 +2979,7 @@ pub async fn chat_send(
         // no-op when `session_budget` is `None`, above).
         let outcome_hint =
             if is_bare_request && orchestrator::cost_router::outcome_routing_enabled() {
-                app.try_state::<TracingStore>().and_then(|store| {
+                app.store().and_then(|store| {
                     let now_ms = chrono::Utc::now().timestamp_millis();
                     let since = now_ms - orchestrator::cost_router::OUTCOME_RECENCY_WINDOW_MS;
                     let rows = store.provider_reliability(Some(since)).unwrap_or_default();
@@ -2994,7 +3073,7 @@ pub async fn chat_send(
     );
 
     let trace_id = ulid::Ulid::new().to_string();
-    if let Some(store) = app.try_state::<TracingStore>() {
+    if let Some(store) = app.store() {
         let _ = store.record_chat_turn(
             &trace_id,
             &session_id,
@@ -3098,7 +3177,7 @@ pub async fn chat_send(
         let trust_matrix_for_agent = trust_matrix.clone();
         let command_policy_for_agent = command_policy.clone();
         let safe_mode_for_agent = safe_mode_on;
-        let state_for_agent = state.inner().clone();
+        let state_for_agent = state.clone();
 
         tauri::async_runtime::spawn(async move {
             // Quota-aware failover (`orchestrator::failover`): the same turn
@@ -3165,7 +3244,7 @@ pub async fn chat_send(
                 let mut run_error: Option<String> = None;
 
                 let span_id = ulid::Ulid::new().to_string();
-                if let Some(store) = app_for_agent.try_state::<TracingStore>() {
+                if let Some(store) = app_for_agent.store() {
                     let _ = store.start_agent_run(
                         &span_id,
                         &trace_id,
@@ -3302,7 +3381,7 @@ pub async fn chat_send(
                             "outcome": outcome,
                         });
                         let detail = crate::redact::redact_text(&detail.to_string());
-                        if let Some(store) = app_for_agent.try_state::<TracingStore>() {
+                        if let Some(store) = app_for_agent.store() {
                             if let Err(e) = store.record_audit(
                                 Some(&session),
                                 Some(&agent_id),
@@ -3546,7 +3625,7 @@ pub async fn chat_send(
                             &format!("agent-event:{}", session),
                             serde_json::json!({ "agent_id": agent_id, "event": fc_evt }),
                         );
-                        if let Some(store) = app_for_agent.try_state::<TracingStore>() {
+                        if let Some(store) = app_for_agent.store() {
                             let _ = store.record_event(&span_id, &fc_evt);
                         }
                     }
@@ -3568,7 +3647,7 @@ pub async fn chat_send(
                     });
                     // The trace store always sees the event — a failed-over
                     // attempt still shows its error in Run Replay.
-                    if let Some(store) = app_for_agent.try_state::<TracingStore>() {
+                    if let Some(store) = app_for_agent.store() {
                         let _ = store.record_event(&span_id, &evt_for_display);
                     }
                     // Failover hold-back: a terminal Error (and the Done behind
@@ -3681,7 +3760,7 @@ pub async fn chat_send(
                             let payload = serde_json::json!({ "agent_id": agent_id, "event": evt });
                             let _ =
                                 app_for_agent.emit(&format!("agent-event:{}", session), payload);
-                            if let Some(store) = app_for_agent.try_state::<TracingStore>() {
+                            if let Some(store) = app_for_agent.store() {
                                 let _ = store.record_event(&span_id, &evt);
                             }
                         }
@@ -3717,7 +3796,7 @@ pub async fn chat_send(
                     }),
                 );
 
-                if let Some(store) = app_for_agent.try_state::<TracingStore>() {
+                if let Some(store) = app_for_agent.store() {
                     let _ = store.finish_agent_run(&span_id);
                 }
 
@@ -3736,7 +3815,7 @@ pub async fn chat_send(
                                 "reason": note,
                             }),
                         );
-                        if let Some(store) = app_for_agent.try_state::<TracingStore>() {
+                        if let Some(store) = app_for_agent.store() {
                             let _ = store.append_routing_reason(&trace_id, &note);
                         }
                         failed_over_from.push(agent_id);
