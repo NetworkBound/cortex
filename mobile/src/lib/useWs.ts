@@ -1,15 +1,11 @@
 import { useEffect, useRef } from "react";
 import { bus } from "./ws";
-import type { WsFrameBase } from "./types";
+import type { StreamEvent } from "./types";
 
-/**
- * Subscribe to the shared WS bus. The handler is kept in a ref so callers can
- * pass an inline closure without resubscribing every render.
- */
-export function useWs(handler: (frame: WsFrameBase) => void) {
+/** Subscribe to the shared stream. The handler lives in a ref so callers can
+ *  pass an inline closure without resubscribing every render. */
+export function useWs(handler: (ev: StreamEvent) => void) {
   const ref = useRef(handler);
   ref.current = handler;
-  useEffect(() => {
-    return bus.subscribe((f) => ref.current(f));
-  }, []);
+  useEffect(() => bus.subscribe((ev) => ref.current(ev)), []);
 }

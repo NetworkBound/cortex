@@ -1,14 +1,16 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
-import { VitePWA } from "vite-plugin-pwa";
 
 // Cortex mobile SPA.
 //
 // In production the embedded Cortex server serves the contents of `mobile/dist`
 // at the SAME origin as the API, so every fetch path is relative (`/api/...`)
-// and the WebSocket is derived from `location.host`. We therefore set
-// `base: './'` so the built asset URLs are relative and survive being served
-// from any mount point.
+// and the WebSocket is derived from `location.host`. `base: './'` keeps the
+// built asset URLs relative. The same bundle is wrapped by Capacitor
+// (mobile/native), where the API base comes from pairing instead.
+//
+// PWA bits (manifest.webmanifest, sw.js) are plain files in `public/` — no
+// plugin, so the service worker is small and readable.
 //
 // In dev, set `VITE_API_BASE` (e.g. `http://localhost:8788`) to point the
 // dev server's `/api` + `/ws` at a running Cortex; we proxy both so the SPA
@@ -19,50 +21,12 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: "./",
-    plugins: [
-      react(),
-      VitePWA({
-        registerType: "autoUpdate",
-        includeAssets: ["favicon.svg"],
-        manifest: {
-          name: "Cortex",
-          short_name: "Cortex",
-          description: "Cortex mobile — multi-model agent client",
-          theme_color: "#0a0a0b",
-          background_color: "#0a0a0b",
-          display: "standalone",
-          orientation: "portrait",
-          start_url: "./",
-          scope: "./",
-          icons: [
-            {
-              src: "icon-192.png",
-              sizes: "192x192",
-              type: "image/png",
-            },
-            {
-              src: "icon-512.png",
-              sizes: "512x512",
-              type: "image/png",
-            },
-            {
-              src: "icon-512.png",
-              sizes: "512x512",
-              type: "image/png",
-              purpose: "maskable",
-            },
-          ],
-        },
-        workbox: {
-          // Never cache the API or WS — only the app shell.
-          navigateFallbackDenylist: [/^\/api/, /^\/ws/],
-          globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
-        },
-      }),
-    ],
+    plugins: [react()],
     build: {
       outDir: "dist",
       emptyOutDir: true,
+      target: "es2020",
+      sourcemap: false,
     },
     server: {
       host: true,

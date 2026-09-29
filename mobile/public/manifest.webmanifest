@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "Cortex",
+  "short_name": "Cortex",
+  "description": "Cortex mobile — chat with your agents, approve actions, watch runs.",
+  "start_url": "/#/chats",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0a0a0c",
+  "background_color": "#0a0a0c",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Inbox", "url": "/#/inbox" },
+    { "name": "New chat", "url": "/#/chats" }
+  ]
+}

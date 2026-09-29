@@ -1,23 +1,23 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * Stick-to-bottom auto-scroll that doesn't fight the user. We only auto-scroll
- * when the user is already near the bottom; if they scroll up to read, we leave
- * them alone until they return to the bottom.
- *
- * Returns the scroll-container ref and a `notify` to call whenever content
- * changes (new token, new message).
+ * Stick-to-bottom auto-scroll that doesn't fight the user: only auto-scroll
+ * while they're already near the bottom. Exposes `atBottom` so the view can
+ * show a "jump to latest" button, and `jump()` to scroll down on demand.
  */
 export function useStickToBottom<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
   const stick = useRef(true);
-  const NEAR = 80; // px from bottom counts as "at bottom"
+  const [atBottom, setAtBottom] = useState(true);
+  const NEAR = 96;
 
-  const onScroll = useCallback(() => {
+  const measure = useCallback(() => {
     const el = ref.current;
     if (!el) return;
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    stick.current = distance < NEAR;
+    const near = distance < NEAR;
+    stick.current = near;
+    setAtBottom((v) => (v === near ? v : near));
   }, []);
 
   const notify = useCallback(() => {
@@ -26,12 +26,20 @@ export function useStickToBottom<T extends HTMLElement>() {
     el.scrollTop = el.scrollHeight;
   }, []);
 
+  const jump = useCallback((smooth = true) => {
+    const el = ref.current;
+    if (!el) return;
+    stick.current = true;
+    setAtBottom(true);
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  }, []);
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [onScroll]);
+    el.addEventListener("scroll", measure, { passive: true });
+    return () => el.removeEventListener("scroll", measure);
+  }, [measure]);
 
-  return { ref, notify };
+  return { ref, notify, jump, atBottom };
 }
