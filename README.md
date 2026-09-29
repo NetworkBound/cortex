@@ -74,6 +74,12 @@ Secrets stay in the OS keychain, the Linux AppImage self-update verifies an
 ed25519 signature before it swaps a binary in, and there is no telemetry or
 call-home.
 
+**Phone app.** The same client ships as a native iOS/Android app
+(`mobile/native`, Capacitor): pair it with your desktop by scanning a QR code,
+then chat, approve tool calls, browse projects and replay runs from your phone
+over Tailscale or your LAN. The phone is a client only; the models, agents and
+files stay on your machine. See [docs/MOBILE.md](docs/MOBILE.md).
+
 There is more (voice input, image attachments, a terminal, workflows, custom
 agent roles, an eval harness), but the above is the core of it. See
 [CHANGELOG.md](CHANGELOG.md) for the full history.
@@ -89,6 +95,8 @@ Prebuilt packages are on the [releases page](https://github.com/NetworkBound/cor
 | Fedora / RHEL | `Cortex-*.x86_64.rpm` |
 | macOS (Apple Silicon / Intel) | `Cortex_*_aarch64.dmg` / `Cortex_*_x64.dmg` |
 | Windows 10/11 | `Cortex_*_x64-setup.exe` (per-user, no admin required) |
+| Android | `Cortex-*-android-debug.apk` (sideload; debug-signed) |
+| iOS | TestFlight — see [docs/MOBILE.md](docs/MOBILE.md) |
 
 The Windows and macOS builds are not code-signed yet, so SmartScreen and
 Gatekeeper will warn on first launch. The Linux packages need

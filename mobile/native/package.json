@@ -1,0 +1,39 @@
+{
+  "name": "cortex-native",
+  "private": true,
+  "version": "3.4.0",
+  "description": "Capacitor shell around the Cortex mobile web app (mobile/). No lockfile on purpose: CI runs a plain `npm install` here.",
+  "type": "module",
+  "scripts": {
+    "bridge": "node ../../scripts/mobile/build-bridge.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "add:android": "cap add android && bash ../../scripts/mobile/patch-native.sh android",
+    "add:ios": "cap add ios && bash ../../scripts/mobile/patch-native.sh ios",
+    "sync": "cap sync",
+    "run:android": "cap run android",
+    "run:ios": "cap run ios",
+    "assets": "capacitor-assets generate --iconBackgroundColor '#0a0a0b' --iconBackgroundColorDark '#0a0a0b' --splashBackgroundColor '#0a0a0b' --splashBackgroundColorDark '#0a0a0b'",
+    "assemble:debug": "cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor-mlkit/barcode-scanning": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/device": "^8.0.0",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/keyboard": "^8.0.5",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.6.3"
+  }
+}

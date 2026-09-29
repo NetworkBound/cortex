@@ -1,0 +1,397 @@
+name: Mobile
+
+# Native phone apps: the Capacitor shell in mobile/native around the mobile
+# web app (mobile/). The native projects are NOT committed — every run does
+# `cap add`, applies scripts/mobile/patch-native.sh, syncs the web build, and
+# compiles. See docs/MOBILE.md.
+#
+# android: debug-signed APK always (it sideloads; a truly unsigned release
+#          APK does not install), plus a signed release APK when the
+#          ANDROID_KEYSTORE_* secrets exist. Tag runs attach the APK(s) to the
+#          GitHub release (the Release workflow creates the draft).
+# ios:     simulator build (no signing) + unsigned device archive to prove the
+#          Xcode project compiles; signed export + TestFlight upload only when
+#          the IOS_* / APP_STORE_CONNECT_* secrets exist.
+#
+# Stack: Capacitor 8 (JDK 21, Android minSdk 24 / targetSdk 36, iOS 15+,
+# Xcode 26, Swift Package Manager — no CocoaPods).
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  JAVA_VERSION: "21"
+  NODE_VERSION: "22"
+
+jobs:
+  android:
+    name: android
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # ubuntu-24.04 ships the Android SDK at /usr/local/lib/android/sdk with
+      # licences accepted; Gradle fetches whatever platform/build-tools the
+      # Capacitor template asks for. Just make sure the vars point at it.
+      - name: Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ANDROID_HOME:=/usr/local/lib/android/sdk}"
+          test -d "$ANDROID_HOME" || { echo "Android SDK not found at $ANDROID_HOME" >&2; exit 1; }
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          sdkm="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ -x "$sdkm" ]; then
+            yes | "$sdkm" --licenses >/dev/null 2>&1 || true
+            "$sdkm" "platforms;android-36" "build-tools;36.0.0" >/dev/null || echo "::warning::sdkmanager could not preinstall API 36 packages; Gradle will fetch them"
+          fi
+          ls "$ANDROID_HOME/build-tools"
+
+      - name: Version
+        id: ver
+        shell: bash
+        run: |
+          v=$(node -p "require('./package.json').version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Cortex $v"
+
+      - name: Install JS deps (root + mobile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build mobile web app
+        run: pnpm build:mobile
+
+      # mobile/native is lockfile-less on purpose (Capacitor-only deps are not
+      # part of the desktop/CI dependency graph). Plain install, then sanity
+      # typecheck the bridge + config against the real plugin typings.
+      - name: Install Capacitor
+        working-directory: mobile/native
+        run: |
+          npm install --no-audit --no-fund
+          npx cap --version
+
+      - name: Typecheck native bridge
+        working-directory: mobile/native
+        run: npm run typecheck
+
+      - name: Bundle native bridge into web build
+        working-directory: mobile/native
+        run: npm run bridge
+
+      - name: cap add android + patch
+        working-directory: mobile/native
+        run: |
+          npx cap add android
+          bash ../../scripts/mobile/patch-native.sh android "${{ steps.ver.outputs.version }}"
+
+      - name: Icons + splash
+        run: bash scripts/mobile/prepare-assets.sh --android
+
+      - name: cap sync android
+        working-directory: mobile/native
+        run: npx cap sync android
+
+      # The debug APK is signed with the SDK debug key, which is enough to
+      # sideload on any phone (Settings → install unknown apps).
+      - name: Gradle build (debug)
+        working-directory: mobile/native/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - name: Collect debug APK
+        id: apk
+        shell: bash
+        run: |
+          set -euo pipefail
+          v="${{ steps.ver.outputs.version }}"
+          out=release-artifacts/android
+          mkdir -p "$out"
+          cp mobile/native/android/app/build/outputs/apk/debug/app-debug.apk "$out/Cortex-$v-android-debug.apk"
+          ls -la "$out"
+          echo "dir=$out" >> "$GITHUB_OUTPUT"
+
+      # Optional release build + signing (an unsigned release APK is useless,
+      # so it is only built when it can be signed). Secrets:
+      #   ANDROID_KEYSTORE_BASE64   base64 of a .jks/.p12 keystore
+      #   ANDROID_KEYSTORE_PASSWORD
+      #   ANDROID_KEY_ALIAS
+      #   ANDROID_KEY_PASSWORD      (defaults to the keystore password)
+      - name: Release build + sign
+        if: env.HAS_KEYSTORE == 'true'
+        env:
+          HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          v="${{ steps.ver.outputs.version }}"
+          out="${{ steps.apk.outputs.dir }}"
+          (cd mobile/native/android && ./gradlew --no-daemon assembleRelease)
+          unsigned=mobile/native/android/app/build/outputs/apk/release/app-release-unsigned.apk
+          bt="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n1)"
+          ks="$RUNNER_TEMP/release.keystore"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$ks"
+          "$bt/zipalign" -p -f 4 "$unsigned" "$RUNNER_TEMP/aligned.apk"
+          "$bt/apksigner" sign \
+            --ks "$ks" \
+            --ks-pass "pass:$ANDROID_KEYSTORE_PASSWORD" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --key-pass "pass:${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}" \
+            --out "$out/Cortex-$v-android.apk" \
+            "$RUNNER_TEMP/aligned.apk"
+          "$bt/apksigner" verify --print-certs "$out/Cortex-$v-android.apk"
+          rm -f "$ks" "$RUNNER_TEMP/aligned.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cortex-android-${{ steps.ver.outputs.version }}
+          path: release-artifacts/android/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # Tag runs: attach to the (draft) GitHub release created by release.yml.
+      # The release may not exist yet if this job outruns that workflow, so
+      # create it as a draft when missing; publishing stays a manual step.
+      - name: Attach APKs to GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --draft --title "Cortex ${tag#v}" --notes "" --verify-tag
+          fi
+          gh release upload "$tag" release-artifacts/android/*.apk --clobber
+
+  ios:
+    name: ios
+    # Capacitor 8 needs Xcode 26.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Version
+        id: ver
+        shell: bash
+        run: |
+          v=$(node -p "require('./package.json').version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Install JS deps (root + mobile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build mobile web app
+        run: pnpm build:mobile
+
+      - name: Install Capacitor
+        working-directory: mobile/native
+        run: |
+          npm install --no-audit --no-fund
+          npx cap --version
+
+      - name: Bundle native bridge into web build
+        working-directory: mobile/native
+        run: npm run bridge
+
+      - name: cap add ios + patch
+        working-directory: mobile/native
+        run: |
+          npx cap add ios
+          bash ../../scripts/mobile/patch-native.sh ios "${{ steps.ver.outputs.version }}"
+
+      - name: Icons + splash
+        run: bash scripts/mobile/prepare-assets.sh --ios
+
+      - name: cap sync ios (SPM)
+        working-directory: mobile/native
+        run: npx cap sync ios
+
+      - name: Xcode version
+        run: |
+          xcodebuild -version
+          xcode-select -p
+
+      - name: Build for simulator (no signing)
+        working-directory: mobile/native/ios/App
+        run: |
+          set -o pipefail
+          # SPM template may or may not generate a workspace; support both.
+          if [ -d App.xcworkspace ]; then ws=(-workspace App.xcworkspace); else ws=(-project App.xcodeproj); fi
+          xcodebuild "${ws[@]}" \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build | tail -n 60
+
+      - name: Zip simulator .app
+        shell: bash
+        run: |
+          set -euo pipefail
+          v="${{ steps.ver.outputs.version }}"
+          app="$RUNNER_TEMP/dd/Build/Products/Debug-iphonesimulator/App.app"
+          test -d "$app"
+          mkdir -p release-artifacts/ios
+          (cd "$(dirname "$app")" && zip -qry "$GITHUB_WORKSPACE/release-artifacts/ios/Cortex-$v-ios-simulator.app.zip" App.app)
+          ls -la release-artifacts/ios
+
+      # Proves the device (arm64) build compiles too. Unsigned archives are
+      # not installable and `-exportArchive` always wants a team, so the
+      # archive is only checked, never exported. Advisory: must not block the
+      # simulator artifact if Xcode's archive step is picky about signing.
+      - name: Archive (device, unsigned, advisory)
+        working-directory: mobile/native/ios/App
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          if [ -d App.xcworkspace ]; then ws=(-workspace App.xcworkspace); else ws=(-project App.xcodeproj); fi
+          xcodebuild archive "${ws[@]}" \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Cortex-unsigned.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            | tail -n 40
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cortex-ios-simulator-${{ steps.ver.outputs.version }}
+          path: release-artifacts/ios/*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      # ---- Signed build + TestFlight (optional) --------------------------
+      # Secrets (all required for this path; the step is skipped otherwise):
+      #   IOS_P12_BASE64, IOS_P12_PASSWORD           Apple Distribution cert
+      #   IOS_PROVISIONING_PROFILE_BASE64            App Store profile for com.networkbound.cortex
+      #   APPLE_TEAM_ID
+      #   APP_STORE_CONNECT_KEY_ID, APP_STORE_CONNECT_ISSUER_ID,
+      #   APP_STORE_CONNECT_API_KEY_BASE64           (.p8, App Manager role)
+      - name: Signed archive + export + TestFlight
+        if: env.HAS_IOS_SIGNING == 'true'
+        env:
+          HAS_IOS_SIGNING: ${{ secrets.IOS_P12_BASE64 != '' && secrets.IOS_PROVISIONING_PROFILE_BASE64 != '' && secrets.APP_STORE_CONNECT_API_KEY_BASE64 != '' }}
+          IOS_P12_BASE64: ${{ secrets.IOS_P12_BASE64 }}
+          IOS_P12_PASSWORD: ${{ secrets.IOS_P12_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          v="${{ steps.ver.outputs.version }}"
+
+          # 1. Temporary keychain with the distribution certificate.
+          kc="$RUNNER_TEMP/signing.keychain-db"
+          kcpass="$(uuidgen)"
+          security create-keychain -p "$kcpass" "$kc"
+          security set-keychain-settings -lut 21600 "$kc"
+          security unlock-keychain -p "$kcpass" "$kc"
+          echo "$IOS_P12_BASE64" | base64 -d > "$RUNNER_TEMP/dist.p12"
+          security import "$RUNNER_TEMP/dist.p12" -P "$IOS_P12_PASSWORD" -A -t cert -f pkcs12 -k "$kc"
+          security set-key-partition-list -S apple-tool:,apple: -k "$kcpass" "$kc" >/dev/null
+          security list-keychain -d user -s "$kc" login.keychain-db
+
+          # 2. Provisioning profile.
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -d > "$RUNNER_TEMP/app.mobileprovision"
+          uuid=$(security cms -D -i "$RUNNER_TEMP/app.mobileprovision" | plutil -extract UUID raw -)
+          cp "$RUNNER_TEMP/app.mobileprovision" ~/Library/MobileDevice/Provisioning\ Profiles/"$uuid".mobileprovision
+
+          # 3. App Store Connect API key for the upload.
+          mkdir -p ~/.private_keys
+          echo "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 -d > ~/.private_keys/AuthKey_"$APP_STORE_CONNECT_KEY_ID".p8
+
+          # 4. Archive with manual signing, export for App Store, upload.
+          cd mobile/native/ios/App
+          if [ -d App.xcworkspace ]; then ws=(-workspace App.xcworkspace); else ws=(-project App.xcodeproj); fi
+          xcodebuild archive "${ws[@]}" -scheme App -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Cortex.xcarchive" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="$uuid" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            | tail -n 40
+          cat > "$RUNNER_TEMP/export.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key><dict>
+              <key>com.networkbound.cortex</key><string>$uuid</string>
+            </dict>
+            <key>uploadSymbols</key><true/>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Cortex.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" \
+            -exportPath "$RUNNER_TEMP/export" | tail -n 20
+          ipa=$(ls "$RUNNER_TEMP"/export/*.ipa | head -n1)
+          mkdir -p "$GITHUB_WORKSPACE/release-artifacts/ios"
+          cp "$ipa" "$GITHUB_WORKSPACE/release-artifacts/ios/Cortex-$v-ios.ipa"
+          xcrun altool --upload-app -f "$ipa" -t ios \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+
+          # 5. Clean up secrets from the runner.
+          security delete-keychain "$kc" || true
+          rm -f "$RUNNER_TEMP/dist.p12" "$RUNNER_TEMP/app.mobileprovision" ~/.private_keys/AuthKey_*.p8
+
+      - name: Upload signed IPA
+        if: env.HAS_IOS_SIGNING == 'true'
+        env:
+          HAS_IOS_SIGNING: ${{ secrets.IOS_P12_BASE64 != '' && secrets.IOS_PROVISIONING_PROFILE_BASE64 != '' && secrets.APP_STORE_CONNECT_API_KEY_BASE64 != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cortex-ios-${{ steps.ver.outputs.version }}
+          path: release-artifacts/ios/*.ipa
+          if-no-files-found: error
+          retention-days: 30

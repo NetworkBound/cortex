@@ -52,3 +52,15 @@ tsconfig.tsbuildinfo
 .claude/worktrees/
 squashfs-root/
 release-artifacts/
+
+# Capacitor native projects + build outputs (generated in CI by `cap add`)
+mobile/native/android/
+mobile/native/ios/
+mobile/native/assets/
+mobile/native/package-lock.json
+mobile/native/build/
+mobile/dist/native-bridge.js
+*.apk
+*.aab
+*.ipa
+*.xcarchive
