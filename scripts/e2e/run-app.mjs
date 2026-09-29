@@ -15,6 +15,16 @@
 //   node scripts/e2e/run-app.mjs --bin src-tauri/target/release/cortex[.exe]
 //        [--timeout 120] [--settle 20] [--out e2e-out] [--keep-home]
 //        [--expect-version 3.2.0] [--allow-console-errors]
+//        [--dist dist] [--baseline e2e-baseline/metrics.json]
+//
+// Speed: besides the pass/fail checks the runner prints a boot-metrics table
+// (mount, first paint, projects loaded, IPC calls in the first 5 s, DOM nodes,
+// JS heap, bundle size) from the snapshot's `perf` block + the backend's
+// `timing` envelope, writes it to `<out>/metrics.json` + `<out>/metrics.md`
+// (the workflow appends the .md to the job summary), and judges it against
+// soft budgets: `E2E_BUDGET_*` env vars (see BUDGETS below) WARN by default and
+// FAIL only with `E2E_STRICT=1`. When a previous run's metrics.json is given
+// (`--baseline` / `E2E_BASELINE`), deltas are printed too (never fatal).
 //
 // Linux CI runs this under `xvfb-run -a` (see .github/workflows/e2e.yml).
 // Exit code 0 = pass, 1 = assertion/launch failure, 2 = usage error.
@@ -22,17 +32,23 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import {
+  budgetFromEnv,
   fail,
+  isStrict,
   isWindows,
+  judge,
   killTree,
   launch,
   log,
   makeIsolatedHome,
+  mdTable,
   parseArgs,
   removeDir,
   resolveBin,
   sleep,
   tailFile,
+  textTable,
+  warn,
 } from "./lib.mjs";
 
 const args = parseArgs(process.argv.slice(2));
@@ -49,6 +65,37 @@ const timeoutSec = Number(args.timeout ?? 120);
 const outDir = path.resolve(args.out ?? "e2e-out");
 const expectVersion = args["expect-version"];
 const allowConsoleErrors = Boolean(args["allow-console-errors"]);
+// Built desktop frontend (vite `dist/`, what tauri build embeds) — read for
+// the bundle-size metrics; skipped when absent.
+const distDir = path.resolve(args.dist ?? "dist");
+const baselinePath =
+  args.baseline ??
+  process.env.E2E_BASELINE ??
+  path.join("e2e-baseline", "metrics.json");
+
+// Soft budgets (ms / counts). Generous on purpose: CI runners are slow,
+// GPU-less VMs; the point is to catch a 2× regression, not to tune. Override
+// any of them with the env var named here; E2E_STRICT=1 makes them fatal.
+const BUDGETS = {
+  mountMs: budgetFromEnv("E2E_BUDGET_MOUNT_MS", 4000),
+  fcpMs: budgetFromEnv("E2E_BUDGET_FCP_MS", 4000),
+  projectsLoadedMs: budgetFromEnv("E2E_BUDGET_PROJECTS_MS", 6000),
+  // Backend boot → main window visible. main.tsx reveals the window after
+  // its first painted frame; lib.rs' watchdog forces it at 8 s, so anything
+  // ≥ 8000 means the frontend never got there on its own.
+  windowShownMs: budgetFromEnv("E2E_BUDGET_WINDOW_SHOWN_MS", 8000),
+  firstSnapshotFromLaunchMs: budgetFromEnv(
+    "E2E_BUDGET_FIRST_SNAPSHOT_MS",
+    15000,
+  ),
+  invokeCountFirst5s: budgetFromEnv("E2E_BUDGET_INVOKES", 150),
+  domNodes: budgetFromEnv("E2E_BUDGET_DOM_NODES", 8000),
+  jsHeapUsedMB: budgetFromEnv("E2E_BUDGET_HEAP_MB", 256),
+  bundleJsKB: budgetFromEnv("E2E_BUDGET_JS_KB", 8000),
+};
+// A metric that got worse than this (percent AND an absolute floor) against
+// the baseline is called out. Informational only.
+const REGRESSION_PCT = budgetFromEnv("E2E_REGRESSION_PCT", 25);
 // The probe writes every POLL_MS (3000) — a snapshot older than this is stale,
 // i.e. the web process wrote once and then died/hung.
 const PROBE_POLL_MS = 3000;
@@ -82,6 +129,304 @@ const ALLOWED_CONSOLE_ERRORS = [
 function isAllowedError(entry) {
   if (entry.kind === "uncaught") return false;
   return ALLOWED_CONSOLE_ERRORS.some((re) => re.test(entry.message ?? ""));
+}
+
+/** Sum the built frontend's JS/CSS chunks (vite `dist/assets`). */
+function bundleStats(dir) {
+  const assets = path.join(dir, "assets");
+  if (!fs.existsSync(assets)) return null;
+  const out = {
+    jsChunks: 0,
+    jsKB: 0,
+    cssFiles: 0,
+    cssKB: 0,
+    largestJs: null,
+    largestJsKB: 0,
+  };
+  for (const name of fs.readdirSync(assets)) {
+    let size = 0;
+    try {
+      size = fs.statSync(path.join(assets, name)).size;
+    } catch {
+      continue;
+    }
+    const kb = size / 1024;
+    if (name.endsWith(".js")) {
+      out.jsChunks++;
+      out.jsKB += kb;
+      if (kb > out.largestJsKB) {
+        out.largestJsKB = kb;
+        out.largestJs = name;
+      }
+    } else if (name.endsWith(".css")) {
+      out.cssFiles++;
+      out.cssKB += kb;
+    }
+  }
+  out.jsKB = Math.round(out.jsKB);
+  out.cssKB = Math.round(out.cssKB);
+  out.largestJsKB = Math.round(out.largestJsKB);
+  return out;
+}
+
+const diff = (a, b) =>
+  typeof a === "number" && typeof b === "number" ? a - b : null;
+
+/**
+ * Turn the latest envelope into the flat metrics record. Renderer marks are
+ * relative to `performance.timeOrigin`; backend ones to `timing.boot_ms`;
+ * `firstSnapshotFromLaunchMs` is what the runner itself observed (spawn →
+ * first fresh snapshot, so it includes process start + webview init).
+ */
+function collectMetrics(first, latest, startedAt) {
+  const snap = latest.env.snapshot ?? {};
+  const p = snap.perf ?? {};
+  const t = latest.env.timing ?? {};
+  const bundle = bundleStats(distDir);
+  const metrics = {
+    // renderer (ms since navigation start)
+    mountMs: p.mountMs ?? null,
+    fcpMs: p.fcpMs ?? null,
+    fcpSource: p.fcpSource ?? null,
+    domContentLoadedMs: p.domContentLoadedMs ?? null,
+    projectsLoadedMs: p.projectsLoadedMs ?? null,
+    gatewayResolvedMs: p.gatewayResolvedMs ?? null,
+    invokeCountFirst5s: p.invokeWindowClosed ? p.invokeCountFirst5s : null,
+    invokeCountTotal: p.invokeCountTotal ?? null,
+    domNodes: p.domNodes ?? snap.dom?.totalNodes ?? null,
+    jsHeapUsedMB: p.jsHeapUsedMB ?? null,
+    // backend (ms since boot_ms)
+    rendererJsMs: diff(t.config_ms, t.boot_ms),
+    windowShownMs: diff(t.window_shown_ms, t.boot_ms),
+    firstSnapshotMs: diff(t.first_snapshot_ms, t.boot_ms),
+    // runner-observed
+    firstSnapshotFromLaunchMs: first.env.received_at - startedAt,
+    // bundle
+    bundleJsChunks: bundle?.jsChunks ?? null,
+    bundleJsKB: bundle?.jsKB ?? null,
+    bundleCssKB: bundle?.cssKB ?? null,
+  };
+  return { metrics, bundle, perf: p, timing: t };
+}
+
+function loadBaseline() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(baselinePath, "utf8"));
+    if (raw && typeof raw.metrics === "object") {
+      return { path: baselinePath, metrics: raw.metrics };
+    }
+  } catch {
+    /* no baseline — fine */
+  }
+  return null;
+}
+
+/** Print + persist the metrics table; returns the budget verdicts. */
+function reportMetrics(first, latest, startedAt) {
+  const { metrics, bundle, perf, timing } = collectMetrics(
+    first,
+    latest,
+    startedAt,
+  );
+  const verdicts = [
+    judge("mount (first React commit)", metrics.mountMs, BUDGETS.mountMs, "ms"),
+    judge(
+      `first paint (${metrics.fcpSource ?? "n/a"})`,
+      metrics.fcpMs,
+      BUDGETS.fcpMs,
+      "ms",
+    ),
+    judge(
+      "projects loaded (list_projects)",
+      metrics.projectsLoadedMs,
+      BUDGETS.projectsLoadedMs,
+      "ms",
+    ),
+    judge(
+      "window shown (backend boot → visible)",
+      metrics.windowShownMs,
+      BUDGETS.windowShownMs,
+      "ms",
+    ),
+    judge(
+      "first snapshot (spawn → file)",
+      metrics.firstSnapshotFromLaunchMs,
+      BUDGETS.firstSnapshotFromLaunchMs,
+      "ms",
+    ),
+    judge(
+      "IPC invokes in first 5 s",
+      metrics.invokeCountFirst5s,
+      BUDGETS.invokeCountFirst5s,
+    ),
+    judge("DOM nodes", metrics.domNodes, BUDGETS.domNodes),
+    judge("JS heap used", metrics.jsHeapUsedMB, BUDGETS.jsHeapUsedMB, "MB"),
+    judge("bundle JS total", metrics.bundleJsKB, BUDGETS.bundleJsKB, "KB"),
+  ];
+
+  const baseline = loadBaseline();
+  const deltaFor = (key) => {
+    const cur = metrics[key];
+    const prev = baseline?.metrics?.[key];
+    if (typeof cur !== "number" || typeof prev !== "number") return "";
+    const d = cur - prev;
+    const pct = prev === 0 ? 0 : (d / prev) * 100;
+    const sign = d > 0 ? "+" : "";
+    return `${sign}${Math.round(d)} (${sign}${pct.toFixed(0)}%)`;
+  };
+  const verdictKeys = [
+    "mountMs",
+    "fcpMs",
+    "projectsLoadedMs",
+    "windowShownMs",
+    "firstSnapshotFromLaunchMs",
+    "invokeCountFirst5s",
+    "domNodes",
+    "jsHeapUsedMB",
+    "bundleJsKB",
+  ];
+  const unitOf = (k) =>
+    k.endsWith("Ms")
+      ? "ms"
+      : k.endsWith("MB")
+        ? "MB"
+        : k.endsWith("KB")
+          ? "KB"
+          : "";
+  const rows = verdicts.map((v, i) => {
+    const k = verdictKeys[i];
+    return [
+      v.name,
+      v.value == null ? "n/a" : `${v.value}${unitOf(k)}`,
+      `${v.budget}${unitOf(k)}`,
+      v.status,
+      baseline ? deltaFor(k) || "-" : "",
+    ];
+  });
+  // Informational rows (no budget).
+  const info = [
+    ["gateway_status resolved", metrics.gatewayResolvedMs, "ms"],
+    ["DOMContentLoaded", metrics.domContentLoadedMs, "ms"],
+    ["renderer JS up (backend boot → e2e_config)", metrics.rendererJsMs, "ms"],
+    ["IPC invokes total (at last heartbeat)", metrics.invokeCountTotal, ""],
+    ["bundle JS chunks", metrics.bundleJsChunks, ""],
+    ["bundle CSS total", metrics.bundleCssKB, "KB"],
+    [
+      "largest JS chunk",
+      bundle?.largestJs ? `${bundle.largestJs} ${bundle.largestJsKB}KB` : null,
+      "",
+    ],
+  ].map(([name, v, unit]) => [
+    name,
+    v == null ? "n/a" : `${v}${unit}`,
+    "-",
+    "info",
+    "",
+  ]);
+  const header = ["metric", "value", "budget", "status"];
+  if (baseline) header.push("Δ vs baseline");
+  const allRows = [...rows, ...info].map((r) => (baseline ? r : r.slice(0, 4)));
+
+  console.log("\n=== boot metrics ===");
+  console.log(textTable(header, allRows));
+  if (baseline) log(`baseline: ${baseline.path}`);
+  console.log("====================\n");
+
+  // Baseline regressions: percent AND an absolute floor so a 40 → 60 ms
+  // jitter on a tiny metric doesn't shout.
+  if (baseline) {
+    for (const k of verdictKeys) {
+      const cur = metrics[k];
+      const prev = baseline.metrics[k];
+      if (typeof cur !== "number" || typeof prev !== "number") continue;
+      const d = cur - prev;
+      const floor = unitOf(k) === "ms" ? 250 : 10;
+      if (d > floor && prev > 0 && (d / prev) * 100 > REGRESSION_PCT) {
+        warn(
+          `${k} regressed vs baseline: ${prev} → ${cur} (+${((d / prev) * 100).toFixed(0)}%)`,
+        );
+      }
+    }
+  }
+
+  const top = Array.isArray(perf.invokeTopCommands)
+    ? perf.invokeTopCommands
+    : [];
+  const slow = Array.isArray(perf.invokeSlowestMs) ? perf.invokeSlowestMs : [];
+  if (top.length) {
+    console.log(
+      "top IPC commands: " + top.map((c) => `${c.cmd}×${c.value}`).join(", "),
+    );
+  }
+  if (slow.length) {
+    console.log(
+      "slowest IPC (max ms): " +
+        slow.map((c) => `${c.cmd} ${c.value}ms`).join(", "),
+    );
+  }
+
+  const record = {
+    schema: 1,
+    at: new Date().toISOString(),
+    platform: process.platform,
+    arch: process.arch,
+    node: process.version,
+    appVersion: latest.env.app_version ?? null,
+    strict: isStrict,
+    metrics,
+    budgets: BUDGETS,
+    verdicts,
+    bundle,
+    baseline: baseline
+      ? { path: baseline.path, metrics: baseline.metrics }
+      : null,
+    invokeTopCommands: top,
+    invokeSlowestMs: slow,
+    timing,
+  };
+  fs.writeFileSync(
+    path.join(outDir, "metrics.json"),
+    JSON.stringify(record, null, 2),
+  );
+  const md = [
+    `### Desktop app boot — ${process.platform}/${process.arch} (v${record.appVersion ?? "?"})`,
+    "",
+    mdTable(header, allRows),
+    "",
+    top.length
+      ? `<details><summary>IPC detail</summary>\n\n${mdTable(
+          ["command", "calls"],
+          top.map((c) => [c.cmd, c.value]),
+        )}\n\n${mdTable(
+          ["command", "max ms"],
+          slow.map((c) => [c.cmd, c.value]),
+        )}\n\n</details>`
+      : "",
+    "",
+  ].join("\n");
+  fs.writeFileSync(path.join(outDir, "metrics.md"), md);
+  return verdicts;
+}
+
+/** Still leave a metrics file behind when the app never produced a snapshot. */
+function writeNoMetrics(reason) {
+  const record = {
+    schema: 1,
+    at: new Date().toISOString(),
+    platform: process.platform,
+    arch: process.arch,
+    status: "no-snapshot",
+    reason,
+    bundle: bundleStats(distDir),
+  };
+  fs.writeFileSync(
+    path.join(outDir, "metrics.json"),
+    JSON.stringify(record, null, 2),
+  );
+  fs.writeFileSync(
+    path.join(outDir, "metrics.md"),
+    `### Desktop app boot — ${process.platform}/${process.arch}\n\n**No snapshot produced** — ${reason}\n`,
+  );
 }
 
 async function main() {
@@ -160,21 +505,22 @@ async function main() {
     const r = await app.exit;
     tailFile(app.logs.stderr);
     tailFile(app.logs.stdout);
-    fail(
-      `app exited before producing a snapshot (code=${r.code} signal=${r.signal}${
-        r.error ? ` error=${r.error.message}` : ""
-      })`,
-    );
+    const reason = `app exited before producing a snapshot (code=${r.code} signal=${r.signal}${
+      r.error ? ` error=${r.error.message}` : ""
+    })`;
+    fail(reason);
+    writeNoMetrics(reason);
     return finish(app, home);
   }
   if (!first) {
     tailFile(app.logs.stderr);
     tailFile(app.logs.stdout);
-    fail(
+    const reason =
       `no fresh snapshot after ${timeoutSec}s — the renderer never ran JS. ` +
-        `On Linux this is the WebKitGTK black-screen failure mode (web process ` +
-        `died before first paint); on Windows check WebView2 in the stderr log.`,
-    );
+      `On Linux this is the WebKitGTK black-screen failure mode (web process ` +
+      `died before first paint); on Windows check WebView2 in the stderr log.`;
+    fail(reason);
+    writeNoMetrics(reason);
     return finish(app, home);
   }
   log(
@@ -306,6 +652,15 @@ async function main() {
     console.log(`  ${name.padEnd(16)} ${state.padEnd(8)} ${f?.detail ?? ""}`);
   }
   console.log("=====================\n");
+
+  // Speed: metrics table + soft budgets (fatal only under E2E_STRICT=1).
+  const verdicts = reportMetrics(first, latest, startedAt);
+  if (isStrict) {
+    for (const v of verdicts) {
+      if (v.ok === false)
+        check(`budget: ${v.name}`, false, `${v.value} > ${v.budget}`);
+    }
+  }
 
   const failed = checks.filter((c) => !c.ok);
   if (failed.length) {

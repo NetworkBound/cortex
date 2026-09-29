@@ -5,6 +5,9 @@ name: E2E
 # with the E2E probe armed (CORTEX_E2E=1) and asserts the renderer painted, the
 # theme applied and no JS errors surfaced — then smoke-tests the headless
 # `cortex-serve` binary over real HTTP + WebSocket. See scripts/e2e/*.mjs.
+# Both runners also measure speed (boot timings, IPC count, DOM/heap, bundle
+# size, warm HTTP latency) against soft budgets and publish the table to the
+# job summary — see "Publish metrics" below.
 #
 # Unit tests, typecheck and lint live in ci.yml; this workflow only launches
 # the built apps.
@@ -147,11 +150,33 @@ jobs:
             --expect-version "$VERSION" \
             --timeout 180 --settle 25 --out "$E2E_OUT"
 
-      - name: Upload snapshot + logs
+      # Speed per run, visible without opening the artifact: the runners write
+      # metrics.md / serve-metrics.md (boot timings, IPC count, DOM/heap,
+      # bundle size, warm HTTP latencies + budget verdicts) and we append them
+      # to the job summary. Budgets are soft (WARN) unless E2E_STRICT=1 is set
+      # on the job; a previous run's metrics.json placed at
+      # e2e-baseline/metrics.json (or $E2E_BASELINE) adds a Δ column.
+      - name: Publish metrics to the job summary
+        if: always()
+        shell: bash
+        run: |
+          for f in "$E2E_OUT/metrics.md" "$E2E_OUT/serve-metrics.md"; do
+            if [ -f "$f" ]; then
+              cat "$f" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "_${f##*/} not produced (step failed before metrics were written)_" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - name: Upload snapshot, metrics + logs
         if: always()
         uses: actions/upload-artifact@v5
         with:
           name: e2e-${{ matrix.os }}
+          # Includes metrics.json + serve-metrics.json (machine-readable, for
+          # use as a baseline of a later run) alongside snapshot.json + logs.
           path: ${{ env.E2E_OUT }}
           if-no-files-found: ignore
           retention-days: 14

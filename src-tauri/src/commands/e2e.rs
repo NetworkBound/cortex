@@ -27,7 +27,60 @@
 use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+// ---------------------------------------------------------------------------
+// Boot timeline (epoch ms), stamped into every snapshot envelope as `timing`
+// so the runner can measure speed, not just "it painted":
+//   boot_ms           first time the E2E gate was consulted — lib.rs does that
+//                     while building the agent registry, before the Tauri
+//                     builder runs, so this is within milliseconds of process
+//                     start without touching lib.rs.
+//   config_ms         first `e2e_config` call = the renderer's JS is running.
+//   window_shown_ms   main window first observed visible (main.tsx reveals it
+//                     after the first painted frame; lib.rs has an 8 s
+//                     watchdog fallback).
+//   first_snapshot_ms first `e2e_write_snapshot`.
+// All `OnceLock`s: only the first value ever wins.
+// ---------------------------------------------------------------------------
+static BOOT_MS: OnceLock<u64> = OnceLock::new();
+static CONFIG_MS: OnceLock<u64> = OnceLock::new();
+static WINDOW_SHOWN_MS: OnceLock<u64> = OnceLock::new();
+static FIRST_SNAPSHOT_MS: OnceLock<u64> = OnceLock::new();
+static SNAPSHOT_SEQ: AtomicU64 = AtomicU64::new(0);
+static WINDOW_WATCHER_STARTED: AtomicBool = AtomicBool::new(false);
+
+fn timing_json(seq: u64) -> serde_json::Value {
+    serde_json::json!({
+        "boot_ms": BOOT_MS.get().copied(),
+        "config_ms": CONFIG_MS.get().copied(),
+        "window_shown_ms": WINDOW_SHOWN_MS.get().copied(),
+        "first_snapshot_ms": FIRST_SNAPSHOT_MS.get().copied(),
+        "snapshot_seq": seq,
+    })
+}
+
+/// Poll the main window until it is visible and stamp `WINDOW_SHOWN_MS`.
+/// Spawned once from `e2e_config` (E2E only). Gives up after ~30 s so a
+/// window that never shows can't leak a task forever.
+fn watch_window_shown(app: tauri::AppHandle) {
+    if WINDOW_WATCHER_STARTED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    tauri::async_runtime::spawn(async move {
+        for _ in 0..1200 {
+            if let Some(win) = tauri::Manager::get_webview_window(&app, "main") {
+                if win.is_visible().unwrap_or(false) {
+                    let _ = WINDOW_SHOWN_MS.set(now_ms());
+                    return;
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        }
+    });
+}
 
 /// Directory the bridge writes into: `$CORTEX_E2E_DIR` when set, else
 /// `~/.cortex/e2e`.
@@ -70,6 +123,7 @@ pub struct E2eConfig {
 /// normal session. `pub(crate)` so other modules (routines' deterministic
 /// fake-LLM markers) can share the exact same gate.
 pub(crate) fn e2e_enabled() -> bool {
+    BOOT_MS.get_or_init(now_ms);
     std::env::var("CORTEX_E2E")
         .map(|v| {
             let v = v.trim().to_ascii_lowercase();
@@ -80,8 +134,12 @@ pub(crate) fn e2e_enabled() -> bool {
 
 /// Renderer asks at boot whether E2E mode is armed.
 #[tauri::command]
-pub async fn e2e_config() -> Result<E2eConfig, String> {
+pub async fn e2e_config(app: tauri::AppHandle) -> Result<E2eConfig, String> {
     let enabled = e2e_enabled();
+    if enabled {
+        CONFIG_MS.get_or_init(now_ms);
+        watch_window_shown(app);
+    }
     let is_appimage = std::env::var("APPIMAGE")
         .ok()
         .filter(|p| !p.is_empty())
@@ -109,14 +167,19 @@ pub async fn e2e_write_snapshot(payload: serde_json::Value) -> Result<String, St
     if !e2e_enabled() {
         return Err("e2e mode not enabled".into());
     }
+    let received_at = now_ms();
+    FIRST_SNAPSHOT_MS.get_or_init(|| received_at);
+    let seq = SNAPSHOT_SEQ.fetch_add(1, Ordering::SeqCst) + 1;
     tokio::task::spawn_blocking(move || {
         let dir = e2e_dir()?;
         fs::create_dir_all(&dir).map_err(|e| format!("mkdir failed: {e}"))?;
 
         let envelope = serde_json::json!({
-            "received_at": now_ms(),
+            "received_at": received_at,
             "pid": std::process::id(),
             "app_version": env!("CARGO_PKG_VERSION"),
+            // Backend-side boot timeline (epoch ms) — see the statics above.
+            "timing": timing_json(seq),
             "snapshot": payload,
         });
         let json =

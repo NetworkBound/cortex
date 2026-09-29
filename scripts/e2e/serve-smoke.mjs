@@ -17,6 +17,12 @@
 //   - WS  /ws Origin == Host     → 101 (same-origin SPA)
 //   - WS  /ws Origin evil.example→ 403 (cross-site WebSocket hijack blocked)
 //   - POST /mcp                  → 404 (MCP server is off by default)
+//   - response times (warm)      → index.html, /v1/models, /api/sessions each
+//                                  answer in < E2E_BUDGET_HTTP_MS (500 ms;
+//                                  median of 3) — WARN only, FAIL with
+//                                  E2E_STRICT=1. Written to
+//                                  <out>/serve-metrics.{json,md} for the job
+//                                  summary.
 //
 // Usage:
 //   node scripts/e2e/serve-smoke.mjs --bin src-tauri/target/release/cortex-serve[.exe]
@@ -26,17 +32,22 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import {
+  budgetFromEnv,
   fail,
   freePort,
+  isStrict,
+  judge,
   killTree,
   launch,
   log,
   makeIsolatedHome,
+  mdTable,
   parseArgs,
   removeDir,
   resolveBin,
   sleep,
   tailFile,
+  textTable,
 } from "./lib.mjs";
 
 const args = parseArgs(process.argv.slice(2));
@@ -53,6 +64,9 @@ const outDir = path.resolve(args.out ?? "e2e-out");
 // Per-request budget. `/v1/models` probes every registered adapter (gateway,
 // Ollama, CLIs) and each probe has its own connect timeout when offline.
 const REQUEST_TIMEOUT_MS = 60_000;
+// Warm response-time budget per endpoint (median of TIMING_SAMPLES).
+const HTTP_BUDGET_MS = budgetFromEnv("E2E_BUDGET_HTTP_MS", 500);
+const TIMING_SAMPLES = 3;
 
 const checks = [];
 function check(name, ok, detail = "") {
@@ -62,12 +76,102 @@ function check(name, ok, detail = "") {
 }
 
 async function get(base, p, init = {}) {
+  const t0 = performance.now();
   const res = await fetch(new URL(p, base), {
     ...init,
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   const text = await res.text();
-  return { res, text, type: res.headers.get("content-type") ?? "" };
+  return {
+    res,
+    text,
+    type: res.headers.get("content-type") ?? "",
+    ms: performance.now() - t0,
+  };
+}
+
+/** Median wall time (ms, headers + full body) of `n` sequential GETs. */
+async function timeEndpoint(base, p, n = TIMING_SAMPLES) {
+  const samples = [];
+  for (let i = 0; i < n; i++) {
+    const r = await get(base, p);
+    samples.push({ ms: r.ms, status: r.res.status });
+  }
+  const sorted = samples.map((s) => s.ms).sort((a, b) => a - b);
+  return {
+    path: p,
+    medianMs: Math.round(sorted[Math.floor(sorted.length / 2)]),
+    minMs: Math.round(sorted[0]),
+    maxMs: Math.round(sorted[sorted.length - 1]),
+    status: samples[samples.length - 1].status,
+  };
+}
+
+/**
+ * Response-time checks. Runs AFTER the functional checks so every endpoint has
+ * been hit at least once (adapters probed, index.html read from disk) — this
+ * measures the warm path. Soft: WARN unless E2E_STRICT=1.
+ */
+async function reportTimings(base, health) {
+  const targets = ["/", "/v1/models", "/api/sessions"];
+  const results = [];
+  for (const p of targets) {
+    try {
+      results.push(await timeEndpoint(base, p));
+    } catch (e) {
+      results.push({ path: p, error: e?.message ?? String(e) });
+    }
+  }
+  const verdicts = results.map((r) =>
+    r.error
+      ? {
+          name: `GET ${r.path}`,
+          value: null,
+          budget: HTTP_BUDGET_MS,
+          ok: null,
+          status: "error",
+        }
+      : judge(
+          `GET ${r.path} (warm, median of ${TIMING_SAMPLES})`,
+          r.medianMs,
+          HTTP_BUDGET_MS,
+          "ms",
+        ),
+  );
+  const header = ["endpoint", "median", "min", "max", "budget", "status"];
+  const rows = results.map((r, i) => [
+    `GET ${r.path}`,
+    r.error ? `error: ${r.error}` : `${r.medianMs}ms`,
+    r.error ? "-" : `${r.minMs}ms`,
+    r.error ? "-" : `${r.maxMs}ms`,
+    `${HTTP_BUDGET_MS}ms`,
+    verdicts[i].status,
+  ]);
+  console.log("\n=== cortex-serve response times ===");
+  console.log(textTable(header, rows));
+  console.log("===================================\n");
+
+  const record = {
+    schema: 1,
+    at: new Date().toISOString(),
+    platform: process.platform,
+    arch: process.arch,
+    serveVersion: health?.version ?? null,
+    strict: isStrict,
+    budgetMs: HTTP_BUDGET_MS,
+    samples: TIMING_SAMPLES,
+    endpoints: results,
+    verdicts,
+  };
+  fs.writeFileSync(
+    path.join(outDir, "serve-metrics.json"),
+    JSON.stringify(record, null, 2),
+  );
+  fs.writeFileSync(
+    path.join(outDir, "serve-metrics.md"),
+    `### cortex-serve response times — ${process.platform}/${process.arch} (v${record.serveVersion ?? "?"})\n\n${mdTable(header, rows)}\n`,
+  );
+  return verdicts;
 }
 
 /**
@@ -324,6 +428,15 @@ async function main() {
     // The server must still be alive after all of that.
     const again = await get(base, "/api/health");
     check("server still healthy", again.res.status === 200 && !srv.exited);
+
+    // Speed (warm path; every endpoint above has been hit once already).
+    const verdicts = await reportTimings(base, health);
+    if (isStrict) {
+      for (const v of verdicts) {
+        if (v.ok === false)
+          check(`budget: ${v.name}`, false, `${v.value}ms > ${v.budget}ms`);
+      }
+    }
   } catch (e) {
     check("request sequence completed", false, e?.message ?? String(e));
   }

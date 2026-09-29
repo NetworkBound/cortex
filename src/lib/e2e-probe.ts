@@ -102,6 +102,218 @@ function safeStringify(v: unknown): string {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Boot-speed instrumentation. Everything here is relative to
+// `performance.timeOrigin` (= navigation start of the webview document) so the
+// runner can compare runs without caring about wall-clock skew, and it is torn
+// down again by `disarm()` the moment the backend says E2E isn't armed — a
+// production session keeps the stock `__TAURI_INTERNALS__.invoke`.
+//
+//   firstRenderMs     first render of `useE2EProbe` (App's render phase)
+//   mountMs           first effect run = first React commit of the app tree
+//   fcpMs             first-contentful-paint from the 'paint' PerformanceObserver
+//                     (Chromium/WebView2); WebKitGTK has no paint timing, so the
+//                     fallback is a double-rAF mark right after mount
+//                     (`shellPaintMs`, `fcpSource: "raf-after-mount"`)
+//   projectsLoadedMs  first `list_projects` response (callers immediately
+//                     `setProjects`, so this is when the store has projects)
+//   gatewayResolvedMs first `gateway_status` response
+//   invokeCountFirst5s Tauri IPC calls made by the APP in the first 5 s. The
+//                     probe's own calls (`e2e_*`, the snapshot's theme/gateway
+//                     reads via `quiet()`) are excluded, and the feature flows
+//                     are held back until the window has closed so they can't
+//                     inflate it.
+// ---------------------------------------------------------------------------
+const INVOKE_WINDOW_MS = 5000;
+type InternalInvoke = (
+  cmd: string,
+  args?: unknown,
+  options?: unknown,
+) => Promise<unknown>;
+type TauriInternals = { invoke?: InternalInvoke };
+type PerfMemory = { usedJSHeapSize: number; totalJSHeapSize: number };
+
+const perf = {
+  firstRenderMs: null as number | null,
+  mountMs: null as number | null,
+  fcpMs: null as number | null,
+  shellPaintMs: null as number | null,
+  invokeCountFirst5s: 0,
+  invokeCountTotal: 0,
+  invokeByCommand: {} as Record<string, number>,
+  invokeFirstResolvedMs: {} as Record<string, number>,
+  invokeMaxMs: {} as Record<string, number>,
+};
+let perfHooksInstalled = false;
+let paintObserver: PerformanceObserver | undefined;
+let origInternalInvoke: InternalInvoke | undefined;
+let wrappedInternalInvoke: InternalInvoke | undefined;
+// Raised synchronously around the probe's OWN invokes so they don't count as
+// app traffic. `@tauri-apps/api`'s `invoke` reaches `__TAURI_INTERNALS__.invoke`
+// in the same tick, so a sync flag is enough — no async context needed.
+let quietDepth = 0;
+
+function quiet<T>(fn: () => Promise<T>): Promise<T> {
+  quietDepth++;
+  try {
+    return fn();
+  } finally {
+    quietDepth--;
+  }
+}
+
+function tauriInternals(): TauriInternals | undefined {
+  return (window as unknown as { __TAURI_INTERNALS__?: TauriInternals })
+    .__TAURI_INTERNALS__;
+}
+
+function installPerfHooks(): void {
+  if (perfHooksInstalled) return;
+  perfHooksInstalled = true;
+  perf.firstRenderMs ??= performance.now();
+
+  // IPC counter: wrap the internal bridge every `invoke()` funnels through.
+  const internals = tauriInternals();
+  if (internals && typeof internals.invoke === "function") {
+    const orig = internals.invoke;
+    origInternalInvoke = orig;
+    wrappedInternalInvoke = (cmd, args, options) => {
+      const t0 = performance.now();
+      const own = quietDepth > 0 || cmd.startsWith("e2e_");
+      if (!own) {
+        perf.invokeCountTotal++;
+        if (t0 < INVOKE_WINDOW_MS) perf.invokeCountFirst5s++;
+        perf.invokeByCommand[cmd] = (perf.invokeByCommand[cmd] ?? 0) + 1;
+      }
+      const p = orig.call(internals, cmd, args, options);
+      // Resolution marks are recorded for every call (own or not) so
+      // "gateway resolved" is populated even when only the probe asked.
+      p.then(
+        () => {
+          const t1 = performance.now();
+          perf.invokeFirstResolvedMs[cmd] ??= t1;
+          const dur = t1 - t0;
+          if (dur > (perf.invokeMaxMs[cmd] ?? -1)) perf.invokeMaxMs[cmd] = dur;
+        },
+        () => {
+          /* the caller handles rejection; we only time successes */
+        },
+      );
+      return p;
+    };
+    internals.invoke = wrappedInternalInvoke;
+  }
+
+  // First contentful paint (Chromium-only; WebKitGTK ignores 'paint').
+  try {
+    for (const e of performance.getEntriesByType("paint")) {
+      if (e.name === "first-contentful-paint" && perf.fcpMs == null) {
+        perf.fcpMs = e.startTime;
+      }
+    }
+    paintObserver = new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) {
+        if (e.name === "first-contentful-paint" && perf.fcpMs == null) {
+          perf.fcpMs = e.startTime;
+        }
+      }
+    });
+    paintObserver.observe({ type: "paint", buffered: true });
+  } catch {
+    paintObserver = undefined;
+  }
+}
+
+function uninstallPerfHooks(): void {
+  if (!perfHooksInstalled) return;
+  perfHooksInstalled = false;
+  const internals = tauriInternals();
+  // Only restore if nobody re-wrapped the bridge after us.
+  if (
+    internals &&
+    origInternalInvoke &&
+    internals.invoke === wrappedInternalInvoke
+  ) {
+    internals.invoke = origInternalInvoke;
+  }
+  origInternalInvoke = undefined;
+  wrappedInternalInvoke = undefined;
+  try {
+    paintObserver?.disconnect();
+  } catch {
+    /* ignore */
+  }
+  paintObserver = undefined;
+  perf.invokeCountFirst5s = 0;
+  perf.invokeCountTotal = 0;
+  perf.invokeByCommand = {};
+  perf.invokeFirstResolvedMs = {};
+  perf.invokeMaxMs = {};
+}
+
+/** Called from the first effect run (= first React commit). */
+function markMounted(): void {
+  if (perf.mountMs != null) return;
+  perf.mountMs = performance.now();
+  // Same double-rAF main.tsx uses to reveal the window: by the second frame
+  // the shell has been painted at least once.
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      perf.shellPaintMs ??= performance.now();
+    }),
+  );
+}
+
+function topN(
+  m: Record<string, number>,
+  n: number,
+): Array<{ cmd: string; value: number }> {
+  return Object.entries(m)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, n)
+    .map(([cmd, value]) => ({ cmd, value: Math.round(value) }));
+}
+
+function perfSnapshot(totalNodes: number): Record<string, unknown> {
+  const nav = performance.getEntriesByType("navigation")[0] as
+    | PerformanceNavigationTiming
+    | undefined;
+  const mem = (performance as unknown as { memory?: PerfMemory }).memory;
+  const round = (v: number | null | undefined) =>
+    typeof v === "number" && Number.isFinite(v) ? Math.round(v) : null;
+  const fcpMs = perf.fcpMs ?? perf.shellPaintMs;
+  const fcpSource =
+    perf.fcpMs != null
+      ? "paint-observer"
+      : perf.shellPaintMs != null
+        ? "raf-after-mount"
+        : null;
+  return {
+    timeOrigin: Math.round(performance.timeOrigin),
+    nowMs: round(performance.now()),
+    firstRenderMs: round(perf.firstRenderMs),
+    mountMs: round(perf.mountMs),
+    fcpMs: round(fcpMs),
+    fcpSource,
+    shellPaintMs: round(perf.shellPaintMs),
+    domContentLoadedMs: round(nav?.domContentLoadedEventEnd),
+    loadMs: round(nav?.loadEventEnd),
+    projectsLoadedMs: round(perf.invokeFirstResolvedMs["list_projects"]),
+    gatewayResolvedMs: round(perf.invokeFirstResolvedMs["gateway_status"]),
+    invokeWindowMs: INVOKE_WINDOW_MS,
+    // Only final once the window has closed; the runner reads the latest
+    // heartbeat, which is always well past 5 s.
+    invokeWindowClosed: performance.now() >= INVOKE_WINDOW_MS,
+    invokeCountFirst5s: perf.invokeCountFirst5s,
+    invokeCountTotal: perf.invokeCountTotal,
+    invokeTopCommands: topN(perf.invokeByCommand, 12),
+    invokeSlowestMs: topN(perf.invokeMaxMs, 8),
+    jsHeapUsedMB: mem ? round(mem.usedJSHeapSize / 1048576) : null,
+    jsHeapTotalMB: mem ? round(mem.totalJSHeapSize / 1048576) : null,
+    domNodes: totalNodes,
+  };
+}
+
 // Live flow exercise: once per armed session, drive the REAL
 // Cookbook-pull → `models:changed` chain end-to-end — invoke the real
 // `cookbook_pull_model` on a model that's already installed (a cheap manifest
@@ -2401,7 +2613,7 @@ async function collectSnapshot(): Promise<Record<string, unknown>> {
 
   let activeTheme = "";
   try {
-    const ts = await getActiveThemeState();
+    const ts = await quiet(() => getActiveThemeState());
     activeTheme = ts.active ?? "";
   } catch {
     /* themes are best-effort */
@@ -2437,7 +2649,7 @@ async function collectSnapshot(): Promise<Record<string, unknown>> {
   let rootReflectsActive: boolean | null = null;
   if (activeTheme) {
     try {
-      const resolved = await resolveTheme(activeTheme);
+      const resolved = await quiet(() => resolveTheme(activeTheme));
       expectedBg = resolved.bg ?? "";
       expectedAccent = resolved.accent ?? "";
       if (expectedBg && expectedAccent) {
@@ -2469,7 +2681,7 @@ async function collectSnapshot(): Promise<Record<string, unknown>> {
   // Live gateway reachability — the same backend call the status bar uses.
   let gateway: unknown = null;
   try {
-    gateway = await invoke("gateway_status");
+    gateway = await quiet(() => invoke("gateway_status"));
   } catch (e) {
     gateway = { error: safeStringify(e) };
   }
@@ -2552,6 +2764,9 @@ async function collectSnapshot(): Promise<Record<string, unknown>> {
       currentMode: store.currentMode ?? null,
     },
     gateway,
+    // Boot-speed metrics (see the instrumentation block above); the runner
+    // prints these as a table and checks them against soft budgets.
+    perf: perfSnapshot(totalNodes),
     // Live feature-flow exercises (real commands, real events) — see
     // exerciseModelsChangedFlow above.
     flows: {
@@ -2593,9 +2808,20 @@ async function writeOnce(): Promise<void> {
  * devtools poke) can force a write on demand.
  */
 export function useE2EProbe(): void {
+  // Render phase, on purpose: effects run after the commit AND after every
+  // sibling hook's effect declared before this one (useThemeBoot etc.), whose
+  // IPC calls we want in the count. Guarded by a module flag so StrictMode's
+  // double render is a no-op; torn down by `disarm()` below when not armed.
+  installPerfHooks();
+
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setInterval> | undefined;
+    let flowsTimer: ReturnType<typeof setTimeout> | undefined;
+    // Re-arm after a simulated unmount (StrictMode dev double-effect tears
+    // the hooks down in the cleanup below); idempotent otherwise.
+    installPerfHooks();
+    markMounted();
 
     // Hook errors immediately so boot-time failures aren't missed while the
     // `e2e_config` round-trip is in flight; torn back down below the moment
@@ -2608,6 +2834,7 @@ export function useE2EProbe(): void {
     };
     const disarm = () => {
       uninstallErrorHooks();
+      uninstallPerfHooks();
       errorLog.length = 0;
       delete (window as unknown as { __cortexE2E?: unknown }).__cortexE2E;
     };
@@ -2629,23 +2856,32 @@ export function useE2EProbe(): void {
         // double-pull guard would reject a concurrent second pull), then the
         // eval-side job-store flow (slice 2: research/eval migration).
         // Results land in later heartbeats (the runner waits for `settled`).
-        void exerciseModelsChangedFlow()
-          .then(() => exerciseJobStoreFlow())
-          .then(() => exerciseEvalJobStoreFlow())
-          .then(() => exerciseKeepAliveFlow())
-          .then(() => exerciseCloneConnectFlow())
-          .then(() => exerciseRoutinesFlow())
-          .then(() => exerciseInlineAssistFlow())
-          .then(() => exerciseTeamRunFlow())
-          .then(() => exerciseTeamCodeLaneFlow())
-          .then(() => exerciseFocusChainFlow())
-          .then(() => exerciseLanesFlow())
-          .then(() => exerciseMultibufferPickFlow())
-          .then(() => exerciseResearchGateFlow())
-          .then(() => exerciseDuckGateFlow())
-          .then(() => exerciseGitHistoryFlow())
-          .then(() => exerciseHelpReferenceFlow())
-          .then(() => exerciseAtVocabReferenceFlow());
+        // Held back until the IPC-count window has closed so the flows' own
+        // traffic can't inflate `invokeCountFirst5s`.
+        const flowDelay = Math.max(
+          0,
+          INVOKE_WINDOW_MS + 250 - performance.now(),
+        );
+        flowsTimer = setTimeout(() => {
+          if (cancelled) return;
+          void exerciseModelsChangedFlow()
+            .then(() => exerciseJobStoreFlow())
+            .then(() => exerciseEvalJobStoreFlow())
+            .then(() => exerciseKeepAliveFlow())
+            .then(() => exerciseCloneConnectFlow())
+            .then(() => exerciseRoutinesFlow())
+            .then(() => exerciseInlineAssistFlow())
+            .then(() => exerciseTeamRunFlow())
+            .then(() => exerciseTeamCodeLaneFlow())
+            .then(() => exerciseFocusChainFlow())
+            .then(() => exerciseLanesFlow())
+            .then(() => exerciseMultibufferPickFlow())
+            .then(() => exerciseResearchGateFlow())
+            .then(() => exerciseDuckGateFlow())
+            .then(() => exerciseGitHistoryFlow())
+            .then(() => exerciseHelpReferenceFlow())
+            .then(() => exerciseAtVocabReferenceFlow());
+        }, flowDelay);
       })
       .catch(() => {
         // Backend unreachable / command missing: behave exactly like "not
@@ -2656,8 +2892,10 @@ export function useE2EProbe(): void {
     return () => {
       cancelled = true;
       if (timer) clearInterval(timer);
+      if (flowsTimer) clearTimeout(flowsTimer);
       delete (window as unknown as { __cortexE2E?: unknown }).__cortexE2E;
       uninstallErrorHooks();
+      uninstallPerfHooks();
     };
   }, []);
 }

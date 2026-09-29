@@ -46,6 +46,72 @@ export function fail(reason) {
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** Non-fatal finding: printed prominently but never changes the exit code. */
+export function warn(reason) {
+  console.log(`[e2e] WARN: ${reason}`);
+}
+
+/**
+ * Soft performance budgets. `E2E_STRICT=1` turns a blown budget into a
+ * failure; otherwise it's a warning so a slow runner can't break the build
+ * while a real regression still shows up in the log and the job summary.
+ */
+export const isStrict = /^(1|true|yes|on)$/i.test(process.env.E2E_STRICT ?? "");
+
+/** Read a numeric budget from `process.env[name]`, falling back to `def`. */
+export function budgetFromEnv(name, def) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") return def;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : def;
+}
+
+/**
+ * Check a measured value against a budget. Returns a verdict row for the
+ * metrics table; a blown budget is a WARN, or a FAIL under E2E_STRICT (the
+ * caller then records it as a failed check so it lands in the final tally).
+ * `value == null` means "not measured on this platform" and is neither.
+ */
+export function judge(name, value, budget, unit = "") {
+  if (value == null) {
+    return { name, value, budget, ok: null, status: "n/a" };
+  }
+  const ok = value <= budget;
+  if (!ok && !isStrict) {
+    warn(`${name} = ${value}${unit} exceeds budget ${budget}${unit}`);
+  }
+  return {
+    name,
+    value,
+    budget,
+    ok,
+    status: ok ? "ok" : isStrict ? "FAIL" : "WARN",
+  };
+}
+
+/** Render rows (arrays of cells) as a GitHub-flavoured Markdown table. */
+export function mdTable(header, rows) {
+  const esc = (c) => String(c ?? "").replace(/\|/g, "\\|");
+  const line = (cells) => `| ${cells.map(esc).join(" | ")} |`;
+  return [
+    line(header),
+    `|${header.map(() => " --- ").join("|")}|`,
+    ...rows.map(line),
+  ].join("\n");
+}
+
+/** Fixed-width console rendering of the same rows. */
+export function textTable(header, rows) {
+  const all = [header, ...rows].map((r) => r.map((c) => String(c ?? "")));
+  const widths = header.map((_, i) =>
+    Math.max(...all.map((r) => (r[i] ?? "").length)),
+  );
+  const fmtRow = (r) => r.map((c, i) => c.padEnd(widths[i])).join("  ");
+  return [fmtRow(all[0]), widths.map((w) => "-".repeat(w)).join("  ")]
+    .concat(all.slice(1).map(fmtRow))
+    .join("\n");
+}
+
 /**
  * Create an isolated, throwaway "home" and return the env vars that steer
  * Cortex (and the platform dirs crates) into it.
