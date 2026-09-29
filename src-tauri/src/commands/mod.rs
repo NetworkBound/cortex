@@ -117,6 +117,7 @@ pub mod smart_stage;
 pub mod snapshots;
 pub mod snippets;
 pub mod spaces;
+pub mod stream_coalesce;
 pub mod tailscale;
 pub mod teams;
 pub mod terminal;

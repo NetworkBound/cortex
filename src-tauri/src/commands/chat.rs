@@ -3114,7 +3114,7 @@ pub async fn chat_send(
             loop {
                 let agent = current_agent.clone();
                 let agent_id = agent.descriptor().id.clone();
-                let (tx, mut rx) = mpsc::channel(64);
+                let (tx, rx) = mpsc::channel(64);
                 // Detects ```focus-chain checklists in the streamed text (the
                 // prompt contract injected above) and replays them as the
                 // synthetic `update_focus_chain` tool call — see the Token/Done
@@ -3175,6 +3175,11 @@ pub async fn chat_send(
                     );
                 }
 
+                // Coalesce bursts of Token/Reasoning fragments into one event per
+                // display frame (~16 ms): one `emit` + one trace-store insert per
+                // batch instead of per fragment. Ordering around non-text events
+                // is preserved — see `commands::stream_coalesce`.
+                let mut rx = crate::commands::stream_coalesce::CoalescingReceiver::new(rx);
                 while let Some(evt) = rx.recv().await {
                     // Inject the synthetic run id into lifecycle events that have
                     // none, so the frontend tracks the run (enabling Stop) and

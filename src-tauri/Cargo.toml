@@ -80,6 +80,25 @@ windows = { version = "0.58", features = [
 [dev-dependencies]
 tempfile = "3"
 
+# Release profile — what `pnpm tauri build` / tauri-action / the E2E job ship.
+# thin LTO + a single codegen unit let the linker drop the large amount of
+# monomorphised code this crate pulls in (tauri, axum, reqwest, rusqlite, …)
+# and inline across crates: typically a 20-35% smaller binary and marginally
+# faster startup (less to map/relocate, fewer page faults). `strip` removes
+# symbols/debuginfo from the executable itself via the linker; it is separate
+# from — and unaffected by — the `NO_STRIP` linuxdeploy env in release.yml,
+# which only skips linuxdeploy's own (broken) post-hoc `strip` pass over the
+# AppImage payload. `panic = "unwind"` is deliberate: `observability::crash`
+# installs a panic hook that records to `crash_log`, and the E2E probe /
+# background loops rely on a panicking task not taking the whole process
+# down. Cost: roughly 1.5-2x longer release link/codegen time.
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+panic = "unwind"
+
 [features]
 custom-protocol = ["tauri/custom-protocol"]
 # Standalone (no-homelab) build variant: compiles the direct provider

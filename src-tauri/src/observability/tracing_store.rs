@@ -321,6 +321,30 @@ impl TracingStore {
             "ALTER TABLE chat_embeddings ADD COLUMN project_root TEXT",
             [],
         );
+        // Semantic search / auto-index read this table by `model` (every
+        // cosine scan: `all_chat_embeddings`, plus `note_mtimes` /
+        // `chat_embedding_count`), but the only index was the
+        // (message_id, model) primary key — so each "Ask your brain" query
+        // started with a full-table scan. Must come after the CREATE above.
+        let _ = conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_chat_embeddings_model
+                 ON chat_embeddings(model, role)",
+            [],
+        );
+    }
+
+    /// Names of every index in the database (test/diagnostic helper — cheap:
+    /// reads `sqlite_master` only).
+    #[cfg(test)]
+    fn index_names(&self) -> Vec<String> {
+        let conn = self.inner.lock();
+        let mut stmt = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type = 'index' ORDER BY name")
+            .expect("sqlite_master");
+        stmt.query_map([], |r| r.get::<_, String>(0))
+            .expect("query")
+            .filter_map(|r| r.ok())
+            .collect()
     }
 
     pub fn shared_connection(&self) -> Arc<Mutex<Connection>> {
@@ -1842,6 +1866,55 @@ fn error_class(msg: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The hot dashboard/replay/semantic-search queries must be index-backed.
+    /// Guards against the indexes silently disappearing from `schema.sql` /
+    /// `migrate` (they're `IF NOT EXISTS`, so a typo would never error).
+    #[test]
+    fn hot_path_indexes_exist() {
+        let store = TracingStore::in_memory();
+        let names = store.index_names();
+        for want in [
+            "spans_session_idx",
+            "spans_trace_idx",
+            "spans_name_started_idx",
+            "events_span_idx",
+            "events_tool_result_ts_idx",
+            "idx_messages_session",
+            "idx_chat_embeddings_model",
+        ] {
+            assert!(
+                names.iter().any(|n| n == want),
+                "missing index {want}; have {names:?}"
+            );
+        }
+    }
+
+    /// `migrate` runs on every open (existing databases) — it must be
+    /// idempotent, and the partial index must actually be usable by the MCP
+    /// tool-stats query rather than erroring on older bundled SQLite.
+    #[test]
+    fn migrate_is_idempotent_and_partial_index_is_queryable() {
+        let store = TracingStore::in_memory();
+        {
+            let conn = store.inner.lock();
+            TracingStore::migrate(&conn);
+            TracingStore::migrate(&conn);
+        }
+        store
+            .record_event(
+                "span-x",
+                &AgentEvent::ToolResult {
+                    name: "mcp__fs__read".into(),
+                    ok: true,
+                    summary: String::new(),
+                    duration_ms: Some(3),
+                },
+            )
+            .unwrap();
+        let report = store.reliability_summary(None).unwrap();
+        assert_eq!(report.mcp_tools.calls, 1);
+    }
 
     /// Quota-aware failover appends its note to the turn's routing reason so
     /// Run Replay shows the reroute; a turn recorded without a reason gets

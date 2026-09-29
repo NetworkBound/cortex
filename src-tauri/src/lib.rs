@@ -49,14 +49,83 @@ use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 pub fn run() {
     init_tracing();
 
-    AppState::seed_keychain_if_empty();
     crate::agents::roles::seed_defaults_if_missing();
     crate::commands::workflows::seed_default_workflows();
 
     // Hydrate embedded-Tailscale settings (enabled flag + socks addr) from disk
-    // so home-traffic routing reflects the last session. Does NOT auto-spawn the
-    // sidecar here; it is started lazily below if previously enabled.
+    // so home-traffic routing reflects the last session. Cheap (one JSON file)
+    // and needed before any HTTP client is built, so it stays synchronous.
     crate::tailscale::init_from_disk();
+
+    // Host probes that used to run inline before the window existed:
+    //   - the keychain seed (Secret Service D-Bus on Linux, which can stall on a
+    //     locked keyring; Credential Manager on Windows),
+    //   - `tailscale status --json` / `sc query Tailscale` / `wsl.exe echo ok`
+    //     (a cold WSL VM start alone can take several seconds on Windows),
+    //   - spawning the tsnet sidecar,
+    //   - pruning old audit logs (a data-dir listing).
+    // None of them gate first paint, so they run on one background thread while
+    // the Tauri builder brings the window up. `maybe_tailscale_proxy` memoizes
+    // the system-Tailscale probe in a `Lazy`, so an HTTP client built before this
+    // thread finishes simply waits for that one probe rather than racing it.
+    std::thread::spawn(|| {
+        AppState::seed_keychain_if_empty();
+        start_tailscale_routing();
+        let _ = crate::observability::audit::prune_old(90);
+    });
+
+    let state = AppState::new();
+    // Ordered failover candidates (LAN → tailnet → public tunnel). The first
+    // entry is what we point at synchronously below, so normal startup is
+    // unchanged; a background task (spawned in `.setup`) keeps the live value
+    // pointed at the most-preferred *reachable* candidate.
+    let gateway_candidates = AppState::gateway_base_url_candidates();
+    {
+        let mut cfg = AppState::load_config_from_env();
+        // Pin the immediate base URL to the first candidate so it agrees with
+        // the failover list's preference order (no network I/O on startup).
+        if let Some(first) = gateway_candidates.first() {
+            cfg.gateway_base_url = first.clone();
+        }
+        *state.config.write() = cfg;
+    }
+
+    register_adapters(&state);
+
+    let tracing_store = TracingStore::open_default().unwrap_or_else(|e| {
+        tracing::warn!("tracing store init failed: {e}; using in-memory");
+        TracingStore::in_memory()
+    });
+
+    // Issue 008: hand the MCP chat-tool dispatcher an audit sink — it runs
+    // deep inside adapter tasks with no Tauri `State` access, and every
+    // model-initiated MCP call must land in the same audit trail as the
+    // manual `mcp_call_tool` button.
+    crate::mcp::chat_tools::set_audit_store(tracing_store.clone());
+
+    // Lanes whose watcher died with the previous process would show "running"
+    // forever — stamp them interrupted before anything reads the table.
+    if let Ok(n) =
+        crate::lanes::LaneStore::new(tracing_store.shared_connection()).mark_stale_interrupted()
+    {
+        if n > 0 {
+            tracing::info!("marked {n} stale lane run(s) interrupted from a previous session");
+        }
+    }
+
+    crate::observability::crash::install_panic_hook(
+        tracing_store.shared_connection(),
+        env!("CARGO_PKG_VERSION").to_string(),
+    );
+
+    run_tauri(state, tracing_store, gateway_candidates);
+}
+
+/// Decide how home/tailnet traffic is routed and bring the chosen transport up:
+/// an external SOCKS5 (Tailscale-in-WSL, plus the loopback bridge it needs), a
+/// system Tailscale (nothing to start), or the embedded tsnet sidecar. Runs on
+/// the startup background thread — every branch shells out at least once.
+fn start_tailscale_routing() {
     if let Some(addr) = crate::tailscale::external_socks_addr() {
         // User pointed us at an external SOCKS5 (e.g. Tailscale running in WSL):
         // route through it and never start the embedded sidecar.
@@ -122,24 +191,16 @@ pub fn run() {
                 crate::tailscale::TsStatus::Error { msg: e };
         }
     }
+}
 
-    let state = AppState::new();
-    // Ordered failover candidates (LAN → tailnet → public tunnel). The first
-    // entry is what we point at synchronously below, so normal startup is
-    // unchanged; a background task (spawned in `.setup`) keeps the live value
-    // pointed at the most-preferred *reachable* candidate.
-    let gateway_candidates = AppState::gateway_base_url_candidates();
-    {
-        let mut cfg = AppState::load_config_from_env();
-        // Pin the immediate base URL to the first candidate so it agrees with
-        // the failover list's preference order (no network I/O on startup).
-        if let Some(first) = gateway_candidates.first() {
-            cfg.gateway_base_url = first.clone();
-        }
-        *state.config.write() = cfg;
-    }
-
-    let api_key = AppState::get_gateway_api_key().unwrap_or_default();
+/// Register every adapter the desktop app can route to. Split out of [`run`]
+/// so the startup path reads top-down; `build_headless_state` keeps its own
+/// (documented) copy of this list.
+fn register_adapters(state: &AppState) {
+    // `GatewayRemoteAgent` re-reads the key per request (`current_client`), so
+    // the value passed here is never used — resolving it used to cost two OS
+    // keychain reads on the startup thread for nothing.
+    let api_key = String::new();
     {
         let cfg = state.config.read();
         let mut reg = state.registry.write();
@@ -225,35 +286,12 @@ pub fn run() {
             reg.register(Arc::new(crate::agents::E2eFakeAgent::new()));
         }
     }
+}
 
-    let tracing_store = TracingStore::open_default().unwrap_or_else(|e| {
-        tracing::warn!("tracing store init failed: {e}; using in-memory");
-        TracingStore::in_memory()
-    });
-
-    // Issue 008: hand the MCP chat-tool dispatcher an audit sink — it runs
-    // deep inside adapter tasks with no Tauri `State` access, and every
-    // model-initiated MCP call must land in the same audit trail as the
-    // manual `mcp_call_tool` button.
-    crate::mcp::chat_tools::set_audit_store(tracing_store.clone());
-
-    // Lanes whose watcher died with the previous process would show "running"
-    // forever — stamp them interrupted before anything reads the table.
-    if let Ok(n) =
-        crate::lanes::LaneStore::new(tracing_store.shared_connection()).mark_stale_interrupted()
-    {
-        if n > 0 {
-            tracing::info!("marked {n} stale lane run(s) interrupted from a previous session");
-        }
-    }
-
-    crate::observability::crash::install_panic_hook(
-        tracing_store.shared_connection(),
-        env!("CARGO_PKG_VERSION").to_string(),
-    );
-
-    let _ = crate::observability::audit::prune_old(90);
-
+/// Build the Tauri app around the prepared state and run it to exit. Everything
+/// in `.setup` is spawned, not awaited — the window is created as soon as the
+/// builder runs, and the frontend reveals it after its first paint.
+fn run_tauri(state: AppState, tracing_store: TracingStore, gateway_candidates: Vec<String>) {
     // Shared handle to the live config for the gateway failover loop, captured
     // before `state` is moved into `.manage`.
     let failover_config = state.config.clone();

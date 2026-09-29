@@ -237,8 +237,22 @@ impl AppState {
         parsed
     }
 
-    pub fn get_gateway_api_key() -> Option<String> {
-        // Order: OS keychain (new entry, then legacy entry) → env → None.
+    /// Process-wide memo of the gateway key as last read from / written to the
+    /// keychain. `get_gateway_api_key` is called on EVERY gateway request
+    /// (`GatewayRemoteAgent::current_client`) and from ~45 other sites, each of
+    /// which used to pay one or two OS-keychain round trips — on Linux that is
+    /// a Secret Service D-Bus call, on Windows a Credential Manager read. Only
+    /// a successful keychain read is memoized (a missing key keeps probing, so
+    /// a key added mid-session is still picked up), and the in-app setter
+    /// refreshes it.
+    fn gateway_key_cache() -> &'static RwLock<Option<String>> {
+        static CACHE: once_cell::sync::Lazy<RwLock<Option<String>>> =
+            once_cell::sync::Lazy::new(|| RwLock::new(None));
+        &CACHE
+    }
+
+    /// Read the keychain (new entry, then legacy entry) without the memo.
+    fn read_gateway_key_from_keychain() -> Option<String> {
         let read_entry = |user: &str| {
             keyring::Entry::new(KEYRING_SERVICE, user)
                 .ok()
@@ -247,9 +261,16 @@ impl AppState {
         };
         // Back-compat: a key saved under the pre-rebrand `hermes_backend_api_key`
         // entry keeps working until the user re-saves under the new entry.
-        if let Some(k) = read_entry(KEYRING_USER_GATEWAY_KEY)
-            .or_else(|| read_entry(KEYRING_USER_HERMES_KEY_LEGACY))
-        {
+        read_entry(KEYRING_USER_GATEWAY_KEY).or_else(|| read_entry(KEYRING_USER_HERMES_KEY_LEGACY))
+    }
+
+    pub fn get_gateway_api_key() -> Option<String> {
+        // Order: memo → OS keychain (new entry, then legacy entry) → env → None.
+        if let Some(k) = Self::gateway_key_cache().read().clone() {
+            return Some(k);
+        }
+        if let Some(k) = Self::read_gateway_key_from_keychain() {
+            *Self::gateway_key_cache().write() = Some(k.clone());
             return Some(k);
         }
         baked_gateway_api_key()
@@ -257,6 +278,12 @@ impl AppState {
 
     pub fn set_gateway_api_key(key: &str) -> anyhow::Result<()> {
         keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER_GATEWAY_KEY)?.set_password(key)?;
+        let trimmed = key.trim();
+        *Self::gateway_key_cache().write() = if trimmed.is_empty() {
+            None
+        } else {
+            Some(key.to_string())
+        };
         Ok(())
     }
 
@@ -360,18 +387,19 @@ impl AppState {
         // Treat either the new or the legacy (`hermes_backend_api_key`) entry as
         // "already provisioned" so a user upgrading across the rebrand is never
         // re-seeded over a key they already saved.
-        let read_entry = |user: &str| {
-            keyring::Entry::new(KEYRING_SERVICE, user)
-                .ok()
-                .and_then(|e| e.get_password().ok())
-                .filter(|s| !s.trim().is_empty())
-        };
-        let existing = read_entry(KEYRING_USER_GATEWAY_KEY)
-            .or_else(|| read_entry(KEYRING_USER_HERMES_KEY_LEGACY));
-        if existing.is_none() {
-            if let Some(key) = baked_gateway_api_key() {
-                if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER_GATEWAY_KEY) {
-                    let _ = entry.set_password(&key);
+        match Self::read_gateway_key_from_keychain() {
+            // Warm the memo so the first gateway request doesn't hit the
+            // keychain again.
+            Some(existing) => *Self::gateway_key_cache().write() = Some(existing),
+            None => {
+                if let Some(key) = baked_gateway_api_key() {
+                    if let Ok(entry) =
+                        keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER_GATEWAY_KEY)
+                    {
+                        if entry.set_password(&key).is_ok() {
+                            *Self::gateway_key_cache().write() = Some(key);
+                        }
+                    }
                 }
             }
         }

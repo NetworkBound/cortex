@@ -12,6 +12,10 @@ CREATE TABLE IF NOT EXISTS spans (
 );
 CREATE INDEX IF NOT EXISTS spans_session_idx ON spans(session_id, started_at);
 CREATE INDEX IF NOT EXISTS spans_trace_idx   ON spans(trace_id);
+-- Reliability Dashboard / Run Replay / usage: every aggregate filters on
+-- `name = 'agent.run'` (optionally `AND started_at >= ?`) and orders by
+-- `started_at` — without this each one was a full scan of `spans`.
+CREATE INDEX IF NOT EXISTS spans_name_started_idx ON spans(name, started_at);
 
 CREATE TABLE IF NOT EXISTS events (
   span_id   TEXT NOT NULL,
@@ -20,6 +24,13 @@ CREATE TABLE IF NOT EXISTS events (
   payload   TEXT NOT NULL DEFAULT '{}'
 );
 CREATE INDEX IF NOT EXISTS events_span_idx ON events(span_id, ts);
+-- MCP tool-call stats (`mcp_tools_summary`) scan `events` for
+-- `name = 'tool_result'` in a time window. `events` is by far the largest
+-- table (one row per streamed token batch), so index only the rows that
+-- query can ever match — a partial index stays tiny and SQLite picks it
+-- whenever the WHERE clause carries the same `name = 'tool_result'` test.
+CREATE INDEX IF NOT EXISTS events_tool_result_ts_idx
+  ON events(ts) WHERE name = 'tool_result';
 
 CREATE TABLE IF NOT EXISTS health_samples (
   source     TEXT NOT NULL,

@@ -479,24 +479,39 @@ pub fn find_duplicate_notes(
 /// List every indexed note whose source file changed (or disappeared) since it
 /// was embedded — i.e. chunks the next reindex pass will refresh. Metadata-only
 /// (paths + mtimes); no note content is returned.
+///
+/// Async + blocking-pool: this stats every indexed note on disk. As a sync
+/// command it ran on the main (UI) thread and froze the window for the
+/// duration on a large vault.
 #[tauri::command]
-pub fn brain_stale_notes(store: State<'_, TracingStore>) -> Result<Vec<StaleNote>, String> {
-    Ok(stale_notes_for_model(store.inner(), &embed_model()))
+pub async fn brain_stale_notes(store: State<'_, TracingStore>) -> Result<Vec<StaleNote>, String> {
+    let store = store.inner().clone();
+    tokio::task::spawn_blocking(move || stale_notes_for_model(&store, &embed_model()))
+        .await
+        .map_err(|e| format!("brain_stale_notes task failed: {e}"))
 }
 
 /// Find near-identical indexed notes (issue 010 full scope: memory dedup) so
 /// the Brain UI can flag them for the user to collapse/merge. `threshold`
 /// overrides the default strictness (0.0-1.0 cosine similarity); detection
 /// only, nothing is deleted.
+///
+/// Async + blocking-pool: loads every stored embedding and does an O(n²)
+/// cosine pass — far too heavy for the main thread a sync command runs on.
 #[tauri::command]
-pub fn brain_memory_duplicates(
+pub async fn brain_memory_duplicates(
     threshold: Option<f32>,
     state: State<'_, AppState>,
     store: State<'_, TracingStore>,
 ) -> Result<Vec<DuplicateGroup>, String> {
     let vault = state.config.read().obsidian_vault.clone();
     let t = threshold.unwrap_or(DEDUP_THRESHOLD).clamp(0.0, 1.0);
-    find_duplicate_notes(store.inner(), &embed_model(), vault.as_deref(), t)
+    let store = store.inner().clone();
+    tokio::task::spawn_blocking(move || {
+        find_duplicate_notes(&store, &embed_model(), vault.as_deref(), t)
+    })
+    .await
+    .map_err(|e| format!("brain_memory_duplicates task failed: {e}"))?
 }
 
 #[tauri::command]

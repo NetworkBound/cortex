@@ -85,7 +85,26 @@ fn generate_master_key() -> [u8; MASTER_KEY_LEN] {
 /// minting + storing a new key in that state would overwrite the real one the
 /// next time the keychain works, and every key in `keys.enc` would become
 /// undecryptable.
+///
+/// The key is memoized for the life of the process once it has been read (or
+/// minted) successfully: it never changes while Cortex runs, and every vault
+/// lookup used to pay a fresh OS-keychain round trip — `list_agents` alone
+/// resolved ~13 provider keys through here every 30 s (and on each chat turn's
+/// routing pass), which on Linux is 13 Secret Service D-Bus calls. Failures
+/// are NOT cached, so a locked keychain is retried on the next call.
 fn get_or_init_master() -> Result<[u8; MASTER_KEY_LEN], String> {
+    static MASTER_KEY: std::sync::OnceLock<[u8; MASTER_KEY_LEN]> = std::sync::OnceLock::new();
+    if let Some(cached) = MASTER_KEY.get() {
+        return Ok(*cached);
+    }
+    let key = read_or_init_master_from_keychain()?;
+    // A concurrent first caller may have won the race; both read the same
+    // keychain entry, so whichever value landed is the right one.
+    Ok(*MASTER_KEY.get_or_init(|| key))
+}
+
+/// Uncached keychain access behind [`get_or_init_master`].
+fn read_or_init_master_from_keychain() -> Result<[u8; MASTER_KEY_LEN], String> {
     let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER_MASTER)
         .map_err(|e| format!("keyring entry: {e}"))?;
     match entry.get_password() {

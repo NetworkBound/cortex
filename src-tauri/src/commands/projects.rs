@@ -13,7 +13,12 @@ pub async fn list_projects(state: State<'_, AppState>) -> Result<Vec<ProjectMeta
     // registry → OBSIDIAN_VAULT → ~/vault). discover_projects falls back to
     // the env-var heuristic if this is None, so the DEFAULT build is unchanged.
     let vault_root = state.config.read().obsidian_vault.clone();
-    Ok(discover_projects(vault_root))
+    // Walks every configured root to depth 3 — including `\\wsl.localhost`
+    // UNC shares on Windows, which can take seconds — so keep it off the
+    // async runtime's worker threads.
+    tokio::task::spawn_blocking(move || discover_projects(vault_root))
+        .await
+        .map_err(|e| format!("list_projects task failed: {e}"))
 }
 
 /// Read a vault project note's markdown for injection as chat context.
@@ -64,7 +69,10 @@ pub async fn project_files(
     if !p.exists() {
         return Err(format!("missing: {path}"));
     }
-    Ok(list_files(&p, limit.unwrap_or(500)))
+    let limit = limit.unwrap_or(500);
+    tokio::task::spawn_blocking(move || list_files(&p, limit))
+        .await
+        .map_err(|e| format!("project_files task failed: {e}"))
 }
 
 /// Lists every `.cortex/rules/*.md` rule with its activation metadata so the
