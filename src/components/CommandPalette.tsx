@@ -258,12 +258,13 @@ export function CommandPalette() {
         hint: timeAgo(s.last_active_ms, { coarse: true }),
         keywords: `session resume ${s.agents.join(" ")}`,
         section: "Sessions",
-        run: () =>
+        run: () => {
           window.dispatchEvent(
             new CustomEvent("cortex:chat-replay", {
               detail: { session_id: s.session_id },
             }),
-          ),
+          );
+        },
       });
     }
 
