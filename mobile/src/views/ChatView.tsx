@@ -302,8 +302,11 @@ export default function ChatView() {
         {messages.length === 0 ? (
           <div className="empty">
             Ask Cortex anything. Replies stream live.
-            <br />
-            {activeProjectRoot ? "" : "Pick a project to give it repo context."}
+            {!activeProjectRoot && (
+              <div className="empty-hint">
+                Pick a project in the Projects tab to give it repo context.
+              </div>
+            )}
           </div>
         ) : (
           <div className="msg-list">
@@ -414,7 +417,7 @@ function MessageBubble({ m }: { m: Message }) {
         !m.streaming && !m.error && <span className="faint">no output</span>
       )}
       {m.error && (
-        <div className="banner err" style={{ margin: "8px 0 0" }}>
+        <div className="banner err inline" role="alert">
           {m.error}
         </div>
       )}

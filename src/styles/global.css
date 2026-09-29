@@ -227,6 +227,15 @@
   --syntax-tag: #7ee787; /* tags, names, selectors */
   --syntax-builtin: #ffa657; /* built-ins, symbols */
   --syntax-comment: #8b949e; /* comments */
+
+  /* Sandbox tier colors (SANDBOX_TIER_META in src/lib/sandbox.ts). */
+  --sandbox-readonly: #3b82f6;
+  --sandbox-workspace: #22c55e;
+  --sandbox-danger: var(--danger);
+
+  /* Unified deep scrim behind every modal backdrop (slight blue cast). */
+  --scrim: rgba(5, 5, 7, 0.66);
+  --scrim-strong: rgba(5, 5, 7, 0.78);
 }
 
 /* Light-mode-only token overrides. `themes.ts` sets data-theme-mode="light"
@@ -1093,21 +1102,95 @@ kbd {
   line-height: var(--leading-normal);
 }
 .chat-empty-hint code {
-  /* Borderless inline accent tokens (Linear/Raycast pattern), not boxed chips —
-     a tinted/padded chip pushed the list commas away (`( @brain , @diff ,`); as
-     bare accent mono they read as clean prose while staying click-to-insert. */
-  color: var(--accent);
+  /* Borderless inline mono (Linear/Raycast pattern), not a boxed chip. */
+  color: var(--text-dim);
   background: none;
   padding: 0;
   font-weight: var(--weight-medium);
-  /* Affordance for the delegated click handler — inserts the token. */
-  cursor: pointer;
-  transition: color var(--duration-fast) var(--ease-standard);
 }
-.chat-empty-hint code:hover {
-  color: var(--accent-bright, var(--accent));
-  text-decoration: underline;
-  text-underline-offset: 2px;
+/* One row of the discovery footer: label, clickable token chips, trailing hint. */
+.chat-empty-hint-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1) var(--space-2);
+}
+/* Click-to-insert @-token / slash chips — real buttons, keyboard reachable. */
+.chat-empty-token {
+  min-height: 24px;
+  padding: 0 var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--accent);
+  background: var(--accent-softer);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+}
+.chat-empty-token:hover:not(:disabled) {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: var(--accent-glow);
+  box-shadow: none;
+}
+/* Three example prompts — the fastest way into a first useful turn. */
+.chat-empty-prompts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+@media (max-width: 880px) {
+  .chat-empty-prompts {
+    grid-template-columns: 1fr;
+  }
+}
+.chat-empty-prompt {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: var(--space-2);
+  row-gap: var(--space-0_5);
+  align-items: center;
+  min-height: 0;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  color: var(--text-dim);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-weight: var(--weight-normal);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+.chat-empty-prompt:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--bg-elevated);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+.chat-empty-prompt svg {
+  grid-row: 1 / span 2;
+  color: var(--accent);
+}
+.chat-empty-prompt-title {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+.chat-empty-prompt-text {
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 /* Inline discoverability CTA — calm secondary button (opens the palette). */
 .chat-empty-browse {
@@ -1791,6 +1874,7 @@ kbd {
      scroll container that scrollIntoView/wide content can shift. */
   overflow-x: hidden;
   min-width: 0;
+  scrollbar-gutter: stable;
   padding: var(--space-5) 28px;
 }
 .chat-messages > * {
@@ -1874,7 +1958,9 @@ kbd {
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius);
   text-align: left;
-  transition: background var(--duration-fast) var(--ease-standard);
+  transition:
+    border-color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
 }
 .chat-empty-tips li:hover {
   background: var(--bg-hover);
@@ -1934,8 +2020,25 @@ kbd {
   color: var(--text-dim);
   font-weight: var(--weight-semibold);
 }
+.msg-error .msg-role {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--danger);
+}
 .msg-error .msg-role strong {
   color: var(--danger);
+}
+/* Error turns render as a quiet danger-tinted card (same frame as tool /
+   approval cards) so a failed send or a `/cmd failed:` note is scannable
+   without shouting. */
+.msg-error .msg-content {
+  padding: var(--space-2) var(--space-3);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius);
+  font-size: var(--text-base);
 }
 .msg-user .msg-role strong {
   color: var(--accent-strong);
@@ -2155,29 +2258,6 @@ kbd {
   white-space: pre-wrap;
 }
 
-/* Tailscale "pair a device" QR card. */
-.ts-pairing {
-  display: flex;
-  gap: var(--space-3);
-  align-items: flex-start;
-  flex-wrap: wrap;
-  margin-top: var(--space-2);
-}
-.ts-pairing-qr {
-  flex: 0 0 auto;
-  width: 168px;
-  height: 168px;
-  padding: var(--space-2);
-  background: #ffffff; /* QR needs a light quiet zone to scan */
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-}
-.ts-pairing-qr svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
 /* Team-run synthesis verdict scorecard. */
 .orch-verdict {
   margin-top: var(--space-2);
@@ -2365,10 +2445,10 @@ kbd {
 .msg-thinking {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 8px 0 4px;
+  gap: var(--space-1);
+  padding: var(--space-2) 0 var(--space-1);
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 .thinking-dot {
   width: 6px;
@@ -2385,7 +2465,7 @@ kbd {
   animation-delay: 0.4s;
 }
 .thinking-label {
-  margin-left: 4px;
+  margin-left: var(--space-1);
   font-style: italic;
 }
 @keyframes thinking-pulse {
@@ -2571,12 +2651,17 @@ kbd {
   opacity: 1;
 }
 
+/* Approval card — the same neutral card frame as .tool-card (surface, hairline,
+   radius, contact shadow) so tool calls and approvals stack as one family; the
+   warning tint lives on the border + badge only. */
 .approval-prompt {
   margin: var(--space-2) 0;
   padding: var(--space-3) var(--space-3);
-  background: linear-gradient(180deg, rgba(240, 184, 110, 0.08), transparent);
-  border: 1px solid var(--warning);
+  background: var(--bg-elevated);
+  border: 1px solid var(--warning-border);
+  border-left: 3px solid var(--warning);
   border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
   animation: msg-in var(--duration-slow) var(--ease-out);
 }
 .approval-head {
@@ -2635,8 +2720,8 @@ kbd {
    Red-shift the whole card + badge and outline the dangerous approve buttons
    so a broad, hard-to-undo grant reads as a deliberate, higher-stakes choice. */
 .approval-prompt.approval-danger {
-  background: linear-gradient(180deg, var(--danger-soft), transparent);
-  border-color: var(--danger);
+  border-color: var(--danger-border);
+  border-left-color: var(--danger);
 }
 .approval-prompt.approval-danger .approval-badge {
   background: var(--danger);
@@ -3739,46 +3824,6 @@ kbd {
   }
 }
 
-/* Sandbox tier — three-tier (Codex-style) gate. Coloring per
-   SANDBOX_TIER_META in src/lib/sandbox.ts. */
-:root {
-  --sandbox-readonly: #3b82f6;
-  --sandbox-workspace: #22c55e;
-  --sandbox-danger: var(--danger);
-}
-.sandbox-radio {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-2);
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-  cursor: pointer;
-}
-.sandbox-radio:hover {
-  background: var(--bg-sunken);
-}
-.sandbox-radio.selected {
-  background: var(--bg-sunken);
-}
-.sandbox-radio input {
-  margin-top: var(--space-0_5);
-}
-.sandbox-radio-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0_5);
-}
-.sandbox-radio-label {
-  font-weight: 600;
-  font-size: var(--text-sm);
-}
-.sandbox-radio-desc {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  line-height: 1.3;
-}
-
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -3858,140 +3903,6 @@ kbd {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
-}
-
-/* ── Settings modal ─────────────────────────────────────────────────────────
-   The settings dialog is a two-column shell (left category rail + scrolling
-   content pane) — the Linear/VS-Code/Raycast settings pattern. The markup was
-   shipped without any CSS, so it collapsed to a single cramped column with raw
-   wrapped tab buttons and no active state. These rules give it the panel/nav
-   language used everywhere else, all on the design tokens. */
-.modal.modal-settings {
-  width: 760px;
-  max-width: 92vw;
-  height: min(78vh, 640px);
-  padding: 0;
-  gap: 0;
-  overflow: hidden; /* clip the nav hairline + content scroll to rounded corners */
-}
-.settings-header {
-  flex-shrink: 0;
-  padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--border);
-}
-.settings-body {
-  flex: 1;
-  min-height: 0; /* let .settings-content own the scroll, not the dialog */
-  display: flex;
-}
-.settings-nav {
-  flex-shrink: 0;
-  width: 188px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4) var(--space-3);
-  border-right: 1px solid var(--border);
-  overflow-y: auto;
-}
-.settings-search input {
-  font-size: var(--text-sm);
-}
-.settings-nav-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0_5);
-}
-.settings-nav-btn {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: var(--space-1) var(--space-3);
-  border: 0;
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--text-dim);
-  font-size: var(--text-base);
-  font-weight: var(--weight-medium);
-  transition:
-    background var(--duration-fast) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard);
-}
-.settings-nav-btn:hover:not(:disabled) {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-.settings-nav-btn.active {
-  background: var(--accent-soft);
-  color: var(--text);
-  font-weight: var(--weight-semibold);
-}
-.settings-nav-empty {
-  padding: var(--space-2) var(--space-3);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
-.settings-content {
-  flex: 1;
-  min-width: 0;
-  overflow-y: auto;
-  padding: var(--space-5);
-}
-/* Visually separate the stacked section cards within a tab. */
-.settings-content > div + div {
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border);
-}
-.settings-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.settings-divider {
-  height: 1px;
-  background: var(--border);
-  border: 0;
-  opacity: 0.6;
-}
-.settings-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md, 8px);
-  background: var(--surface-raised, var(--surface));
-}
-.settings-section h3 {
-  margin: 0;
-  color: var(--text);
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
-}
-/* A checkbox/radio settings row opts into a primary-color title with a muted
-   description (restores text hierarchy — the title read as `--text-muted`, the
-   same dim as its own description, with no contrast between them). The row
-   LAYOUT (control left, label right) is handled systemically by the `.modal
-   label:has(> input[type=checkbox|radio])` rule near `.modal label`. */
-label.settings-check {
-  color: var(--text);
-  cursor: pointer;
-}
-label.settings-check small {
-  font-weight: var(--weight-regular);
-}
-.settings-footer {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-5);
-  border-top: 1px solid var(--border);
-}
-.settings-err {
-  color: var(--danger);
-  font-size: var(--text-sm);
 }
 
 .palette-backdrop {
@@ -4220,10 +4131,11 @@ li.session-picker-error {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+  padding: var(--space-0_5) var(--space-1) var(--space-0_5) var(--space-3);
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
   min-height: 28px;
+  line-height: 1;
 }
 .md-code-lang {
   font-family: var(--font-sans);
@@ -4259,10 +4171,16 @@ li.session-picker-error {
   font-size: inherit;
 }
 
-/* Copy button — lives in the header, always visible, ghost styling. */
+/* Copy button — lives in the header, always visible, ghost styling. Its
+   height is pinned to the header row so the label and the button share one
+   centre line (the global 28px button floor would otherwise push it taller
+   than the 28px header). */
 .md-code-copy {
   flex: 0 0 auto;
-  padding: var(--space-1) var(--space-2);
+  min-height: 22px;
+  height: 22px;
+  line-height: 1;
+  padding: 0 var(--space-2);
   font-family: var(--font-sans);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
@@ -5207,146 +5125,6 @@ li.session-picker-error {
   position: relative;
   z-index: 2;
   display: contents;
-}
-
-/* Theme picker grid */
-.theme-picker {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-.theme-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: var(--space-3);
-}
-.theme-tile {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3) 11px;
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  text-align: left;
-  transition:
-    transform var(--duration-fast) var(--ease-standard),
-    box-shadow var(--duration-fast) var(--ease-standard);
-}
-.theme-tile:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-.theme-tile-active {
-  box-shadow:
-    0 0 0 2px var(--accent-glow),
-    var(--shadow-sm);
-  animation: theme-tile-breathe 2.8s ease-in-out infinite;
-}
-/* Subtle "alive" glow on the selected theme — futuristic but restrained, and
-   fully disabled under reduced-motion. */
-@keyframes theme-tile-breathe {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 2px var(--accent-glow),
-      var(--shadow-sm);
-  }
-  50% {
-    box-shadow:
-      0 0 0 3px var(--accent),
-      0 0 16px 1px var(--accent-glow),
-      var(--shadow-sm);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .theme-tile-active {
-    animation: none;
-  }
-}
-.theme-tile-header {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  letter-spacing: var(--tracking-caps);
-  text-transform: uppercase;
-}
-.theme-tile-swatches {
-  display: flex;
-  gap: var(--space-1);
-}
-.theme-tile-swatch {
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(0, 0, 0, 0.2);
-}
-.theme-tile-line {
-  font-size: var(--text-sm);
-  padding: var(--space-2) var(--space-2);
-  border-radius: var(--radius);
-  font-family: var(--font-mono);
-}
-
-/* Background image picker row */
-.theme-bg-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
-}
-.theme-bg-preview {
-  flex: 0 0 auto;
-}
-.theme-bg-thumb {
-  width: 96px;
-  height: 64px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  object-fit: cover;
-  display: block;
-}
-.theme-bg-thumb-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-sunken);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-}
-.theme-bg-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.theme-error {
-  color: var(--danger);
-  font-size: var(--text-sm);
-}
-
-/* SettingsThemeTab wrapper — mirrors the spacing used by other settings tabs
- * so it lands cleanly when wired in. */
-.settings-theme-tab {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-.settings-section-header h3 {
-  margin: 0 0 var(--space-1);
-  font-size: var(--text-base);
-  letter-spacing: var(--tracking-wide);
-}
-.settings-section-hint {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
-.settings-section-hint code {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  color: var(--text-dim);
 }
 
 /* AGENTS.md chip — sits in the chat-header-left next to the project name,
@@ -11784,63 +11562,14 @@ li.session-picker-error {
   cursor: not-allowed;
 }
 
-/* Config watcher toast */
-/* Surfaces hot-reload events emitted by `subscribeConfigChanges`. Future
-   consumers (snippets panel, trust matrix editor, etc.) can opt into this
-   class to flash a non-blocking "config reloaded" pill in the corner. */
-.config-watcher-toast {
-  position: fixed;
-  bottom: 16px;
-  right: 16px;
-  z-index: 9999;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg-elev, rgba(127, 127, 127, 0.12));
-  color: var(--fg, inherit);
-  font-size: var(--text-sm);
-  line-height: 1.3;
-  box-shadow: var(--shadow-md);
-  pointer-events: none;
-  opacity: 0;
-  transform: translateY(6px);
-  transition:
-    opacity var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
-}
-.config-watcher-toast.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-.config-watcher-toast .config-watcher-toast-kind {
-  font-weight: 600;
-  text-transform: capitalize;
-}
-.config-watcher-toast .config-watcher-toast-path {
-  opacity: 0.75;
-  max-width: 320px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
-}
-
 /* =========================================================================
    Wave 20 — Visual polish pass (append-only, additive cascade)
    References: contextforge.dev hero/section rhythm, terax-ai dark UI patterns.
    Each block targets a single component; no existing rule is rewritten.
    ========================================================================= */
 
-/* Wave 20 polish: scrim token + modal backdrop saturation consistency.
-   contextforge uses a unified deep scrim with a slight blue cast; defining a
-   shared token lets future backdrops drop-in match without redefining alpha. */
-:root {
-  --scrim: rgba(5, 5, 7, 0.66);
-  --scrim-strong: rgba(5, 5, 7, 0.78);
-}
+/* Modal backdrop saturation consistency — every backdrop shares the --scrim
+   token (declared in :root at the top of this file). */
 .modal-backdrop,
 .palette-backdrop,
 .ide-export-backdrop,
@@ -11868,18 +11597,6 @@ li.session-picker-error {
 .sidebar-empty:hover {
   border-color: var(--border-strong);
   box-shadow: var(--shadow-md);
-}
-
-/* Chat hero — solid word-mark (the accent lives on the logo glyph, not the
-   title) for a calm, professional landing per DESIGN-SPEC §1.1 (accent is a
-   guest). Tip rows get a quiet hairline hover, no lift/drop-shadow tell. */
-.chat-empty h2 {
-  color: var(--text);
-}
-.chat-empty-tips li {
-  transition:
-    border-color var(--duration-fast) var(--ease-standard),
-    background var(--duration-fast) var(--ease-standard);
 }
 
 /* Activity tab pill — flat list item, not a floating card. No hover
@@ -12307,24 +12024,6 @@ li.session-picker-error {
   border-radius: var(--radius-sm);
   cursor: pointer;
   font: inherit;
-}
-
-/* Smart stage — placeholder hook so future styling for /stage system notes
-   (staged/skipped file lists, error chips) has a stable selector to attach
-   to. Today the report renders through the generic system-note path; this
-   block reserves the namespace without affecting layout. */
-.smart-stage-report {
-  /* intentionally empty — see comment above */
-}
-.smart-stage-report .smart-stage-staged {
-  color: var(--text);
-}
-.smart-stage-report .smart-stage-skipped {
-  color: var(--muted, var(--text));
-  opacity: 0.75;
-}
-.smart-stage-report .smart-stage-error {
-  color: var(--danger, #c44);
 }
 
 /* Session summary + cost */
@@ -12800,34 +12499,6 @@ li.session-picker-error {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
-}
-
-/* Commit + push */
-/*
- * The /commit, /push, and /ship slashes surface their output as plain
- * system notes (handled by the existing `.system-note` rules), so they
- * don't need bespoke styling. This block reserves a hook for future
- * inline push-status badges (e.g. a colour-coded ok/fail chip beside the
- * commit subject) without forcing another global.css edit when that work
- * lands.
- */
-.commit-push-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-0_5) var(--space-2);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  border: 1px solid var(--border);
-}
-.commit-push-status[data-state="ok"] {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-.commit-push-status[data-state="fail"] {
-  color: var(--danger);
-  border-color: var(--danger);
 }
 
 /* Knowledge graph
@@ -15968,23 +15639,6 @@ li.session-picker-error {
 }
 .testgen-primary:hover {
   background: var(--accent-strong);
-}
-
-/* Ask router */
-/* `/ask` is dispatched entirely through existing surfaces (toast + system
- * chat messages), so it doesn't ship dedicated DOM. This block reserves the
- * `ask-` prefix for future inline UI (e.g. an in-chat "Run it" button next to
- * the "did you mean…" suggestion) and ensures any system-note rendered
- * suggestion stays visually subdued. */
-.ask-suggestion {
-  font-family: var(--font-mono, ui-monospace, monospace);
-  color: var(--text-muted, var(--text));
-}
-.ask-suggestion code {
-  padding: var(--space-px) var(--space-1);
-  border-radius: var(--radius-sm);
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
 }
 
 /* Conflict + dep audit
@@ -19960,8 +19614,15 @@ li.session-picker-error {
   color: var(--accent);
 }
 .enhance-toggle .spin,
-.auto-agent-btn .spin {
+.auto-agent-btn .spin,
+.composer-mic .spin {
   animation: spin 1s linear infinite;
+}
+/* Recording state of the composer mic — danger tint + slow pulse. */
+.composer-mic.recording {
+  color: var(--danger);
+  font-weight: var(--weight-semibold);
+  animation: pulse 1s ease-in-out infinite;
 }
 
 /* Error boundary fallback */
@@ -21223,60 +20884,4 @@ li.session-picker-error {
 .ckdiff-confirm:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-}
-
-/* Model Fabric (Settings → Providers). */
-.fabric-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--border);
-  flex-wrap: wrap;
-}
-.fabric-row-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.fabric-label {
-  display: flex;
-  gap: var(--space-1);
-  align-items: center;
-}
-.fabric-url {
-  font-size: var(--text-xs, 0.72rem);
-  color: var(--text-muted, #888);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 340px;
-}
-.fabric-kind {
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  padding: 0 5px;
-  border-radius: 4px;
-  background: var(--surface-raised, rgba(255, 255, 255, 0.08));
-  color: var(--text-muted, #888);
-}
-.fabric-kind.local {
-  color: var(--success, #46a758);
-}
-.fabric-kind.remote {
-  color: var(--accent, #6c9ef8);
-}
-.fabric-kind.off {
-  color: var(--warning, #f5a623);
-}
-.fabric-probe {
-  font-size: var(--text-xs, 0.72rem);
-}
-.fabric-probe.ok {
-  color: var(--success, #46a758);
-}
-.fabric-probe.bad {
-  color: var(--danger, #e5484d);
 }

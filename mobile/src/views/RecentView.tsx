@@ -69,11 +69,7 @@ export default function RecentView({
   return (
     <div className="scroll">
       <div className="pad recent-top">
-        <button
-          className="btn import-cta"
-          style={{ width: "100%" }}
-          onClick={onImport}
-        >
+        <button className="btn block import-cta" onClick={onImport}>
           ＋ Import chat history
         </button>
       </div>
@@ -103,7 +99,7 @@ export default function RecentView({
 
       {sessions.length > 0 && (
         <div className="pad">
-          <button className="btn" style={{ width: "100%" }} onClick={refresh}>
+          <button className="btn block" onClick={refresh}>
             Refresh
           </button>
         </div>

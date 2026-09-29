@@ -123,8 +123,7 @@ export default function ImportView({
             onChange={onFile}
           />
           <button
-            className="btn primary"
-            style={{ width: "100%" }}
+            className="btn primary block"
             disabled={busy}
             onClick={() => fileInput.current?.click()}
           >
@@ -148,8 +147,7 @@ export default function ImportView({
             />
           </div>
           <button
-            className="btn"
-            style={{ width: "100%" }}
+            className="btn block"
             disabled={busy || !pasted.trim()}
             onClick={onPaste}
           >
@@ -222,8 +220,7 @@ export default function ImportView({
           </div>
 
           <button
-            className="btn"
-            style={{ width: "100%" }}
+            className="btn block"
             disabled={busy || !token.trim()}
             onClick={onPull}
           >

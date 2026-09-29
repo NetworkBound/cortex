@@ -215,8 +215,7 @@ export default function UltimateView() {
             <div className="field">
               <label>Lead model</label>
               <select
-                className="model-select"
-                style={{ width: "100%" }}
+                className="model-select block"
                 value={leadModel}
                 onChange={(e) => setLeadModel(e.target.value)}
                 disabled={running}
@@ -231,7 +230,7 @@ export default function UltimateView() {
             </div>
           </div>
           {models.length > 0 && (
-            <div className="faint" style={{ fontSize: 12, marginBottom: 10 }}>
+            <div className="faint note">
               {models.length} models connected — all eligible for the race.
             </div>
           )}
@@ -240,7 +239,6 @@ export default function UltimateView() {
               className="banner reconnecting"
               role="status"
               aria-live="polite"
-              style={{ margin: "0 0 10px" }}
             >
               <span className="spin" aria-hidden="true" />
               Reconnecting… progress will resume when the link is back.
@@ -248,8 +246,7 @@ export default function UltimateView() {
           )}
           {running ? (
             <button
-              className="btn"
-              style={{ width: "100%" }}
+              className="btn block"
               onClick={stop}
               aria-label="Stop the run"
             >
@@ -257,8 +254,7 @@ export default function UltimateView() {
             </button>
           ) : (
             <button
-              className="btn primary"
-              style={{ width: "100%" }}
+              className="btn primary block"
               onClick={start}
               disabled={!goal.trim()}
               aria-label="Run Ultimate"
@@ -379,7 +375,7 @@ function Timeline({ run }: { run: RunState }) {
                 <span className="chip">{s.kind}</span>
                 <span className="chip">{s.difficulty}</span>
               </div>
-              <div style={{ marginTop: 4 }}>{s.task}</div>
+              <div className="subtask-task">{s.task}</div>
             </div>
           ))}
         </div>
@@ -388,9 +384,7 @@ function Timeline({ run }: { run: RunState }) {
       {subtasks.map((st) => (
         <div key={st.id} className="card">
           <div className="card-title">⚙ {st.id}</div>
-          <div className="muted" style={{ fontSize: 13 }}>
-            {st.task}
-          </div>
+          <div className="muted card-task">{st.task}</div>
           <div className="model-race">
             {st.models.map((mr) => (
               <span
@@ -438,7 +432,7 @@ function Timeline({ run }: { run: RunState }) {
                 ${run.cost.toFixed(4)}
               </span>
             )}
-            <span className="spacer" style={{ flex: 1 }} />
+            <span className="spacer" />
             <CopyButton text={run.synthesis} />
           </div>
           <Markdown>{run.synthesis}</Markdown>

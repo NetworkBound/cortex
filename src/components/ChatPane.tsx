@@ -1,58 +1,26 @@
 import {
-  memo,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type DragEvent,
-  type ReactNode,
 } from "react";
 import { humanizeError } from "@/lib/errors";
-import {
-  Bot,
-  Brain,
-  Columns2,
-  FileDiff,
-  FileText,
-  History,
-  Loader2,
-  Mic,
-  Paperclip,
-  Settings,
-  Sparkles,
-  Square,
-  Wand2,
-  Zap,
-} from "lucide-react";
-import {
-  recordAndTranscribe,
-  type RecordAndTranscribeHandle,
-} from "@/lib/voice-fallback";
+import { Settings } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { chatSend, stopRun, subscribeToSession } from "@/lib/cortex-bridge";
 import type { AgentEventEnvelope } from "@/lib/cortex-bridge";
-import { useCortexStore, type Message, type ToolEvent } from "@/state/store";
+import { useCortexStore, type Message } from "@/state/store";
 import {
   extractImageAttachments,
   filesToComposerText,
   type ImageAttachment,
 } from "@/lib/composer-drop";
 import { loadPromptHistory, recordPrompt } from "@/lib/prompt-history";
-import { MarkdownView } from "./MarkdownView";
-import { MessageActions } from "./MessageActions";
 import { ComposerPanel } from "./ComposerPanel";
-import { ReasoningBlock } from "./ReasoningBlock";
-import { ToolCallCard } from "./ToolCallCard";
 import { AgentsDocChip } from "./AgentsDocChip";
-import { ApprovalPrompt } from "./ApprovalPrompt";
 import { FilePicker } from "./FilePicker";
-import { ModelPicker } from "./ModelPicker";
-import { ReasoningPicker } from "./ReasoningPicker";
-import { listModels } from "@/lib/models";
 import { arenaSend, formatLatency } from "@/lib/model-arena";
-import { PlanCard } from "./PlanCard";
-import { extractPlan } from "@/lib/plan";
 import { playSound } from "@/lib/sounds";
 import { pushToast } from "@/lib/toast";
 import { confirmDialog, promptDialog } from "@/lib/dialogs";
@@ -62,7 +30,6 @@ import { createCheckpoint, pruneCheckpoints } from "@/lib/checkpoints";
 import { loadSessionMessages } from "@/lib/sessions";
 import { recentIssues, recentCrashes } from "@/lib/observability";
 import { expandSnippets, saveSnippet } from "@/lib/snippets";
-import { setAgentInstructions } from "@/lib/profiles";
 import { findCommand, parseInput, makeContext } from "@/lib/slash-commands";
 import { replaceChain } from "@/lib/focus-chain";
 import {
@@ -78,6 +45,13 @@ import {
 } from "@/lib/context";
 import { suggestContext, type ContextSuggestion } from "@/lib/context-picker";
 import { SmartContextPrompt } from "./SmartContextPrompt";
+import { MessageList } from "./chat/MessageList";
+import { ChatEmptyState } from "./chat/ChatEmptyState";
+import { ComposerToolbar } from "./chat/ComposerToolbar";
+import { ComposerImages } from "./chat/ComposerImages";
+import { CompareChips } from "./chat/CompareChips";
+import { SmartPasteMenu, type SmartPasteState } from "./chat/SmartPasteMenu";
+import { contextIntentCount } from "./chat/attachment-tokens";
 
 // Cap pulled thread messages to keep model context lean.
 const THREAD_MSG_CAP = 50;
@@ -123,19 +97,16 @@ export function ChatPane() {
   const [sending, setSending] = useState(false);
   const [images, setImages] = useState<ImageAttachment[]>([]);
   const [imageSkipped, setImageSkipped] = useState<string[]>([]);
-  // Inline multi-model compare. `compareOn` toggles the chip row; the actual
-  // model selection lives in the store (`compareModels`, persisted). When the
-  // toggle is on AND ≥2 models are picked, `send()` routes through `arenaSend`
-  // instead of the normal streaming path. `compareModelIds` is the available
-  // model universe for the chip row (best-effort fetch, empty on failure).
+  // Inline multi-model compare. `compareOn` toggles the chip row (CompareChips
+  // fetches the model universe itself); the actual model selection lives in
+  // the store (`compareModels`, persisted). When the toggle is on AND ≥2
+  // models are picked, `send()` routes through `arenaSend` instead of the
+  // normal streaming path.
   const [compareOn, setCompareOn] = useState(false);
-  const [compareModelIds, setCompareModelIds] = useState<string[]>([]);
   const compareModels = useCortexStore((s) => s.compareModels);
-  const setCompareModels = useCortexStore((s) => s.setCompareModels);
   const enhancePrompt = useCortexStore((s) => s.enhancePrompt);
   const setEnhancePrompt = useCortexStore((s) => s.setEnhancePrompt);
   const [enhancing, setEnhancing] = useState(false);
-  const [generatingAgent, setGeneratingAgent] = useState(false);
   // Composer drag-drop: `dragDepth` counts nested dragenter/leave so the
   // overlay doesn't flicker when the cursor crosses child elements.
   const [dragging, setDragging] = useState(false);
@@ -155,13 +126,11 @@ export function ChatPane() {
   const [suggestingContext, setSuggestingContext] = useState(false);
   const [brainThinking, setBrainThinking] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   // Prompt-history recall (Up/Down in the composer). `histIndex` is null when
   // the user is editing their own live draft; once they start cycling we stash
   // that draft in `liveDraft` so ArrowDown past the newest entry restores it.
   const histIndexRef = useRef<number | null>(null);
   const liveDraftRef = useRef<string>("");
-  const messagesEnd = useRef<HTMLDivElement>(null);
   const messagesContainer = useRef<HTMLDivElement>(null);
   // Stick-to-bottom: only auto-scroll on new content when the user is already
   // near the bottom. If they've scrolled up to read history mid-stream, leave
@@ -185,30 +154,8 @@ export function ChatPane() {
   // Smart-paste menu. `pasted` is the original blob (so we can wrap/trim it
   // on demand); `start`/`end` mark where it landed in `input` so each action
   // can rewrite the slice in place. Null when the menu is hidden.
-  const [smartPaste, setSmartPaste] = useState<{
-    pasted: string;
-    start: number;
-    end: number;
-    language: string;
-  } | null>(null);
+  const [smartPaste, setSmartPaste] = useState<SmartPasteState | null>(null);
   const smartPasteTimerRef = useRef<number | null>(null);
-
-  // Lazily fetch the model universe for the compare chip row, only once the
-  // user opens the compare toggle. Best-effort: failure leaves the list empty.
-  useEffect(() => {
-    if (!compareOn || compareModelIds.length > 0) return;
-    let alive = true;
-    listModels()
-      .then((list) => {
-        if (alive) setCompareModelIds(list.map((m) => m.id));
-      })
-      .catch(() => {
-        if (alive) setCompareModelIds([]);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [compareOn, compareModelIds.length]);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -460,9 +407,9 @@ export function ChatPane() {
   ]);
 
   useEffect(() => {
-    // Don't auto-scroll the empty-state landing: messagesEnd sits below the
-    // tall hero card, so scrolling to it on mount clips the logo/wordmark off
-    // the top (the empty state must stay anchored at its own top).
+    // Don't auto-scroll the empty-state landing: scrolling to the bottom on
+    // mount would clip the logo/wordmark off the top of the tall hero card
+    // (the empty state must stay anchored at its own top).
     if (!stickToBottom.current || messages.length === 0) return;
     // Scroll the container VERTICALLY only — never scrollIntoView, whose default
     // inline:"nearest" horizontally scrolls every scrollable ancestor (incl. the
@@ -554,22 +501,9 @@ export function ChatPane() {
     // Don't auto-fire if the user has already pinned 2+ context tokens —
     // they've expressed intent for specific context and probably don't
     // want more suggestions stacked on. One token is fine (they may want
-    // a complementary attach).
-    const tokenCount = (
-      draft.match(
-        /@(?:brain|diff|status|recent|repomap|cwd|env|ls|log)(?::[^\s,;)]*)?\b|@(?:memory|file|frag|web|grep|folder|dir|blame):|@[/\\]/g,
-      ) ?? []
-    ).length;
-    // Wave 125 — implicit path mentions also count as "user expressed
-    // context intent". If they typed `src/auth.rs` directly, the backend
-    // will auto-attach it; the brain doesn't need to fan out further
-    // unless the user has nothing else queued.
-    const mentionCount = (
-      draft.match(
-        /\b[\w.-]+(?:[/\\][\w.-]+)+\.(?:rs|ts|tsx|js|jsx|py|go|java|kt|c|cc|cpp|h|hpp|rb|php|swift|scala|md|toml|yaml|yml|json|css|scss|html|sh|sql|proto|gradle|zig|dart|elm|json5|lua|nix|tf|mjs|cjs|astro|vue|svelte|jl|ex|exs|clj|hs|ml)(?::\d+(?::\d+)?)?\b/g,
-      ) ?? []
-    ).length;
-    if (tokenCount + mentionCount >= 2) return;
+    // a complementary attach). Implicit path mentions (`src/auth.rs`) count
+    // too: the backend auto-attaches those, so the brain needn't fan out.
+    if (contextIntentCount(draft) >= 2) return;
     // Avoid re-firing if user already pinned an @-token from a prior brain
     // round — they don't need the same suggestions on subsequent keystrokes.
     const id = window.setTimeout(async () => {
@@ -1449,6 +1383,56 @@ export function ChatPane() {
     setTimeout(() => textareaRef.current?.focus(), 0);
   }
 
+  // Composer key handling: smart-paste Esc, Up/Down history recall, Ctrl+Enter
+  // send, Alt+letter @-token shortcuts and the Alt+Shift slash shortcuts.
+  function onComposerKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (smartPaste && e.key === "Escape") {
+      e.preventDefault();
+      dismissSmartPaste();
+      return;
+    }
+    // Terminal-style Up/Down recall of previous sends. Returns true (and
+    // prevented-default) when it handled the key.
+    if (!pickerOpen && tryHistoryNav(e)) return;
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      void send();
+      return;
+    }
+    // Brain quick-insert shortcuts. Alt+B/D/R/S/W splice @brain / @diff /
+    // @recent / @status / @web: at the cursor. Alt (not Ctrl) so the OS
+    // doesn't steal them — Ctrl+B in many distros is a hotkey we don't want
+    // to clobber.
+    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      const map: Record<string, string> = {
+        b: "@brain",
+        d: "@diff",
+        r: "@recent",
+        s: "@status",
+        w: "@web:",
+        c: "@cwd",
+        e: "@env",
+        g: "@grep:",
+        m: "@repomap",
+      };
+      const tok = map[e.key.toLowerCase()];
+      if (tok) {
+        e.preventDefault();
+        insertAtCursor(tok);
+        return;
+      }
+    }
+    // Alt+Shift+S replaces the whole composer with `/summarize`; Alt+Shift+R
+    // with `/repomap-top`. Both hit the slash handler on Enter.
+    if (e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      const k = e.key.toLowerCase();
+      if (k === "s" || k === "r") {
+        e.preventDefault();
+        setInput(k === "s" ? "/summarize" : "/repomap-top");
+      }
+    }
+  }
+
   return (
     <div className="chat-pane">
       <div className="chat-header">
@@ -1462,6 +1446,7 @@ export function ChatPane() {
         <div className="chat-header-right">
           {runningRunIds.length > 0 && (
             <button
+              type="button"
               className="link-btn danger"
               onClick={() => void stopActive()}
             >
@@ -1472,149 +1457,30 @@ export function ChatPane() {
             type="button"
             className="chat-header-icon-btn"
             onClick={() => setShowSettings(true)}
-            title="Settings"
+            title="Settings (Ctrl+,)"
             aria-label="Settings"
           >
             <Settings size={15} strokeWidth={1.75} aria-hidden="true" />
           </button>
         </div>
       </div>
-      <div
-        className="chat-messages"
-        ref={messagesContainer}
+      <MessageList
+        messages={messages}
+        queuedMessages={queuedMessages}
+        setApproval={setApproval}
+        onRegenerate={regenerateFrom}
+        onDequeue={dequeueMessage}
+        containerRef={messagesContainer}
         onScroll={onMessagesScroll}
-      >
-        {messages.length === 0 && (
-          <div className="chat-empty">
-            <div className="chat-empty-logo">C</div>
-            <h2>Cortex</h2>
-            <p className="chat-empty-sub">
-              One chat, every model. Switch between Claude, Codex, Gemini, and
-              more without leaving the conversation.
-            </p>
-            <ul className="chat-empty-tips">
-              <li>
-                <span className="chat-empty-tip-label">Command palette</span>
-                <span className="chat-empty-keys">
-                  <kbd>Ctrl</kbd>+<kbd>K</kbd>
-                </span>
-              </li>
-              <li>
-                <span className="chat-empty-tip-label">Send message</span>
-                <span className="chat-empty-keys">
-                  <kbd>Ctrl</kbd>+<kbd>Enter</kbd>
-                </span>
-              </li>
-              <li>
-                <span className="chat-empty-tip-label">
-                  Search memory &amp; chats
-                </span>
-                <span className="chat-empty-keys">
-                  <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd>
-                </span>
-              </li>
-              <li>
-                <span className="chat-empty-tip-label">
-                  Toggle plan / act mode
-                </span>
-                <span className="chat-empty-keys">
-                  <kbd>Ctrl</kbd>+<kbd>M</kbd>
-                </span>
-              </li>
-            </ul>
-            <div className="chat-empty-discover">
-              {/* Calm single-line discovery nudge — the full @-token / slash
-                  reference lives in the Help tab and the live @ / picker, so
-                  the landing stays a brand-first hero (Linear/Raycast pattern)
-                  instead of a reference card that overflowed the fold.
-                  Clicking a <code> chip inserts that token in the composer. */}
-              <p
-                className="chat-empty-hint"
-                onClick={(e) => {
-                  const t = e.target as HTMLElement;
-                  if (t.tagName !== "CODE") return;
-                  const v = t.textContent ?? "";
-                  if (!v) return;
-                  if (v.startsWith("/")) {
-                    setInput(v);
-                  } else {
-                    window.dispatchEvent(
-                      new CustomEvent("cortex:composer-insert", {
-                        detail: { value: v },
-                      }),
-                    );
-                  }
-                }}
-              >
-                Type <code>@</code> for context (<code>@brain</code>,{" "}
-                <code>@diff</code>, <code>@status</code>…), <code>/</code> for
-                commands.
-              </p>
-              <button
-                type="button"
-                className="chat-empty-browse"
-                onClick={() => setShowCommandPalette(true)}
-                title="Browse all features (Ctrl+K)"
-              >
-                Browse all features
-                <span className="chat-empty-browse-hint">Ctrl+K</span>
-              </button>
-            </div>
-          </div>
-        )}
-        {messages.map((m, i) => {
-          // Group consecutive turns from the same author (role + agent) so the
-          // role label shows once per author run, not on every message — the
-          // standard chat-UI grouping (Claude.ai / ChatGPT / Slack / Linear).
-          const prev = messages[i - 1];
-          const continuesAuthor =
-            !!prev && prev.role === m.role && prev.agent === m.agent;
-          return (
-            <MessageView
-              key={m.id}
-              m={m}
-              setApproval={setApproval}
-              onRegenerate={regenerateFrom}
-              continuesAuthor={continuesAuthor}
-            />
-          );
-        })}
-        {/* Type-ahead queue: submissions parked while a turn streams. Pending
-            bubbles, FIFO; each carries a cancel × and they auto-send (in
-            order) via the drain effect when the stream settles. */}
-        {queuedMessages.map((q) => (
-          <div key={q.id} className="msg msg-user msg-queued">
-            <div className="msg-role">
-              <strong>user</strong>
-              <span className="msg-queued-badge">queued</span>
-            </div>
-            <div className="msg-content">
-              <span className="md-prose">{q.content}</span>
-              {q.images.length > 0 && (
-                <span className="msg-queued-images">
-                  {q.images.length} image{q.images.length === 1 ? "" : "s"}{" "}
-                  attached
-                </span>
-              )}
-            </div>
-            <div className="msg-queued-foot">
-              <span className="msg-queued-note">
-                queued — sends when the current turn finishes
-              </span>
-              <button
-                type="button"
-                className="msg-queued-cancel"
-                onClick={() => dequeueMessage(q.id)}
-                title="Remove from queue"
-                aria-label="Cancel queued message"
-              >
-                ×
-              </button>
-            </div>
-          </div>
-        ))}
-        <div ref={messagesEnd} />
-      </div>
+        empty={
+          <ChatEmptyState
+            hasProject={!!activeProject}
+            onUsePrompt={regenerateFrom}
+            onInsertToken={insertAtCursor}
+            onBrowse={() => setShowCommandPalette(true)}
+          />
+        }
+      />
       {showJumpToLatest && (
         <button
           type="button"
@@ -1637,44 +1503,11 @@ export function ChatPane() {
         <div className="composer-drag-overlay" aria-hidden="true">
           drop files here
         </div>
-        {(images.length > 0 || imageSkipped.length > 0) && (
-          <div className="composer-images">
-            {images.map((img) => (
-              <div
-                key={img.id}
-                className="composer-image-chip"
-                title={img.name}
-              >
-                <img
-                  className="composer-image-thumb"
-                  src={img.dataUrl}
-                  alt={img.name}
-                />
-                <span className="composer-image-meta">
-                  <span className="composer-image-name">{img.name}</span>
-                  <span className="composer-image-size">
-                    {(img.sizeBytes / 1024).toFixed(0)} KB
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  className="composer-image-remove"
-                  onClick={() =>
-                    setImages((cur) => cur.filter((i) => i.id !== img.id))
-                  }
-                  title="Remove image"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            {imageSkipped.map((s, i) => (
-              <span key={`sk-${i}`} className="composer-image-skipped">
-                {s}
-              </span>
-            ))}
-          </div>
-        )}
+        <ComposerImages
+          images={images}
+          skipped={imageSkipped}
+          onRemove={(id) => setImages((cur) => cur.filter((i) => i.id !== id))}
+        />
         <FilePicker
           open={pickerOpen}
           query={pickerQuery}
@@ -1695,6 +1528,7 @@ export function ChatPane() {
         <textarea
           ref={textareaRef}
           value={input}
+          aria-label="Message"
           onChange={onInputChange}
           onKeyUp={(e) => {
             const t = e.currentTarget;
@@ -1705,68 +1539,7 @@ export function ChatPane() {
             updatePickerFromInput(t.value, t.selectionStart ?? t.value.length);
           }}
           onPaste={onPasteCapture}
-          onKeyDown={(e) => {
-            if (smartPaste && e.key === "Escape") {
-              e.preventDefault();
-              dismissSmartPaste();
-              return;
-            }
-            // Terminal-style Up/Down recall of previous sends. Returns true
-            // (and prevented-default) when it handled the key.
-            if (!pickerOpen && tryHistoryNav(e)) return;
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              void send();
-            }
-            // Brain quick-insert shortcuts. Alt+B/D/R/S/W splice
-            // @brain / @diff / @recent / @status / @web: at the cursor.
-            // Alt (not Ctrl) so the OS doesn't steal them — Ctrl+B in
-            // many distros is a hotkey we don't want to clobber.
-            if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-              const map: Record<string, string> = {
-                b: "@brain",
-                d: "@diff",
-                r: "@recent",
-                s: "@status",
-                w: "@web:",
-                c: "@cwd",
-                e: "@env",
-                g: "@grep:",
-                m: "@repomap",
-              };
-              const tok = map[e.key.toLowerCase()];
-              if (tok) {
-                e.preventDefault();
-                insertAtCursor(tok);
-                return;
-              }
-            }
-            // Wave 131 — Alt+Shift+S replaces the whole composer with
-            // `/summarize`. Hits the existing slash handler on Enter.
-            if (
-              e.altKey &&
-              e.shiftKey &&
-              !e.ctrlKey &&
-              !e.metaKey &&
-              e.key.toLowerCase() === "s"
-            ) {
-              e.preventDefault();
-              setInput("/summarize");
-              return;
-            }
-            // Wave 211 — Alt+Shift+R for /repomap-top.
-            if (
-              e.altKey &&
-              e.shiftKey &&
-              !e.ctrlKey &&
-              !e.metaKey &&
-              e.key.toLowerCase() === "r"
-            ) {
-              e.preventDefault();
-              setInput("/repomap-top");
-              return;
-            }
-          }}
+          onKeyDown={onComposerKeyDown}
           placeholder={
             sending
               ? "Type ahead — Ctrl+Enter queues it for when this turn finishes."
@@ -1774,726 +1547,34 @@ export function ChatPane() {
           }
         />
         {smartPaste && (
-          <div
-            className="smart-paste-menu"
-            role="menu"
-            onMouseDown={(e) => e.preventDefault() /* keep textarea focus */}
-          >
-            <span className="smart-paste-label">
-              Pasted {smartPaste.pasted.length} chars
-              {smartPaste.language && ` · ${smartPaste.language}`}
-            </span>
-            <button
-              type="button"
-              className="smart-paste-action"
-              onClick={smartPasteWrapFence}
-              title="Wrap in code fence"
-            >
-              fence{smartPaste.language ? ` (${smartPaste.language})` : ""}
-            </button>
-            <button
-              type="button"
-              className="smart-paste-action"
-              onClick={smartPasteTrim}
-              title="Collapse blank lines and trailing whitespace"
-            >
-              trim
-            </button>
-            <button
-              type="button"
-              className="smart-paste-action"
-              onClick={() => void smartPasteSaveAsSnippet()}
-              title="Save the pasted text as a reusable snippet"
-            >
-              save snippet
-            </button>
-            <button
-              type="button"
-              className="smart-paste-action smart-paste-dismiss"
-              onClick={dismissSmartPaste}
-              title="Keep paste as-is (Esc)"
-            >
-              as-is
-            </button>
-          </div>
+          <SmartPasteMenu
+            paste={smartPaste}
+            onFence={smartPasteWrapFence}
+            onTrim={smartPasteTrim}
+            onSaveSnippet={() => void smartPasteSaveAsSnippet()}
+            onDismiss={dismissSmartPaste}
+          />
         )}
-        <div className="chat-input-actions">
-          <div className="chat-input-tools">
-            <div
-              className="quick-attach"
-              role="toolbar"
-              aria-label="Quick-attach context"
-            >
-              <button
-                type="button"
-                className="quick-attach-btn"
-                onClick={() => insertAtCursor("@brain")}
-                title="Auto-attach top 3 brain hits for this message"
-                aria-label="Attach top brain hits (@brain)"
-              >
-                <Brain size={14} strokeWidth={1.75} aria-hidden="true" /> brain
-              </button>
-              <button
-                type="button"
-                className="quick-attach-btn"
-                onClick={() => insertAtCursor("@diff")}
-                title="Attach git diff vs HEAD of active project"
-                aria-label="Attach git diff (@diff)"
-              >
-                <FileDiff size={14} strokeWidth={1.75} aria-hidden="true" />{" "}
-                diff
-              </button>
-              <button
-                type="button"
-                className="quick-attach-btn"
-                onClick={() => insertAtCursor("@recent")}
-                title="Attach last 8 modified files in active project"
-                aria-label="Attach recent files (@recent)"
-              >
-                <History size={14} strokeWidth={1.75} aria-hidden="true" />{" "}
-                recent
-              </button>
-              <button
-                type="button"
-                className="quick-attach-btn"
-                onClick={() => setInput("/summarize")}
-                aria-label="Drop slash-summarize into composer"
-                title="Drop /summarize into the composer; press Enter to run"
-              >
-                <FileText size={14} strokeWidth={1.75} aria-hidden="true" />{" "}
-                summary
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/png,image/jpeg,image/webp,image/gif,.ts,.tsx,.js,.jsx,.py,.rs,.go,.md,.json,.yaml,.yml,.toml,.html,.css,.sh,.sql,.txt,.csv,.xml,.log"
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  if (e.target.files) void handleFilePick(e.target.files);
-                  e.target.value = "";
-                }}
-              />
-              <button
-                type="button"
-                className="quick-attach-btn"
-                onClick={() => fileInputRef.current?.click()}
-                title="Attach images or files"
-                aria-label="Attach files"
-              >
-                <Paperclip size={14} strokeWidth={1.75} aria-hidden="true" />{" "}
-                attach
-              </button>
-              <MicButton onTranscript={(text) => insertAtCursor(text)} />
-            </div>
-            {brainThinking && (
-              <span
-                className="brain-thinking"
-                title="Local brain greping memory + recent edits for relevant @-context"
-              >
-                <Sparkles size={14} strokeWidth={1.75} aria-hidden="true" />{" "}
-                brain reading…
-              </span>
-            )}
-            {(() => {
-              // Pre-send attachment preview. Counts the @-tokens in the
-              // current draft that the backend `expand_at_tokens` will
-              // resolve, so the user can see "📎 3 attachments queued"
-              // before hitting send. Matches the same shape regex as the
-              // backend: special tokens (@diff/@status/@recent/@brain),
-              // @memory:<abs>, @file:<abs>, @<abs>.
-              const tokens =
-                input.match(
-                  /@(?:brain|diff|status|recent|repomap|cwd|env|ls|log)(?::[^\s,;)]*)?\b|@(?:memory|file|frag|web|grep|folder|dir|blame):[^\s,;)]+|@[/\\][^\s]+/g,
-                ) ?? [];
-              // Wave 120 — Aider-style implicit path mentions (no `@`). Same
-              // criteria the backend uses in `expand_at_tokens`: relative path
-              // with a known code/.md extension, max 3.
-              const mentionMatches =
-                input.match(
-                  /\b[\w.-]+(?:[/\\][\w.-]+)+\.(?:rs|ts|tsx|js|jsx|py|go|java|kt|c|cc|cpp|h|hpp|rb|php|swift|scala|md|toml|yaml|yml|json|css|scss|html|sh|sql|proto|gradle|zig|dart|elm|json5|lua|nix|tf|mjs|cjs|astro|vue|svelte|jl|ex|exs|clj|hs|ml)(?::\d+(?::\d+)?)?\b/g,
-                ) ?? [];
-              const mentions = mentionMatches.slice(0, 3);
-              const total = tokens.length + mentions.length;
-              if (total === 0) return null;
-              return (
-                <span
-                  className="attach-preview"
-                  title={[...tokens, ...mentions].join(" ")}
-                >
-                  <Paperclip size={14} strokeWidth={1.75} aria-hidden="true" />{" "}
-                  {total} attachment{total === 1 ? "" : "s"} queued
-                </span>
-              );
-            })()}
-            <button
-              type="button"
-              className="link-btn smart-context-trigger"
-              onClick={() => void requestContextSuggestions()}
-              disabled={sending || suggestingContext || !input.trim()}
-              title="Ask AI which @-tokens to attach"
-            >
-              <Wand2 size={14} strokeWidth={1.75} aria-hidden="true" />
-              {suggestingContext ? "thinking…" : "Suggest context"}
-            </button>
-            <ModelPicker />
-            <ReasoningPicker />
-            <button
-              type="button"
-              className={`link-btn compare-toggle${compareOn ? " on" : ""}`}
-              onClick={() => setCompareOn((v) => !v)}
-              aria-pressed={compareOn}
-              title="Compare the same prompt across multiple models side-by-side"
-            >
-              <Columns2 size={14} strokeWidth={1.75} aria-hidden="true" />{" "}
-              compare
-            </button>
-            <button
-              type="button"
-              className={`link-btn enhance-toggle${enhancePrompt ? " on" : ""}`}
-              onClick={() => setEnhancePrompt(!enhancePrompt)}
-              aria-pressed={enhancePrompt}
-              title="Auto-enhance prompts with AI before sending — adds structure, specificity, and verification steps"
-            >
-              {enhancing ? (
-                <>
-                  <Loader2
-                    size={14}
-                    strokeWidth={1.75}
-                    className="spin"
-                    aria-hidden="true"
-                  />{" "}
-                  enhancing…
-                </>
-              ) : (
-                <>
-                  <Zap size={14} strokeWidth={1.75} aria-hidden="true" />{" "}
-                  enhance
-                </>
-              )}
-            </button>
-            <button
-              type="button"
-              className={`link-btn auto-agent-btn${generatingAgent ? " generating" : ""}`}
-              disabled={generatingAgent || !activeProject}
-              onClick={async () => {
-                if (!activeProject?.root) {
-                  pushToast({ title: "Open a project first", kind: "warning" });
-                  return;
-                }
-                setGeneratingAgent(true);
-                try {
-                  const instructions = await invoke<string>(
-                    "generate_agent_instructions",
-                    {
-                      projectRoot: activeProject.root,
-                    },
-                  );
-                  if (instructions?.trim()) {
-                    await setAgentInstructions("agent", instructions);
-                    pushToast({
-                      title: "Agent instructions generated and saved",
-                      kind: "success",
-                    });
-                  }
-                } catch (e) {
-                  pushToast({ title: humanizeError(e), kind: "error" });
-                } finally {
-                  setGeneratingAgent(false);
-                }
-              }}
-              title="Auto-generate agent instructions tailored to the active project's tech stack and structure"
-            >
-              {generatingAgent ? (
-                <>
-                  <Loader2
-                    size={14}
-                    strokeWidth={1.75}
-                    className="spin"
-                    aria-hidden="true"
-                  />{" "}
-                  generating…
-                </>
-              ) : (
-                <>
-                  <Bot size={14} strokeWidth={1.75} aria-hidden="true" /> Auto
-                  Agent
-                </>
-              )}
-            </button>
-          </div>
-          <button
-            className="btn-primary chat-send"
-            onClick={() => void send()}
-            disabled={!input.trim()}
-            title={
-              sending
-                ? "Queue this message — it sends automatically when the current turn finishes"
-                : "Send (Ctrl+Enter)"
-            }
-          >
-            {sending ? "Queue" : "Send"}
-          </button>
-        </div>
-        {compareOn && (
-          <div
-            className="compare-chips"
-            role="group"
-            aria-label="Compare models (pick 2–4)"
-          >
-            {compareModelIds.length === 0 ? (
-              <span className="compare-hint">no models available</span>
-            ) : (
-              compareModelIds.map((id) => {
-                const selected = compareModels.includes(id);
-                // Cap selection at 4; disable unselected chips once full.
-                const atCap = compareModels.length >= 4;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    className={`compare-chip${selected ? " selected" : ""}`}
-                    aria-pressed={selected}
-                    disabled={!selected && atCap}
-                    onClick={() =>
-                      setCompareModels(
-                        selected
-                          ? compareModels.filter((m) => m !== id)
-                          : [...compareModels, id],
-                      )
-                    }
-                  >
-                    {id}
-                  </button>
-                );
-              })
-            )}
-            {compareModelIds.length > 0 && (
-              <span className="compare-hint">
-                {compareModels.length < 2
-                  ? "pick ≥2 to compare"
-                  : `comparing ${compareModels.length} model${compareModels.length === 1 ? "" : "s"}`}
-              </span>
-            )}
-          </div>
-        )}
+        <ComposerToolbar
+          input={input}
+          sending={sending}
+          brainThinking={brainThinking}
+          suggestingContext={suggestingContext}
+          enhancing={enhancing}
+          enhancePrompt={enhancePrompt}
+          compareOn={compareOn}
+          onInsert={insertAtCursor}
+          onSetInput={setInput}
+          onPickFiles={(files) => void handleFilePick(files)}
+          onSuggestContext={() => void requestContextSuggestions()}
+          onToggleCompare={() => setCompareOn((v) => !v)}
+          onToggleEnhance={() => setEnhancePrompt(!enhancePrompt)}
+          onSend={() => void send()}
+        />
+        {compareOn && <CompareChips />}
       </div>
       {/* Multi-file edit review modal — self-gates on `showComposer`. */}
       <ComposerPanel />
     </div>
   );
 }
-
-// Render one run of assistant/user text: a PlanCard when it's a well-formed
-// plan (Cline / Aider plan mode), otherwise markdown for the assistant and
-// plain prose for the user. Shared by the flat fallback and the block timeline.
-function renderTextContent(m: Message, text: string, key?: string): ReactNode {
-  if (m.role === "assistant") {
-    const plan = extractPlan(text);
-    if (plan) {
-      return (
-        <div className="msg-content" key={key}>
-          <PlanCard plan={plan} sessionId={m.id} />
-        </div>
-      );
-    }
-  }
-  // Render markdown for every app-authored voice — the assistant AND the
-  // system/error notes (`/test`, `/lint`, `/architect`, snapshot, repo-map…),
-  // which are written WITH markdown (inline `code`, **bold**, fenced output
-  // blocks, bullet lists). They previously fell through to the plain-text span
-  // and leaked literal backticks/asterisks/fences into the chat stream — a
-  // visible amateur tell. Only the user's own typed turn stays verbatim (we
-  // don't reinterpret what they typed, and the attachment-chip parsing relies
-  // on the raw content).
-  const asMarkdown = m.role !== "user";
-  return (
-    <div className="msg-content" key={key}>
-      {asMarkdown ? (
-        <MarkdownView source={text} />
-      ) : (
-        <span className="md-prose">{text}</span>
-      )}
-    </div>
-  );
-}
-
-// Render a message body. When an ordered block timeline is present (live or
-// rehydrated turns), interleave text runs and tool cards in the order they
-// streamed — narration sits above the tools it introduces, summaries below the
-// tools they describe — matching Claude.ai / Cline / Cursor. Consecutive tool
-// blocks are grouped into one card stack. Otherwise fall back to the flat
-// "all tools, then all content" layout used by legacy messages.
-function renderTimeline(m: Message): ReactNode {
-  if (!m.blocks || m.blocks.length === 0) {
-    return (
-      <>
-        {m.tools.length > 0 && (
-          <div className="msg-tools">
-            {m.tools.map((t) => (
-              <ToolCallCard key={t.id} tool={t} />
-            ))}
-          </div>
-        )}
-        {m.content ? renderTextContent(m, m.content) : null}
-      </>
-    );
-  }
-  const out: ReactNode[] = [];
-  for (let i = 0; i < m.blocks.length; ) {
-    const b = m.blocks[i];
-    if (b.type === "text") {
-      if (b.text.trim()) out.push(renderTextContent(m, b.text, `t${i}`));
-      i++;
-    } else {
-      const group: ToolEvent[] = [];
-      while (i < m.blocks.length) {
-        const bk = m.blocks[i];
-        if (bk.type !== "tool") break;
-        const tool = m.tools.find((t) => t.id === bk.toolId);
-        if (tool) group.push(tool);
-        i++;
-      }
-      if (group.length > 0) {
-        out.push(
-          <div className="msg-tools" key={`g${i}`}>
-            {group.map((t) => (
-              <ToolCallCard key={t.id} tool={t} />
-            ))}
-          </div>,
-        );
-      }
-    }
-  }
-  return <>{out}</>;
-}
-
-function MicButton({ onTranscript }: { onTranscript: (text: string) => void }) {
-  type MicState = "idle" | "recording" | "busy";
-  const [state, setState] = useState<MicState>("idle");
-  const handleRef = useRef<RecordAndTranscribeHandle | null>(null);
-  const recRef = useRef<{ stop(): void } | null>(null);
-
-  useEffect(() => {
-    return () => {
-      handleRef.current?.stop();
-      handleRef.current = null;
-      recRef.current?.stop();
-      recRef.current = null;
-    };
-  }, []);
-
-  const startBrowser = () => {
-    const w = window as unknown as {
-      SpeechRecognition?: new () => {
-        lang: string;
-        interimResults: boolean;
-        onresult:
-          | ((ev: {
-              results: ArrayLike<ArrayLike<{ transcript: string }>>;
-            }) => void)
-          | null;
-        onerror: ((ev: { error?: string }) => void) | null;
-        onend: (() => void) | null;
-        start(): void;
-        stop(): void;
-      };
-      webkitSpeechRecognition?: typeof w.SpeechRecognition;
-    };
-    const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
-    if (!Ctor) return false;
-    try {
-      const rec = new Ctor();
-      rec.lang = navigator.language || "en-US";
-      rec.interimResults = false;
-      rec.onresult = (ev) => {
-        const text = (ev.results[0]?.[0]?.transcript ?? "").trim();
-        recRef.current = null;
-        setState("idle");
-        if (text) onTranscript(text);
-        else
-          pushToast({
-            title: "Voice",
-            body: "No speech captured.",
-            kind: "info",
-          });
-      };
-      rec.onerror = (ev) => {
-        recRef.current = null;
-        setState("idle");
-        pushToast({
-          title: "Voice error",
-          body: ev.error ?? "unknown",
-          kind: "warning",
-        });
-      };
-      rec.onend = () => {
-        recRef.current = null;
-        setState("idle");
-      };
-      rec.start();
-      recRef.current = rec;
-      setState("recording");
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
-  const startWhisper = () => {
-    let handle: RecordAndTranscribeHandle;
-    try {
-      handle = recordAndTranscribe();
-    } catch (e) {
-      pushToast({
-        title: "Voice unavailable",
-        body: humanizeError(e),
-        kind: "warning",
-      });
-      return;
-    }
-    handleRef.current = handle;
-    setState("recording");
-    handle.promise.then(
-      (transcript) => {
-        handleRef.current = null;
-        setState("idle");
-        const text = transcript.trim();
-        if (!text) {
-          pushToast({
-            title: "Voice",
-            body: "No speech captured.",
-            kind: "info",
-          });
-          return;
-        }
-        onTranscript(text);
-      },
-      (err) => {
-        handleRef.current = null;
-        setState("idle");
-        pushToast({
-          title: "Voice failed",
-          body: humanizeError(err),
-          kind: "warning",
-        });
-      },
-    );
-  };
-
-  const start = () => {
-    if (!startBrowser()) startWhisper();
-  };
-
-  const stop = () => {
-    if (recRef.current) {
-      recRef.current.stop();
-      recRef.current = null;
-      setState("idle");
-    } else if (handleRef.current) {
-      handleRef.current.stop();
-      setState("busy");
-    }
-  };
-
-  const onClick = () => {
-    if (state === "idle") start();
-    else if (state === "recording") stop();
-  };
-
-  const Icon =
-    state === "recording" ? Square : state === "busy" ? Loader2 : Mic;
-
-  return (
-    <button
-      type="button"
-      className={`quick-attach-btn composer-mic${state === "recording" ? " recording" : ""}`}
-      style={
-        state === "recording"
-          ? {
-              color: "var(--danger)",
-              fontWeight: 600,
-              animation: "pulse 1s ease-in-out infinite",
-            }
-          : undefined
-      }
-      onClick={onClick}
-      disabled={state === "busy"}
-      aria-pressed={state === "recording"}
-      title={
-        state === "recording"
-          ? "Recording — click to stop"
-          : state === "busy"
-            ? "Transcribing…"
-            : "Record voice and insert transcript"
-      }
-    >
-      <Icon
-        size={14}
-        strokeWidth={1.75}
-        aria-hidden="true"
-        style={
-          state === "busy"
-            ? { animation: "spin 0.8s linear infinite" }
-            : undefined
-        }
-      />{" "}
-      {state === "recording"
-        ? "stop"
-        : state === "busy"
-          ? "transcribing"
-          : "mic"}
-    </button>
-  );
-}
-
-const AGENT_LABELS: Record<string, string> = {
-  "codex-cli": "Codex",
-  "claude-cli": "Claude",
-  "gemini-cli": "Gemini",
-  "qwen-cli": "Qwen",
-  "grok-cli": "Grok",
-  "aider-cli": "Aider",
-  "mistral-cli": "Mistral",
-  "gateway-remote": "Gateway",
-  ollama: "Ollama",
-};
-
-function ThinkingIndicator({ agent }: { agent?: string | null }) {
-  const selectedModel = useCortexStore((s) => s.selectedModel);
-  const label = selectedModel
-    ? selectedModel.toUpperCase().replace(/-/g, " ")
-    : agent
-      ? (AGENT_LABELS[agent] ?? agent)
-      : "Agent";
-  return (
-    <div className="msg-thinking">
-      <span className="thinking-dot" />
-      <span className="thinking-dot" />
-      <span className="thinking-dot" />
-      <span className="thinking-label">{label} is thinking</span>
-    </div>
-  );
-}
-
-// Memoized: with stable setApproval/onRegenerate props, only the message whose
-// object actually changed re-renders. During streaming that's just the one
-// in-flight bubble — prior bubbles no longer re-parse markdown per token.
-const MessageView = memo(function MessageView({
-  m,
-  setApproval,
-  onRegenerate,
-  continuesAuthor = false,
-}: {
-  m: Message;
-  setApproval: (id: string, a: null) => void;
-  onRegenerate: (userContent: string) => void;
-  // True when the previous message is from the same author (role + agent), so
-  // we suppress the repeated role label and tighten the gap — the message
-  // grouping every mature chat UI uses (Claude.ai / ChatGPT / Slack / Linear).
-  continuesAuthor?: boolean;
-}) {
-  // Extract @-token chips for user messages so users can see at a glance
-  // what context was attached on each turn. The persisted content is the
-  // ORIGINAL (pre-expansion) typed message, so we re-parse the same
-  // patterns the backend's `expand_at_tokens` recognises.
-  const attachmentChips: string[] = useMemo(() => {
-    if (m.role !== "user" || !m.content) return [];
-    const re =
-      /@(?:brain|diff|status|recent|repomap|cwd|env|ls|log)(?::[^\s,;)]*)?\b|@(?:memory|file|frag|web|grep|blame):[^\s,;)]+|@[/\\][^\s,;)]+/g;
-    const matches: string[] = [];
-    let mm: RegExpExecArray | null;
-    while ((mm = re.exec(m.content)) !== null) {
-      // Compact label — last segment for paths so the chip stays short.
-      const tok = mm[0];
-      if (tok.includes(":")) {
-        const [head, ...rest] = tok.split(":");
-        const tail = rest.join(":");
-        const short = tail.split(/[/\\]/).pop() ?? tail;
-        matches.push(`${head}:${short}`);
-      } else if (tok.startsWith("@/") || tok.startsWith("@\\")) {
-        const short = tok.split(/[/\\]/).pop() ?? tok;
-        matches.push(`@${short}`);
-      } else {
-        matches.push(tok);
-      }
-      if (matches.length >= 8) break;
-    }
-    // Wave 121 — also surface implicit path mentions (no @-prefix) the
-    // backend resolved. Match same regex shape as wave 120 / backend,
-    // capped at 3 to mirror the cap in `expand_at_tokens`.
-    const mentionRe =
-      /\b[\w.-]+(?:[/\\][\w.-]+)+\.(?:rs|ts|tsx|js|jsx|py|go|java|kt|c|cc|cpp|h|hpp|rb|php|swift|scala|md|toml|yaml|yml|json|css|scss|html|sh|sql|proto|gradle|zig|dart|elm|json5|lua|nix|tf|mjs|cjs|astro|vue|svelte|jl|ex|exs|clj|hs|ml)(?::\d+(?::\d+)?)?\b/g;
-    let mn: RegExpExecArray | null;
-    let mentionCount = 0;
-    while ((mn = mentionRe.exec(m.content)) !== null) {
-      const tail = mn[0].split(/[/\\]/).pop() ?? mn[0];
-      matches.push(`📎 ${tail}`);
-      mentionCount += 1;
-      if (mentionCount >= 3) break;
-      if (matches.length >= 11) break;
-    }
-    return matches;
-  }, [m.content, m.role]);
-  return (
-    <div className={`msg msg-${m.role}${continuesAuthor ? " msg-cont" : ""}`}>
-      {!continuesAuthor ? (
-        <div className="msg-role">
-          <strong>{m.agent ?? m.role}</strong>
-          {m.pending && <span className="cursor"> ▎</span>}
-        </div>
-      ) : (
-        // Grouped follow-up: the author label is suppressed, but keep the
-        // streaming cursor visible while this turn is still generating.
-        m.pending && <span className="cursor msg-cont-cursor">▎</span>
-      )}
-      {attachmentChips.length > 0 && (
-        <div
-          className="msg-attachments"
-          role="list"
-          aria-label="Brain attachments on this message"
-        >
-          {attachmentChips.map((c, i) => {
-            // Wave 121 implicit-mention chips are prefixed with `📎 ` in
-            // the data array; wave 137 amber-tints them via data-mention.
-            const isMention = c.startsWith("📎 ");
-            const label = isMention ? c.slice(2) : c;
-            // Wave 157 — tooltip on amber implicit-mention chips shows the
-            // actual basename + a hint, so a reviewer hovering over chips
-            // months later can tell at a glance which were implicit.
-            return (
-              <span
-                key={i}
-                className="msg-attachment-chip"
-                role="listitem"
-                data-mention={isMention ? "true" : undefined}
-                title={
-                  isMention
-                    ? `Auto-attached via implicit path mention: ${label}`
-                    : undefined
-                }
-              >
-                <Paperclip size={12} strokeWidth={1.75} aria-hidden="true" />{" "}
-                {label}
-              </span>
-            );
-          })}
-        </div>
-      )}
-      {m.pending && !m.content && m.tools.length === 0 && !m.reasoning && (
-        <ThinkingIndicator agent={m.agent} />
-      )}
-      {m.reasoning && (
-        <ReasoningBlock reasoning={m.reasoning} messageId={m.id} />
-      )}
-      {renderTimeline(m)}
-      {m.approval && (
-        <ApprovalPrompt
-          approval={m.approval}
-          onResolved={() => setApproval(m.id, null)}
-        />
-      )}
-      <MessageActions message={m} onRegenerate={onRegenerate} />
-    </div>
-  );
-});

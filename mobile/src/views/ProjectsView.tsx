@@ -47,8 +47,7 @@ export default function ProjectsView() {
         <div className="banner">
           Active: <strong>{projectName(activeProject)}</strong>
           <button
-            className="btn"
-            style={{ marginLeft: 10, padding: "4px 10px", fontSize: 12 }}
+            className="btn small banner-action"
             onClick={() => setActiveProject(null)}
           >
             Clear
@@ -83,7 +82,7 @@ export default function ProjectsView() {
       </div>
 
       <div className="pad">
-        <button className="btn" style={{ width: "100%" }} onClick={refresh}>
+        <button className="btn block" onClick={refresh}>
           Refresh
         </button>
       </div>

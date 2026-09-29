@@ -96,6 +96,9 @@ select:focus-visible {
   max-width: 720px;
   margin: 0 auto;
   background: var(--bg);
+  /* Landscape phones: keep content clear of the notch / home-indicator side. */
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 .app-header {
@@ -249,6 +252,15 @@ select:focus-visible {
   padding: 40px 20px;
   font-size: 14px;
 }
+.empty-hint {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+.note {
+  font-size: 12px;
+  margin-bottom: 10px;
+}
 
 .btn {
   border: 1px solid var(--border);
@@ -256,6 +268,27 @@ select:focus-visible {
   border-radius: var(--radius-sm);
   padding: 10px 14px;
   font-weight: 600;
+  /* 44px touch floor on every primary control (Apple HIG / WCAG 2.5.8). */
+  min-height: 44px;
+}
+.btn.block {
+  width: 100%;
+}
+/* Compact inline variant (banner actions) — keeps the 44px hit area via an
+   invisible extended tap zone. */
+.btn.small {
+  padding: 4px 10px;
+  font-size: 12px;
+  min-height: 32px;
+  position: relative;
+}
+.btn.small::after {
+  content: "";
+  position: absolute;
+  inset: -6px 0;
+}
+.banner-action {
+  margin-left: 10px;
 }
 .btn.primary {
   background: var(--accent);
@@ -428,8 +461,9 @@ select:focus-visible {
   resize: none;
   background: var(--bg-elev);
   border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 10px 14px;
+  border-radius: 22px;
+  padding: 11px 14px;
+  min-height: 44px;
   max-height: 140px;
   line-height: 1.35;
 }
@@ -440,8 +474,8 @@ select:focus-visible {
 
 .send {
   flex: 0 0 auto;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: none;
   background: var(--accent);
@@ -470,6 +504,10 @@ select:focus-visible {
   padding: 7px 10px;
   font-size: 13px;
   max-width: 100%;
+  min-height: 44px;
+}
+.model-select.block {
+  width: 100%;
 }
 
 /* ── Forms (Ultimate) ──────────────────────────────────────────────────── */
@@ -491,6 +529,7 @@ select:focus-visible {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
+  min-height: 44px;
 }
 .field textarea {
   resize: vertical;
@@ -547,6 +586,15 @@ select:focus-visible {
   align-items: center;
   gap: 7px;
   flex-wrap: wrap;
+}
+.subtask-task {
+  margin-top: 4px;
+}
+.card-task {
+  font-size: 13px;
+}
+.card .card-title .spacer {
+  flex: 1;
 }
 
 .model-race {
@@ -631,6 +679,7 @@ details.model-out .body {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-height: 56px;
   padding: 13px 14px;
   border-bottom: 1px solid var(--border-soft);
   background: none;
@@ -689,9 +738,46 @@ details.model-out .body {
 .approval {
   background: var(--bg-elev);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
   border-radius: var(--radius);
   padding: 13px;
   margin: 12px 14px;
+}
+.approval .card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+  font-weight: 650;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.approval .card-title .tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.approval .meta-line {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-family: ui-monospace, monospace;
+}
+/* Inbox header: pending count + manual refresh. */
+.inbox-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 14px 0;
+}
+.inbox-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
 }
 .approval .preview {
   background: var(--bg-sunken);
@@ -746,6 +832,13 @@ details.model-out .body {
   border-color: rgba(248, 113, 113, 0.4);
   color: var(--err);
 }
+/* Inside a message bubble / card rather than between list rows. */
+.banner.inline {
+  margin: 8px 0 0;
+}
+.banner.reconnecting {
+  margin: 0 0 10px;
+}
 
 /* ── Import ──────────────────────────────────────────────────────────────── */
 
@@ -756,6 +849,7 @@ details.model-out .body {
   font-weight: 600;
   font-size: 15px;
   padding: 4px 6px 4px 0;
+  min-height: 44px;
 }
 
 /* Icon-only header buttons (e.g. New chat) — keep a 44px tap target. */
@@ -862,6 +956,7 @@ details.model-out .body {
   flex: 1;
   background: var(--bg-elev);
   border: none;
+  min-height: 44px;
   padding: 9px 10px;
   font-weight: 600;
   font-size: 13px;
@@ -915,10 +1010,17 @@ details.model-out .body {
   border-radius: 8px;
   font-size: 11px;
   padding: 4px 9px;
-  min-height: 30px;
+  min-height: 32px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  position: relative;
+}
+/* Visually compact, but the tap zone extends to 44px. */
+.msg-copy::after {
+  content: "";
+  position: absolute;
+  inset: -6px -4px;
 }
 .msg-copy:active {
   background: var(--bg-elev-2);
@@ -935,7 +1037,13 @@ details.reasoning-toggle > summary {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-height: 30px;
+  min-height: 32px;
+  position: relative;
+}
+details.reasoning-toggle > summary::after {
+  content: "";
+  position: absolute;
+  inset: -6px -4px;
 }
 details.reasoning-toggle > summary::-webkit-details-marker {
   display: none;
