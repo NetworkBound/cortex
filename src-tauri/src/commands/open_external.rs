@@ -241,10 +241,14 @@ pub enum EditorFamily {
 /// Classify a program by its basename (case-insensitive, `.exe`/`.cmd`/`.bat`
 /// stripped, so `Code.cmd` and `/usr/bin/codium` both read as VS Code).
 pub fn editor_family(program: &str) -> EditorFamily {
-    let base = Path::new(program)
-        .file_name()
-        .map(|s| s.to_string_lossy().to_ascii_lowercase())
-        .unwrap_or_default();
+    // Split on both separators by hand: `Path::file_name` only knows the
+    // host's separator, so a Windows path handed over as a string (from a
+    // setting or the E2E fixtures) would keep its directories on Linux.
+    let base = program
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(program)
+        .to_ascii_lowercase();
     let base = base
         .strip_suffix(".exe")
         .or_else(|| base.strip_suffix(".cmd"))
