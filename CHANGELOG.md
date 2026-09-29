@@ -3,6 +3,74 @@
 All notable changes to Cortex are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [3.4.0] — 2026-09-29
+
+Speed and daily-driver polish. Everything below is verified by the E2E job,
+which launches the release build on Ubuntu and Windows and now records
+startup timings on every push.
+
+### Added
+- Needs attention: a pending approval raises a toast with an Open action,
+  a desktop notification when the window is hidden, an inbox row under a
+  new Approvals filter, and amber count badges on the Threads rail item
+  and per thread. Today opens with a Needs-attention card: approvals,
+  running threads with Stop, recent failures. Ctrl+Shift+A jumps to the
+  oldest approval.
+- Finished runs show "Done — n edits · m tools" with Diff, Review, Replay
+  and Copy actions.
+- Command palette v2 (Ctrl/Cmd+K): fuzzy search with recents over actions,
+  panels, threads, sessions, settings sections (deep-links open the tab and
+  highlight the card), projects, profiles and slash commands. Prefixes
+  `>` `@` `#` `/`. Platform-correct key hints.
+- The six shortcuts that were documented but never bound now work
+  (new chat, quick open, theme, compact, new window, jump to approval);
+  the shortcuts sheet is generated from the keymap.
+- Add a project folder in one click from the sidebar, the empty state,
+  the chat header and the palette.
+- The onboarding wizard detects installed agent CLIs and their login
+  state, asks for a project folder, and folds theme into one control.
+- Right-click in the file explorer: open in editor (VS Code family, Zed,
+  JetBrains, or the OS default, with line numbers where supported),
+  reveal in file manager, open a terminal here, copy path. The terminal
+  pane shows its working directory and can open an external terminal in
+  the project.
+- Routines can run on a local agent CLI without a gateway, pin an agent
+  and a project, run daily at a set time, and show their next run.
+
+### Changed
+- Startup and responsiveness:
+  - 41 panels, the settings modal, the onboarding wizard, the markdown
+    renderer and the xterm login modal load on demand; codemirror, xterm,
+    mermaid, highlight.js and markdown are separate vendor chunks.
+  - Streaming no longer re-renders the whole shell per token; token
+    fragments are merged every 16 ms before reaching the UI and SQLite.
+  - Keychain seeding, Tailscale and WSL probes and the sidecar spawn
+    leave the pre-window path; the gateway and vault keys are cached
+    after one read (list_agents did 13 keychain reads every 30 s).
+  - SQLite indexes for the Reliability Dashboard, Run Replay, usage and
+    semantic search; project discovery and file listing run off the
+    async runtime; twelve polling loops pause while the window is hidden.
+  - Release builds use thin LTO, one codegen unit and stripping.
+- Settings (3,800 lines) and the chat pane (2,500 lines) are split into
+  per-tab and per-part files with a shared section/toggle primitive.
+  Every toggle has a description; headings are sentence case; Esc closes
+  settings and Ctrl/Cmd+, toggles it; focus returns to the composer.
+- New chat empty state with project-aware example prompts and clickable
+  @-token and slash chips; approval, tool and error cards share one
+  frame; one design-token block; settings styles ship with the lazy
+  settings chunk.
+- Mobile: 44 px touch targets, safe-area padding, inbox header with a
+  pending count, clearer approval cards.
+
+### Fixed
+- An editor given as a Windows path was not recognised on Linux.
+- Crash reporting had no caller; window and render errors now reach it.
+
+### Build and CI
+- The E2E job records mount, first paint, window-shown, invoke count,
+  DOM size, heap and bundle size per OS on every run, with soft budgets
+  and a job-summary table.
+
 ## [3.3.0] — 2026-09-28
 
 New ways to reach Cortex from outside the app, cheaper Claude Code turns,
