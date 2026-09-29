@@ -50,6 +50,14 @@ static CONFIG_MS: OnceLock<u64> = OnceLock::new();
 static WINDOW_SHOWN_MS: OnceLock<u64> = OnceLock::new();
 static FIRST_SNAPSHOT_MS: OnceLock<u64> = OnceLock::new();
 static SNAPSHOT_SEQ: AtomicU64 = AtomicU64::new(0);
+// IPC counters (E2E only). Counted in the invoke handler wrapper below, so
+// they see every command regardless of which JS path issued it — the
+// renderer-side wrapper around `__TAURI_INTERNALS__.invoke` reads 0 because
+// Tauri's bridge object is not interposable from userland.
+static IPC_TOTAL: AtomicU64 = AtomicU64::new(0);
+static IPC_FIRST_5S: AtomicU64 = AtomicU64::new(0);
+static IPC_BY_CMD: OnceLock<std::sync::Mutex<std::collections::HashMap<String, u64>>> =
+    OnceLock::new();
 static WINDOW_WATCHER_STARTED: AtomicBool = AtomicBool::new(false);
 
 fn timing_json(seq: u64) -> serde_json::Value {
@@ -59,7 +67,66 @@ fn timing_json(seq: u64) -> serde_json::Value {
         "window_shown_ms": WINDOW_SHOWN_MS.get().copied(),
         "first_snapshot_ms": FIRST_SNAPSHOT_MS.get().copied(),
         "snapshot_seq": seq,
+        "ipc_total": IPC_TOTAL.load(Ordering::Relaxed),
+        "ipc_first5s": IPC_FIRST_5S.load(Ordering::Relaxed),
+        "ipc_top": ipc_top(8),
     })
+}
+
+/// The `n` most-invoked commands as `[{cmd, value}]`, matching the shape the
+/// renderer's own (now redundant) counter used so run-app.mjs prints either.
+fn ipc_top(n: usize) -> serde_json::Value {
+    let Some(map) = IPC_BY_CMD.get() else {
+        return serde_json::json!([]);
+    };
+    let Ok(map) = map.lock() else {
+        return serde_json::json!([]);
+    };
+    let mut rows: Vec<(&String, &u64)> = map.iter().collect();
+    rows.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
+    serde_json::json!(rows
+        .into_iter()
+        .take(n)
+        .map(|(cmd, value)| serde_json::json!({ "cmd": cmd, "value": value }))
+        .collect::<Vec<_>>())
+}
+
+/// Record one IPC command. "First 5 s" is measured from the moment the
+/// renderer's JS came up (`config_ms`); calls before that also count, since
+/// they are boot traffic by definition. `e2e_*` commands are the probe's own.
+fn count_invoke(cmd: &str) {
+    if cmd.starts_with("e2e_") {
+        return;
+    }
+    IPC_TOTAL.fetch_add(1, Ordering::Relaxed);
+    let in_window = match CONFIG_MS.get() {
+        Some(cfg) => now_ms().saturating_sub(*cfg) < 5_000,
+        None => true,
+    };
+    if in_window {
+        IPC_FIRST_5S.fetch_add(1, Ordering::Relaxed);
+    }
+    let map = IPC_BY_CMD.get_or_init(|| std::sync::Mutex::new(Default::default()));
+    if let Ok(mut m) = map.lock() {
+        *m.entry(cmd.to_string()).or_insert(0) += 1;
+    }
+}
+
+/// Wrap the app's `generate_handler!` output so every IPC command is counted
+/// while E2E is armed. Outside E2E the wrapper is a plain pass-through.
+pub fn counting_handler<F>(
+    inner: F,
+) -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static
+where
+    F: Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static,
+{
+    let armed = e2e_enabled();
+    move |invoke| {
+        if armed {
+            count_invoke(invoke.message.command());
+        }
+        inner(invoke)
+    }
 }
 
 /// Poll the main window until it is visible and stamp `WINDOW_SHOWN_MS`.

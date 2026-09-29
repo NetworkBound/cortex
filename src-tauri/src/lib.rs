@@ -326,7 +326,7 @@ fn run_tauri(state: AppState, tracing_store: TracingStore, gateway_candidates: V
         .plugin(tauri_plugin_store::Builder::default().build())
         .manage(state)
         .manage(tracing_store)
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(commands::e2e::counting_handler(tauri::generate_handler![
             commands::chat::chat_send,
             commands::chat::approve_run,
             commands::chat::stop_run,
@@ -763,7 +763,7 @@ fn run_tauri(state: AppState, tracing_store: TracingStore, gateway_candidates: V
             commands::tailscale::ts_wsl_status,
             commands::tailscale::ts_wsl_stop,
             commands::tailscale::ts_mobile_pairing,
-        ])
+        ]))
         .setup(move |app| {
             tracing::info!("cortex started");
             if let Some(win) = tauri::Manager::get_webview_window(app, "main") {

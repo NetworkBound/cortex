@@ -191,8 +191,18 @@ function collectMetrics(first, latest, startedAt) {
     domContentLoadedMs: p.domContentLoadedMs ?? null,
     projectsLoadedMs: p.projectsLoadedMs ?? null,
     gatewayResolvedMs: p.gatewayResolvedMs ?? null,
-    invokeCountFirst5s: p.invokeWindowClosed ? p.invokeCountFirst5s : null,
-    invokeCountTotal: p.invokeCountTotal ?? null,
+    // Backend counts (counted in the Rust invoke handler) win; the renderer's
+    // bridge wrapper cannot see Tauri's IPC and always reads 0.
+    invokeCountFirst5s:
+      typeof t.ipc_first5s === "number"
+        ? t.ipc_first5s
+        : p.invokeWindowClosed
+          ? p.invokeCountFirst5s
+          : null,
+    invokeCountTotal:
+      typeof t.ipc_total === "number"
+        ? t.ipc_total
+        : (p.invokeCountTotal ?? null),
     domNodes: p.domNodes ?? snap.dom?.totalNodes ?? null,
     jsHeapUsedMB: p.jsHeapUsedMB ?? null,
     // backend (ms since boot_ms)
@@ -349,9 +359,12 @@ function reportMetrics(first, latest, startedAt) {
     }
   }
 
-  const top = Array.isArray(perf.invokeTopCommands)
-    ? perf.invokeTopCommands
-    : [];
+  const top =
+    Array.isArray(timing.ipc_top) && timing.ipc_top.length
+      ? timing.ipc_top
+      : Array.isArray(perf.invokeTopCommands)
+        ? perf.invokeTopCommands
+        : [];
   const slow = Array.isArray(perf.invokeSlowestMs) ? perf.invokeSlowestMs : [];
   if (top.length) {
     console.log(
