@@ -1179,7 +1179,11 @@ fn safe_rel_path(p: &str) -> Result<String, ApiError> {
         return Err(ApiError::invalid("path is required"));
     }
     let path = Path::new(p);
+    // `has_root` catches "/abs" on Windows too, where a rootless drive-less
+    // path is not `is_absolute()` but still escapes the project root.
     if path.is_absolute()
+        || path.has_root()
+        || p.starts_with(['/', '\\'])
         || path.components().any(|c| {
             matches!(
                 c,

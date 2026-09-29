@@ -375,6 +375,9 @@ pub fn list_threads(
     let project_norm = project.map(|p| p.trim_end_matches(['/', '\\']).to_string());
     let mut out: Vec<ThreadView> = Vec::new();
     let mut next_cursor: Option<String> = None;
+    // `last_ms` of the newest-to-oldest row most recently pushed; becomes the
+    // cursor when a further row proves there is another page.
+    let mut page_last: Option<i64> = None;
     for (id, last) in ids {
         if cursor.is_some_and(|c| last >= c) {
             continue;
@@ -393,9 +396,10 @@ pub fn list_threads(
             }
         }
         if out.len() == limit {
-            next_cursor = Some(last.to_string());
+            next_cursor = page_last.map(|v| v.to_string());
             break;
         }
+        page_last = Some(last);
         out.push(view);
     }
     (out, next_cursor)
